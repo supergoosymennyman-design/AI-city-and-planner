@@ -30,4 +30,9 @@ export interface GameContext {
   bus: EventBus; // UI notifications only (NOT authoritative state)
   teacher: TeacherControls; // step/reset/replay/skip
   telemetry: Telemetry; // privacy-safe, offline-by-default (thin stub v1)
+  /**
+   * OS "reduce motion" preference (§6b R19). The host reads `prefers-reduced-motion` so
+   * games branch on it WITHOUT touching `window.*` (golden rule #2). Additive surface.
+   */
+  reducedMotion: boolean;
 }

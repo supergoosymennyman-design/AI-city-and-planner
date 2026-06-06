@@ -1,0 +1,332 @@
+/*
+ * Color the Rainbow — game styles (CRAYON COLOURING-BOOK standard).
+ * Warm paper, hand-drawn wobble, sticker-lift shadows, big rounded targets. Pulls every
+ * colour/space/shadow from @edu/ui tokens (var(--edu-*)) so the look stays consistent
+ * across games. Class prefix `ctr-` avoids collisions when a host mounts several games.
+ */
+
+.ctr-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100dvh;
+  font-family: var(--edu-font);
+  color: var(--edu-ink, #4a3f2f);
+  background: linear-gradient(160deg, var(--edu-bg, #fbf3e2), var(--edu-bg-2, #f4e7cd));
+  user-select: none;
+  overflow: hidden;
+}
+/* Paper grain overlay — atmosphere without an asset or CDN (token-provided SVG noise). */
+.ctr-app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--edu-paper-grain);
+  opacity: 0.06;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+.ctr-app > * {
+  position: relative;
+}
+.ctr-app button {
+  touch-action: manipulation;
+}
+
+/* ---- top bar: bot + speech bubble + score ---- */
+.ctr-top {
+  display: flex;
+  align-items: center;
+  gap: var(--edu-gap, 14px);
+  padding: 18px 22px;
+}
+.ctr-bot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.ctr-bot-char {
+  font-size: 2.8rem;
+  line-height: 1;
+  animation: ctr-bob 2.6s ease-in-out infinite;
+  filter: drop-shadow(0 4px 0 rgba(74, 63, 47, 0.15));
+}
+@keyframes ctr-bob {
+  50% {
+    transform: translateY(-6px) rotate(-3deg);
+  }
+}
+.ctr-bubble {
+  position: relative;
+  margin: 0;
+  padding: 14px 20px;
+  background: var(--edu-surface, #fffdf7);
+  border: 3px solid var(--edu-ink, #4a3f2f);
+  border-radius: 20px;
+  box-shadow: var(--edu-shadow);
+  font-size: 1.25rem;
+  font-weight: 700;
+  flex: 1;
+}
+.ctr-bubble::before {
+  /* little speech tail pointing at the bot */
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 22px;
+  width: 16px;
+  height: 16px;
+  background: var(--edu-surface, #fffdf7);
+  border-left: 3px solid var(--edu-ink);
+  border-bottom: 3px solid var(--edu-ink);
+  transform: rotate(45deg);
+}
+.ctr-score {
+  font-size: 1.8rem;
+  white-space: nowrap;
+  letter-spacing: 2px;
+}
+.ctr-score .star.f {
+  color: var(--edu-celebrate, #ffd23f);
+}
+.ctr-score .star.e {
+  color: #d8ccb0;
+}
+
+/* ---- stage ---- */
+.ctr-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px 28px;
+  overflow: auto;
+}
+.ctr-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+/* Each phase rises in with a gentle stagger (motion-safe via the global token rule). */
+.ctr-center > * {
+  animation: ctr-rise 0.5s var(--edu-ease-bounce) both;
+}
+.ctr-center > *:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.ctr-center > *:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.ctr-center > *:nth-child(4) {
+  animation-delay: 0.18s;
+}
+@keyframes ctr-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+.ctr-prompt {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+}
+.ctr-sub {
+  margin: 0;
+  font-size: 1.25rem;
+  opacity: 0.78;
+}
+
+/* ---- palette: chunky crayon swatches ---- */
+.ctr-palette {
+  display: flex;
+  gap: 18px;
+}
+.ctr-swatch {
+  width: var(--edu-tap-min, 64px);
+  height: var(--edu-tap-min, 64px);
+  border: 4px solid var(--edu-surface, #fffdf7);
+  outline: 3px solid var(--edu-ink, #4a3f2f);
+  border-radius: 50%;
+  box-shadow: var(--edu-shadow);
+  cursor: pointer;
+  transition: transform var(--edu-dur-fast) var(--edu-ease-bounce);
+}
+.ctr-swatch.sel {
+  transform: scale(1.16) translateY(-2px);
+  outline-color: var(--edu-primary, #ff7a3d);
+  outline-width: 5px;
+}
+.ctr-swatch:focus-visible {
+  outline-color: var(--edu-blue, #3f8cff);
+  outline-width: 5px;
+}
+
+/* ---- the draw-to-fill paint surface ---- */
+.ctr-paint {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.ctr-paint-canvas {
+  width: min(72vw, 340px);
+  aspect-ratio: 1;
+  background: var(--edu-surface, #fffdf7);
+  border-radius: 28px;
+  box-shadow: var(--edu-shadow);
+  cursor: crosshair;
+}
+.ctr-coverage {
+  width: min(60vw, 260px);
+  height: 16px;
+  background: #e7dcc3;
+  border: 2px solid var(--edu-ink, #4a3f2f);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ctr-coverage-fill {
+  height: 100%;
+  background: var(--edu-primary, #ff7a3d);
+  border-radius: 999px;
+  transition: width var(--edu-dur-fast) ease;
+}
+.ctr-fill-btn {
+  font-size: 1.1rem;
+}
+
+/* success sparkle burst (skipped under reduced-motion: component doesn't render it) */
+.ctr-sparkle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.ctr-sparkle span {
+  position: absolute;
+  font-size: 2rem;
+  animation: ctr-spark 0.8s var(--edu-ease-bounce) forwards;
+  animation-delay: calc(var(--i) * 45ms);
+}
+@keyframes ctr-spark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3);
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc((var(--i) - 2) * 52px), -76px) scale(1.4) rotate(40deg);
+  }
+}
+
+/* ---- answer / name buttons (crayon-coloured) ---- */
+.ctr-answer-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+/* "🎤 Listening…" — the voice-input cue (STT). Gently pulses while the mic is open. */
+.ctr-listening {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--edu-primary, #ff7a3d);
+  animation: ctr-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ctr-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.ctr-answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+}
+.ctr-name-btn {
+  min-height: var(--edu-tap-min, 64px);
+  min-width: 128px;
+  padding: 0 26px;
+  font-family: var(--edu-font);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #fffdf7;
+  border: 3px solid var(--edu-ink, #4a3f2f);
+  border-radius: var(--edu-radius, 22px);
+  box-shadow: var(--edu-shadow);
+  cursor: pointer;
+  transition: transform var(--edu-dur-fast) var(--edu-ease-bounce);
+}
+.ctr-name-btn:active {
+  transform: translateY(4px);
+  box-shadow: var(--edu-shadow-press);
+}
+.ctr-name-btn:focus-visible {
+  outline: 4px solid var(--edu-blue, #3f8cff);
+  outline-offset: 3px;
+}
+.ctr-name-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.ctr-name-red {
+  background: var(--edu-red, #ef5a5a);
+}
+.ctr-name-blue {
+  background: var(--edu-blue, #3f8cff);
+}
+.ctr-name-yellow {
+  background: var(--edu-yellow, #f3c33f);
+  color: #5a4a00;
+}
+
+/* feedback wobble on the quiz shape */
+.ctr-shape-wrap[data-feedback='correct'] {
+  animation: ctr-pop 0.45s var(--edu-ease-bounce);
+}
+.ctr-shape-wrap[data-feedback='wrong'] {
+  animation: ctr-shake 0.4s ease;
+}
+@keyframes ctr-pop {
+  50% {
+    transform: scale(1.12);
+  }
+}
+@keyframes ctr-shake {
+  25% {
+    transform: translateX(-9px) rotate(-2deg);
+  }
+  75% {
+    transform: translateX(9px) rotate(2deg);
+  }
+}
+
+/* ---- result ---- */
+.ctr-result-score {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 800;
+}
+.ctr-stars-big {
+  font-size: 3.4rem;
+  letter-spacing: 8px;
+}
+.ctr-stars-big .star.f {
+  color: var(--edu-celebrate, #ffd23f);
+}
+.ctr-stars-big .star.e {
+  color: #d8ccb0;
+}

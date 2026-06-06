@@ -1,4 +1,9 @@
 {
   "files": [],
-  "references": [{ "path": "./packages/contract" }, { "path": "./packages/debug" }]
+  "references": [
+    { "path": "./packages/contract" },
+    { "path": "./packages/debug" },
+    { "path": "./packages/ui" },
+    { "path": "./games/kindergarten/color-the-rainbow" }
+  ]
 }

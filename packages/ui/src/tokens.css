@@ -1,0 +1,108 @@
+/*
+ * @edu/ui design tokens + base component classes — the platform's visual DNA.
+ * Standard set by the "Color the Rainbow" reference game: a warm CRAYON COLOURING-BOOK
+ * aesthetic (paper grain, hand-drawn wobble, sticker-lift shadows, rounded type).
+ * Imported once by a host: `import '@edu/ui/tokens.css'`. Change a value here → it
+ * propagates to every game. No hardcoded colours/fonts in games (golden rule #3 spirit).
+ */
+:root {
+  /*
+   * Rounded, on-device-distinctive type. `ui-rounded` resolves to SF Rounded on iPad
+   * (our primary target) for free — no Google Fonts, honouring the no-CDN rule (#4).
+   * Graceful, still-rounded fallbacks elsewhere.
+   */
+  --edu-font: ui-rounded, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', 'Quicksand',
+    'Segoe UI', system-ui, sans-serif;
+
+  /* Warm paper surfaces + warm "crayon ink" (never pure black — softer for young eyes). */
+  --edu-bg: #fbf3e2;
+  --edu-bg-2: #f4e7cd;
+  --edu-ink: #4a3f2f;
+  --edu-fg: var(--edu-ink);
+  --edu-surface: #fffdf7;
+
+  /* Crayon palette — the teachable colours + a warm crayon-orange brand. */
+  --edu-red: #ef5a5a;
+  --edu-blue: #3f8cff;
+  --edu-yellow: #f3c33f;
+  --edu-green: #5fbf6a;
+  --edu-primary: #ff7a3d;
+  --edu-primary-fg: #fffdf7;
+  --edu-celebrate: #ffd23f;
+
+  /* Shape & rhythm — generous rounding reads as friendly/toy-like. */
+  --edu-radius: 22px;
+  --edu-gap: 14px;
+
+  /* Sticker-lift shadow: a hard offset (the "cut-out" edge) + a soft ambient one. */
+  --edu-shadow: 0 6px 0 rgba(74, 63, 47, 0.18), 0 12px 22px rgba(74, 63, 47, 0.16);
+  --edu-shadow-press: 0 2px 0 rgba(74, 63, 47, 0.2);
+
+  /* Touch + motion. Targets are extra-large for kindergarten hands (> 44px floor, §6b). */
+  --edu-tap-min: 64px;
+  --edu-dur-fast: 140ms;
+  --edu-dur-base: 280ms;
+  --edu-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Subtle paper grain as an inline SVG noise (no asset, no CDN). Layer at low opacity. */
+  --edu-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------------------------------------------------------------------------
+ * Base component classes (the design-system primitives games share).
+ * Kept here (not inline in TSX) so :hover/:active/:focus-visible work.
+ * ------------------------------------------------------------------------- */
+
+/* The signature chunky "sticker" button: press it and it physically depresses. */
+.edu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--edu-tap-min);
+  min-width: var(--edu-tap-min);
+  padding: 0 28px;
+  font-family: var(--edu-font);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--edu-primary-fg);
+  background: var(--edu-primary);
+  border: 3px solid var(--edu-ink);
+  border-radius: var(--edu-radius);
+  box-shadow: var(--edu-shadow);
+  cursor: pointer;
+  touch-action: manipulation; /* kill 300ms tap delay + double-tap zoom */
+  transition: transform var(--edu-dur-fast) var(--edu-ease-bounce),
+    box-shadow var(--edu-dur-fast) ease;
+}
+.edu-btn:active {
+  transform: translateY(4px);
+  box-shadow: var(--edu-shadow-press);
+}
+.edu-btn:focus-visible {
+  outline: 4px solid var(--edu-blue);
+  outline-offset: 3px;
+}
+.edu-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+  box-shadow: var(--edu-shadow-press);
+}
+.edu-btn--secondary {
+  color: var(--edu-ink);
+  background: var(--edu-surface);
+}
+
+/*
+ * Motion safety (§6b R19): respect the OS "reduce motion" setting platform-wide. Games
+ * also branch on `prefers-reduced-motion` in JS to swap animated fills for instant ones.
+ */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
