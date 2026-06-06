@@ -26,6 +26,17 @@ React 18 + TypeScript + Vite · Zustand (sim state outside React) · Zod (schema
 Canvas 2D (hand-rolled, RAF outside React) · Vitest + RTL + Playwright + fast-check + axe ·
 npm workspaces. ML/UX OSS: port MobileNet+knn-classifier (tfjs 4.x) + MediaPipe Hands; React Aria, dnd-kit, Howler, idb, vite-plugin-pwa. See plan §1/§12.
 
+## Code style & comments (debuggability-first)
+Goal: when something breaks, the code + comments + failure make the cause obvious. Thorough, **not** maximal — a comment that lies is worse than none.
+- **TSDoc `/** */` on every export** (type, function, component): what it does, **why** it exists, **units** (e.g. *milli-units*), non-obvious params/returns, and a `§`/plan link where relevant. `@edu/contract` is the reference example.
+- **Inline `//` comments explain the WHY, not the what.** **Mandatory** in the hard-to-debug zones: deterministic sim, fixed-point math, the `tick`/merge, capability gating, schema migrations.
+- **Make failures loud** (this is what actually helps debugging):
+  - Specific error messages — include the offending value **and** what was expected.
+  - `assert(cond, msg)` / `invariant(cond, msg)` at invariant boundaries (serializable, `dependsOn` DAG, integer-only fixed-point). Use `@edu/debug`.
+  - Namespaced logging `debug('city:waste')(...)` — gated off in production, **never logs PII** (§5c). Distinct from `ctx.telemetry`.
+- **Name to need fewer comments:** descriptive names, named constants (no magic numbers), small functions. Keep source maps on (already in `tsconfig.base`).
+- **Anti-rot:** update or delete stale comments; don't restate the obvious; the comment-analyzer review flags rot.
+
 ## Repo map
 ```
 packages/   contract ui city engine toolbox ai i18n audio teacher telemetry   (@edu/*, CODEOWNERS-gated)
