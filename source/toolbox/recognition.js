@@ -511,6 +511,12 @@ RecognitionManager.prototype.getState = function(){
 
 RecognitionManager.prototype.destroy = function(){
   this.stopCamera();
+  // Release the WebGL tensors held by the TF.js model; GC doesn't free GPU memory,
+  // so dropping the reference alone leaks it. (coco-ssd exposes dispose(); guard
+  // in case a future detector type doesn't.)
+  if(this._detector && typeof this._detector.dispose === 'function'){
+    try { this._detector.dispose(); } catch(e){}
+  }
   this._detector = null;
   this._yoloInstance = null;
   this._yoloModelObj = null;

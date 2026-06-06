@@ -1,6 +1,8 @@
 /*
  * One-off regression tests for the toolbox test harness.
- * Run with:  node toolbox.test.js
+ * Run with:  node toolbox.test.cjs
+ * (Named .cjs because the repo-root package.json sets "type":"module"; this
+ *  test uses CommonJS require/__dirname and must run as a CommonJS script.)
  *
  * Bug A: test_toolbox.html references its modules with a wrong relative
  *        path prefix ("toolbox/..."), so the <script> tags 404 and the
