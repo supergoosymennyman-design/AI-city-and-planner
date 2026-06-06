@@ -1,0 +1,101 @@
+# PROGRESS — AI-Education Platform
+
+Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update this in every PR** that completes or starts a tracked item. Legend: ✓ done · ◐ in progress / partial · ☐ pending.
+
+> Snapshot date: 2026-06-06 · Branch: `main` (local, not pushed) · Last commit: `c512cd2`
+
+## Where things live
+- **Plan (source of truth):** [docs/PLAN.md](PLAN.md) (in-repo copy; original was authored in `~/.claude/plans/`).
+- **Rules/DoD:** [AGENTS.md](../AGENTS.md) · [DEFINITION_OF_DONE.md](../DEFINITION_OF_DONE.md)
+- **Done = git history; pending = this file.**
+
+---
+
+## Foundation (Plan §10)
+
+### Day 0 — Prerequisites
+- ✓ `git init` (root repo, remote `origin` → EdwardYCLui/AI-education, not pushed)
+- ◐ Monorepo scaffold — ✓ workspaces/`package.json`/`tsconfig.base`(allowJs)/`.nvmrc`/`.gitignore`/`.gitattributes`; ☐ Vite shared config, ☐ ESLint config
+- ☐ **Curriculum extraction** → `docs/curriculum/<lesson>.md` + `Lesson` enum (BLOCKS lesson cut / capability set) — R-blocker
+- ◐ Day-0/1 decisions: ✓ package scope `@edu/*`; ☐ deployment topology, ☐ https vs http, ☐ tfjs 4.x confirm, ☐ minimum device spec (all *recommended* in plan, not finalized)
+
+### Days 1–2 — Lock the spine (split freeze)
+- ✓ `@edu/contract` — all outer surfaces + inner sim types as real TS (verified `tsc --build` green)
+- ✓ Split-freeze structure (outer frozen; inner sim schema additive-only)
+- ✓ First-pass `Capability` set
+- ✓ `AGENTS.md` / `CLAUDE.md` + code-style standard
+- ✓ `@edu/debug` (debug/assert/invariant) — supports debuggability-first style
+- ◐ `validate-contracts` gate — ✓ manifest + a11y two-channel + `dependsOn` DAG; ☐ per-namespace `ext` schema registration, ☐ populated-state serializable/byte-identical harness
+- ☐ **Portable gate:** CI (GitHub Actions), CODEOWNERS, CodeRabbit, pre-push hook
+- ☐ R8 ML perf measurement on real tablet + ratify perf budget
+
+### Days 3–5 — Prove the hard paths
+- ☐ `@edu/city` (store + fixed-timestep clock + topo runner + RNG + save/load + migration registry)
+- ☐ `host-city` + `host-standalone` skeletons
+- ☐ `@edu/ui` starter + shared skills (edu-frontend/frontend-design/work-log) + `logs/` convention
+- ☐ scaffolder (`new-game`) + templates
+- ☐ runtime structural harness (fast-check determinism, populated serializable round-trip)
+- ☐ refactor one example (`nature_hunt`) → contract → clonable template
+- ☐ **Gate centerpiece:** 1 KG reference game + TWO interacting primary subsystems (live 1×–1000× deterministic + fast-forward view)
+
+---
+
+## Packages (`@edu/*`)
+- ✓ `contract`  ·  ✓ `debug`
+- ☐ `city` · ☐ `ui` · ☐ `engine` · ☐ `toolbox` · ☐ `ai` · ☐ `i18n` · ☐ `audio` · ☐ `teacher` · ☐ `telemetry`
+
+## Apps
+- ☐ `host-standalone` · ☐ `host-city` (the merge) · ☐ `launcher` (minimal in slice, R20)
+
+---
+
+## Cross-cutting requirements (Plan §9) — status
+| R | Item | Status | Note |
+|---|---|---|---|
+| R1 | Testing infra | ☐ | Vitest/RTL/Playwright/fast-check not wired yet |
+| R2 | Privacy / telemetry stub | ◐ | `Telemetry` iface in contract; impl + PII CI check pending |
+| R3 | Teacher controls | ◐ | `TeacherControls` iface in contract; impl pending |
+| R4 | Audio pipeline (English-primary) | ◐ | `AudioBus` iface in contract; impl pending |
+| R5 | Licensing | ☐ | per-asset LICENSE + check-licenses |
+| R6 / R17–R19 | Accessibility | ◐ | `manifest.a11y` + tap-present check ✓; Canvas PDOM, flash/motion, AT audit pending |
+| R7 | City art & layout | ☐ | owner + assets |
+| R8 | Device matrix | ☐ | Day-1 tablet must-verify (WebGL backend, memory, STT existence) |
+| R9 | Work logs | ◐ | convention documented; `logs/` dir + work-log skill usage pending |
+| R10 | Determinism + migration | ◐ | `SeededRng` + fixed-point in contract ✓; migration registry + fast-check harness pending |
+| R11 | Content pipeline (assets) | ☐ | owner + schedule |
+| R12 | Host fault tolerance | ☐ | snapshot/quarantine/rollback (§4h) |
+| R13 | Playtesting (kids+teacher, ~wk5) | ☐ | incl. SEN participant |
+| R14 | Session persistence | ◐ | `SessionInfo` in contract ✓; impl pending |
+| R15 | Consent / data governance | ☐ | DPA + parent notice + DPIA |
+| R16 | Client security (CSP/SRI/self-host) | ☐ | |
+| R20 | Classroom ops / launcher | ☐ | |
+| R21 | Capability gating + min spec | ◐ | `AIServices.probe` in contract ✓; gating + spec pending |
+| R22 | Salvage & port (`source/`) | ◐ | mapped + documented; porting pending |
+
+---
+
+## Verification gates (Plan §11) — foundation "done when"
+- ◐ 1 (workspaces resolve, pinned Node) — workspaces ✓; Node pin via `.nvmrc` ✓
+- ☐ 2 `new-game` → passes validate zero-edit
+- ☐ 3 host-standalone on tablet viewport (Playwright)
+- ☐ 4 two interacting subsystems (live + fast-forward, deterministic)
+- ◐ 5 `validate` + build green; CI mirror — local validate ✓; CI ☐
+- ☐ 6 sync-agents consistency
+- ☐ 7 offline play + STT fallback
+- ☐ 8 i18n layer proven (English complete)
+- ☐ 9 device matrix + live-scale ceiling measured
+- ☐ 10 fault tolerance test
+- ☐ 11 pedagogy loop (spec → manifest)
+
+---
+
+## Open decisions (Plan §12)
+☐ age band · ☐ hosting · ☐ lesson cut + 4-way split · ☐ second locale (post-v1) · ☐ CodeRabbit plan · ☐ evaluate PixiJS / XState / agent-ecosystem trim · ☐ Day-0/1: topology, https/http, tfjs version, min device spec
+
+---
+
+## Next up (recommended order)
+1. **Portable gate** — CI + CODEOWNERS + pre-push (lock enforcement before parallel work), or
+2. **`@edu/city`** — the riskiest core (store/clock/runner/RNG/save-load/migration), or
+3. **Curriculum extraction** — unblocks the lesson cut + capability set, or
+4. **Port a reference game** — `nature_hunt` → contract template (R22).

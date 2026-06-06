@@ -61,4 +61,6 @@ source/     existing prototype — salvage/port source (R22), not the product
 ## Definition of Done (per game)
 `validate` green · English complete + strings externalized · standalone (+ city for primary) · logic + render tests · tablet-viewport tested · a11y two-channel · no new heavy deps · no PII · pedagogy gates (objective, age-appropriate, teaches concept, `aiRepresentation` recorded, SME review).
 
-> Full rationale lives in the approved plan: `~/.claude/plans/i-am-setting-up-drifting-token.md`.
+## Plan & progress
+- **Plan (full rationale):** [docs/PLAN.md](docs/PLAN.md) — the approved spec; update here when scope changes.
+- **Progress (what's done / pending):** [docs/PROGRESS.md](docs/PROGRESS.md) — update in every PR that completes or starts a tracked item. Done = git history; pending = PROGRESS.md.
