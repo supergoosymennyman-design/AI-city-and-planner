@@ -1,0 +1,62 @@
+# CI — the portable gate (AGENTS.md: "CI is the real enforcer").
+#
+# WHY this exists: 4 devs build in parallel on different agents/models. No golden
+# rule may depend on an agent having read a prompt — so the rules run here, for
+# everyone, on every push and PR. This file is the single tool-agnostic gate.
+#
+# Determinism note (plan §4c/§8): sim replay is byte-identical ONLY on this pinned
+# engine. We pin Node via `.nvmrc` so CI is the canonical engine of record; local
+# float mismatches across dev machines are expected and are NOT a bug.
+#
+# Roadmap (plan §8) — steps added here AS the tooling lands, each its own gate:
+#   ESLint (no-Math.random / no ctx.bus-for-state / no persisted floats)  ← with @edu/city
+#   runtime structural harness (render/unmount + tick serializable + fast-check replay)
+#   vite build (host-standalone + host-city) → size budget → license check
+#   Playwright tablet smoke + @axe-core/playwright a11y + perf probe
+# Today the gate is `npm run validate` (tsc --build → validate-contracts), which is
+# the whole enforceable surface that currently exists. Keep it green.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel an in-flight run when a newer commit lands on the same ref — saves minutes
+# without ever skipping the gate on the tip commit.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: the gate only needs to read the repo. Widen deliberately if a
+# future step must comment on PRs or publish artifacts.
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate (typecheck + contracts)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # node-version-file reads `.nvmrc` → CI uses the EXACT pinned engine (24.16.0).
+      # This is what makes CI the canonical engine for deterministic replay (§8).
+      - name: Set up Node (pinned via .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `npm ci` installs strictly from the committed lockfile — reproducible, and
+      # fails loudly if package.json and lockfile have drifted (a real gate).
+      - name: Install (clean, from lockfile)
+        run: npm ci
+
+      # The gate. `validate` chains typecheck (tsc --build, which compiles the
+      # contract that validate-contracts then reads from dist/) → contracts.
+      - name: Validate (typecheck + contracts)
+        run: npm run validate

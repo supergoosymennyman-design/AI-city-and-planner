@@ -1,0 +1,47 @@
+name: Bug report
+description: Something is broken or behaving wrong
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **Never paste child data** (names, transcripts, camera/audio bytes) into an
+        issue (§5c). Redact before attaching logs or screenshots.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw vs what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: scope
+    attributes:
+      label: Where (package / game / app)
+      placeholder: "@edu/city, games/primary/waste-sorter, host-city…"
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Device + OS + browser if it's a tablet/runtime bug; Node version if it's a build bug.
+      placeholder: "iPad 9 / iPadOS 16.4 / Safari — or — Node 24.16.0 local build"
+  - type: dropdown
+    id: determinism
+    attributes:
+      label: Is this a sim-determinism mismatch?
+      description: Cross-machine float drift is EXPECTED and not a bug — only CI's pinned engine is canonical (§8).
+      options:
+        - "No"
+        - "Yes — and it reproduces on CI's pinned engine"
+        - "Yes — but only locally (likely expected float drift, not a bug)"

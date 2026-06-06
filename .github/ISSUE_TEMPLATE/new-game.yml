@@ -1,0 +1,80 @@
+name: New game
+description: Reserve a game id + record lesson/age-band before building (plan §8)
+title: "[game] <track>-L<lesson>-<slug>"
+labels: ["game"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **One issue per game.** Reserving the `id` here is how distribution stays
+        collision-free — there is no central index to hand-edit; the manifest `id` is
+        the source of truth (AGENTS.md golden rule 1). Build from the curriculum spec
+        in `docs/curriculum/<lesson>.md`, not from a fresh interpretation of the lesson.
+  - type: input
+    id: game-id
+    attributes:
+      label: Game id (globally unique, kebab-case)
+      description: Becomes the manifest `id` and the folder name. Must be unique across the repo.
+      placeholder: waste-sorter
+    validations:
+      required: true
+  - type: dropdown
+    id: track
+    attributes:
+      label: Track
+      options:
+        - kindergarten
+        - primary
+    validations:
+      required: true
+  - type: input
+    id: lesson
+    attributes:
+      label: Lesson number
+      placeholder: "12"
+    validations:
+      required: true
+  - type: input
+    id: age-band
+    attributes:
+      label: Target age band (single band; variants fan out later via lessonGroup)
+      placeholder: P5-P6
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Learning objective (what the child should LEARN, not "do")
+      description: Must trace back to the curriculum spec; copied into manifest.objective.
+    validations:
+      required: true
+  - type: input
+    id: big-idea
+    attributes:
+      label: AI4K12 Big Idea served (1–5)
+      placeholder: "3"
+    validations:
+      required: true
+  - type: dropdown
+    id: ai-representation
+    attributes:
+      label: aiRepresentation (real-vs-simulated honesty label, §5b)
+      options:
+        - real-model
+        - rule-based
+        - remix
+        - remote-real
+    validations:
+      required: true
+  - type: input
+    id: branch
+    attributes:
+      label: Branch name
+      placeholder: game/primary-12-waste-sorter
+  - type: checkboxes
+    id: prereqs
+    attributes:
+      label: Before building
+      options:
+        - label: A curriculum spec exists at docs/curriculum/<lesson>.md (or is linked here)
+        - label: This id is not already taken by another open issue or existing game

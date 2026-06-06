@@ -2,7 +2,7 @@
 
 Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update this in every PR** that completes or starts a tracked item. Legend: ✓ done · ◐ in progress / partial · ☐ pending.
 
-> Snapshot date: 2026-06-06 · Branch: `main` (local, not pushed) · Last commit: `c512cd2`
+> Snapshot date: 2026-06-06 · Branch: `main` (local, not pushed) · Latest: portable gate (CI + CODEOWNERS + CodeRabbit + pre-push hook)
 
 ## Where things live
 - **Plan (source of truth):** [docs/PLAN.md](PLAN.md) (in-repo copy; original was authored in `~/.claude/plans/`).
@@ -26,7 +26,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - ✓ `AGENTS.md` / `CLAUDE.md` + code-style standard
 - ✓ `@edu/debug` (debug/assert/invariant) — supports debuggability-first style
 - ◐ `validate-contracts` gate — ✓ manifest + a11y two-channel + `dependsOn` DAG; ☐ per-namespace `ext` schema registration, ☐ populated-state serializable/byte-identical harness
-- ☐ **Portable gate:** CI (GitHub Actions), CODEOWNERS, CodeRabbit, pre-push hook
+- ✓ **Portable gate:** CI (GitHub Actions `validate` job, pinned via `.nvmrc`), CODEOWNERS, `.coderabbit.yaml`, pre-push hook (`.githooks/` via `core.hooksPath`, no Husky dep), PR template (DoD) + new-game/bug issue forms — *CI activates once the repo is pushed*
 - ☐ R8 ML perf measurement on real tablet + ratify perf budget
 
 ### Days 3–5 — Prove the hard paths
@@ -79,7 +79,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - ☐ 2 `new-game` → passes validate zero-edit
 - ☐ 3 host-standalone on tablet viewport (Playwright)
 - ☐ 4 two interacting subsystems (live + fast-forward, deterministic)
-- ◐ 5 `validate` + build green; CI mirror — local validate ✓; CI ☐
+- ◐ 5 `validate` + build green; CI mirror — local validate ✓; CI workflow added (green once pushed)
 - ☐ 6 sync-agents consistency
 - ☐ 7 offline play + STT fallback
 - ☐ 8 i18n layer proven (English complete)
@@ -94,8 +94,10 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 
 ---
 
+_Done 2026-06-06: **Portable gate** — CI workflow, CODEOWNERS, CodeRabbit, pre-push hook, PR/issue templates._
+
 ## Next up (recommended order)
-1. **Portable gate** — CI + CODEOWNERS + pre-push (lock enforcement before parallel work), or
-2. **`@edu/city`** — the riskiest core (store/clock/runner/RNG/save-load/migration), or
-3. **Curriculum extraction** — unblocks the lesson cut + capability set, or
-4. **Port a reference game** — `nature_hunt` → contract template (R22).
+1. **`@edu/city`** — the riskiest core (store/clock/topo runner/RNG/save-load/migration), or
+2. **Curriculum extraction** — unblocks the lesson cut + capability set, or
+3. **Port a reference game** — `nature_hunt` → contract template (R22).
+4. *(deferred) ESLint config* — wire sim-rule lint (no-`Math.random` / no `ctx.bus`-for-state / no persisted floats) into `validate` + CI once `@edu/city` exists; linting sim rules needs sim code to lint.
