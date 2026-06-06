@@ -2,12 +2,19 @@
 
 Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update this in every PR** that completes or starts a tracked item. Legend: ✓ done · ◐ in progress / partial · ☐ pending.
 
-> Snapshot date: 2026-06-06 · Branch: `main` (local, not pushed) · Latest: portable gate (CI + CODEOWNERS + CodeRabbit + pre-push hook)
+> Snapshot date: 2026-06-06 · Branch: `game/kindergarten-1-color-the-rainbow` (local, not pushed) · Latest: first game + reviewer subagents
 
 ## Where things live
 - **Plan (source of truth):** [docs/PLAN.md](PLAN.md) (in-repo copy; original was authored in `~/.claude/plans/`).
 - **Rules/DoD:** [AGENTS.md](../AGENTS.md) · [DEFINITION_OF_DONE.md](../DEFINITION_OF_DONE.md)
 - **Done = git history; pending = this file.**
+
+## Recently done (2026-06-06)
+- ✓ **First game — Color the Rainbow** (KG Lesson 3, `games/kindergarten/color-the-rainbow`): draw-to-fill teachable-machine colour game on the **crayon `@edu/ui` standard**; honest learning (AI learns the label as given — no correction); voice STT + tap/keyboard fallback; passes `validate`.
+- ✓ **`@edu/ui` started** (crayon tokens + `Button`) · **`apps/host-standalone` skeleton** (Vite host + concrete `GameContext`: TTS/STT/audio/storage/teacher) · **`@edu/contract`** gained additive `reducedMotion`.
+- ✓ **Reviewer subagents** (`kid-ux-reviewer`, `contract-reviewer`, `core-guardian`, `game-scaffolder`) + `scripts/sync-agents.mjs` → `.claude/agents` + `.opencode/agent`. Dogfooded on the game: captured + fixed ~15 issues (hi-DPI draw bug, crash-proofing/error boundary, honest feedback, a11y).
+- ✓ Curriculum spec: `docs/curriculum/kindergarten-03-color-the-rainbow.md` (Lesson 3 extracted).
+- ☐ Still pending for this game: tests (logic + render), `/new-game` + `/review-game` workflow, `edu-frontend` skill. Stray `docs/repo-overview.{html,pdf}` (agent-generated) left untracked — decide keep/remove.
 
 ---
 
@@ -95,6 +102,9 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 ---
 
 _Done 2026-06-06: **Portable gate** — CI workflow, CODEOWNERS, CodeRabbit, pre-push hook, PR/issue templates._
+
+## Parked (designed, revisit after first games)
+- **Generated SME progress board** (`docs/STATUS.md`) — design agreed 2026-06-06, **deferred** to prioritize shipping games (likely to change once real games/curriculum exist). Full design: [PLAN.md §6c](PLAN.md). In brief: a generative (never-hand-edited) board for the Education SME; sources = `docs/curriculum/lessons.json` registry + curriculum frontmatter + game manifests; `scripts/gen-status.mjs` (deterministic) + a `status:check` freshness gate in `validate`; doc-map nav headers + CLAUDE agent note.
 
 ## Next up (recommended order)
 1. **`@edu/city`** — the riskiest core (store/clock/topo runner/RNG/save-load/migration), or

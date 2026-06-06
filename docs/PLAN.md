@@ -293,6 +293,33 @@ A voice/camera/audio-first design *structurally excludes* deaf, non-verbal, blin
 
 ---
 
+## 6c. Generated SME progress board (DEFERRED — design captured 2026-06-06, revisit after first games)
+
+**Status: DEFERRED** to prioritize shipping games; design agreed but likely to change once real games + curriculum exist. Captured here so it isn't lost.
+
+**Goal:** an Education-SME-facing, lesson/game-centric **progress board** at `docs/STATUS.md`, **generated** (never hand-edited) so it can't drift — modeled on the work-log team-mode `summary.md` shape.
+
+**Layout (hybrid):** "where we are" narrative + one-line foundation facts + **⚠ Needs your attention (SME)** strip + games **pipeline buckets** (📋 Spec needed → ✍️ Spec ready → 🔨 Building → 🔍 Needs SME review → ✅ Done) + drill-down links (spec · game · PROGRESS · PLAN · AGENTS).
+
+**Sources of truth (everything derived — no hand-asserted status):**
+- `docs/curriculum/lessons.json` — canonical lesson registry `[{lesson, track, title, ageBand?}]`; enables "gap" rows. The later `Lesson` enum derives from / is checked against it (so building this **de-risks** curriculum extraction, doesn't duplicate it).
+- `docs/curriculum/<lesson>.md` frontmatter — `smeReviewed`/`reviewer`/`owner` (SME edits the doc they own); spec-exists = file present.
+- compiled game manifests (`dist/manifest.js`) — built + pedagogy + a11y badges derived (Zod-validated, same path as `validate-contracts`).
+
+**Bucket logic:** no spec → 📋 · spec, no manifest → ✍️ · manifest invalid/incomplete → 🔨 · gates pass + `smeReviewed:false` → 🔍 · gates pass + reviewed → ✅.
+
+**Generator:** `scripts/gen-status.mjs` — zero-dep Node ESM, hand-parses simple frontmatter, **deterministic (no timestamps, stable ordering)**, no network, honest empty-state; writes `docs/STATUS.md` with a "GENERATED — do not edit" banner.
+
+**Connective tissue (the "connect with CLAUDE/AGENTS" asks):**
+- **Enforced freshness:** `npm run status` writes; `npm run status:check` regenerate-and-diffs (fails if stale) and is added to `validate` → CI + pre-push enforce it with no `ci.yml` edit (replaces a human checklist).
+- **Doc map** in AGENTS.md + a one-line nav header on PLAN/PROGRESS/STATUS (AGENTS = rules · PLAN = why · PROGRESS = tech state · STATUS = board · CLAUDE = Claude layer).
+- **Per-item traceability** via manifest-derived gate badges.
+- **CLAUDE.md** note: STATUS is generated; run `npm run status` after touching a manifest/curriculum file; never hand-edit.
+
+**Out of scope:** full curriculum extraction (separate task — only the registry schema + seed belong here), HTML dashboard, second language, CI auto-commit.
+
+---
+
 ## 7. Agent & subagent ecosystem
 
 **Four mechanisms, each matched to what it's best at — this *is* the structure:**
