@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🌿 Eco-Balance Simulator | Rabbit-Fox-Grass Ecosystem (Improved Grass)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(145deg, #1a472a 0%, #0e2a1a 100%);
+            font-family: 'Segoe UI', 'Poppins', system-ui, 'Roboto', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px;
+        }
+
+        .sim-card {
+            max-width: 780px;
+            width: 100%;
+            background: rgba(30, 20, 12, 0.75);
+            backdrop-filter: blur(3px);
+            border-radius: 3rem;
+            box-shadow: 0 25px 40px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+            padding: 1.2rem;
+            transition: all 0.2s;
+        }
+
+        .grid-container {
+            background: #2b5e2b;
+            border-radius: 1.8rem;
+            padding: 1rem;
+            box-shadow: inset 0 0 0 2px #6f9e6f, 0 12px 24px rgba(0,0,0,0.3);
+        }
+
+        .eco-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            background-color: #3c2a1f;
+            border-radius: 1rem;
+            overflow: hidden;
+            aspect-ratio: 1 / 1;
+            border: 3px solid #e9c891;
+        }
+
+        .cell {
+            background-color: #5c3e1f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.7rem;
+            transition: all 0.05s linear;
+            border: 1px solid #7e5a3a;
+            text-shadow: 0 1px 1px black;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .cell::after {
+            content: attr(data-energy);
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 0.55rem;
+            font-weight: bold;
+            background: rgba(0,0,0,0.7);
+            color: #ffd966;
+            padding: 1px 3px;
+            border-radius: 12px;
+            font-family: monospace;
+            pointer-events: none;
+            line-height: 1;
+        }
+
+        .stats-panel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 0.8rem;
+            margin: 1.2rem 0 1rem;
+            background: #2c2118cc;
+            padding: 0.8rem 1.2rem;
+            border-radius: 2rem;
+            backdrop-filter: blur(4px);
+            color: #f9eec1;
+        }
+
+        .stat {
+            background: #00000055;
+            border-radius: 2rem;
+            padding: 0.3rem 0.9rem;
+            font-weight: bold;
+            display: flex;
+            gap: 0.5rem;
+            align-items: baseline;
+            font-size: 1rem;
+        }
+
+        .stat span:first-child {
+            font-size: 1.2rem;
+        }
+
+        .control-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-top: 1rem;
+            justify-content: center;
+        }
+
+        button {
+            background: #ecd89e;
+            border: none;
+            font-weight: bold;
+            padding: 0.5rem 1.2rem;
+            border-radius: 3rem;
+            font-size: 0.9rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: 0.1s linear;
+            box-shadow: 0 3px 0 #826a3e;
+            color: #2c1a0c;
+        }
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #826a3e;
+        }
+
+        .slider-group {
+            background: #1e2a1bcc;
+            border-radius: 2rem;
+            padding: 0.2rem 1rem;
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+            flex-wrap: wrap;
+            color: #f3e1b3;
+        }
+        input {
+            width: 90px;
+            background: #fef2cf;
+            border-radius: 2rem;
+            border: none;
+            padding: 0.3rem 0.5rem;
+            font-weight: bold;
+        }
+
+        .predict-box {
+            background: #0f2c0f;
+            border-radius: 1.5rem;
+            margin-top: 1rem;
+            padding: 0.6rem 1rem;
+            text-align: center;
+            font-size: 0.9rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .prediction-badge {
+            background: #ffd966;
+            color: #2c2b1f;
+            padding: 0.3rem 0.9rem;
+            border-radius: 3rem;
+            font-weight: bold;
+        }
+
+        .round-counter {
+            font-family: monospace;
+            font-size: 1.1rem;
+            background: black;
+            display: inline-block;
+            padding: 0.2rem 0.8rem;
+            border-radius: 2rem;
+        }
+
+        hr {
+            border-color: #7faa5f;
+            margin: 0.6rem 0;
+        }
+        @media (max-width: 550px) {
+            .cell { font-size: 1.2rem; }
+            .cell::after { font-size: 0.45rem; }
+            .stat { font-size: 0.7rem; padding: 0.2rem 0.6rem; }
+        }
+        .tooltip-msg {
+            font-size: 0.7rem;
+            margin-top: 5px;
+            text-align: center;
+            color: #ddcca5;
+        }
+        .warning {
+            color: #ffb347;
+        }
+    </style>
+</head>
+<body>
+<div class="sim-card">
+    <div style="text-align: center; margin-bottom: 6px;">
+        <span style="font-size: 1.8rem;">⚖️ ECO-BALANCE SIMULATOR 🌿</span>
+        <div class="tooltip-msg">🐇 eats 🌱 → +3⚡ • ⚡>5 → baby on empty • 🦊 eats 🐇 → +5⚡ • 3 turns no rabbit → lose extra ⚡ • 🌱 regrows if no rabbit nearby 1 turn (+random grass spawn)</div>
+    </div>
+
+    <div class="grid-container">
+        <div class="eco-grid" id="ecogrid"></div>
+    </div>
+
+    <div class="stats-panel">
+        <div class="stat">🌾 Grass: <span id="grassCount">0</span></div>
+        <div class="stat">🐇 Rabbits: <span id="rabbitCount">0</span> <span style="font-size:0.7rem;">(avg❤️ <span id="avgRabbitEnergy">-</span>)</span></div>
+        <div class="stat">🦊 Foxes: <span id="foxCount">0</span> <span style="font-size:0.7rem;">(avg❤️ <span id="avgFoxEnergy">-</span>)</span></div>
+        <div class="stat round-counter">🔁 ROUND: <span id="roundNum">0</span></div>
+    </div>
+
+    <div class="control-bar">
+        <button id="stepBtn">▶ STEP (1 round)</button>
+        <button id="step10Btn">⏩ RUN 10 ROUNDS</button>
+        <button id="resetBtn">🔄 RESET & INIT</button>
+    </div>
+
+    <div class="slider-group">
+        <label>🐇 Start Rabbits: <input type="number" id="initRabbits" min="0" max="30" value="8" step="1"></label>
+        <label>🦊 Start Foxes: <input type="number" id="initFoxes" min="0" max="15" value="3" step="1"></label>
+        <label>🌱 Start Grass: <input type="number" id="initGrass" min="5" max="45" value="28" step="1"></label>
+        <button id="applyInitBtn">🌿 APPLY & RESTART</button>
+    </div>
+
+    <div class="predict-box">
+        <span>🔮 PREDICTION: <i>"Will Foxes survive 10 rounds from current start?"</i></span>
+        <div style="display: flex; gap: 12px;">
+            <select id="forecastSelect">
+                <option value="yes">✅ YES, they will survive</option>
+                <option value="no">❌ NO, they will go extinct</option>
+            </select>
+            <button id="checkPredictionBtn">📊 CHECK ACTUAL</button>
+        </div>
+        <div id="predictionResult" class="prediction-badge" style="background:#3a2c1f; color:#f7e5b5;">⚡ not yet verified</div>
+    </div>
+    <hr>
+    <div style="font-size:0.7rem; text-align:center; color:#c3b386;">✨ Improved grass: regrowth in 1 turn + random spawn | Rabbit gains +3 energy per grass</div>
+</div>
+
+<script>
+    // ------ CONFIGURATION ------
+    const SIZE = 10;
+    let grid = [];            // 2D: each cell = { type, energy?, hungerT? }
+    let regrowTimer = [];     // counters for empty cells: accumulate until 1 (now 1 turn to regrow)
+    let currentRound = 0;
+
+    // Helper: deep copy grid for actions? we'll use snapshot & commit system
+    // but for maintainability: turn-based commit using update queues.
+
+    function initDataStructures() {
+        grid = Array(SIZE).fill().map(() => Array(SIZE).fill().map(() => ({ type: 'empty' })));
+        regrowTimer = Array(SIZE).fill().map(() => Array(SIZE).fill(0));
+    }
+
+    // random placement with given counts
+    function randomPlacement(rabbitCount, foxCount, grassCount) {
+        initDataStructures();
+        const totalCells = SIZE * SIZE;
+        let availablePositions = [];
+        for (let i = 0; i < SIZE; i++)
+            for (let j = 0; j < SIZE; j++)
+                availablePositions.push([i, j]);
+
+        // shuffle
+        for (let i = availablePositions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [availablePositions[i], availablePositions[j]] = [availablePositions[j], availablePositions[i]];
+        }
+
+        let idx = 0;
+        // place grass
+        let grassPlaced = 0;
+        while (grassPlaced < grassCount && idx < availablePositions.length) {
+            const [x, y] = availablePositions[idx++];
+            grid[x][y] = { type: 'grass' };
+            grassPlaced++;
+        }
+        // place rabbits
+        let rabbitPlaced = 0;
+        while (rabbitPlaced < rabbitCount && idx < availablePositions.length) {
+            const [x, y] = availablePositions[idx++];
+            if (grid[x][y].type === 'empty') {
+                grid[x][y] = { type: 'rabbit', energy: 4 };   // base energy = 4
+                rabbitPlaced++;
+            }
+        }
+        // place foxes
+        let foxPlaced = 0;
+        while (foxPlaced < foxCount && idx < availablePositions.length) {
+            const [x, y] = availablePositions[idx++];
+            if (grid[x][y].type === 'empty') {
+                grid[x][y] = { type: 'fox', energy: 6, hungerCounter: 0 };
+                foxPlaced++;
+            }
+        }
+        // reset regrowTimer for empty cells
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE; j++) {
+                if (grid[i][j].type === 'empty') regrowTimer[i][j] = 0;
+                else regrowTimer[i][j] = 0;
+            }
+        }
+    }
+
+    // helper: get 8-neighbors
+    function getNeighbors(x, y) {
+        const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        const neighbors = [];
+        for (let [dx, dy] of dirs) {
+            let nx = x+dx, ny = y+dy;
+            if (nx>=0 && nx<SIZE && ny>=0 && ny<SIZE) neighbors.push([nx, ny]);
+        }
+        return neighbors;
+    }
+
+    // MAIN TURN LOGIC (improved grass and rabbit energy)
+    function simulateOneRound() {
+        // snapshot of current grid state
+        const oldGrid = JSON.parse(JSON.stringify(grid));
+        let newGrid = JSON.parse(JSON.stringify(grid));
+
+        // data structures for modifications
+        const grassToDelete = new Set();     // "x,y" of grass to remove
+        const rabbitsToDelete = new Set();   // rabbits eaten by foxes
+        const births = [];                   // {x, y, energy: 3}
+        const rabbitEnergyUpdates = new Map(); // key "x,y" -> {newEnergy, delete}
+        const foxUpdates = new Map();          // key "x,y" -> {newEnergy, newHunger, delete}
+
+        // collect rabbits
+        let rabbits = [];
+        for (let i=0; i<SIZE; i++) {
+            for (let j=0; j<SIZE; j++) {
+                if (oldGrid[i][j].type === 'rabbit') {
+                    rabbits.push({x:i, y:j, energy: oldGrid[i][j].energy});
+                }
+            }
+        }
+
+        // ----- RABBIT PHASE: eat grass (+3 energy) & reproduction -----
+        const eatenGrassSet = new Set(); // each grass eaten once
+        for (let r of rabbits) {
+            const {x, y, energy: currentEnergy} = r;
+            let newEnergy = currentEnergy;
+            // 1) try to eat adjacent grass
+            let neighbors = getNeighbors(x, y);
+            let targetGrass = null;
+            for (let [nx, ny] of neighbors) {
+                if (oldGrid[nx][ny].type === 'grass' && !eatenGrassSet.has(`${nx},${ny}`)) {
+                    targetGrass = [nx, ny];
+                    break;
+                }
+            }
+            if (targetGrass) {
+                const [gx, gy] = targetGrass;
+                eatenGrassSet.add(`${gx},${gy}`);
+                newEnergy += 3;   // 🐇 GAINS +3 ENERGY (was +2)
+                grassToDelete.add(`${gx},${gy}`);
+            }
+            // 2) reproduction if energy > 5
+            let reproductionHappened = false;
+            if (newEnergy > 5) {
+                const emptySpots = [];
+                for (let [nx, ny] of neighbors) {
+                    if (oldGrid[nx][ny].type === 'empty' && !births.some(b => b.x === nx && b.y === ny)) {
+                        emptySpots.push([nx, ny]);
+                    }
+                }
+                if (emptySpots.length > 0) {
+                    const [bx, by] = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+                    births.push({x: bx, y: by, energy: 3});
+                    newEnergy -= 4;   // reproduction cost
+                    reproductionHappened = true;
+                }
+            }
+            // 3) metabolism: lose 1 energy
+            newEnergy -= 1;
+            if (newEnergy <= 0) {
+                rabbitEnergyUpdates.set(`${x},${y}`, {newEnergy: 0, delete: true});
+            } else {
+                rabbitEnergyUpdates.set(`${x},${y}`, {newEnergy, delete: false});
+            }
+        }
+
+        // ----- FOX PHASE: eat rabbits, hunger & metabolism -----
+        let foxes = [];
+        for (let i=0; i<SIZE; i++) {
+            for (let j=0; j<SIZE; j++) {
+                if (oldGrid[i][j].type === 'fox') {
+                    foxes.push({x:i, y:j, energy: oldGrid[i][j].energy, hunger: oldGrid[i][j].hungerCounter || 0});
+                }
+            }
+        }
+        const rabbitEatenThisTurn = new Set();
+        for (let f of foxes) {
+            let {x, y, energy, hunger} = f;
+            let ateRabbit = false;
+            let neighbors = getNeighbors(x, y);
+            let targetRabbit = null;
+            for (let [nx, ny] of neighbors) {
+                if (oldGrid[nx][ny].type === 'rabbit' && !rabbitEatenThisTurn.has(`${nx},${ny}`) && !rabbitsToDelete.has(`${nx},${ny}`)) {
+                    targetRabbit = [nx, ny];
+                    break;
+                }
+            }
+            if (targetRabbit) {
+                const [rx, ry] = targetRabbit;
+                rabbitEatenThisTurn.add(`${rx},${ry}`);
+                rabbitsToDelete.add(`${rx},${ry}`);
+                energy += 5;      // fox gains energy
+                hunger = 0;
+                ateRabbit = true;
+            } else {
+                hunger += 1;
+            }
+            // Metabolism: all foxes lose 1 energy per round
+            energy -= 1;
+            // Hunger penalty: if hunger >=3 and didn't eat, extra -1 energy
+            if (!ateRabbit && hunger >= 3) {
+                energy -= 1;
+            }
+            let deleteFlag = false;
+            if (energy <= 0) deleteFlag = true;
+            foxUpdates.set(`${x},${y}`, {newEnergy: energy, newHunger: hunger, delete: deleteFlag});
+        }
+
+        // ---- APPLY ALL MODIFICATIONS to newGrid ----
+        // remove eaten grass
+        for (const coord of grassToDelete) {
+            const [x,y] = coord.split(',').map(Number);
+            if (newGrid[x][y].type === 'grass') newGrid[x][y] = { type: 'empty' };
+        }
+        // remove eaten rabbits
+        for (const coord of rabbitsToDelete) {
+            const [x,y] = coord.split(',').map(Number);
+            if (newGrid[x][y].type === 'rabbit') newGrid[x][y] = { type: 'empty' };
+        }
+        // apply rabbit updates
+        for (let [coord, data] of rabbitEnergyUpdates.entries()) {
+            const [x,y] = coord.split(',').map(Number);
+            if (newGrid[x][y].type === 'rabbit') {
+                if (data.delete) {
+                    newGrid[x][y] = { type: 'empty' };
+                } else {
+                    newGrid[x][y].energy = data.newEnergy;
+                }
+            }
+        }
+        // apply fox updates
+        for (let [coord, data] of foxUpdates.entries()) {
+            const [x,y] = coord.split(',').map(Number);
+            if (newGrid[x][y].type === 'fox') {
+                if (data.delete) {
+                    newGrid[x][y] = { type: 'empty' };
+                } else {
+                    newGrid[x][y].energy = data.newEnergy;
+                    newGrid[x][y].hungerCounter = data.newHunger;
+                }
+            }
+        }
+        // add newborns
+        for (let baby of births) {
+            const {x, y, energy} = baby;
+            if (newGrid[x][y].type === 'empty') {
+                newGrid[x][y] = { type: 'rabbit', energy: energy };
+            }
+        }
+
+        // ---- GRASS REGROWTH (NEW: only 1 turn needed + random extra grass) ----
+        let newRegrowTimer = Array(SIZE).fill().map(() => Array(SIZE).fill(0));
+        for (let i=0; i<SIZE; i++) {
+            for (let j=0; j<SIZE; j++) {
+                if (newGrid[i][j].type === 'empty') {
+                    // check if any rabbit neighbor (8-direction) in newGrid
+                    let hasRabbitNear = false;
+                    const neigh = getNeighbors(i,j);
+                    for (let [nx,ny] of neigh) {
+                        if (newGrid[nx][ny].type === 'rabbit') {
+                            hasRabbitNear = true;
+                            break;
+                        }
+                    }
+                    if (!hasRabbitNear) {
+                        let prev = regrowTimer[i][j] || 0;
+                        let newCounter = prev + 1;
+                        // REGROW AFTER JUST 1 TURN (previously 2)
+                        if (newCounter >= 1) {
+                            newGrid[i][j] = { type: 'grass' };
+                            newRegrowTimer[i][j] = 0;
+                        } else {
+                            newRegrowTimer[i][j] = newCounter;
+                        }
+                    } else {
+                        newRegrowTimer[i][j] = 0;
+                    }
+                } else {
+                    newRegrowTimer[i][j] = 0;
+                }
+            }
+        }
+
+        // ---- EXTRA RANDOM GRASS SPAWN (improve resilience) ----
+        // each round, 2 to 5 random empty cells become grass (if available)
+        let emptyCells = [];
+        for (let i=0; i<SIZE; i++) {
+            for (let j=0; j<SIZE; j++) {
+                if (newGrid[i][j].type === 'empty') emptyCells.push([i, j]);
+            }
+        }
+        const extraSpawns = Math.min(emptyCells.length, Math.floor(Math.random() * 4) + 2); // 2-5 extra grass
+        for (let s = 0; s < extraSpawns && emptyCells.length > 0; s++) {
+            const idx = Math.floor(Math.random() * emptyCells.length);
+            const [ex, ey] = emptyCells[idx];
+            if (newGrid[ex][ey].type === 'empty') {
+                newGrid[ex][ey] = { type: 'grass' };
+                // remove this cell so we don't spawn twice in same cell
+                emptyCells.splice(idx, 1);
+            }
+        }
+
+        // commit final state
+        grid = newGrid;
+        regrowTimer = newRegrowTimer;
+        currentRound++;
+        updateUI();
+    }
+
+    // UI & stats rendering
+    function updateUI() {
+        renderGrid();
+        let grassCt = 0, rabbitCt = 0, foxCt = 0;
+        let rabbitEnergySum = 0, foxEnergySum = 0;
+        for (let i=0;i<SIZE;i++){
+            for(let j=0;j<SIZE;j++){
+                let cell = grid[i][j];
+                if(cell.type === 'grass') grassCt++;
+                else if(cell.type === 'rabbit') {
+                    rabbitCt++;
+                    rabbitEnergySum += cell.energy;
+                }
+                else if(cell.type === 'fox') {
+                    foxCt++;
+                    foxEnergySum += cell.energy;
+                }
+            }
+        }
+        document.getElementById('grassCount').innerText = grassCt;
+        document.getElementById('rabbitCount').innerText = rabbitCt;
+        document.getElementById('foxCount').innerText = foxCt;
+        let avgRabbit = rabbitCt ? (rabbitEnergySum/rabbitCt).toFixed(1) : '-';
+        let avgFox = foxCt ? (foxEnergySum/foxCt).toFixed(1) : '-';
+        document.getElementById('avgRabbitEnergy').innerText = avgRabbit;
+        document.getElementById('avgFoxEnergy').innerText = avgFox;
+        document.getElementById('roundNum').innerText = currentRound;
+    }
+
+    function renderGrid() {
+        const container = document.getElementById('ecogrid');
+        container.innerHTML = '';
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE; j++) {
+                const cell = grid[i][j];
+                let emoji = '';
+                let energyHint = '';
+                if (cell.type === 'grass') emoji = '🌱';
+                else if (cell.type === 'rabbit') {
+                    emoji = '🐰';
+                    energyHint = `⚡${cell.energy}`;
+                }
+                else if (cell.type === 'fox') {
+                    emoji = '🦊';
+                    energyHint = `⚡${cell.energy}`;
+                }
+                else emoji = '⬚';
+                const div = document.createElement('div');
+                div.className = 'cell';
+                div.innerText = emoji;
+                if (energyHint) div.setAttribute('data-energy', energyHint);
+                else if (cell.type === 'grass') div.setAttribute('data-energy', '🌿');
+                else div.setAttribute('data-energy', '');
+                container.appendChild(div);
+            }
+        }
+    }
+
+    // step multiple rounds
+    function stepRounds(n) {
+        for(let i=0;i<n;i++) {
+            simulateOneRound();
+        }
+        updateUI();
+    }
+
+    // reset simulation with chosen counts
+    function resetWithCounts() {
+        let rabbitInit = Math.min(35, parseInt(document.getElementById('initRabbits').value) || 5);
+        let foxInit = Math.min(20, parseInt(document.getElementById('initFoxes').value) || 2);
+        let grassInit = Math.min(70, parseInt(document.getElementById('initGrass').value) || 20);
+        const total = rabbitInit + foxInit + grassInit;
+        if (total > SIZE*SIZE) {
+            alert(`Total agents (${total}) exceeds grid cells (${SIZE*SIZE}). Reduce numbers.`);
+            return;
+        }
+        randomPlacement(rabbitInit, foxInit, grassInit);
+        currentRound = 0;
+        updateUI();
+        document.getElementById('predictionResult').innerHTML = '⚡ not yet verified';
+        document.getElementById('predictionResult').style.background = '#3a2c1f';
+    }
+
+    // check prediction via dry-run (10 rounds from current state)
+    function verifyPrediction() {
+        // clone current grid/regrowTimer
+        let localGrid = JSON.parse(JSON.stringify(grid));
+        let localTimer = JSON.parse(JSON.stringify(regrowTimer));
+        let foxesAliveAfter10 = true;
+        
+        for (let step = 0; step < 10; step++) {
+            const result = simulateCloneStep(localGrid, localTimer);
+            localGrid = result.grid;
+            localTimer = result.timer;
+            let foxAlive = false;
+            for(let i=0;i<SIZE;i++) for(let j=0;j<SIZE;j++) if(localGrid[i][j].type === 'fox') foxAlive=true;
+            if(!foxAlive) { foxesAliveAfter10 = false; break; }
+        }
+        
+        const userChoice = document.getElementById('forecastSelect').value;
+        const survived = foxesAliveAfter10;
+        const resultDiv = document.getElementById('predictionResult');
+        if ((userChoice === 'yes' && survived) || (userChoice === 'no' && !survived)) {
+            resultDiv.innerHTML = '✅ CORRECT! Your prediction was right!';
+            resultDiv.style.background = '#2f6b2f';
+            resultDiv.style.color = '#e9f5cf';
+        } else {
+            resultDiv.innerHTML = `❌ WRONG! Foxes ${survived ? 'SURVIVED' : 'WENT EXTINCT'} after 10 rounds.`;
+            resultDiv.style.background = '#9e3c2b';
+            resultDiv.style.color = 'white';
+        }
+    }
+
+    // clone step for prediction (matches improved rules)
+    function simulateCloneStep(inputGrid, inputTimer) {
+        const oldGrid = JSON.parse(JSON.stringify(inputGrid));
+        let newGrid = JSON.parse(JSON.stringify(inputGrid));
+        const grassToDelete = new Set();
+        const rabbitsToDelete = new Set();
+        const births = [];
+        const rabbitEnergyUpdates = new Map();
+        const foxUpdates = new Map();
+        
+        let rabbits = [];
+        for (let i=0;i<SIZE;i++) for(let j=0;j<SIZE;j++) if(oldGrid[i][j].type==='rabbit') rabbits.push({x:i,y:j,energy:oldGrid[i][j].energy});
+        const eatenGrassSet = new Set();
+        for (let r of rabbits) {
+            let newEnergy = r.energy;
+            let neighbors = getNeighbors(r.x,r.y);
+            let targetGrass=null;
+            for(let [nx,ny] of neighbors) if(oldGrid[nx][ny].type==='grass' && !eatenGrassSet.has(`${nx},${ny}`)) {targetGrass=[nx,ny];break;}
+            if(targetGrass){
+                eatenGrassSet.add(`${targetGrass[0]},${targetGrass[1]}`);
+                newEnergy+=3;
+                grassToDelete.add(`${targetGrass[0]},${targetGrass[1]}`);
+            }
+            if(newEnergy>5){
+                let emptySpots=[];
+                for(let [nx,ny] of neighbors) if(oldGrid[nx][ny].type==='empty' && !births.some(b=>b.x===nx && b.y===ny)) emptySpots.push([nx,ny]);
+                if(emptySpots.length){
+                    let [bx,by]=emptySpots[0];
+                    births.push({x:bx,y:by,energy:3});
+                    newEnergy-=4;
+                }
+            }
+            newEnergy-=1;
+            if(newEnergy<=0) rabbitEnergyUpdates.set(`${r.x},${r.y}`,{newEnergy:0,delete:true});
+            else rabbitEnergyUpdates.set(`${r.x},${r.y}`,{newEnergy,delete:false});
+        }
+        
+        let foxes=[];
+        for(let i=0;i<SIZE;i++)for(let j=0;j<SIZE;j++) if(oldGrid[i][j].type==='fox') foxes.push({x:i,y:j,energy:oldGrid[i][j].energy,hunger:oldGrid[i][j].hungerCounter||0});
+        const rabbitEaten=new Set();
+        for(let f of foxes){
+            let {energy,hunger}=f;
+            let ate=false;
+            let neighbors=getNeighbors(f.x,f.y);
+            let targetRabbit=null;
+            for(let [nx,ny] of neighbors) if(oldGrid[nx][ny].type==='rabbit' && !rabbitEaten.has(`${nx},${ny}`) && !rabbitsToDelete.has(`${nx},${ny}`)){targetRabbit=[nx,ny];break;}
+            if(targetRabbit){
+                rabbitEaten.add(`${targetRabbit[0]},${targetRabbit[1]}`);
+                rabbitsToDelete.add(`${targetRabbit[0]},${targetRabbit[1]}`);
+                energy+=5; hunger=0; ate=true;
+            } else hunger+=1;
+            energy-=1;
+            if(!ate && hunger>=3) energy-=1;
+            let del=false;
+            if(energy<=0) del=true;
+            foxUpdates.set(`${f.x},${f.y}`,{newEnergy:energy, newHunger:hunger, delete:del});
+        }
+        
+        for(const coord of grassToDelete){let [x,y]=coord.split(',').map(Number); if(newGrid[x][y].type==='grass') newGrid[x][y]={type:'empty'};}
+        for(const coord of rabbitsToDelete){let [x,y]=coord.split(',').map(Number); if(newGrid[x][y].type==='rabbit') newGrid[x][y]={type:'empty'};}
+        for(let [coord,data] of rabbitEnergyUpdates.entries()){let [x,y]=coord.split(',').map(Number); if(newGrid[x][y].type==='rabbit'){if(data.delete) newGrid[x][y]={type:'empty'}; else newGrid[x][y].energy=data.newEnergy;}}
+        for(let [coord,data] of foxUpdates.entries()){let [x,y]=coord.split(',').map(Number); if(newGrid[x][y].type==='fox'){if(data.delete) newGrid[x][y]={type:'empty'}; else {newGrid[x][y].energy=data.newEnergy; newGrid[x][y].hungerCounter=data.newHunger;}}}
+        for(let b of births) if(newGrid[b.x][b.y].type==='empty') newGrid[b.x][b.y]={type:'rabbit',energy:b.energy};
+        
+        // grass regrowth (1 turn + random)
+        let newTimer = Array(SIZE).fill().map(()=>Array(SIZE).fill(0));
+        for(let i=0;i<SIZE;i++) for(let j=0;j<SIZE;j++) if(newGrid[i][j].type==='empty'){ 
+            let hasRabbit=false; for(let [nx,ny] of getNeighbors(i,j)) if(newGrid[nx][ny].type==='rabbit'){hasRabbit=true;break;} 
+            if(!hasRabbit){ let prev = (inputTimer[i][j]||0)+1; if(prev>=1){newGrid[i][j]={type:'grass'}; newTimer[i][j]=0;} else newTimer[i][j]=prev;} 
+            else newTimer[i][j]=0; 
+        } else newTimer[i][j]=0;
+        
+        // extra random grass spawn
+        let emptyCells = [];
+        for(let i=0;i<SIZE;i++) for(let j=0;j<SIZE;j++) if(newGrid[i][j].type==='empty') emptyCells.push([i,j]);
+        const extra = Math.min(emptyCells.length, Math.floor(Math.random() * 4) + 2);
+        for(let s=0; s<extra && emptyCells.length>0; s++) {
+            const idx = Math.floor(Math.random() * emptyCells.length);
+            const [ex,ey] = emptyCells[idx];
+            if(newGrid[ex][ey].type==='empty') {
+                newGrid[ex][ey] = {type:'grass'};
+                emptyCells.splice(idx,1);
+            }
+        }
+        return {grid:newGrid, timer:newTimer};
+    }
+
+    // events
+    document.getElementById('stepBtn').addEventListener('click', () => simulateOneRound());
+    document.getElementById('step10Btn').addEventListener('click', () => stepRounds(10));
+    document.getElementById('resetBtn').addEventListener('click', () => resetWithCounts());
+    document.getElementById('applyInitBtn').addEventListener('click', () => resetWithCounts());
+    document.getElementById('checkPredictionBtn').addEventListener('click', () => verifyPrediction());
+
+    // initial default world
+    randomPlacement(8, 3, 28);
+    updateUI();
+</script>
+</body>
+</html>

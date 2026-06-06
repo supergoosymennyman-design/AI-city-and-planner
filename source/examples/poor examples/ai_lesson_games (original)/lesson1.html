@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>🟡 Magic Studio — Teach AI Shapes</title>
+
+    <!-- ============================================================
+    STYLES
+    ============================================================ -->
+    <style>
+        /* ---------- RESET & BASE ---------- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Comic Sans MS", "Chalkboard SE", cursive;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        /* ---------- MAIN CONTAINER ---------- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 15px;
+            height: calc(100vh - 20px);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ---------- HEADER ---------- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: white;
+            margin: 0;
+        }
+
+        .btn-home {
+            background: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #334155;
+            transition: transform 0.2s;
+        }
+        .btn-home:hover {
+            transform: scale(1.05);
+        }
+
+        /* ---------- MAIN CONTENT (2 columns) ---------- */
+        .main-content {
+            display: flex;
+            gap: 15px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ----- LEFT: Drawing ----- */
+        .drawing-column {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .canvas-container {
+            flex: 1;
+            border: 3px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fafafa;
+            position: relative;
+            min-height: 200px;
+        }
+
+        canvas#drawingCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            cursor: crosshair;
+            display: block;
+        }
+
+        .brush-tools {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .brush-btn {
+            padding: 6px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .brush-btn:hover {
+            border-color: #6366f1;
+            transform: scale(1.05);
+        }
+        .brush-btn:active {
+            background: #e0e7ff;
+        }
+
+        /* ----- RIGHT: Controls & Conversation ----- */
+        .controls-column {
+            flex: 0.8;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        /* --- Progress Ring --- */
+        .progress-box {
+            background: linear-gradient(135deg, #f0fdf4 0%, #bbf7d0 100%);
+            border: 2px solid #86efac;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .progress-ring-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 8px;
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+            width: 100px;
+            height: 100px;
+        }
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.5s;
+            stroke-linecap: round;
+        }
+
+        .progress-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .progress-count {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #166534;
+        }
+        .progress-label {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        .progress-msg {
+            font-size: 0.85rem;
+            color: #166534;
+            margin-top: 5px;
+        }
+
+        /* --- Learned Shapes --- */
+        .learned-box {
+            background: #f0f9ff;
+            border: 2px solid #7dd3fc;
+            border-radius: 12px;
+            padding: 10px;
+            flex: 0 0 auto;
+            overflow-y: auto;
+            max-height: 80px;
+        }
+
+        .learned-box h3 {
+            font-size: 0.9rem;
+            color: #0369a1;
+            margin-bottom: 8px;
+        }
+
+        .learned-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .learned-tag {
+            background: white;
+            border: 2px solid #38bdf8;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #0284c7;
+        }
+
+        /* --- Voice Buttons --- */
+        .voice-section {
+            background: #fef3c7;
+            border: 2px solid #fcd34d;
+            border-radius: 12px;
+            padding: 12px;
+            flex-shrink: 0;
+        }
+
+        .voice-title {
+            font-size: 0.85rem;
+            color: #92400e;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .voice-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .voice-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 10px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .voice-btn-teach {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        .voice-btn-ask {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+        }
+
+        .voice-btn.listening {
+            animation: pulse 1s infinite;
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .voice-icon {
+            font-size: 1.8rem;
+        }
+        .voice-label {
+            font-size: 0.8rem;
+        }
+
+        /* --- Conversation / Subtitles --- */
+        .conversation-box {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 10px;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .conversation-box .subtitle-label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            flex-shrink: 0;
+        }
+
+        .conversation-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .conversation-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .conversation-scroll::-webkit-scrollbar-track {
+            background: #334155;
+            border-radius: 4px;
+        }
+        .conversation-scroll::-webkit-scrollbar-thumb {
+            background: #fbbf24;
+            border-radius: 4px;
+        }
+
+        /* --- Individual conversation entries --- */
+        .conv-entry {
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .conv-entry.user {
+            background: #1e293b;
+            color: #fbbf24;
+            border-left: 3px solid #fbbf24;
+            align-self: flex-end;
+            max-width: 90%;
+        }
+
+        .conv-entry.ai {
+            background: #1e293b;
+            color: #a5b4fc;
+            border-left: 3px solid #818cf8;
+            align-self: flex-start;
+            max-width: 90%;
+        }
+
+        .conv-entry.system {
+            background: #1e293b;
+            color: #94a3b8;
+            border-left: 3px solid #64748b;
+            align-self: center;
+            text-align: center;
+            font-style: italic;
+            max-width: 100%;
+        }
+
+        .conv-entry .speaker {
+            font-weight: bold;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            opacity: 0.7;
+        }
+
+        .conv-entry .timestamp {
+            font-size: 0.6rem;
+            opacity: 0.5;
+            margin-left: 8px;
+        }
+
+        .conv-entry .transcript-note {
+            font-size: 0.7rem;
+            opacity: 0.6;
+            font-style: italic;
+            margin-top: 2px;
+        }
+
+        /* --- Status Bar --- */
+        .status-bar {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #475569;
+            min-height: 36px;
+            flex-shrink: 0;
+        }
+
+        .status-bar.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .status-bar.success {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .status-bar.info {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        /* ---------- RESPONSIVE ---------- */
+        @media (max-width: 800px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .drawing-column {
+                flex: 0 0 45vh;
+            }
+            .controls-column {
+                flex: 1;
+            }
+            .learned-box {
+                max-height: 60px;
+            }
+            .conversation-box {
+                min-height: 120px;
+            }
+            .header h1 {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+            .container {
+                padding: 10px;
+                height: calc(100vh - 10px);
+            }
+            .brush-btn {
+                font-size: 0.7rem;
+                padding: 4px 8px;
+            }
+            .voice-btn {
+                padding: 6px;
+                font-size: 0.75rem;
+            }
+            .voice-icon {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <!-- ==================== HEADER ==================== -->
+        <div class="header">
+            <h1>🟡 Magic Studio</h1>
+            <button class="btn-home" onclick="window.location.href='index.html'">🏠 Home</button>
+        </div>
+
+        <!-- ==================== MAIN CONTENT ==================== -->
+        <div class="main-content">
+
+            <!-- ===== LEFT COLUMN: DRAWING ===== -->
+            <div class="drawing-column">
+                <div class="canvas-container">
+                    <canvas id="drawingCanvas" width="600" height="400"></canvas>
+                </div>
+                <div class="brush-tools">
+                    <button class="brush-btn" data-size="3">✏️ Thin</button>
+                    <button class="brush-btn" data-size="8">🖊️ Medium</button>
+                    <button class="brush-btn" data-size="14">🖍️ Thick</button>
+                    <button class="brush-btn" id="clearBtn">🗑️ Clear</button>
+                    <button class="brush-btn" id="undoBtn">↩️ Undo</button>
+                </div>
+            </div>
+
+            <!-- ===== RIGHT COLUMN: CONTROLS & CONVERSATION ===== -->
+            <div class="controls-column">
+
+                <!-- Progress -->
+                <div class="progress-box">
+                    <div class="progress-ring-container">
+                        <svg class="progress-ring" viewBox="0 0 100 100">
+                            <circle class="progress-ring__circle" stroke="#e2e8f0" stroke-width="10" fill="none" r="45" cx="50" cy="50" />
+                            <circle id="progressCircle" class="progress-ring__circle" stroke="#10b981" stroke-width="10" fill="none" r="45" cx="50" cy="50" stroke-dasharray="283" stroke-dashoffset="283" />
+                        </svg>
+                        <div class="progress-center">
+                            <div class="progress-count" id="progressCount">0/3</div>
+                            <div class="progress-label">examples</div>
+                        </div>
+                    </div>
+                    <div class="progress-msg" id="progressMsg">Draw &amp; teach me!</div>
+                </div>
+
+                <!-- Learned Shapes -->
+                <div class="learned-box">
+                    <h3>✨ Shapes I Know:</h3>
+                    <div class="learned-tags" id="learnedTags">
+                        <em style="color:#94a3b8">None yet</em>
+                    </div>
+                </div>
+
+                <!-- Voice Buttons -->
+                <div class="voice-section">
+                    <div class="voice-title">🎤 Use Your Voice</div>
+                    <div class="voice-buttons">
+                        <button class="voice-btn voice-btn-teach" id="btnTeachVoice">
+                            <span class="voice-icon">📚</span>
+                            <span class="voice-label">Teach</span>
+                        </button>
+                        <button class="voice-btn voice-btn-ask" id="btnAskVoice">
+                            <span class="voice-icon">🧪</span>
+                            <span class="voice-label">Test</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Conversation / Subtitles -->
+                <div class="conversation-box">
+                    <div class="subtitle-label">💬 Conversation</div>
+                    <div class="conversation-scroll" id="conversationScroll">
+                        <!-- Entries are added dynamically -->
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div class="status-bar" id="statusBar">✅ Ready! Draw a shape, then teach or test me.</div>
+
+            </div>
+            <!-- /controls-column -->
+
+        </div>
+        <!-- /main-content -->
+
+    </div>
+    <!-- /container -->
+
+    <!-- ============================================================
+    JAVASCRIPT — All logic in one file for easy copy-paste
+    ============================================================ -->
+    <script>
+        /**
+         * =================================================================
+         *  🟡 MAGIC STUDIO — Full Implementation
+         *  --------------------------------------------------------------
+         *  Everything in one file: drawing, voice (STT/TTS), AI vision,
+         *  conversation display, progress tracking, and localStorage
+         *  learning.
+         *
+         *  Works with llama-server (Qwen2.5 2B Vision) at:
+         *    http://localhost:8080/completion
+         *
+         *  Uses Chrome's built-in Speech Recognition (STT) and
+         *  Speech Synthesis (TTS) — no API keys needed.
+         * =================================================================
+         */
+
+        // ================================================================
+        //  1. CONFIGURATION (load from localStorage or defaults)
+        // ================================================================
+
+        const DEFAULT_CONFIG = {
+            apiEndpoint: 'http://localhost:8080/completion',
+            apiTimeout: 30000,
+            temperature: 0.7,
+            maxTokens: 80,
+            ttsEnabled: true,
+            ttsRate: 1.0,
+            ttsPitch: 1.0,
+            sttEnabled: true,
+            sttLanguage: 'en-US',
+            showTranscripts: true,
+            autoScroll: true,
+        };
+
+        /** Load config from localStorage, falling back to defaults. */
+        function loadConfig() {
+            try {
+                const raw = localStorage.getItem('magicStudioConfig');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    return { ...DEFAULT_CONFIG, ...parsed };
+                }
+            } catch (_) { /* ignore */ }
+            return { ...DEFAULT_CONFIG };
+        }
+
+        /** Save config to localStorage. */
+        function saveConfig(config) {
+            try {
+                localStorage.setItem('magicStudioConfig', JSON.stringify(config));
+                return true;
+            } catch (_) { return false; }
+        }
+
+        /** Current active configuration. */
+        const CONFIG = loadConfig();
+
+        // ================================================================
+        //  2. UTILITY FUNCTIONS
+        // ================================================================
+
+        /** Escape HTML to prevent XSS. */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /** Get current timestamp as a short string. */
+        function getTime() {
+            const d = new Date();
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        /** Debounce helper. */
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+
+        /** Convert canvas to base64 (without the data:image/png;base64, prefix). */
+        function canvasToBase64(canvas) {
+            return canvas.toDataURL('image/png').split(',')[1];
+        }
+
+        /** Check if a canvas is blank (all white). */
+        function isCanvasBlank(canvas) {
+            const ctx = canvas.getContext('2d');
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            for (let i = 3; i < data.length; i += 4) {
+                if (data[i] !== 0) return false; // not transparent/blank
+            }
+            return true;
+        }
+
+        // ================================================================
+        //  3. TEXT-TO-SPEECH (TTS) — Chrome Web Speech API
+        // ================================================================
+
+        /**
+         * Speak a message using the browser's TTS.
+         * @param {string} text  - The text to speak.
+         * @param {Object} opts  - Override rate, pitch, voice, or force.
+         * @returns {SpeechSynthesisUtterance|null}
+         */
+        function speakText(text, opts = {}) {
+            if (!CONFIG.ttsEnabled && !opts.force) return null;
+
+            // Cancel any ongoing speech.
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = opts.rate ?? CONFIG.ttsRate;
+            utterance.pitch = opts.pitch ?? CONFIG.ttsPitch;
+            utterance.lang = 'en-US';
+
+            // If a voice name is provided, try to use it.
+            if (opts.voice) {
+                const voices = speechSynthesis.getVoices();
+                const found = voices.find(v => v.name === opts.voice);
+                if (found) utterance.voice = found;
+            }
+
+            if (opts.onEnd) {
+                utterance.onend = opts.onEnd;
+            }
+
+            if (window.speechSynthesis) {
+                window.speechSynthesis.speak(utterance);
+            }
+            return utterance;
+        }
+
+        // ================================================================
+        //  4. SPEECH-TO-TEXT (STT) — Chrome Web Speech API
+        // ================================================================
+
+        /**
+         * Listen for speech and return the transcribed text.
+         * @param {Object} opts  - onStart, onResult, onEnd, language.
+         * @returns {Promise<string>}
+         */
+        function listenForSpeech(opts = {}) {
+            if (!CONFIG.sttEnabled) {
+                return Promise.reject(new Error('Speech recognition is disabled.'));
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                return Promise.reject(new Error('Speech recognition not supported in this browser.'));
+            }
+
+            return new Promise((resolve, reject) => {
+                const recognition = new SpeechRecognition();
+                recognition.lang = opts.language || CONFIG.sttLanguage;
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    if (opts.onStart) opts.onStart();
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript.trim();
+                    if (opts.onResult) opts.onResult(transcript);
+                    resolve(transcript);
+                };
+
+                recognition.onerror = (event) => {
+                    reject(new Error(`Speech error: ${event.error}`));
+                };
+
+                recognition.onend = () => {
+                    if (opts.onEnd) opts.onEnd();
+                };
+
+                try {
+                    recognition.start();
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        }
+
+        // ================================================================
+        //  5. LLM API CALLS (text + vision)
+        // ================================================================
+
+        /**
+         * Query the llama-server with a text prompt.
+         * @param {string} prompt - The text prompt.
+         * @param {Object} opts   - Override temperature, maxTokens, etc.
+         * @returns {Promise<string>}
+         */
+        async function queryLLM(prompt, opts = {}) {
+            const endpoint = CONFIG.apiEndpoint;
+            const payload = {
+                prompt: prompt,
+                n_predict: opts.maxTokens ?? CONFIG.maxTokens,
+                temperature: opts.temperature ?? CONFIG.temperature,
+                stream: false,
+            };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(CONFIG.apiTimeout),
+            });
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return (data.content || data.response || '').trim();
+        }
+
+        /**
+         * Query llama-server with vision (image + text).
+         * @param {string} prompt       - Text prompt.
+         * @param {string} imageBase64  - Base64 image (no prefix).
+         * @param {Object} opts         - Override parameters.
+         * @returns {Promise<string>}
+         */
+        async function queryLLMWithVision(prompt, imageBase64, opts = {}) {
+            const endpoint = CONFIG.apiEndpoint;
+            const visionPrompt = `[img-100]\n${prompt}`;
+
+            const payload = {
+                prompt: visionPrompt,
+                image_data: [{ data: imageBase64, id: 100 }],
+                n_predict: opts.maxTokens ?? CONFIG.maxTokens,
+                temperature: opts.temperature ?? CONFIG.temperature,
+                stream: false,
+            };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(CONFIG.apiTimeout),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Vision API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return (data.content || data.response || '').trim();
+        }
+
+        // ================================================================
+        //  6. FEW-SHOT LEARNING (localStorage)
+        // ================================================================
+
+        /**
+         * A simple few-shot learner that stores feature vectors (16×16
+         * grayscale) in localStorage.  Uses cosine similarity for
+         * recognition.
+         */
+        const FewShotLearner = {
+
+            /** Extract a 16×16 grayscale feature vector from a canvas. */
+            extractFeatures(canvas) {
+                const temp = document.createElement('canvas');
+                temp.width = 16;
+                temp.height = 16;
+                const ctx = temp.getContext('2d');
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, 16, 16);
+                ctx.drawImage(canvas, 0, 0, 16, 16);
+
+                const imgData = ctx.getImageData(0, 0, 16, 16);
+                const features = [];
+                for (let i = 0; i < imgData.data.length; i += 4) {
+                    const r = imgData.data[i];
+                    const g = imgData.data[i + 1];
+                    const b = imgData.data[i + 2];
+                    features.push(1 - (0.299 * r + 0.587 * g + 0.114 * b) / 255);
+                }
+                const norm = Math.sqrt(features.reduce((a, b) => a + b * b, 0)) || 1;
+                return features.map(v => v / norm);
+            },
+
+            /** Cosine similarity between two feature vectors. */
+            cosineSimilarity(a, b) {
+                let dot = 0;
+                for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
+                return Math.max(0, Math.min(1, dot));
+            },
+
+            /** Get all stored examples for a given shape name. */
+            getExamples(name) {
+                const key = `fewshot_${name.toLowerCase()}`;
+                const stored = localStorage.getItem(key);
+                return stored ? JSON.parse(stored) : [];
+            },
+
+            /** Save a new example for a shape.  Keeps at most 5 examples. */
+            saveExample(name, features) {
+                const key = `fewshot_${name.toLowerCase()}`;
+                const examples = this.getExamples(name);
+                examples.push({ features, timestamp: Date.now() });
+                if (examples.length > 5) examples.shift();
+                localStorage.setItem(key, JSON.stringify(examples));
+                return examples.length;
+            },
+
+            /** Teach a shape: extract features and save. */
+            teach(name, canvas) {
+                const features = this.extractFeatures(canvas);
+                const count = this.saveExample(name, features);
+                return { count, features };
+            },
+
+            /** Recognize a drawing: find the best matching shape. */
+            recognize(canvas) {
+                const features = this.extractFeatures(canvas);
+                const shapes = this.getAllLearnedShapes();
+                if (shapes.length === 0) {
+                    return { shape: null, confidence: 0, scores: {} };
+                }
+
+                let best = null;
+                let bestScore = 0;
+                const scores = {};
+
+                for (const shape of shapes) {
+                    const examples = this.getExamples(shape);
+                    let maxScore = 0;
+                    for (const ex of examples) {
+                        const sim = this.cosineSimilarity(features, ex.features);
+                        if (sim > maxScore) maxScore = sim;
+                    }
+                    scores[shape] = maxScore;
+                    if (maxScore > bestScore) {
+                        bestScore = maxScore;
+                        best = shape;
+                    }
+                }
+
+                return {
+                    shape: bestScore >= 0.35 ? best : null,
+                    confidence: bestScore,
+                    scores,
+                };
+            },
+
+            /** List all shape names that have at least one example. */
+            getAllLearnedShapes() {
+                const shapes = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('fewshot_')) {
+                        shapes.push(key.replace('fewshot_', ''));
+                    }
+                }
+                return shapes;
+            },
+
+            /** Get the number of examples for a shape. */
+            getCount(name) {
+                return this.getExamples(name).length;
+            },
+
+            /** Delete all learned data. */
+            clearAll() {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('fewshot_')) {
+                        localStorage.removeItem(key);
+                    }
+                }
+            },
+        };
+
+        // ================================================================
+        //  7. DRAWING MANAGER (canvas with touch/mouse support)
+        // ================================================================
+
+        class DrawingManager {
+            /**
+             * @param {HTMLCanvasElement} canvas
+             * @param {Object} options - onDrawingEnd, onStrokeStart, brushSize, color
+             */
+            constructor(canvas, options = {}) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d', { willReadFrequently: true });
+                this.onDrawingEnd = options.onDrawingEnd || null;
+                this.onStrokeStart = options.onStrokeStart || null;
+
+                this.isDrawing = false;
+                this.history = [];
+                this.brushSize = options.brushSize || 12;
+                this.brushColor = options.brushColor || '#2c3e66';
+
+                this.canvas.style.touchAction = 'none';
+                this._setupCanvas();
+                this._setupEvents();
+                this._saveState();
+            }
+
+            /** Fill canvas with white background. */
+            _setupCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                if (this.canvas.width === 300) { // default fallback
+                    this.canvas.width = rect.width || 600;
+                    this.canvas.height = rect.height || 400;
+                }
+
+                this.ctx.fillStyle = 'white';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.lineWidth = this.brushSize;
+                this.ctx.strokeStyle = this.brushColor;
+            }
+
+            /** Attach mouse and touch events. */
+            _setupEvents() {
+                // Mouse
+                this.canvas.addEventListener('mousedown', (e) => this._startDraw(e));
+                window.addEventListener('mousemove', (e) => this._draw(e));
+                window.addEventListener('mouseup', () => this._endDraw());
+                this.canvas.addEventListener('mouseleave', () => this._endDraw());
+
+                // Touch
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this._startDraw(e);
+                }, { passive: false });
+
+                window.addEventListener('touchmove', (e) => {
+                    if (this.isDrawing) {
+                        e.preventDefault();
+                        this._draw(e);
+                    }
+                }, { passive: false });
+
+                window.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this._endDraw();
+                }, { passive: false });
+
+                window.addEventListener('touchcancel', () => this._endDraw());
+            }
+
+            /** Get canvas coordinates from mouse or touch event. */
+            _getCoords(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const scaleX = this.canvas.width / rect.width;
+                const scaleY = this.canvas.height / rect.height;
+
+                let cx, cy;
+                if (e.touches && e.touches.length > 0) {
+                    cx = e.touches[0].clientX;
+                    cy = e.touches[0].clientY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    cx = e.changedTouches[0].clientX;
+                    cy = e.changedTouches[0].clientY;
+                } else {
+                    cx = e.clientX;
+                    cy = e.clientY;
+                }
+
+                let x = (cx - rect.left) * scaleX;
+                let y = (cy - rect.top) * scaleY;
+                x = Math.min(Math.max(0, x), this.canvas.width);
+                y = Math.min(Math.max(0, y), this.canvas.height);
+                return { x, y };
+            }
+
+            /** Start a new stroke. */
+            _startDraw(e) {
+                e.preventDefault();
+                this.isDrawing = true;
+                const pos = this._getCoords(e);
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, pos.y);
+                this.ctx.lineWidth = this.brushSize;
+                this.ctx.strokeStyle = this.brushColor;
+                if (this.onStrokeStart) this.onStrokeStart(pos);
+            }
+
+            /** Continue a stroke. */
+            _draw(e) {
+                if (!this.isDrawing) return;
+                e.preventDefault();
+                const pos = this._getCoords(e);
+                this.ctx.lineTo(pos.x, pos.y);
+                this.ctx.stroke();
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, pos.y);
+            }
+
+            /** End the current stroke and save state. */
+            _endDraw() {
+                if (!this.isDrawing) return;
+                this.isDrawing = false;
+                this.ctx.closePath();
+                this._saveState();
+                if (this.onDrawingEnd) this.onDrawingEnd();
+            }
+
+            /** Save current canvas to history (for undo). */
+            _saveState() {
+                try {
+                    this.history.push(
+                        this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height)
+                    );
+                    if (this.history.length > 20) this.history.shift();
+                } catch (_) { /* ignore */ }
+            }
+
+            /** Undo the last stroke. */
+            undo() {
+                if (this.history.length > 1) {
+                    this.history.pop();
+                    const prev = this.history[this.history.length - 1];
+                    this.ctx.putImageData(prev, 0, 0);
+                    if (this.onDrawingEnd) this.onDrawingEnd();
+                    return true;
+                }
+                return false;
+            }
+
+            /** Clear the canvas completely. */
+            clearCanvas() {
+                this.ctx.fillStyle = 'white';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                this._saveState();
+                if (this.onDrawingEnd) this.onDrawingEnd();
+            }
+
+            /** Change brush size. */
+            setBrushSize(size) {
+                this.brushSize = size;
+                this.ctx.lineWidth = size;
+            }
+
+            /** Change brush color. */
+            setBrushColor(color) {
+                this.brushColor = color;
+                this.ctx.strokeStyle = color;
+            }
+
+            /** Check if the canvas is empty (all white). */
+            isEmpty() {
+                return isCanvasBlank(this.canvas);
+            }
+
+            /** Get base64 representation of the canvas. */
+            toBase64() {
+                return canvasToBase64(this.canvas);
+            }
+        }
+
+        // ================================================================
+        //  8. APP — MAIN CONTROLLER
+        // ================================================================
+
+        const app = {};
+
+        // --- State ---
+        app.state = {
+            isListening: false,
+            mode: 'idle', // 'teach' | 'test' | 'idle'
+            lastShape: null,
+        };
+
+        // --- DOM refs ---
+        app.dom = {
+            canvas: document.getElementById('drawingCanvas'),
+            statusBar: document.getElementById('statusBar'),
+            progressCircle: document.getElementById('progressCircle'),
+            progressCount: document.getElementById('progressCount'),
+            progressMsg: document.getElementById('progressMsg'),
+            learnedTags: document.getElementById('learnedTags'),
+            conversationScroll: document.getElementById('conversationScroll'),
+            btnTeach: document.getElementById('btnTeachVoice'),
+            btnAsk: document.getElementById('btnAskVoice'),
+        };
+
+        // --- Drawing instance ---
+        app.drawing = null;
+
+        // ================================================================
+        //  9. CONVERSATION HELPER
+        // ================================================================
+
+        /**
+         * Add an entry to the conversation scroll.
+         * @param {string} text    - The message text.
+         * @param {string} sender  - 'user' | 'ai' | 'system'
+         * @param {Object} opts    - { transcript, spoken }
+         */
+        app.addConversation = function(text, sender = 'system', opts = {}) {
+            const scroll = this.dom.conversationScroll;
+            const entry = document.createElement('div');
+            entry.className = `conv-entry ${sender}`;
+
+            const time = getTime();
+            let label = '';
+            if (sender === 'user') label = '👤 You';
+            else if (sender === 'ai') label = '🤖 AI';
+            else label = '📢 System';
+
+            let html = `<span class="speaker">${label}</span> <span class="timestamp">${time}</span><br>`;
+            html += escapeHtml(text);
+
+            if (opts.transcript && sender === 'user') {
+                html += `<div class="transcript-note">🎤 Heard: "${escapeHtml(opts.transcript)}"</div>`;
+            }
+            if (opts.spoken && sender === 'ai') {
+                html += `<div class="transcript-note">🔊 Spoken aloud</div>`;
+            }
+
+            entry.innerHTML = html;
+            scroll.appendChild(entry);
+
+            // Auto-scroll
+            if (CONFIG.autoScroll) {
+                scroll.scrollTop = scroll.scrollHeight;
+            }
+
+            return entry;
+        };
+
+        // ================================================================
+        //  10. UI UPDATE HELPERS
+        // ================================================================
+
+        /** Set the status bar with a message and optional type. */
+        app.setStatus = function(text, type = '') {
+            const el = this.dom.statusBar;
+            el.textContent = text;
+            el.className = 'status-bar ' + (type || '');
+        };
+
+        /** Update the progress ring and message based on the current shape. */
+        app.updateProgress = function() {
+            const shapes = FewShotLearner.getAllLearnedShapes();
+            const circle = this.dom.progressCircle;
+            const countEl = this.dom.progressCount;
+            const msgEl = this.dom.progressMsg;
+
+            if (shapes.length === 0) {
+                circle.style.strokeDashoffset = 283;
+                countEl.textContent = '0/3';
+                msgEl.textContent = 'Draw & teach me!';
+                return;
+            }
+
+            const last = shapes[shapes.length - 1];
+            const count = FewShotLearner.getCount(last);
+            const pct = Math.min(100, (count / 3) * 100);
+            circle.style.strokeDashoffset = 283 - (283 * pct) / 100;
+            circle.style.stroke = count >= 3 ? '#6366f1' : '#10b981';
+            countEl.textContent = `${count}/3`;
+            msgEl.textContent = count >= 3 ? `"${last}" ready!` : `"${last}": ${3 - count} more`;
+        };
+
+        /** Update the list of learned shape tags. */
+        app.updateLearnedTags = function() {
+            const shapes = FewShotLearner.getAllLearnedShapes();
+            const el = this.dom.learnedTags;
+
+            if (shapes.length === 0) {
+                el.innerHTML = '<em style="color:#94a3b8">None yet</em>';
+                return;
+            }
+
+            el.innerHTML = shapes
+                .map(s => `<span class="learned-tag">${s} (${FewShotLearner.getCount(s)}x)</span>`)
+                .join('');
+        };
+
+        /** Full UI refresh. */
+        app.refreshUI = function() {
+            this.updateProgress();
+            this.updateLearnedTags();
+        };
+
+        // ================================================================
+        //  11. CORE ACTIONS: TEACH & TEST
+        // ================================================================
+
+        /**
+         * Teach the AI the current drawing with a given name.
+         * @param {string} name  - The shape name (e.g., 'circle').
+         */
+        app.teach = function(name) {
+            const canvas = this.dom.canvas;
+            const result = FewShotLearner.teach(name, canvas);
+            this.state.lastShape = name;
+            this.refreshUI();
+
+            let msg;
+            if (result.count === 1) {
+                msg = `✏️ "${name}" #1 saved! Draw 2 more.`;
+            } else if (result.count < 3) {
+                msg = `✏️ "${name}" #${result.count}! ${3 - result.count} more.`;
+            } else {
+                msg = `✅ "${name}" ready! Test me now! 🎉`;
+                this.setStatus(msg, 'success');
+                // Speak a celebratory message.
+                speakText(`I learned ${name}! Thank you, teacher!`, { rate: 1.1 });
+                this.addConversation(`I learned "${name}"! Thank you, teacher! 🎉`, 'ai', { spoken: true });
+            }
+
+            if (result.count < 3) {
+                this.setStatus(msg, 'info');
+                this.addConversation(`Saved "${name}" example #${result.count}. ${3 - result.count} more to go!`, 'system');
+            } else {
+                this.addConversation(`✅ "${name}" is now fully learned!`, 'system');
+            }
+
+            // Clear the canvas after a moment.
+            setTimeout(() => {
+                this.drawing.clearCanvas();
+                this.setStatus('Cleared! Ready for the next drawing.', 'info');
+            }, 600);
+        };
+
+        /**
+         * Test the AI: recognize the current drawing.
+         */
+        app.test = function() {
+            const canvas = this.dom.canvas;
+            const result = FewShotLearner.recognize(canvas);
+
+            if (result.shape) {
+                const conf = (result.confidence * 100).toFixed(0);
+                const msg = `🎉 It's a ${result.shape}! (${conf}% confidence)`;
+                this.setStatus(msg, 'success');
+                this.addConversation(`I think it's a "${result.shape}"! (${conf}% sure) 🎉`, 'ai', { spoken: true });
+                speakText(`I think it's a ${result.shape}!`, { rate: 1.0 });
+            } else {
+                const shapes = FewShotLearner.getAllLearnedShapes();
+                if (shapes.length === 0) {
+                    this.setStatus('🤔 I don\'t know any shapes yet. Teach me first!', 'error');
+                    this.addConversation('I don\'t know any shapes yet. Please teach me first! 📚', 'ai', { spoken: true });
+                    speakText('I don\'t know any shapes yet. Please teach me first!', { rate: 1.0 });
+                } else {
+                    const known = shapes.join(', ');
+                    this.setStatus(`🤔 Not sure. I know: ${known}`, 'error');
+                    this.addConversation(`Hmm, I'm not sure what this is. I know: ${known}. Can you teach me?`, 'ai', { spoken: true });
+                    speakText(`I'm not sure what this is. I know ${known}. Can you teach me?`, { rate: 1.0 });
+                }
+            }
+        };
+
+        // ================================================================
+        //  12. VOICE HANDLERS (Teach & Test via STT)
+        // ================================================================
+
+        /** Start voice teaching: listen for a shape name, then teach. */
+        app.startTeachVoice = async function() {
+            if (this.state.isListening) return;
+            if (this.drawing.isEmpty()) {
+                this.setStatus('✏️ Draw something first!', 'error');
+                this.addConversation('Please draw a shape first, then teach me!', 'ai', { spoken: true });
+                speakText('Please draw a shape first, then teach me!', { rate: 1.0 });
+                return;
+            }
+
+            this.state.mode = 'teach';
+            await this._listenAndAct('teach');
+        };
+
+        /** Start voice testing: listen for a command, then test. */
+        app.startAskVoice = async function() {
+            if (this.state.isListening) return;
+            if (this.drawing.isEmpty()) {
+                this.setStatus('✏️ Draw something first!', 'error');
+                this.addConversation('Please draw a shape first, then test me!', 'ai', { spoken: true });
+                speakText('Please draw a shape first, then test me!', { rate: 1.0 });
+                return;
+            }
+
+            this.state.mode = 'test';
+            await this._listenAndAct('test');
+        };
+
+        /**
+         * Internal: listen for speech and act based on mode.
+         * @param {string} mode - 'teach' or 'test'
+         */
+        app._listenAndAct = async function(mode) {
+            this.state.isListening = true;
+            const btn = mode === 'teach' ? this.dom.btnTeach : this.dom.btnAsk;
+            btn.classList.add('listening');
+
+            this.setStatus('🎤 Listening... speak now!', 'info');
+            this.addConversation('🎤 Listening... speak now!', 'system');
+
+            try {
+                const transcript = await listenForSpeech({
+                    onResult: (text) => {
+                        this.addConversation(`Heard: "${text}"`, 'system', { transcript: text });
+                    },
+                });
+
+                this.state.isListening = false;
+                btn.classList.remove('listening');
+
+                if (transcript) {
+                    const clean = transcript.toLowerCase().trim();
+                    this.addConversation(`You said: "${clean}"`, 'user', { transcript: clean });
+
+                    if (mode === 'teach') {
+                        // Extract the shape name from the transcript.
+                        const shape = this._extractShapeName(clean);
+                        if (shape) {
+                            this.teach(shape);
+                        } else {
+                            this.setStatus(`Couldn't understand "${clean}". Say "this is a circle" or similar.`, 'error');
+                            this.addConversation(`I couldn't understand "${clean}". Please say "this is a [shape name]" or just the name.`, 'ai', { spoken: true });
+                            speakText(`I couldn't understand. Please say "this is a circle" or just the name.`, { rate: 1.0 });
+                        }
+                    } else {
+                        // Test mode: just run recognition.
+                        this.test();
+                    }
+                }
+            } catch (err) {
+                this.state.isListening = false;
+                btn.classList.remove('listening');
+                this.setStatus(`Voice error: ${err.message}`, 'error');
+                this.addConversation(`Voice error: ${err.message}`, 'system');
+            }
+        };
+
+        /**
+         * Try to extract a shape name from a transcript.
+         * Examples: "this is a circle", "it's a circle", "circle", "teach circle"
+         */
+        app._extractShapeName = function(text) {
+            // Pattern: "this is a X", "it's a X", "that is a X", or just the word.
+            const match = text.match(/(?:this is a|it'?s a|that is a|teach|learn)\s+(\w+)/i);
+            if (match) return match[1].toLowerCase().trim();
+
+            // Fallback: take the last word that's not a stop word.
+            const words = text.replace(/[^\w\s]/g, '').split(/\s+/);
+            const stopWords = new Set(['this', 'is', 'a', 'the', 'my', 'i', 'am', 'it', 'its', 'to', 'of', 'for', 'and', 'or']);
+            const filtered = words.filter(w => !stopWords.has(w) && w.length > 1);
+            return filtered.length > 0 ? filtered[filtered.length - 1] : null;
+        };
+
+        // ================================================================
+        //  13. BRUSH & CANVAS CONTROLS
+        // ================================================================
+
+        /** Set brush size. */
+        app.setBrush = function(size) {
+            if (this.drawing) {
+                this.drawing.setBrushSize(size);
+                this.setStatus(`Brush size: ${size}px`, 'info');
+            }
+        };
+
+        /** Clear the canvas. */
+        app.clear = function() {
+            if (this.drawing) {
+                this.drawing.clearCanvas();
+                this.setStatus('🗑️ Canvas cleared!', 'info');
+                this.addConversation('Canvas cleared. Draw something new!', 'system');
+            }
+        };
+
+        /** Undo the last stroke. */
+        app.undo = function() {
+            if (this.drawing && this.drawing.undo()) {
+                this.setStatus('↩️ Undo!', 'info');
+            } else {
+                this.setStatus('Nothing to undo.', 'info');
+            }
+        };
+
+        // ================================================================
+        //  14. RESET (for debugging)
+        // ================================================================
+
+        /** Delete all learned shapes and reset the UI. */
+        app.resetAll = function() {
+            if (confirm('Delete all learned shapes? This cannot be undone.')) {
+                FewShotLearner.clearAll();
+                this.refreshUI();
+                this.setStatus('🔄 Reset! All shapes forgotten.', 'info');
+                this.addConversation('All learned shapes have been reset. Start fresh!', 'system');
+                speakText('All shapes reset. Let\'s start fresh!', { rate: 1.0 });
+            }
+        };
+
+        // ================================================================
+        //  15. INITIALIZATION
+        // ================================================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Create drawing manager ---
+            app.drawing = new DrawingManager(app.dom.canvas, {
+                onDrawingEnd: () => {
+                    // Optional: auto-test when drawing ends? We'll leave it manual.
+                },
+            });
+
+            // --- Wire up brush buttons ---
+            document.querySelectorAll('.brush-btn[data-size]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const size = parseInt(btn.dataset.size, 10);
+                    app.setBrush(size);
+                });
+            });
+
+            document.getElementById('clearBtn').addEventListener('click', () => app.clear());
+            document.getElementById('undoBtn').addEventListener('click', () => app.undo());
+
+            // --- Wire up voice buttons ---
+            app.dom.btnTeach.addEventListener('click', () => app.startTeachVoice());
+            app.dom.btnAsk.addEventListener('click', () => app.startAskVoice());
+
+            // --- Keyboard shortcuts ---
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 't' || e.key === 'T') app.startTeachVoice();
+                if (e.key === 'r' || e.key === 'R') app.startAskVoice();
+                if (e.key === 'c' || e.key === 'C') app.clear();
+                if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    app.undo();
+                }
+            });
+
+            // --- Initial UI ---
+            app.refreshUI();
+            app.setStatus('✅ Ready! Draw a shape, then teach or test me.', 'success');
+
+            // --- Welcome message ---
+            app.addConversation('🎨 Welcome to Magic Studio! Draw a shape and say "teach circle" or "test me".', 'ai', { spoken: true });
+            speakText('Welcome to Magic Studio! Draw a shape and teach me, or test me!', { rate: 1.0 });
+
+            // --- Double-click on canvas to clear ---
+            app.dom.canvas.addEventListener('dblclick', () => app.clear());
+
+            console.log('🟡 Magic Studio initialized. CONFIG:', CONFIG);
+            console.log('📚 Learned shapes:', FewShotLearner.getAllLearnedShapes());
+        });
+
+        // ================================================================
+        //  16. EXPOSE GLOBALLY (for console debugging)
+        // ================================================================
+
+        window.app = app;
+        window.FewShotLearner = FewShotLearner;
+        window.speakText = speakText;
+        window.listenForSpeech = listenForSpeech;
+        window.queryLLM = queryLLM;
+        window.queryLLMWithVision = queryLLMWithVision;
+
+        console.log('🟡 Magic Studio loaded. Try: app.teach("circle"), app.test(), app.startTeachVoice()');
+    </script>
+
+</body>
+</html>

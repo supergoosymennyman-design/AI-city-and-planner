@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Toolbox Module Tests</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:system-ui,'Segoe UI',sans-serif;background:#f5f7fa;color:#333;
+  padding:16px;min-height:100dvh
+}
+#app{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:22px;display:flex;align-items:center;gap:8px}
+.card{
+  background:#fff;border-radius:12px;border:1px solid #e0e0e0;
+  padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)
+}
+.card h2{font-size:16px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.card .status{font-size:13px;color:#666;margin:6px 0;min-height:20px}
+.card .result{font-size:14px;padding:6px 10px;border-radius:6px;background:#f0f8ff;margin:4px 0;min-height:20px;word-break:break-all}
+.card .result.ok{background:#e8f5e9;color:#2e7d32}
+.card .result.err{background:#ffebee;color:#c62828}
+.card video{width:100%;border-radius:8px;background:#000;display:block}
+.video-wrap{position:relative;display:inline-block;width:100%;max-width:320px;margin:6px 0}
+.video-wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.btn{
+  border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:600;
+  cursor:pointer;touch-action:manipulation;font-family:inherit;min-height:40px
+}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:#4ecdc4;color:#fff}
+.btn.danger{background:#ff6b6b;color:#fff}
+.btn.secondary{background:#e0e0e0;color:#333}
+.btn.warning{background:#ffd93d;color:#333}
+.btn:disabled{opacity:.4;cursor:default}
+.toggle-row{display:flex;gap:16px;margin:4px 0;font-size:14px}
+.toggle-row label{display:flex;align-items:center;gap:4px;cursor:pointer}
+#log{
+  font-size:12px;font-family:monospace;background:#1a1a2e;color:#e0e0e0;
+  border-radius:8px;padding:10px;max-height:200px;overflow-y:auto;line-height:1.6
+}
+#log .ts{color:#888}
+#log .good{color:#4ecdc4}
+#log .bad{color:#ff6b6b}
+#log .info{color:#74b9ff}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>🧪 Toolbox Module Tests</h1>
+  <div id="log"></div>
+
+  <!-- Conversation -->
+  <div class="card" id="convo-card">
+    <h2>🎤 Conversation Module</h2>
+    <div class="btn-row">
+      <button class="btn primary" id="convo-listen">Start Listening</button>
+      <button class="btn warning" id="convo-speak">Speak Test</button>
+      <button class="btn secondary" id="convo-stop">Stop</button>
+    </div>
+    <div class="status" id="convo-status">Not initialized</div>
+    <div class="result" id="convo-transcript">Transcript: —</div>
+  </div>
+
+  <!-- Recognition -->
+  <div class="card" id="recog-card">
+    <h2>📷 Image Recognition Module</h2>
+    <div class="btn-row">
+      <button class="btn primary" id="recog-cam">Open Camera</button>
+      <button class="btn warning" id="recog-classify">Classify All</button>
+      <button class="btn secondary" id="recog-point">👆 Point &amp; Classify</button>
+      <button class="btn danger" id="recog-stop">Stop Camera</button>
+    </div>
+    <div class="video-wrap hidden" id="recog-wrap">
+      <video id="recog-video" playsinline muted></video>
+      <canvas id="recog-canvas"></canvas>
+    </div>
+    <div class="status" id="recog-status">Not initialized</div>
+    <div class="result" id="recog-result">Label: —  Confidence: —</div>
+  </div>
+
+  <!-- Joints -->
+  <div class="card" id="joint-card">
+    <h2>✋ Joint Detection Module</h2>
+    <div class="btn-row">
+      <button class="btn primary" id="joint-cam">Open Camera</button>
+      <button class="btn warning" id="joint-detect">Start Detection</button>
+      <button class="btn danger" id="joint-stop">Stop</button>
+    </div>
+    <div class="toggle-row">
+      <label><input type="checkbox" id="joint-hands" checked> Hands</label>
+      <label><input type="checkbox" id="joint-pose"> Pose</label>
+      <label><input type="checkbox" id="joint-face"> Face</label>
+    </div>
+    <div class="video-wrap hidden" id="joint-wrap">
+      <video id="joint-video" playsinline muted></video>
+      <canvas id="joint-canvas"></canvas>
+    </div>
+    <div class="status" id="joint-status">Not initialized</div>
+    <div class="result" id="joint-result">Hands: —  Pose: —  Face: —</div>
+  </div>
+</div>
+
+<script src="conversation.js"></script>
+<script src="recognition.js"></script>
+<script src="joints.js"></script>
+<!-- recognition.js dynamically loads TF.js + coco-ssd from CDN when needed -->
+<script>
+(function(){
+  'use strict';
+
+  var $ = function(id){return document.getElementById(id)};
+  var log = $('log');
+
+  function logMsg(msg, type){
+    var t = new Date().toLocaleTimeString();
+    var el = document.createElement('div');
+    el.innerHTML = '<span class="ts">['+t+']</span> <span class="'+(type||'info')+'">'+msg+'</span>';
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // ======================== CONVERSATION ========================
+  (function(){
+    var convo = null;
+    var statusEl = $('convo-status');
+    var transcriptEl = $('convo-transcript');
+
+    function updateStatus(msg, ok){
+      statusEl.textContent = msg;
+      statusEl.style.color = ok ? '#2e7d32' : (msg.includes('error')||msg.includes('denied')?'#c62828':'#666');
+    }
+
+    try {
+      convo = new ConversationManager({
+        systemPrompt: 'You are a test assistant.'
+      });
+      convo.onReady = function(ready){
+        if(ready){
+          updateStatus('Ready', true);
+          logMsg('Conversation: ready', 'good');
+        }
+      };
+      convo.onStateChange = function(s){
+        updateStatus('State: '+s);
+        logMsg('Conversation: state = '+s);
+      };
+      convo.onUserSpeech = function(text){
+        transcriptEl.innerHTML = 'Transcript: <strong>'+text+'</strong>';
+        transcriptEl.className = 'result ok';
+        logMsg('Conversation: heard "'+text+'"', 'good');
+      };
+      convo.onError = function(err){
+        updateStatus('Error: '+err, false);
+        logMsg('Conversation: error - '+err, 'bad');
+      };
+      convo.initialize();
+      updateStatus('Initializing…');
+      logMsg('Conversation: initialized', 'info');
+    } catch(e){
+      updateStatus('Init failed: '+e.message, false);
+      logMsg('Conversation: init error - '+e.message, 'bad');
+    }
+
+    $('convo-listen').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(!convo){updateStatus('Not available',false);return}
+      convo.startListening();
+      updateStatus('Listening…');
+      logMsg('Conversation: startListening()');
+    });
+
+    $('convo-speak').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(!convo){updateStatus('Not available',false);return}
+      var text = 'Hello, I\'m ready! This is the conversation module working.';
+      convo.speak(text);
+      updateStatus('Speaking…');
+      logMsg('Conversation: speak("'+text+'")');
+    });
+
+    $('convo-stop').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(convo){
+        convo.stopListening();
+        convo.interrupt();
+        updateStatus('Stopped');
+        logMsg('Conversation: stopped');
+      }
+    });
+  })();
+
+  // ======================== RECOGNITION ========================
+  (function(){
+    var recog = null;
+    var video = $('recog-video');
+    var canvas = $('recog-canvas');
+    var wrap = $('recog-wrap');
+    var statusEl = $('recog-status');
+    var resultEl = $('recog-result');
+
+    // Hand tracking for pointing
+    var joints = null;
+    var lastFingerPos = null;
+    var isPointing = false;
+    var handDetectActive = false;
+
+    function updateStatus(msg, ok){
+      statusEl.textContent = msg;
+      statusEl.style.color = ok ? '#2e7d32' : (msg.includes('error')||msg.includes('denied')?'#c62828':'#666');
+    }
+
+    function updateResult(label, confidence, bbox){
+      var bboxStr = bbox ? ' [x:'+bbox[0].toFixed(0)+' y:'+bbox[1].toFixed(0)+' w:'+bbox[2].toFixed(0)+' h:'+bbox[3].toFixed(0)+']' : '';
+      resultEl.innerHTML = 'Label: <strong>'+(label||'—')+'</strong>  Confidence: <strong>'+(confidence!==undefined?confidence.toFixed(3):'—')+'</strong>'+bboxStr;
+      resultEl.className = label && label !== 'unknown' ? 'result ok' : 'result';
+    }
+
+    function drawOverlay(bbox, fingerPos){
+      var ctx = canvas.getContext('2d');
+      var vw = video.videoWidth || 640;
+      var vh = video.videoHeight || 480;
+      canvas.width = vw;
+      canvas.height = vh;
+      ctx.clearRect(0, 0, vw, vh);
+
+      if(fingerPos){
+        var fx = fingerPos.x * vw;
+        var fy = fingerPos.y * vh;
+        ctx.beginPath();
+        ctx.arc(fx, fy, 8, 0, Math.PI*2);
+        ctx.fillStyle = isPointing ? '#ff6b6b' : '#888';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        if(isPointing){
+          ctx.fillStyle = '#ff6b6b';
+          ctx.font = '12px sans-serif';
+          ctx.fillText('👆 POINTING', fx - 30, fy - 14);
+        }
+      }
+
+      if(!bbox) return;
+      var x = bbox[0], y = bbox[1], w = bbox[2], h = bbox[3];
+      ctx.strokeStyle = '#4ecdc4';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = 'rgba(78,205,196,0.15)';
+      ctx.fillRect(x, y, w, h);
+    }
+
+    function startHandTracking(){
+      if(joints || handDetectActive) return;
+      handDetectActive = true;
+
+      joints = new JointDetectionManager({enableHands:true, enablePose:false});
+      joints.initialize();
+
+      joints.detectAll(video, {
+        onHands: function(hands){
+          if(!hands || hands.length === 0){
+            lastFingerPos = null;
+            isPointing = false;
+            return;
+          }
+          var hand = hands[0];
+          var lm = hand.landmarks;
+          if(!lm || lm.length < 21) return;
+          isPointing = joints.isPointing(lm);
+          lastFingerPos = {x: lm[8].x, y: lm[8].y};
+          drawOverlay(null, lastFingerPos);
+        },
+        onGesture: function(g){
+          if(g && g.type === 'point') logMsg('Recognition: pointing gesture', 'info');
+        }
+      });
+    }
+
+    function stopHandTracking(){
+      if(joints){
+        joints.stop();
+        joints = null;
+      }
+      handDetectActive = false;
+      lastFingerPos = null;
+      isPointing = false;
+    }
+
+    try {
+      recog = new RecognitionManager({scoreThreshold:0.3});
+      recog.onReady = function(r){
+        if(r){
+          updateStatus('Model ready', true);
+          logMsg('Recognition: ready', 'good');
+        }
+      };
+      recog.onCameraReady = function(r){
+        if(r){
+          updateStatus('Camera active', true);
+          logMsg('Recognition: camera started', 'good');
+        }
+      };
+      recog.onClassification = function(r){
+        updateResult(r.label, r.confidence, r.bbox);
+        drawOverlay(r.bbox, lastFingerPos);
+        logMsg('Recognition: classified "'+r.label+'" ('+(r.confidence||0).toFixed(3)+')', 'good');
+      };
+      recog.onError = function(err){
+        updateStatus('Error: '+err, false);
+        logMsg('Recognition: error - '+err, 'bad');
+      };
+      recog.initialize();
+      updateStatus('Ready (loading model…)');
+      logMsg('Recognition: initialized, loading model…', 'info');
+    } catch(e){
+      updateStatus('Init failed: '+e.message, false);
+      logMsg('Recognition: init error - '+e.message, 'bad');
+    }
+
+    $('recog-cam').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(!recog){updateStatus('Not available',false);return}
+      wrap.classList.remove('hidden');
+      recog.startCamera(video, 'environment', function(ok){
+        if(!ok) updateStatus('Camera failed', false);
+      });
+      logMsg('Recognition: opening camera…');
+    });
+
+    $('recog-classify').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(!recog || !recog.cameraActive){
+        updateStatus('Camera not active', false);
+        logMsg('Recognition: classify skipped - no camera', 'bad');
+        return;
+      }
+      recog.classifyImage(video, function(r){
+        updateResult(r.label, r.confidence, r.bbox);
+        drawOverlay(r.bbox, lastFingerPos);
+      });
+      logMsg('Recognition: classifyImage()');
+    });
+
+    $('recog-point').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(!recog || !recog.cameraActive){
+        updateStatus('Camera not active', false);
+        logMsg('Recognition: classify pointed skipped - no camera', 'bad');
+        return;
+      }
+      if(!handDetectActive) startHandTracking();
+      if(!isPointing || !lastFingerPos){
+        updateStatus('Not pointing — extend index finger', false);
+        logMsg('Recognition: not pointing, waiting for finger', 'bad');
+        return;
+      }
+      recog.classifyPointedAt(lastFingerPos, video, function(r){
+        updateResult(r.label, r.confidence, r.bbox);
+        drawOverlay(r.bbox, lastFingerPos);
+      });
+      logMsg('Recognition: classifyPointedAt('+lastFingerPos.x.toFixed(3)+','+lastFingerPos.y.toFixed(3)+')');
+    });
+
+    $('recog-stop').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(recog){
+        recog.stopCamera();
+        stopHandTracking();
+        wrap.classList.add('hidden');
+        updateStatus('Camera stopped');
+        logMsg('Recognition: stopped');
+      }
+    });
+  })();
+
+  // ======================== JOINTS ========================
+  (function(){
+    var joints = null;
+    var video = $('joint-video');
+    var canvas = $('joint-canvas');
+    var wrap = $('joint-wrap');
+    var statusEl = $('joint-status');
+    var resultEl = $('joint-result');
+    var handsCb = $('joint-hands');
+    var poseCb = $('joint-pose');
+    var faceCb = $('joint-face');
+
+    function updateStatus(msg, ok){
+      statusEl.textContent = msg;
+      statusEl.style.color = ok ? '#2e7d32' : (msg.includes('error')||msg.includes('denied')?'#c62828':'#666');
+    }
+
+    function updateResult(hands, pose, face){
+      resultEl.innerHTML = 'Hands: <strong>'+(hands!==undefined?hands:'—')+'</strong>  Pose: <strong>'+(pose!==undefined?pose:'—')+'</strong>  Face: <strong>'+(face!==undefined?face:'—')+'</strong>';
+    }
+
+    function createManager(){
+      if(joints) joints.destroy();
+      try {
+        joints = new JointDetectionManager({
+          enableHands: handsCb.checked,
+          enablePose: poseCb.checked,
+          enableFace: faceCb.checked
+        });
+        joints.onReady = function(r){
+          if(r){
+            var info = (handsCb.checked?'hands ':'')+(poseCb.checked?'pose ':'')+(faceCb.checked?'face':'');
+            logMsg('Joints: ready ('+info+')', 'good');
+          }
+        };
+        joints.onCameraReady = function(r){
+          if(r){
+            updateStatus('Camera active', true);
+            logMsg('Joints: camera started', 'good');
+          }
+        };
+        joints.onHandsDetected = function(h){
+          var count = h ? h.length : 0;
+          updateResult(count, null, null);
+          logMsg('Joints: detected '+count+' hand(s)', 'info');
+        };
+        joints.onPoseDetected = function(p){
+          var has = p ? 1 : 0;
+          logMsg('Joints: pose '+(has?'detected':'none'), 'info');
+        };
+        joints.onFaceDetected = function(f){
+          var has = f && f.landmarks ? f.landmarks.length : 0;
+          updateResult(null, null, has);
+          logMsg('Joints: face ('+has+' landmarks)', 'info');
+        };
+        joints.onError = function(err){
+          updateStatus('Error: '+err, false);
+          logMsg('Joints: error - '+err, 'bad');
+        };
+        joints.initialize();
+        updateStatus('Ready (loading model…)');
+        logMsg('Joints: initialized, loading model…', 'info');
+      } catch(e){
+        updateStatus('Init failed: '+e.message, false);
+        logMsg('Joints: init error - '+e.message, 'bad');
+      }
+    }
+
+    createManager();
+
+    handsCb.addEventListener('change', createManager);
+    poseCb.addEventListener('change', createManager);
+    faceCb.addEventListener('change', createManager);
+
+    $('joint-cam').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(!joints){createManager();if(!joints)return}
+      wrap.classList.remove('hidden');
+      joints.startCamera(video, function(ok){
+        if(!ok) updateStatus('Camera failed', false);
+      });
+      logMsg('Joints: opening camera…');
+    });
+
+    $('joint-detect').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(!joints || !joints.cameraActive){
+        updateStatus('Camera not active', false);
+        logMsg('Joints: detection skipped - no camera', 'bad');
+        return;
+      }
+      var ctx = canvas.getContext('2d');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+
+      joints.detectAll(video, {
+        onHands: function(hands){
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if(!hands) return;
+          hands.forEach(function(hand){
+            if(!hand.landmarks) return;
+            ctx.fillStyle = '#4ecdc4';
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 2;
+            hand.landmarks.forEach(function(lm){
+              ctx.beginPath();
+              ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 4, 0, Math.PI*2);
+              ctx.fill();
+            });
+          });
+        },
+        onPose: function(pose){
+          if(!pose || !pose.landmarks) return;
+          ctx.fillStyle = '#ff6b6b';
+          if(handsCb.checked){
+            pose.landmarks.forEach(function(lm){
+              ctx.beginPath();
+              ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 3, 0, Math.PI*2);
+              ctx.fill();
+            });
+          } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            pose.landmarks.forEach(function(lm){
+              ctx.beginPath();
+              ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 3, 0, Math.PI*2);
+              ctx.fill();
+            });
+          }
+        },
+        onFace: function(face){
+          if(!face || !face.landmarks) return;
+          ctx.fillStyle = '#ffd93d';
+          // Draw every 10th landmark to keep canvas readable
+          for(var i=0;i<face.landmarks.length;i+=10){
+            var lm = face.landmarks[i];
+            ctx.beginPath();
+            ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 2, 0, Math.PI*2);
+            ctx.fill();
+          }
+        },
+        onGesture: function(g){
+          if(g) logMsg('Joints: gesture = '+g.type+' ('+g.hand+')', 'good');
+        }
+      });
+      updateStatus('Detecting…');
+      logMsg('Joints: detection started');
+    });
+
+    $('joint-stop').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(joints){
+        joints.stop();
+        joints.stopCamera();
+        wrap.classList.add('hidden');
+        updateStatus('Stopped');
+        logMsg('Joints: stopped');
+      }
+    });
+  })();
+
+})();
+</script>
+</body>
+</html>

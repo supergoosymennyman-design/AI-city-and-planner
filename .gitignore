@@ -1,0 +1,42 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# vite
+.vite/
+
+# test / coverage
+coverage/
+playwright-report/
+test-results/
+
+# logs (work-logs in /logs are committed; these are noise)
+*.log
+npm-debug.log*
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# env
+.env
+.env.local
+.env.*.local
+
+# self-hosted ML models (large; provenance-pinned & fetched, not committed)
+# keep small placeholder manifests, ignore the binaries
+packages/toolbox/models/**/*.bin
+packages/toolbox/models/**/*.task
+packages/toolbox/models/**/*.wasm
+
+# never commit student/playtest data (R13/§5c)
+/playtest-data/

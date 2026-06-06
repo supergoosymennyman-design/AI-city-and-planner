@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grocery Bot Delivery – Multi‑Method AI Route Optimiser</title>
+    <style>
+        :root {
+            --bg: #0a0f1a;
+            --panel-bg: #15192b;
+            --text: #dbe2f0;
+            --accent: #ff9800;
+            --success: #4caf50;
+            --fail: #f44336;
+            --gold: #ffb74d;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Poppins', sans-serif;
+            padding: 12px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .game-wrapper {
+            display: flex;
+            gap: 16px;
+            max-width: 1050px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .canvas-container {
+            position: relative;
+            background: #fff;
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 14px 45px rgba(0, 0, 0, 0.6);
+            border: 3px solid #3a4358;
+            flex-shrink: 0;
+        }
+        canvas {
+            display: block;
+            cursor: pointer;
+            max-width: 100%;
+            height: auto;
+        }
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 22px;
+            padding: 20px 18px;
+            color: var(--text);
+            width: 280px;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 1px solid #2a3145;
+        }
+        .panel h2 {
+            font-size: 1.2rem;
+            text-align: center;
+            color: #ffcc80;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stat-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8899bb;
+        }
+        .stat-value {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .battery-bar {
+            width: 100%;
+            height: 14px;
+            background: #2a2f42;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #475267;
+        }
+        .battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #81c784);
+            transition: width 0.15s linear;
+            width: 100%;
+        }
+        .battery-fill.warning {
+            background: linear-gradient(90deg, #ff9800, #ffb74d);
+        }
+        .battery-fill.danger {
+            background: linear-gradient(90deg, #f44336, #ff5252);
+            animation: pulse 0.5s infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        .order-box {
+            background: #1e2436;
+            border-radius: 12px;
+            padding: 10px;
+            min-height: 50px;
+            font-size: 0.75rem;
+        }
+        .order-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 0;
+            border-bottom: 1px solid #2a3145;
+        }
+        .order-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 1px solid #fff;
+        }
+        select,
+        .btn {
+            padding: 8px 12px;
+            border-radius: 18px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            letter-spacing: 0.5px;
+            font-family: inherit;
+            transition: 0.2s;
+        }
+        .btn-launch {
+            background: var(--accent);
+            color: #000;
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+        }
+        .btn-launch:hover:not(:disabled) {
+            background: #ffb74d;
+            transform: translateY(-2px);
+        }
+        .btn-launch:disabled {
+            background: #444;
+            color: #777;
+            cursor: not-allowed;
+        }
+        .btn-reset {
+            background: transparent;
+            border: 2px solid #667;
+            color: #ccc;
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-group .btn {
+            flex: 1;
+        }
+        .message {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #8899bb;
+            min-height: 20px;
+        }
+        .message.good {
+            color: #81c784;
+        }
+        .message.bad {
+            color: #ef9a9a;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(6px);
+        }
+        .overlay.show {
+            display: flex;
+        }
+        .analysis-card {
+            background: #1b1f33;
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            color: #dbe2f0;
+            border: 2px solid #3a4358;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .analysis-card h3 {
+            color: #ffb74d;
+            margin-bottom: 12px;
+            font-size: 1.3rem;
+            text-align: center;
+        }
+        .route-badge {
+            background: #2a3145;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-weight: bold;
+            display: inline-block;
+            margin: 2px;
+        }
+        .route-badge.warehouse {
+            background: #37474f;
+            color: #ffcc80;
+        }
+        .route-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            margin: 8px 0;
+            font-size: 0.8rem;
+        }
+        .explanation {
+            background: #111520;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 12px 0;
+            font-size: 0.8rem;
+            text-align: left;
+            line-height: 1.5;
+            color: #bcc6e0;
+        }
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-retry {
+            background: #ff9800;
+            color: #000;
+        }
+        .btn-next {
+            background: #4caf50;
+            color: #fff;
+        }
+        .btn-close {
+            background: #444;
+            color: #ccc;
+        }
+        @media (max-width: 750px) {
+            .panel {
+                width: 100%;
+                max-width: 360px;
+            }
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper">
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="650" height="480" aria-label="Drone delivery map with houses and warehouse"></canvas>
+        </div>
+
+        <div class="panel">
+            <h2>🚁 Grocery Bot</h2>
+            <div class="row">
+                <span class="stat-label">Level</span>
+                <span class="stat-value" id="levelDisplay">1 / 5</span>
+            </div>
+            <div class="row">
+                <span class="stat-label">Difficulty</span>
+                <select id="difficultySelect">
+                    <option value="very_easy">Very Easy</option>
+                    <option value="easy" selected>Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                    <option value="expert">Expert</option>
+                    <option value="master">Master</option>
+                </select>
+            </div>
+            <div class="row">
+                <span class="stat-label">AI Technique</span>
+                <select id="aiTechniqueSelect">
+                    <option value="brute">Brute Force (Optimal)</option>
+                    <option value="nearest">Nearest Neighbor</option>
+                    <option value="2opt">2-Opt Improvement</option>
+                    <option value="sa">Simulated Annealing</option>
+                    <option value="ga">Genetic Algorithm</option>
+                </select>
+            </div>
+            <div>
+                <span class="stat-label">🔋 Battery</span>
+                <div class="battery-bar"><div class="battery-fill" id="batteryFill"></div></div>
+                <div style="font-size:0.7rem; text-align:right;" id="batteryText">100%</div>
+            </div>
+            <div class="row">
+                <span class="stat-label">Your Distance</span>
+                <span class="stat-value" id="yourDist">—</span>
+            </div>
+            <div class="row">
+                <span class="stat-label">Optimal</span>
+                <span class="stat-value" id="optDist">—</span>
+            </div>
+            <div class="order-box" id="orderList">👆 Click houses in order</div>
+            <div class="btn-group">
+                <button class="btn btn-launch" id="btnLaunch" disabled>🚀 Launch</button>
+                <button class="btn btn-reset" id="btnReset">↺ Reset</button>
+            </div>
+            <div class="message" id="messageBox">Select houses to plan route</div>
+        </div>
+    </div>
+
+    <!-- AI Analysis Overlay -->
+    <div class="overlay" id="overlay">
+        <div class="analysis-card">
+            <h3>🧠 Route Analysis</h3>
+            <div id="analysisContent"></div>
+            <div class="btn-row">
+                <button class="btn btn-retry" id="btnRetry">🔄 Retry Level</button>
+                <button class="btn btn-next" id="btnNext">▶ Next Level</button>
+                <button class="btn btn-close" id="btnClose">✖ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width;
+            const H = canvas.height;
+
+            const levelDisplay = document.getElementById('levelDisplay');
+            const batteryFill = document.getElementById('batteryFill');
+            const batteryText = document.getElementById('batteryText');
+            const yourDistEl = document.getElementById('yourDist');
+            const optDistEl = document.getElementById('optDist');
+            const orderListEl = document.getElementById('orderList');
+            const btnLaunch = document.getElementById('btnLaunch');
+            const btnReset = document.getElementById('btnReset');
+            const messageBox = document.getElementById('messageBox');
+            const overlay = document.getElementById('overlay');
+            const analysisContent = document.getElementById('analysisContent');
+            const btnRetry = document.getElementById('btnRetry');
+            const btnNext = document.getElementById('btnNext');
+            const btnClose = document.getElementById('btnClose');
+            const difficultySelect = document.getElementById('difficultySelect');
+            const aiTechniqueSelect = document.getElementById('aiTechniqueSelect');
+            const yourDistSpan = document.getElementById('yourDist');
+            const optDistSpan = document.getElementById('optDist');
+
+            const MAX_LEVEL = 5;
+            const houseColors = ['#e57373', '#64b5f6', '#81c784', '#ffd54f', '#ba68c8', '#ff8a65', '#4db6ac'];
+
+            let currentLevel = 1;
+            let difficulty = 'easy';
+            let aiMethod = 'brute';
+            let houses = [];
+            let warehouse = { x: 325, y: 420, label: 'Warehouse' };
+            let optimalDistance = 0;
+            let optimalOrder = [];
+            let batteryCapacity = 0;
+            let selectedOrder = [];
+            let isFlying = false;
+            let flightComplete = false;
+            let flightResult = null;
+            let dronePos = { x: warehouse.x, y: warehouse.y };
+            let dronePath = [];
+            let currentLeg = 0;
+            let legProgress = 0;
+            let cumulativeDistance = 0;
+            let totalPlannedDistance = 0;
+            let animationId = null;
+
+            const difficultyFactors = {
+                very_easy: 2.0,
+                easy: 1.65,
+                medium: 1.35,
+                hard: 1.15,
+                expert: 1.0,
+                master: 0.95
+            };
+
+            function dist(p1, p2) {
+                return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+            }
+
+            function generateHouses(level) {
+                const numHouses = level + 2;
+                const generated = [];
+                const margin = 60;
+                const minDistBetween = 120;
+                for (let i = 0; i < numHouses; i++) {
+                    let placed = false;
+                    for (let attempt = 0; attempt < 300; attempt++) {
+                        const x = margin + Math.random() * (W - margin * 2);
+                        const y = 55 + Math.random() * (H - 190);
+                        const newHouse = { id: i, x, y, color: houseColors[i % houseColors.length], label: `House ${String.fromCharCode(65+i)}` };
+                        let ok = true;
+                        if (dist(newHouse, warehouse) < 65) ok = false;
+                        for (const h of generated) {
+                            if (dist(newHouse, h) < minDistBetween) { ok = false; break; }
+                        }
+                        if (ok) {
+                            generated.push(newHouse);
+                            placed = true;
+                            break;
+                        }
+                    }
+                    if (!placed) {
+                        const angle = (i / numHouses) * 2 * Math.PI;
+                        generated.push({
+                            id: i,
+                            x: warehouse.x + Math.cos(angle) * 230,
+                            y: warehouse.y - 260 + Math.sin(angle) * 140,
+                            color: houseColors[i % houseColors.length],
+                            label: `House ${String.fromCharCode(65+i)}`
+                        });
+                    }
+                }
+                return generated;
+            }
+
+            function computeBruteForceOptimal(housesArray) {
+                const n = housesArray.length;
+                if (n === 0) return { distance: 0, order: [] };
+                let minDist = Infinity;
+                let bestOrder = [];
+                function permute(arr, start) {
+                    if (start === arr.length) {
+                        let d = dist(warehouse, housesArray[arr[0]]);
+                        for (let i = 0; i < arr.length - 1; i++) d += dist(housesArray[arr[i]], housesArray[arr[i + 1]]);
+                        d += dist(housesArray[arr[arr.length - 1]], warehouse);
+                        if (d < minDist) { minDist = d;
+                            bestOrder = [...arr]; }
+                        return;
+                    }
+                    for (let i = start; i < arr.length; i++) {
+                        [arr[start], arr[i]] = [arr[i], arr[start]];
+                        permute(arr, start + 1);
+                        [arr[start], arr[i]] = [arr[i], arr[start]];
+                    }
+                }
+                permute(Array.from({ length: n }, (_, i) => i), 0);
+                return { distance: minDist, order: bestOrder };
+            }
+
+            function routeDistance(order) {
+                let d = dist(warehouse, houses[order[0]]);
+                for (let i = 0; i < order.length - 1; i++) d += dist(houses[order[i]], houses[order[i + 1]]);
+                d += dist(houses[order[order.length - 1]], warehouse);
+                return d;
+            }
+
+            // AI techniques
+            function nearestNeighbor() {
+                const unvisited = houses.map((_, i) => i);
+                const order = [];
+                let current = null; // start from warehouse
+                while (unvisited.length > 0) {
+                    let nearestIdx = 0;
+                    let nearestDist = Infinity;
+                    for (let i = 0; i < unvisited.length; i++) {
+                        const hIdx = unvisited[i];
+                        const d = current === null ? dist(warehouse, houses[hIdx]) : dist(houses[current], houses[hIdx]);
+                        if (d < nearestDist) { nearestDist = d;
+                            nearestIdx = i; }
+                    }
+                    order.push(unvisited[nearestIdx]);
+                    current = unvisited[nearestIdx];
+                    unvisited.splice(nearestIdx, 1);
+                }
+                return { order, distance: routeDistance(order) };
+            }
+
+            function twoOptImprovement() {
+                // start with random order
+                let order = houses.map((_, i) => i);
+                for (let i = order.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [order[i], order[j]] = [order[j], order[i]];
+                }
+                let bestDist = routeDistance(order);
+                let improved = true;
+                while (improved) {
+                    improved = false;
+                    for (let i = 0; i < order.length - 1; i++) {
+                        for (let j = i + 1; j < order.length; j++) {
+                            const newOrder = [...order];
+                            while (i < j) { [newOrder[i], newOrder[j]] = [newOrder[j], newOrder[i]];
+                                i++;
+                                j--; }
+                            const newDist = routeDistance(newOrder);
+                            if (newDist < bestDist) {
+                                order = newOrder;
+                                bestDist = newDist;
+                                improved = true;
+                            }
+                        }
+                    }
+                }
+                return { order, distance: bestDist };
+            }
+
+            function simulatedAnnealing() {
+                let order = houses.map((_, i) => i);
+                let currentDist = routeDistance(order);
+                let bestOrder = [...order];
+                let bestDist = currentDist;
+                const Tmax = 100,
+                    Tmin = 0.01,
+                    steps = 2000;
+                for (let s = 0; s < steps; s++) {
+                    const T = Tmax * Math.pow(Tmin / Tmax, s / steps);
+                    const i = Math.floor(Math.random() * order.length);
+                    const j = Math.floor(Math.random() * order.length);
+                    if (i === j) continue;
+                    const newOrder = [...order];
+                    [newOrder[i], newOrder[j]] = [newOrder[j], newOrder[i]];
+                    const newDist = routeDistance(newOrder);
+                    if (newDist < currentDist || Math.random() < Math.exp((currentDist - newDist) / T)) {
+                        order = newOrder;
+                        currentDist = newDist;
+                        if (currentDist < bestDist) {
+                            bestDist = currentDist;
+                            bestOrder = [...order];
+                        }
+                    }
+                }
+                return { order: bestOrder, distance: bestDist };
+            }
+
+            function geneticAlgorithm() {
+                const popSize = 50,
+                    generations = 100;
+                let population = [];
+                for (let p = 0; p < popSize; p++) {
+                    const order = houses.map((_, i) => i);
+                    for (let i = order.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [order[i], order[j]] = [order[j], order[i]];
+                    }
+                    population.push(order);
+                }
+                function fitness(order) { return 1 / (routeDistance(order) + 1); }
+
+                for (let gen = 0; gen < generations; gen++) {
+                    const fits = population.map(fitness);
+                    const totalFit = fits.reduce((a, b) => a + b, 0);
+                    const newPop = [];
+                    for (let p = 0; p < popSize / 2; p++) {
+                        // selection
+                        let r1 = Math.random() * totalFit;
+                        let parent1 = null;
+                        for (let i = 0; i < popSize; i++) { r1 -= fits[i]; if (r1 <= 0) { parent1 = population[i]; break; } }
+                        let r2 = Math.random() * totalFit;
+                        let parent2 = null;
+                        for (let i = 0; i < popSize; i++) { r2 -= fits[i]; if (r2 <= 0) { parent2 = population[i]; break; } }
+                        // order crossover
+                        const child1 = new Array(parent1.length).fill(-1);
+                        const child2 = new Array(parent2.length).fill(-1);
+                        const start = Math.floor(Math.random() * parent1.length);
+                        const end = Math.floor(Math.random() * (parent1.length - start)) + start;
+                        for (let i = start; i <= end; i++) { child1[i] = parent1[i];
+                            child2[i] = parent2[i]; }
+                        [child1, child2].forEach((child, idx) => {
+                            const donor = idx === 0 ? parent2 : parent1;
+                            let di = 0;
+                            for (let i = 0; i < child.length; i++) {
+                                if (child[i] === -1) {
+                                    while (child.includes(donor[di])) di++;
+                                    child[i] = donor[di];
+                                    di++;
+                                }
+                            }
+                        });
+                        // mutation (swap)
+                        if (Math.random() < 0.1) {
+                            const mi = Math.floor(Math.random() * child1.length);
+                            const mj = Math.floor(Math.random() * child1.length);
+                            [child1[mi], child1[mj]] = [child1[mj], child1[mi]];
+                        }
+                        if (Math.random() < 0.1) {
+                            const mi = Math.floor(Math.random() * child2.length);
+                            const mj = Math.floor(Math.random() * child2.length);
+                            [child2[mi], child2[mj]] = [child2[mj], child2[mi]];
+                        }
+                        newPop.push(child1, child2);
+                    }
+                    population = newPop;
+                }
+                const best = population.reduce((a, b) => routeDistance(a) < routeDistance(b) ? a : b);
+                return { order: best, distance: routeDistance(best) };
+            }
+
+            function getAIResult(method) {
+                const methods = {
+                    brute: () => ({ order: optimalOrder, distance: optimalDistance }),
+                    nearest: nearestNeighbor,
+                    '2opt': twoOptImprovement,
+                    sa: simulatedAnnealing,
+                    ga: geneticAlgorithm
+                };
+                return methods[method]();
+            }
+
+            function resetLevel() {
+                if (isFlying) { cancelAnimationFrame(animationId);
+                    animationId = null; }
+                isFlying = false;
+                flightComplete = false;
+                flightResult = null;
+                selectedOrder = [];
+                dronePos = { x: warehouse.x, y: warehouse.y };
+                dronePath = [];
+                currentLeg = 0;
+                legProgress = 0;
+                cumulativeDistance = 0;
+                houses = generateHouses(currentLevel);
+                const opt = computeBruteForceOptimal(houses);
+                optimalDistance = opt.distance;
+                optimalOrder = opt.order;
+                batteryCapacity = Math.ceil(optimalDistance * (difficultyFactors[difficulty] || 1.35));
+                updateUI();
+                updateOrderList();
+                drawAll();
+                messageBox.textContent = 'Select houses in order';
+                messageBox.className = 'message';
+                btnLaunch.disabled = true;
+            }
+
+            function updateUI() {
+                levelDisplay.textContent = `${currentLevel} / ${MAX_LEVEL}`;
+                yourDistEl.textContent = selectedOrder.length === houses.length ? Math.round(routeDistance(
+                    selectedOrder)) : '—';
+                optDistEl.textContent = Math.round(optimalDistance);
+                batteryFill.style.width = '100%';
+                batteryFill.classList.remove('warning', 'danger');
+                batteryText.textContent = '100%';
+                if (flightComplete) {
+                    const batt = Math.max(0, batteryCapacity - cumulativeDistance);
+                    const pct = (batt / batteryCapacity) * 100;
+                    batteryFill.style.width = pct + '%';
+                    batteryText.textContent = Math.round(pct) + '%';
+                }
+            }
+
+            function updateOrderList() {
+                if (selectedOrder.length === 0) {
+                    orderListEl.innerHTML = '<div style="color:#667;">👆 Click houses in order</div>';
+                } else {
+                    orderListEl.innerHTML = selectedOrder.map((hid, idx) => {
+                        const h = houses[hid];
+                        return `<div class="order-item"><span style="color:#ffcc80;">${idx+1}.</span><span class="order-dot" style="background:${h.color};"></span>${h.label}</div>`;
+                    }).join('');
+                }
+            }
+
+            function drawAll() {
+                ctx.clearRect(0, 0, W, H);
+                const sky = ctx.createLinearGradient(0, 0, 0, H);
+                sky.addColorStop(0, '#c5e3f6');
+                sky.addColorStop(0.55, '#e8f4e8');
+                sky.addColorStop(1, '#b8d4b8');
+                ctx.fillStyle = sky;
+                ctx.fillRect(0, 0, W, H);
+                // faint connections
+                houses.forEach(h => {
+                    ctx.strokeStyle = 'rgba(150,150,150,0.18)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(warehouse.x, warehouse.y);
+                    ctx.lineTo(h.x, h.y);
+                    ctx.stroke();
+                });
+                // planned route
+                if (selectedOrder.length >= 2 && !isFlying && !flightComplete) {
+                    ctx.strokeStyle = 'rgba(255,152,0,0.7)';
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([10, 6]);
+                    ctx.beginPath();
+                    ctx.moveTo(warehouse.x, warehouse.y);
+                    selectedOrder.forEach(hid => ctx.lineTo(houses[hid].x, houses[hid].y));
+                    if (selectedOrder.length === houses.length) ctx.lineTo(warehouse.x, warehouse.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                // flown path
+                if ((isFlying || flightComplete) && dronePath.length >= 2) {
+                    ctx.strokeStyle = flightResult === 'success' ? 'rgba(255,152,0,0.9)' : 'rgba(244,67,54,0.9)';
+                    ctx.lineWidth = 4;
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.moveTo(dronePath[0].x, dronePath[0].y);
+                    for (let i = 1; i < dronePath.length; i++) ctx.lineTo(dronePath[i].x, dronePath[i].y);
+                    ctx.stroke();
+                }
+                // optimal path after flight
+                if (flightComplete && optimalOrder.length > 0) {
+                    ctx.strokeStyle = 'rgba(76,175,80,0.7)';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([7, 8]);
+                    ctx.beginPath();
+                    ctx.moveTo(warehouse.x, warehouse.y);
+                    optimalOrder.forEach(idx => ctx.lineTo(houses[idx].x, houses[idx].y));
+                    ctx.lineTo(warehouse.x, warehouse.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                houses.forEach(h => drawHouse(h));
+                drawWarehouse();
+                houses.forEach(h => {
+                    const idx = selectedOrder.indexOf(h.id);
+                    if (idx >= 0 && !isFlying && !flightComplete) {
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(h.x + 18, h.y - 18, 12, 0, 2 * Math.PI);
+                        ctx.fill();
+                        ctx.strokeStyle = '#333';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        ctx.fillStyle = '#000';
+                        ctx.font = 'bold 14px "Segoe UI"';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(idx + 1, h.x + 18, h.y - 18);
+                        ctx.textAlign = 'start';
+                    }
+                });
+                drawDrone();
+            }
+
+            function drawHouse(h) {
+                ctx.fillStyle = h.color;
+                ctx.fillRect(h.x - 14, h.y - 2, 28, 22);
+                ctx.fillStyle = '#00000033';
+                ctx.fillRect(h.x - 16, h.y - 10, 32, 8);
+                ctx.fillStyle = h.color;
+                ctx.beginPath();
+                ctx.moveTo(h.x - 18, h.y - 2);
+                ctx.lineTo(h.x, h.y - 20);
+                ctx.lineTo(h.x + 18, h.y - 2);
+                ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(h.x - 8, h.y + 8, 6, 12);
+                ctx.fillRect(h.x + 2, h.y + 8, 6, 12);
+                ctx.font = 'bold 9px "Segoe UI"';
+                ctx.fillStyle = '#333';
+                ctx.textAlign = 'center';
+                ctx.fillText(h.label, h.x, h.y - 26);
+                ctx.textAlign = 'start';
+            }
+
+            function drawWarehouse() {
+                const w = warehouse;
+                ctx.fillStyle = '#546e7a';
+                ctx.fillRect(w.x - 22, w.y - 20, 44, 34);
+                ctx.fillStyle = '#37474f';
+                ctx.fillRect(w.x - 18, w.y - 28, 36, 12);
+                ctx.fillStyle = '#263238';
+                ctx.fillRect(w.x - 8, w.y - 4, 16, 18);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 10px "Segoe UI"';
+                ctx.textAlign = 'center';
+                ctx.fillText('🏭', w.x, w.y + 16);
+                ctx.fillText('Warehouse', w.x, w.y + 38);
+                ctx.textAlign = 'start';
+            }
+
+            function drawDrone() {
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(dronePos.x, dronePos.y, 7, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = '#ff9800';
+                ctx.fillRect(dronePos.x - 5, dronePos.y + 6, 10, 5);
+            }
+
+            function launchDrone() {
+                if (selectedOrder.length !== houses.length || isFlying || flightComplete) return;
+                isFlying = true;
+                flightComplete = false;
+                cumulativeDistance = 0;
+                currentLeg = 0;
+                legProgress = 0;
+                dronePos = { x: warehouse.x, y: warehouse.y };
+                dronePath = [warehouse, ...selectedOrder.map(hid => houses[hid]), warehouse];
+                totalPlannedDistance = routeDistance(selectedOrder);
+                btnLaunch.disabled = true;
+                messageBox.textContent = '🚁 Drone flying...';
+                animateDrone();
+            }
+
+            function animateDrone() {
+                if (!isFlying) return;
+                const speed = 190;
+                const startPt = dronePath[currentLeg];
+                const endPt = dronePath[currentLeg + 1];
+                const legDist = dist(startPt, endPt);
+                legProgress += (speed / 60) / legDist;
+                if (legProgress >= 1) {
+                    cumulativeDistance += legDist;
+                    legProgress = 0;
+                    currentLeg++;
+                    if (currentLeg >= dronePath.length - 1) {
+                        dronePos = { x: warehouse.x, y: warehouse.y };
+                        finishFlight(cumulativeDistance <= batteryCapacity);
+                        return;
+                    }
+                }
+                dronePos = {
+                    x: startPt.x + (endPt.x - startPt.x) * legProgress,
+                    y: startPt.y + (endPt.y - startPt.y) * legProgress,
+                };
+                cumulativeDistance = calcPartialDistance();
+                const batt = Math.max(0, batteryCapacity - cumulativeDistance);
+                const pct = (batt / batteryCapacity) * 100;
+                batteryFill.style.width = pct + '%';
+                batteryFill.classList.remove('warning', 'danger');
+                if (pct < 20) batteryFill.classList.add('danger');
+                else if (pct < 40) batteryFill.classList.add('warning');
+                batteryText.textContent = Math.round(pct) + '%';
+                if (cumulativeDistance >= batteryCapacity) {
+                    finishFlight(false);
+                    return;
+                }
+                drawAll();
+                animationId = requestAnimationFrame(animateDrone);
+            }
+
+            function calcPartialDistance() {
+                let d = 0;
+                for (let i = 0; i < currentLeg; i++) d += dist(dronePath[i], dronePath[i + 1]);
+                d += dist(dronePath[currentLeg], dronePos);
+                return d;
+            }
+
+            function finishFlight(success) {
+                isFlying = false;
+                flightComplete = true;
+                flightResult = success ? 'success' : 'fail';
+                if (animationId) cancelAnimationFrame(animationId);
+                const batt = Math.max(0, batteryCapacity - cumulativeDistance);
+                const pct = (batt / batteryCapacity) * 100;
+                batteryFill.style.width = pct + '%';
+                batteryText.textContent = Math.round(pct) + '%';
+                messageBox.textContent = success ? '✅ Delivery complete!' : '❌ Battery died!';
+                messageBox.className = success ? 'good' : 'bad';
+                drawAll();
+                showAnalysis();
+            }
+
+            function showAnalysis() {
+                const aiRes = getAIResult(aiMethod);
+                const playerDist = cumulativeDistance;
+                const techNames = {
+                    brute: 'Brute Force (Optimal)',
+                    nearest: 'Nearest Neighbor',
+                    '2opt': '2-Opt Improvement',
+                    sa: 'Simulated Annealing',
+                    ga: 'Genetic Algorithm'
+                };
+                const explanations = {
+                    brute: 'The AI tried <strong>every possible order</strong> (all permutations) and kept the shortest. This guarantees the optimal answer but is only practical for small numbers of stops.',
+                    nearest: 'The AI started at the warehouse and repeatedly visited the <strong>closest unvisited house</strong>. It’s fast but can be fooled into bad routes later.',
+                    '2opt': 'The AI started with a random route and then kept <strong>uncrossing</strong> pairs of edges (2-opt swaps) until no further improvement was possible. Often finds near‑optimal solutions.',
+                    sa: 'The AI mimicked the <strong>cooling of metal</strong>: it sometimes accepted worse routes to escape local minima, then slowly reduced that chance. This often finds a very good route.',
+                    ga: 'The AI evolved a population of routes: selecting the fittest, combining parents (crossover) and mutating. After many generations, it picks the best survivor.'
+                };
+                let html = '';
+                html += `<p><strong>Your route:</strong> ${selectedOrder.map(i=>houses[i].label).join(' → ')} (${Math.round(playerDist)} units)</p>`;
+                html +=
+                    `<p><strong>Optimal route (Brute Force):</strong> ${optimalOrder.map(i=>houses[i].label).join(' → ')} (${Math.round(optimalDistance)} units)</p>`;
+                html +=
+                    `<p><strong>AI method (${techNames[aiMethod]}):</strong> ${aiRes.order.map(i=>houses[i].label).join(' → ')} (${Math.round(aiRes.distance)} units)</p>`;
+                html += `<div class="route-flow"><span class="route-badge warehouse">🏭 WH</span> → `;
+                html += aiRes.order.map(i =>
+                    `<span class="route-badge">${houses[i].label}</span>`).join(' → ');
+                html += ` → <span class="route-badge warehouse">🏭 WH</span></div>`;
+                html += `<div class="explanation"><strong>How ${techNames[aiMethod]} works:</strong><br>${explanations[aiMethod]}</div>`;
+                analysisContent.innerHTML = html;
+                overlay.classList.add('show');
+                btnNext.style.display = currentLevel < MAX_LEVEL ? 'inline-block' : 'none';
+            }
+
+            // Event handling
+            canvas.addEventListener('click', (e) => {
+                if (isFlying || flightComplete) return;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = W / rect.width;
+                const scaleY = H / rect.height;
+                const mx = (e.clientX - rect.left) * scaleX;
+                const my = (e.clientY - rect.top) * scaleY;
+                const hit = houses.find(h => Math.hypot(mx - h.x, my - h.y) < 28);
+                if (hit) {
+                    const idx = selectedOrder.indexOf(hit.id);
+                    if (idx >= 0) selectedOrder.splice(idx, 1);
+                    else if (selectedOrder.length < houses.length) selectedOrder.push(hit.id);
+                    updateOrderList();
+                    btnLaunch.disabled = selectedOrder.length !== houses.length;
+                    updateUI();
+                    drawAll();
+                }
+            });
+            canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+            canvas.addEventListener('touchend', (e) => {
+                if (isFlying || flightComplete) return;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = W / rect.width;
+                const scaleY = H / rect.height;
+                const touch = e.changedTouches[0];
+                const mx = (touch.clientX - rect.left) * scaleX;
+                const my = (touch.clientY - rect.top) * scaleY;
+                const hit = houses.find(h => Math.hypot(mx - h.x, my - h.y) < 28);
+                if (hit) {
+                    const idx = selectedOrder.indexOf(hit.id);
+                    if (idx >= 0) selectedOrder.splice(idx, 1);
+                    else if (selectedOrder.length < houses.length) selectedOrder.push(hit.id);
+                    updateOrderList();
+                    btnLaunch.disabled = selectedOrder.length !== houses.length;
+                    updateUI();
+                    drawAll();
+                }
+            });
+
+            btnLaunch.addEventListener('click', launchDrone);
+            btnReset.addEventListener('click', () => {
+                if (isFlying) return;
+                selectedOrder = [];
+                flightComplete = false;
+                flightResult = null;
+                cumulativeDistance = 0;
+                updateOrderList();
+                updateUI();
+                drawAll();
+                messageBox.textContent = 'Select houses in order';
+                messageBox.className = 'message';
+                btnLaunch.disabled = true;
+            });
+
+            difficultySelect.addEventListener('change', (e) => {
+                difficulty = e.target.value;
+                batteryCapacity = Math.ceil(optimalDistance * (difficultyFactors[difficulty] || 1.35));
+                updateUI();
+            });
+            aiTechniqueSelect.addEventListener('change', (e) => { aiMethod = e.target.value; });
+
+            btnRetry.addEventListener('click', () => {
+                overlay.classList.remove('show');
+                selectedOrder = [];
+                flightComplete = false;
+                flightResult = null;
+                cumulativeDistance = 0;
+                updateOrderList();
+                updateUI();
+                drawAll();
+                messageBox.textContent = 'Retry – select houses';
+                messageBox.className = 'message';
+                btnLaunch.disabled = true;
+            });
+            btnNext.addEventListener('click', () => {
+                if (currentLevel < MAX_LEVEL) { currentLevel++;
+                    overlay.classList.remove('show');
+                    resetLevel(); }
+            });
+            btnClose.addEventListener('click', () => overlay.classList.remove('show'));
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !isFlying && !flightComplete && selectedOrder.length === houses
+                    .length) launchDrone();
+                if (e.key === 'r' && !isFlying && flightComplete) {
+                    overlay.classList.remove('show');
+                    selectedOrder = [];
+                    flightComplete = false;
+                    updateOrderList();
+                    updateUI();
+                    drawAll();
+                }
+            });
+
+            function init() {
+                currentLevel = 1;
+                difficulty = 'easy';
+                aiMethod = 'brute';
+                houses = generateHouses(currentLevel);
+                const opt = computeBruteForceOptimal(houses);
+                optimalDistance = opt.distance;
+                optimalOrder = opt.order;
+                batteryCapacity = Math.ceil(optimalDistance * difficultyFactors[difficulty]);
+                selectedOrder = [];
+                isFlying = false;
+                flightComplete = false;
+                updateUI();
+                updateOrderList();
+                drawAll();
+                messageBox.textContent = 'Select houses in order';
+                btnLaunch.disabled = true;
+                overlay.classList.remove('show');
+            }
+            setInterval(() => { if (!isFlying && !flightComplete) drawAll(); }, 120);
+            init();
+            console.log('🚁 Multi‑method Grocery Bot ready!');
+        })();
+    </script>
+</body>
+</html>

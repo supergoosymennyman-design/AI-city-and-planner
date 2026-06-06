@@ -1,0 +1,181 @@
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f8ff;--bubble:#fff;--text:#333;--border:#ccc;
+  --font:system-ui,'Segoe UI',sans-serif;
+  --radius:16px;--swatch:clamp(40px,8vmin,60px);--target:clamp(48px,10vmin,72px);
+  --star:#f5c518;--star-empty:#ddd;
+  --red:#ff4444;--blue:#4488ff;--yellow:#f5d742;
+  --green:#3dbb5a;--orange:#ff8c2b;--purple:#9b4dff;
+  --module-bar-h:32px;
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);
+  min-height:100dvh;display:flex;justify-content:center;
+  -webkit-tap-highlight-color:transparent;user-select:none
+}
+#app{
+  display:flex;flex-direction:column;width:100%;max-width:520px;
+  min-height:100dvh;padding:10px 14px;gap:8px
+}
+
+#top{display:flex;align-items:flex-start;gap:8px;flex-shrink:0}
+#bot{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+#bot-char{font-size:clamp(32px,9vmin,56px);animation:bob 2s ease-in-out infinite;flex-shrink:0}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+#bubble{
+  background:var(--bubble);border:2px solid var(--border);border-radius:var(--radius);
+  padding:8px 14px;position:relative;font-size:clamp(13px,3vmin,18px);line-height:1.4;
+  flex:1;min-width:0;word-wrap:break-word;box-shadow:0 2px 8px rgba(0,0,0,.06)
+}
+#bubble::before{
+  content:'';position:absolute;left:-8px;top:50%;transform:translateY(-50%);
+  border:8px solid transparent;border-right-color:var(--bubble)
+}
+#bubble::after{
+  content:'';position:absolute;left:-11px;top:50%;transform:translateY(-50%);
+  border:9px solid transparent;border-right-color:var(--border);z-index:-1
+}
+#score-wrap{flex-shrink:0;padding-top:6px}
+#score{font-size:clamp(18px,4vmin,28px);letter-spacing:2px;color:var(--star)}
+#score .e{color:var(--star-empty)}
+
+#stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:0}
+
+#bottom{flex-shrink:0;padding:8px 0 4px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.palette{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.palette-btn{
+  width:var(--swatch);height:var(--swatch);border-radius:50%;border:3px solid transparent;
+  cursor:pointer;touch-action:manipulation;transition:border-color .15s,transform .15s
+}
+.palette-btn:active{transform:scale(.92)}
+.palette-btn.sel{border-color:var(--text);box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--text)}
+
+.shape-wrap{cursor:pointer;touch-action:manipulation}
+.shape-wrap svg{width:clamp(140px,38vmin,260px);height:clamp(140px,38vmin,260px);display:block}
+.shape-wrap svg *{cursor:pointer}
+.shape-check{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.shape-check svg{width:clamp(80px,18vmin,120px);height:clamp(80px,18vmin,120px);cursor:pointer;touch-action:manipulation;transition:transform .15s}
+.shape-check svg:active{transform:scale(.9)}
+
+.btn{
+  border:none;border-radius:var(--radius);cursor:pointer;touch-action:manipulation;
+  font-weight:700;font-size:clamp(16px,3.5vmin,22px);
+  min-height:var(--target);padding:8px 24px;transition:transform .1s,opacity .15s;
+  font-family:var(--font)
+}
+.btn:active{transform:scale(.95)}
+.btn-primary{background:#4ecdc4;color:#fff}
+.btn-start{background:var(--green);color:#fff;font-size:clamp(20px,5vmin,28px);padding:12px 40px}
+.btn-red{background:var(--red);color:#fff}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-yellow{background:var(--yellow);color:var(--text)}
+.game-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.game-btns .btn{min-width:100px;flex:1}
+.result-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.result-btns .btn{min-width:140px}
+#teach-btn{background:var(--green);color:#fff;min-width:100px;font-size:clamp(18px,4vmin,24px);padding:12px 32px}
+#teach-btn:disabled{opacity:.4;cursor:default}
+#reset{
+  position:fixed;bottom:6px;right:6px;width:32px;height:32px;border-radius:50%;
+  border:1px solid var(--border);background:var(--bubble);font-size:16px;
+  cursor:pointer;opacity:.4;touch-action:manipulation;z-index:10
+}
+#reset:hover,#reset:active{opacity:.8}
+
+.prompt{font-size:clamp(18px,4.5vmin,26px);font-weight:700;text-align:center}
+.sub{padding-top:12px;text-align:center;font-size:clamp(14px,3vmin,18px);color:#666}
+
+.stars-big{font-size:clamp(32px,8vmin,48px);letter-spacing:4px;margin:8px 0}
+.stars-big .e{color:var(--star-empty)}
+.stars-big .f{color:var(--star)}
+.result-score{font-size:clamp(20px,5vmin,30px);font-weight:700;text-align:center}
+.reteach-btn{background:#ff6b6b;color:#fff}
+
+/* Module status bar */
+#module-bar{
+  flex-shrink:0;display:flex;justify-content:center;gap:10px;
+  padding:4px 0;min-height:var(--module-bar-h)
+}
+.module-indicator{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;padding:2px 8px;border-radius:8px;
+  border:1px solid var(--border);background:var(--bubble);opacity:.35
+}
+.module-indicator.active{opacity:1;border-color:var(--green)}
+.module-indicator.error{opacity:1;border-color:var(--red)}
+.module-indicator .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.module-indicator .dot.on{background:var(--green)}
+.module-indicator .dot.off{background:var(--star-empty)}
+.module-indicator .dot.err{background:var(--red)}
+.module-indicator .dot.loading{background:var(--orange);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Loading screen */
+.loading-screen{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;padding:40px 20px
+}
+.loading-screen h2{font-size:clamp(20px,5vmin,28px);color:var(--text)}
+.loading-item{display:flex;align-items:center;gap:10px;width:100%;max-width:280px}
+.loading-item .load-bar{flex:1;height:6px;border-radius:3px;background:var(--star-empty);overflow:hidden}
+.loading-item .load-bar .fill{height:100%;border-radius:3px;background:var(--green);width:0%;transition:width .3s}
+.loading-item .load-label{font-size:13px;min-width:100px;color:#666}
+
+/* Voice input fallback */
+#voice-fallback-input{
+  display:flex;gap:8px;width:100%;max-width:400px;padding:4px 0
+}
+#voice-fallback-input input{
+  flex:1;border:2px solid var(--border);border-radius:var(--radius);
+  padding:8px 14px;font-size:16px;font-family:var(--font);
+  outline:none;min-height:44px
+}
+#voice-fallback-input input:focus{border-color:var(--green)}
+#voice-fallback-input button{
+  border:none;border-radius:var(--radius);background:var(--green);color:#fff;
+  font-weight:700;padding:8px 20px;cursor:pointer;font-size:16px;
+  min-height:44px;font-family:var(--font)
+}
+
+/* Settings gear */
+#settings-btn{
+  position:fixed;top:6px;right:6px;width:32px;height:32px;border-radius:50%;
+  border:1px solid var(--border);background:var(--bubble);font-size:16px;
+  cursor:pointer;opacity:.5;touch-action:manipulation;z-index:10;
+  display:flex;align-items:center;justify-content:center
+}
+#settings-btn:hover,#settings-btn:active{opacity:1}
+#settings-panel{
+  position:fixed;top:0;right:0;bottom:0;width:280px;max-width:80vw;
+  background:var(--bubble);border-left:2px solid var(--border);
+  box-shadow:-4px 0 20px rgba(0,0,0,.1);z-index:20;
+  padding:20px;display:flex;flex-direction:column;gap:12px;
+  transform:translateX(100%);transition:transform .3s
+}
+#settings-panel.open{transform:translateX(0)}
+#settings-panel h3{font-size:18px;margin-bottom:8px}
+#settings-panel label{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+#settings-panel input[type="checkbox"]{width:18px;height:18px;cursor:pointer}
+#settings-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:15;
+  opacity:0;pointer-events:none;transition:opacity .3s
+}
+#settings-overlay.open{opacity:1;pointer-events:auto}
+
+/* Responsive */
+@media(max-width:420px){
+  #app{padding:6px 8px;gap:4px}
+  .palette{gap:6px}
+  .palette-btn{--swatch:clamp(34px,10vmin,46px)}
+  .game-btns{gap:8px}
+  .game-btns .btn{min-width:80px;padding:6px 12px;font-size:clamp(14px,4vmin,18px)}
+}
+@media(min-width:600px){
+  #app{padding:16px 24px}
+  .shape-check svg{width:clamp(100px,16vmin,140px);height:clamp(100px,16vmin,140px)}
+}
+@media(pointer:coarse){
+  .palette-btn,.btn,.shape-wrap,.shape-check svg{touch-action:manipulation}
+}
+
+.hidden{display:none!important}

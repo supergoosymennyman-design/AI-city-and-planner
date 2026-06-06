@@ -1,0 +1,30 @@
+{
+  "name": "ai-education",
+  "version": "0.0.0",
+  "private": true,
+  "description": "AI-Education games platform — kindergarten + primary, React/TS monorepo",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "games/kindergarten/*",
+    "games/primary/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --build",
+    "contracts": "node scripts/validate-contracts.mjs",
+    "validate": "npm run typecheck && npm run contracts",
+    "build": "npm run typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.0",
+    "react": "^18.3.0",
+    "typescript": "^5.6.0",
+    "zod": "^3.23.0"
+  }
+}

@@ -1,0 +1,132 @@
+/* UI Design: Dark Mode Professional – with confidence bar styling */
+body {
+    background-color: #0f172a;
+    color: #f8fafc;
+    font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+}
+
+#viewport {
+    display: flex;
+    gap: 20px;
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 24px;
+    box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+video,
+#handCanvas {
+    width: 320px;
+    height: 240px;
+    border-radius: 12px;
+    background: #000;
+}
+video {
+    transform: scaleX(-1); /* mirror */
+}
+#handCanvas {
+    position: relative;
+    border: 1px solid #334155;
+}
+
+canvas {
+    border-radius: 12px;
+    background: #000;
+    border: 2px solid #334155;
+}
+
+.controls {
+    margin-top: 24px;
+    background: #1e293b;
+    padding: 20px 25px;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 780px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 40px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 5px;
+    font-size: 0.9rem;
+}
+button:hover {
+    background: #2563eb;
+    transform: scale(1.02);
+}
+button:disabled {
+    background: #475569;
+    cursor: not-allowed;
+    transform: none;
+}
+
+#status,
+#sampleCounts,
+#debug {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.85rem;
+    background: #0f172a;
+    padding: 8px 12px;
+    border-radius: 40px;
+    margin: 8px 0;
+}
+
+#debug {
+    color: #facc15;
+    border-left: 4px solid #facc15;
+}
+
+/* Confidence bar styles */
+.confidence-container {
+    background: #0f172a;
+    padding: 10px 15px;
+    border-radius: 40px;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.confidence-container span {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.confidence-bar-bg {
+    background-color: #334155;
+    border-radius: 20px;
+    height: 12px;
+    width: 180px;
+    overflow: hidden;
+}
+.confidence-bar-fill {
+    background: linear-gradient(90deg, #10b981, #3b82f6);
+    width: 0%;
+    height: 100%;
+    border-radius: 20px;
+    transition: width 0.1s ease;
+}
+#confidencePercent {
+    font-family: monospace;
+    font-weight: bold;
+    min-width: 45px;
+}
+#debug {
+    font-family: monospace;
+    font-size: 0.75rem;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
