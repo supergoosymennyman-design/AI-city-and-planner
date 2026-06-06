@@ -15,6 +15,10 @@ build/
 coverage/
 playwright-report/
 test-results/
+.playwright-mcp/
+
+# one-time browser/verification screenshots at repo root (never commit; clean up after use)
+/*.png
 
 # logs (work-logs in /logs are committed; these are noise)
 *.log
