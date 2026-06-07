@@ -1,0 +1,30 @@
+{
+  "name": "@edu/toolbox",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@edu/contract": "*",
+    "@edu/debug": "*"
+  },
+  "peerDependencies": {
+    "@mediapipe/holistic": "^0.5.1675471629",
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs": "^4.22.0"
+  },
+  "peerDependenciesMeta": {
+    "@mediapipe/holistic": { "optional": true },
+    "@tensorflow-models/coco-ssd": { "optional": true },
+    "@tensorflow/tfjs": { "optional": true }
+  },
+  "devDependencies": {
+    "@edu/testing": "*"
+  }
+}

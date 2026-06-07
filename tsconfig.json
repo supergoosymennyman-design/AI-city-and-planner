@@ -4,6 +4,7 @@
     { "path": "./packages/contract" },
     { "path": "./packages/debug" },
     { "path": "./packages/ui" },
+    { "path": "./packages/toolbox" },
     { "path": "./games/kindergarten/color-the-rainbow" }
   ]
 }
