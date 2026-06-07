@@ -3,115 +3,129 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Command Deck — Primary (P3–P6) UI direction preview</title>
+<title>The Architect's Table — Primary (P3–P6) UI direction</title>
 <!--
-  DESIGN PREVIEW (taste review, not production). PRIMARY track (P1–P6, anchored on P3–P6):
-  "Architect's Command Deck" — a clean, capable city-builder UI for the AI City Architect sim.
-  Deliberately SEPARATE from the kindergarten "Sticker Lab + Bo" look: cool palette, geometric
-  type, data panels, sliders/dials, a sim timeline, and a sleek AI Advisor console (no mascot).
+  DESIGN PREVIEW (taste review, not production). PRIMARY track "Architect's Table": a premium
+  strategy-game look — a light cool studio holding glowing deep-teal command screens, an
+  isometric living city, an electric-lime signature accent, Bricolage Grotesque display type.
+  A 2D-sim COMPONENT KIT (not one fixed screen); the City finale is one assembly of the parts.
   Fonts load from a CDN here for preview only; production self-hosts + SRI (golden rule #4).
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    /* cool, modern canvas */
-    --bg:#eaf0f8; --bg-2:#dde7f3; --panel:#ffffff; --panel-2:#f3f7fc; --line:#d3deec;
-    --ink:#16243a; --ink-2:#46566e; --ink-3:#7286a1;
-    /* brand: confident indigo + teal energy */
-    --indigo:#4f6bed; --indigo-d:#3a52c6; --teal:#11c2b0; --teal-d:#0a9b8d;
-    /* city-system categories (CVD-aware: differ in luminance + hue) */
-    --power:#f5a524; --water:#2aa7ff; --park:#35c46a; --transit:#8b6cf0; --health:#f0566b; --waste:#9a7b5a; --house:#ff8a5b;
-    --radius:16px; --radius-lg:22px;
-    --shadow:0 10px 26px -12px rgba(22,36,58,.35), 0 2px 6px -2px rgba(22,36,58,.12);
-    --shadow-sm:0 4px 12px -6px rgba(22,36,58,.3);
-    --font-display:'Sora', system-ui, sans-serif;
-    --font-body:'Plus Jakarta Sans', system-ui, sans-serif;
-    --ease:cubic-bezier(.22,.7,.3,1);
+    /* studio (light cool) */
+    --studio:#eef4f3; --studio-2:#e2eceb; --paper:#ffffff; --line:#cdddda;
+    --ink:#11272c; --ink-2:#3f5a5f; --ink-3:#6f8a8e;
+    /* command screen (deep teal) */
+    --screen:#0e2e36; --screen-2:#103a44; --screen-line:#1f5663; --screen-ink:#dff3f0; --screen-ink-2:#8fc0bd;
+    /* signature accent: electric lime on teal */
+    --lime:#c6f24e; --lime-d:#a6d62f; --amber:#ffb23e;
+    /* city systems (CVD-aware) */
+    --power:#ffb23e; --water:#36b6ff; --park:#46d07a; --transit:#9b7cff; --health:#ff6b81; --house:#ff9159;
+    --r:16px; --r-lg:24px;
+    --shadow:0 22px 50px -22px rgba(10,40,45,.55), 0 3px 8px -3px rgba(10,40,45,.2);
+    --shadow-sm:0 8px 20px -10px rgba(10,40,45,.45);
+    --glow-lime:0 0 0 1px #c6f24e55, 0 0 22px -2px #c6f24e88;
+    --fd:'Bricolage Grotesque', system-ui, sans-serif; --fb:'Plus Jakarta Sans', system-ui, sans-serif;
+    --ease:cubic-bezier(.2,.8,.2,1);
   }
   *{box-sizing:border-box} html,body{margin:0}
-  body{font-family:var(--font-body);color:var(--ink);background:var(--bg);overflow-x:hidden;-webkit-font-smoothing:antialiased;
-    background-image:linear-gradient(var(--bg-2) 1px,transparent 1px),linear-gradient(90deg,var(--bg-2) 1px,transparent 1px);
-    background-size:28px 28px;background-position:center;}
-  .wrap{max-width:1140px;margin:0 auto;padding:38px 24px 90px}
-  .kicker{font-family:var(--font-display);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:.78rem;color:var(--indigo)}
-  h1{font-family:var(--font-display);font-weight:800;font-size:clamp(2.2rem,5vw,3.4rem);line-height:1.05;margin:.08em 0 .2em;letter-spacing:-.02em}
-  .lede{max-width:64ch;color:var(--ink-2);font-weight:600;font-size:1.05rem}
-  h2{font-family:var(--font-display);font-weight:800;font-size:1.4rem;margin:50px 0 4px;display:flex;align-items:center;gap:11px;letter-spacing:-.01em}
-  h2 .pin{width:11px;height:11px;border-radius:3px;background:var(--teal);box-shadow:0 0 0 4px #11c2b022}
-  .sub{color:var(--ink-3);font-weight:600;margin:0 0 18px}
-  .rise{opacity:0;transform:translateY(14px);animation:rise .55s var(--ease) forwards}
+  body{font-family:var(--fb);color:var(--ink);background:var(--studio);overflow-x:hidden;-webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(60vw 40vh at 85% -5%, #d7ebe6 0%, transparent 60%),
+      radial-gradient(50vw 40vh at 0% 20%, #e6efe9 0%, transparent 55%),
+      linear-gradient(180deg,var(--studio),var(--studio-2));
+    background-attachment:fixed}
+  /* faint architect contour lines */
+  body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(var(--studio-2) 1px,transparent 1px),linear-gradient(90deg,var(--studio-2) 1px,transparent 1px);
+    background-size:32px 32px;-webkit-mask-image:radial-gradient(circle at 50% 30%,#000,transparent 80%)}
+  .wrap{position:relative;z-index:1;max-width:1160px;margin:0 auto;padding:44px 24px 96px}
+
+  .kicker{font-family:var(--fd);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:.76rem;color:var(--ink-2)}
+  .kicker b{color:#0e8f7e}
+  h1{font-family:var(--fd);font-weight:800;font-size:clamp(2.4rem,6vw,4rem);line-height:1;margin:.1em 0 .22em;letter-spacing:-.02em}
+  h1 .ink{color:var(--ink)} h1 .accent{color:#0e8f7e}
+  .lede{max-width:64ch;color:var(--ink-2);font-weight:600;font-size:1.06rem}
+  h2{font-family:var(--fd);font-weight:800;font-size:1.45rem;margin:56px 0 4px;display:flex;align-items:center;gap:12px;letter-spacing:-.01em}
+  h2 .pin{width:13px;height:13px;border-radius:4px;background:var(--lime);box-shadow:var(--glow-lime);transform:rotate(45deg)}
+  .sub{color:var(--ink-3);font-weight:600;margin:0 0 18px;max-width:70ch}
+  .rise{opacity:0;transform:translateY(18px);animation:rise .6s var(--ease) forwards}
   @keyframes rise{to{opacity:1;transform:none}}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:20px}
-  .chiprow{display:flex;gap:10px;flex-wrap:wrap}
 
-  /* buttons */
-  .btn{font-family:var(--font-display);font-weight:700;font-size:1rem;cursor:pointer;border:none;border-radius:12px;
-    min-height:48px;padding:0 20px;color:#fff;background:var(--indigo);box-shadow:var(--shadow-sm);transition:transform .12s var(--ease),box-shadow .12s,filter .12s}
-  .btn:hover{filter:brightness(1.05)} .btn:active{transform:translateY(1px)}
-  .btn:focus-visible{outline:3px solid var(--teal);outline-offset:3px}
-  .btn--teal{background:var(--teal)} .btn--ghost{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);box-shadow:none}
-  .btn--lg{min-height:56px;font-size:1.1rem;padding:0 26px}
-
-  /* swatches */
-  .sw{display:flex;gap:12px;flex-wrap:wrap}
-  .sw>div{width:84px}
-  .sw .chip{height:54px;border-radius:12px;box-shadow:var(--shadow-sm)}
-  .sw small{display:block;margin-top:6px;font-weight:700;font-family:var(--font-display);font-size:.85rem}
-  .sw code{font-size:.68rem;color:var(--ink-3)}
-
-  /* AI advisor (console, NOT a face) */
-  .advisor{display:flex;gap:14px;align-items:flex-start;background:linear-gradient(180deg,#f2f6ff,#eaf0ff);
-    border:1px solid #c9d6f5;border-radius:16px;padding:16px}
-  .ai-glyph{flex:none;width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--indigo),var(--teal));
-    display:grid;place-items:center;box-shadow:var(--shadow-sm);position:relative}
-  .ai-glyph svg{width:24px;height:24px}
-  .ai-glyph::after{content:'';position:absolute;inset:-3px;border-radius:14px;border:2px solid #4f6bed44;animation:halo 2.2s var(--ease) infinite}
-  @keyframes halo{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.8;transform:scale(1.06)}}
-  .advisor .label{font-family:var(--font-display);font-weight:800;font-size:.82rem;color:var(--indigo);letter-spacing:.02em;text-transform:uppercase}
-  .advisor .msg{font-weight:600;color:var(--ink);margin:3px 0 10px}
-
-  /* control: sliders / toggles / meters */
-  .control{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
-  .control .head{display:flex;justify-content:space-between;font-weight:700;font-size:.9rem}
-  .control .head b{font-family:var(--font-display)}
-  .track{height:12px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);position:relative}
-  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:8px}
-  .knob{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--indigo);transform:translate(-50%,-50%);box-shadow:var(--shadow-sm)}
-  .meter{display:flex;align-items:center;gap:10px;font-weight:700}
-  .pill{font-family:var(--font-display);font-weight:700;font-size:.78rem;padding:4px 11px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line)}
-
-  /* city map (top-down tiles) */
-  .map{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;background:#cfe0d6;border:1px solid var(--line);border-radius:14px;padding:8px}
-  .tile{aspect-ratio:1;border-radius:9px;display:grid;place-items:center;font-size:1.3rem;box-shadow:inset 0 -3px 0 #00000018}
-  .tile.empty{background:#bcd3c2;box-shadow:inset 0 0 0 2px #ffffff55}
-  .tile.road{background:#9fb0a6}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;font-weight:700;color:var(--ink-2);margin-top:10px}
-  .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:5px;vertical-align:-2px}
-
-  /* screens */
-  .screens{display:grid;grid-template-columns:1fr;gap:24px}
-  @media(min-width:900px){.screens{grid-template-columns:1fr 1fr}}
-  .deck{border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow);background:var(--panel)}
-  .deck .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--ink);color:#fff}
-  .deck .topbar .name{font-family:var(--font-display);font-weight:800}
-  .deck .body{padding:14px;background:var(--panel-2);min-height:230px}
+  /* ---- the command table (hero) ---- */
+  .table{display:grid;grid-template-columns:1.6fr 1fr;gap:0;border-radius:var(--r-lg);overflow:hidden;
+    box-shadow:var(--shadow);border:1px solid var(--screen-line)}
+  @media(max-width:820px){.table{grid-template-columns:1fr}}
+  .screen{background:radial-gradient(120% 90% at 30% 0%, var(--screen-2), var(--screen));position:relative;padding:18px}
+  .screen::after{content:'';position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(80% 60% at 50% 120%, #00000055, transparent 60%)}
+  .statusbar{display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative;z-index:2}
+  .proj{font-family:var(--fd);font-weight:800;color:var(--screen-ink);font-size:1.05rem;display:flex;align-items:center;gap:8px}
   .speed{display:flex;gap:4px}
-  .speed span{font-family:var(--font-display);font-weight:700;font-size:.72rem;padding:3px 8px;border-radius:7px;background:#ffffff22}
-  .speed .on{background:var(--teal);color:#04302c}
-  .stat{display:flex;align-items:center;gap:7px;font-weight:700;font-size:.85rem}
-  .stat .dot{width:10px;height:10px;border-radius:50%}
-  .cap{color:var(--ink-3);font-weight:600;font-size:.8rem;margin-top:10px}
-  .tag{font-family:var(--font-display);font-weight:700;font-size:.7rem;background:var(--indigo);color:#fff;border-radius:7px;padding:3px 10px}
-  .timeline{height:34px;border-radius:10px;background:var(--panel);border:1px solid var(--line);position:relative;display:flex;align-items:center;padding:0 10px}
-  .timeline .prog{position:absolute;left:0;top:0;bottom:0;width:42%;background:linear-gradient(90deg,#4f6bed22,#11c2b033);border-radius:10px}
-  .timeline .head2{position:absolute;left:42%;top:-4px;bottom:-4px;width:3px;background:var(--indigo);border-radius:2px}
-  .chart{height:70px;display:flex;align-items:flex-end;gap:5px}
-  .chart i{flex:1;background:linear-gradient(180deg,var(--teal),var(--indigo));border-radius:4px 4px 0 0;opacity:.85}
-  ul.rules{margin:0;padding-left:20px;line-height:1.8;font-weight:600;color:var(--ink-2)}
-  .vs{display:flex;gap:10px;align-items:center;background:#fff;border:1px dashed var(--line);border-radius:12px;padding:10px 14px;font-weight:700;color:var(--ink-2);font-size:.9rem}
-  .footnote{color:var(--ink-3);font-weight:600;font-size:.82rem;margin-top:42px}
+  .speed span{font-family:var(--fd);font-weight:700;font-size:.7rem;padding:4px 9px;border-radius:8px;color:var(--screen-ink-2);background:#ffffff12;border:1px solid var(--screen-line)}
+  .speed .on{background:var(--lime);color:#11341a;border-color:transparent;box-shadow:var(--glow-lime)}
+  .city{display:grid;place-items:center;padding:8px 0 2px;position:relative;z-index:1}
+  .tokens{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;position:relative;z-index:2}
+  .stat{display:flex;align-items:center;gap:7px;font-weight:700;font-size:.82rem;color:var(--screen-ink-2)}
+  .stat b{font-family:var(--fd);color:var(--screen-ink)}
+  .stat .d{width:9px;height:9px;border-radius:50%}
+  /* advisor rail */
+  .rail{background:var(--paper);padding:18px;display:flex;flex-direction:column;gap:14px}
+  .advisor{display:flex;gap:12px;align-items:flex-start}
+  .glyph{flex:none;width:44px;height:44px;border-radius:13px;background:linear-gradient(135deg,#0e8f7e,#0e2e36);display:grid;place-items:center;position:relative;box-shadow:var(--shadow-sm)}
+  .glyph svg{width:24px;height:24px}
+  .glyph::after{content:'';position:absolute;inset:-4px;border-radius:16px;border:2px solid #0e8f7e44;animation:halo 2.4s var(--ease) infinite}
+  @keyframes halo{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:.7;transform:scale(1.07)}}
+  .alabel{font-family:var(--fd);font-weight:800;font-size:.74rem;letter-spacing:.04em;text-transform:uppercase;color:#0e8f7e}
+  .amsg{font-weight:600;color:var(--ink);margin:3px 0 0;font-size:.96rem}
+  .btn{font-family:var(--fd);font-weight:800;font-size:1rem;cursor:pointer;border:none;border-radius:12px;min-height:48px;padding:0 20px;
+    color:#15340f;background:var(--lime);box-shadow:var(--glow-lime);transition:transform .12s var(--ease),filter .12s}
+  .btn:hover{filter:brightness(1.05)} .btn:active{transform:translateY(2px)}
+  .btn:focus-visible{outline:3px solid #0e8f7e;outline-offset:3px}
+  .btn--ghost{background:var(--studio);color:var(--ink);border:1px solid var(--line);box-shadow:none}
+  .btn--ghost:focus-visible{outline:3px solid var(--lime)}
+
+  /* ---- swatches / type ---- */
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:20px}
+  .sw{display:flex;gap:12px;flex-wrap:wrap}.sw>div{width:82px}
+  .sw .chip{height:52px;border-radius:13px;box-shadow:var(--shadow-sm)}
+  .sw small{display:block;margin-top:6px;font-weight:800;font-family:var(--fd);font-size:.82rem}.sw code{font-size:.66rem;color:var(--ink-3)}
+
+  /* ---- component kit ---- */
+  .kit{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media(max-width:900px){.kit{grid-template-columns:repeat(2,1fr)}}
+  .comp{background:var(--screen);border:1px solid var(--screen-line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:9px;box-shadow:var(--shadow-sm)}
+  .comp .nm{font-family:var(--fd);font-weight:800;font-size:.84rem;color:var(--screen-ink)}
+  .comp .box{height:78px;border-radius:9px;background:#0a262d;border:1px solid var(--screen-line);display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .comp .c{color:var(--screen-ink-2);font-weight:600;font-size:.72rem}
+  .bars{display:flex;align-items:flex-end;gap:4px;height:60px;width:86%}
+  .bars i{flex:1;background:linear-gradient(180deg,var(--lime),#3fae8e);border-radius:3px 3px 0 0}
+  .trk{height:9px;width:84%;border-radius:6px;background:#0a262d;border:1px solid var(--screen-line);position:relative}
+  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--lime)}
+  .knob{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:var(--screen-ink);border:3px solid var(--lime);transform:translate(-50%,-50%)}
+  .mini{display:flex;gap:5px;font-family:var(--fd);font-weight:800;font-size:.62rem;color:var(--screen-ink-2);align-items:center}
+  .mini .b{background:#0a262d;border:1px solid var(--screen-line);border-radius:6px;padding:3px 7px}
+  .mini .b.on{background:var(--lime);color:#15340f;border-color:transparent}
+
+  /* ---- game decks ---- */
+  .decks{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:820px){.decks{grid-template-columns:1fr}}
+  .deck{border-radius:18px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--screen-line)}
+  .deck .bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 13px;background:#0a262d;color:var(--screen-ink);font-family:var(--fd);font-weight:800;font-size:.9rem}
+  .deck .scr{padding:13px;background:radial-gradient(120% 90% at 30% 0%, var(--screen-2), var(--screen))}
+  .badge{font-family:var(--fd);font-weight:800;font-size:.66rem;background:#ffffff14;border:1px solid var(--screen-line);color:var(--screen-ink-2);border-radius:7px;padding:3px 8px}
+  .tools{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .tool{font-family:var(--fd);font-weight:700;font-size:.62rem;background:#0a262d;border:1px solid var(--screen-line);color:var(--screen-ink-2);border-radius:6px;padding:2px 7px}
+  .map{display:grid;gap:4px;background:#0a262d;border:1px solid var(--screen-line);border-radius:10px;padding:6px}
+  .tile{aspect-ratio:1;border-radius:6px;display:grid;place-items:center;font-size:1rem;background:#12414b}
+  .tag{font-family:var(--fd);font-weight:800;font-size:.7rem;background:#0e8f7e;color:#fff;border-radius:7px;padding:3px 10px}
+  .cap{color:var(--ink-3);font-weight:600;font-size:.8rem;margin-top:8px}
+  ul.rules{margin:0;padding-left:20px;line-height:1.85;font-weight:600;color:var(--ink-2)}
+  .footnote{color:var(--ink-3);font-weight:600;font-size:.82rem;margin-top:46px}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -119,151 +133,140 @@
 <div class="wrap">
 
   <header>
-    <div class="kicker rise">AI-Education · Primary (P3–P6) · AI City Architect</div>
-    <h1 class="rise" style="animation-delay:.05s">The Command Deck.</h1>
-    <p class="lede rise" style="animation-delay:.1s">For older kids who'd find Bo babyish. A clean, capable
-      city-builder: you design districts, tune the AI modules that run them, and watch your city come alive — with a
-      calm <b>AI Advisor</b> pointing out trade-offs. Cool, grown-up, data-rich — deliberately a different world from
-      the kindergarten Sticker Lab.</p>
-    <div class="vs rise" style="margin-top:16px;display:inline-flex;animation-delay:.16s">
-      🧒 <b>K2–K3</b> = warm, cartoonish, Bo &nbsp;•&nbsp; 🛠️ <b>P3–P6</b> = cool, capable, Command Deck
-    </div>
+    <div class="kicker rise">AI-Education · Primary P3–P6 · <b>AI City Architect</b></div>
+    <h1 class="rise" style="animation-delay:.05s"><span class="ink">The Architect's</span> <span class="accent">Table.</span></h1>
+    <p class="lede rise" style="animation-delay:.12s">A premium strategy-game world for older kids: a cool studio
+      surface holding glowing command screens, a living isometric city, and a calm AI Advisor. It's a <b>component
+      kit</b> — ~20 different AI mini-games recombine the same parts, building to the live City. Deliberately a
+      different planet from the kindergarten Sticker Lab.</p>
   </header>
 
-  <!-- AI ADVISOR -->
-  <h2 class="rise"><span class="pin"></span>The AI Advisor — a console, not a mascot</h2>
-  <p class="sub">The curriculum's "conversational trade-off analyzer." A calm panel that suggests and warns. No face, no feelings — a tool the architect consults.</p>
+  <!-- HERO: the command table -->
+  <div class="table rise" style="animation-delay:.16s;margin-top:18px">
+    <div class="screen">
+      <div class="statusbar">
+        <div class="proj">◇ New Harmony</div>
+        <div class="speed"><span>1×</span><span>10×</span><span class="on">100×</span><span>1000×</span></div>
+      </div>
+      <div class="city">
+        <!-- isometric living city (hand-drawn SVG cubes) -->
+        <svg viewBox="0 0 600 270" width="100%" style="max-width:560px;filter:drop-shadow(0 30px 30px #00000055)">
+          <!-- ground plate -->
+          <polygon points="300,66 478,160 300,254 122,160" fill="#0b2a31" stroke="#1f5663" stroke-width="2"/>
+          <g opacity=".25" stroke="#3fae8e" stroke-width="1">
+            <line x1="211" y1="113" x2="389" y2="207"/><line x1="255" y1="90" x2="433" y2="184"/>
+            <line x1="389" y1="113" x2="211" y2="207"/><line x1="345" y1="90" x2="167" y2="184"/>
+          </g>
+          <!-- A housing (orange) H46 @300,110 -->
+          <polygon points="300,48 332,64 300,80 268,64" fill="#ff9159"/><polygon points="268,64 300,80 300,126 268,110" fill="#d9713f"/><polygon points="332,64 300,80 300,126 332,110" fill="#b85a30"/>
+          <!-- B power (amber) H70 @332,126 -->
+          <polygon points="332,40 364,56 332,72 300,56" fill="#ffb23e"/><polygon points="300,56 332,72 332,142 300,126" fill="#d98e22"/><polygon points="364,56 332,72 332,142 364,126" fill="#b87316"/>
+          <rect x="309" y="86" width="6" height="8" fill="#fff2c2"/><rect x="319" y="96" width="6" height="8" fill="#fff2c2"/>
+          <!-- C health (rose) H54 @300,142 -->
+          <polygon points="300,72 332,88 300,104 268,88" fill="#ff6b81"/><polygon points="268,88 300,104 300,158 268,142" fill="#d44b61"/><polygon points="332,88 300,104 300,158 332,142" fill="#b23a4d"/>
+          <text x="291" y="96" font-size="15">＋</text>
+          <!-- E housing2 (orange) H40 @332,158 -->
+          <polygon points="332,102 364,118 332,134 300,118" fill="#ff9159"/><polygon points="300,118 332,134 332,174 300,158" fill="#d9713f"/><polygon points="364,118 332,134 332,174 364,158" fill="#b85a30"/>
+          <!-- D transit (violet) H30 @268,158 -->
+          <polygon points="268,112 300,128 268,144 236,128" fill="#9b7cff"/><polygon points="236,128 268,144 268,174 236,158" fill="#7a5fd6"/><polygon points="300,128 268,144 268,174 300,158" fill="#634bb0"/>
+          <!-- F park (green low) H12 @300,174 -->
+          <polygon points="300,146 332,162 300,178 268,162" fill="#46d07a"/><polygon points="268,162 300,178 300,190 268,174" fill="#34a861"/><polygon points="332,162 300,178 300,190 332,174" fill="#2a8a4f"/>
+          <text x="293" y="170" font-size="14">🌳</text>
+          <!-- water pond low @236,142 -->
+          <polygon points="236,126 268,142 236,158 204,142" fill="#36b6ff"/><polygon points="204,142 236,158 236,166 204,150" fill="#2a90cf"/><polygon points="268,142 236,158 236,166 268,150" fill="#2278ad"/>
+        </svg>
+      </div>
+      <div class="tokens">
+        <span class="stat"><span class="d" style="background:var(--park)"></span><b>78%</b> happy</span>
+        <span class="stat"><span class="d" style="background:var(--power)"></span><b>stable</b> power</span>
+        <span class="stat"><span class="d" style="background:var(--lime)"></span><b>1,200</b> credits</span>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="advisor">
+        <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="#c6f24e" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></div>
+        <div><div class="alabel">AI Advisor</div><div class="amsg">The power plant beside the homes will spike noise. Move it by the river and cooling gets cheaper too — want a spot?</div></div>
+      </div>
+      <div class="chiprow" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn">Show me</button><button class="btn btn--ghost">Not now</button></div>
+      <div style="border-top:1px dashed var(--line);padding-top:12px;color:var(--ink-3);font-weight:700;font-size:.82rem">
+        The AI suggests &amp; explains trade-offs — <b style="color:var(--ink)">the child stays in command.</b>
+      </div>
+    </div>
+  </div>
+
+  <!-- PALETTE + TYPE -->
+  <h2 class="rise"><span class="pin"></span>Identity — lime on teal, Bricolage type</h2>
+  <p class="sub">Dominant cool teal with a sharp electric-lime accent (not a timid even spread). Each city system has its own CVD-safe colour, always paired with an icon.</p>
   <div class="panel rise">
-    <div class="advisor">
-      <div class="ai-glyph"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></div>
-      <div>
-        <div class="label">AI Advisor</div>
-        <div class="msg">Heads-up: the Data Center next to housing will spike noise complaints. Moving it by the river cuts cooling costs too. Want me to suggest a spot?</div>
-        <div class="chiprow"><button class="btn">Show me</button><button class="btn--ghost btn">Not now</button></div>
-      </div>
+    <div class="sw" style="margin-bottom:18px">
+      <div><div class="chip" style="background:var(--screen)"></div><small>Teal deck</small><code>#0e2e36</code></div>
+      <div><div class="chip" style="background:var(--lime)"></div><small>Lime</small><code>#c6f24e</code></div>
+      <div><div class="chip" style="background:var(--power)"></div><small>Power</small><code>#ffb23e</code></div>
+      <div><div class="chip" style="background:var(--water)"></div><small>Water</small><code>#36b6ff</code></div>
+      <div><div class="chip" style="background:var(--park)"></div><small>Parks</small><code>#46d07a</code></div>
+      <div><div class="chip" style="background:var(--transit)"></div><small>Transit</small><code>#9b7cff</code></div>
+      <div><div class="chip" style="background:var(--health)"></div><small>Health</small><code>#ff6b81</code></div>
+      <div><div class="chip" style="background:var(--house)"></div><small>Housing</small><code>#ff9159</code></div>
     </div>
-    <p class="cap">Advice is two-channel (shown + can be read aloud). The child decides — the AI suggests, never overrides.</p>
+    <div style="font-family:var(--fd);font-weight:800;font-size:2rem;letter-spacing:-.02em">Bricolage Grotesque — headings</div>
+    <div style="color:var(--ink-2);font-weight:600;margin-top:4px">Plus Jakarta Sans — body &amp; data. A characterful, architectural display + a clean readable body. Deliberately not the rounded kindergarten font.</div>
   </div>
 
-  <!-- PALETTE + TYPE + BUTTONS -->
-  <h2 class="rise"><span class="pin"></span>Palette, type &amp; controls</h2>
-  <p class="sub">Cool indigo/teal brand on a soft blueprint-grid canvas. Each city system has its own CVD-safe colour.</p>
-  <div class="panel rise">
-    <div class="sw" style="margin-bottom:20px">
-      <div><div class="chip" style="background:var(--indigo)"></div><small>Indigo</small><code>#4f6bed</code></div>
-      <div><div class="chip" style="background:var(--teal)"></div><small>Teal</small><code>#11c2b0</code></div>
-      <div><div class="chip" style="background:var(--power)"></div><small>Power</small><code>#f5a524</code></div>
-      <div><div class="chip" style="background:var(--water)"></div><small>Water</small><code>#2aa7ff</code></div>
-      <div><div class="chip" style="background:var(--park)"></div><small>Parks</small><code>#35c46a</code></div>
-      <div><div class="chip" style="background:var(--transit)"></div><small>Transit</small><code>#8b6cf0</code></div>
-      <div><div class="chip" style="background:var(--health)"></div><small>Health</small><code>#f0566b</code></div>
-      <div><div class="chip" style="background:var(--house)"></div><small>Housing</small><code>#ff8a5b</code></div>
+  <!-- COMPONENT KIT -->
+  <h2 class="rise"><span class="pin"></span>The component kit (recurs across every lesson)</h2>
+  <p class="sub">~20 different mini-games recombine these on the glowing deck. Plus shared chrome: a status bar + the AI Advisor.</p>
+  <div class="kit rise">
+    <div class="comp"><div class="nm">Grid / map stage</div><div class="box"><div class="map" style="grid-template-columns:repeat(4,1fr);width:84%"><div class="tile"></div><div class="tile" style="background:var(--house)"></div><div class="tile"></div><div class="tile" style="background:var(--park)"></div><div class="tile" style="background:var(--power)"></div><div class="tile"></div><div class="tile"></div><div class="tile" style="background:var(--water)"></div></div></div><div class="c">Canvas + PDOM mirror</div></div>
+    <div class="comp"><div class="nm">Drag-drop place</div><div class="box"><div class="mini"><span class="b" style="background:var(--house);color:#fff;border:none">🏠</span><span style="color:var(--screen-ink-2)">→</span><span class="b" style="width:26px;height:26px"></span></div></div><div class="c">+ tap/keyboard fallback</div></div>
+    <div class="comp"><div class="nm">Finger-path draw</div><div class="box"><svg viewBox="0 0 110 70" width="100%" height="100%"><g stroke="#1f5663" stroke-width="1"><path d="M28 0V70M55 0V70M82 0V70M0 23H110M0 47H110"/></g><circle cx="14" cy="12" r="4" fill="var(--park)"/><circle cx="96" cy="58" r="4" fill="var(--health)"/><path d="M14 12H55V47H96V58" fill="none" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="c">route round obstacles</div></div>
+    <div class="comp"><div class="nm">Live chart</div><div class="box"><div class="bars"><i style="height:32%"></i><i style="height:54%"></i><i style="height:40%"></i><i style="height:78%"></i><i style="height:90%"></i><i style="height:66%"></i></div></div><div class="c">with text/aria labels</div></div>
+    <div class="comp"><div class="nm">Slider / dial</div><div class="box" style="flex-direction:column;gap:10px"><div class="trk"><div class="fill" style="width:62%"></div><div class="knob" style="left:62%"></div></div><div class="trk"><div class="fill" style="width:38%;background:var(--power)"></div><div class="knob" style="left:38%;border-color:var(--power)"></div></div></div><div class="c">set the AI's rules</div></div>
+    <div class="comp"><div class="nm">Train-the-model</div><div class="box"><div class="mini"><span class="b">✏️ tag</span><span>→</span><span class="b on">train</span><span>→</span><span class="b">▶ use</span></div></div><div class="c">annotate → train → plug in</div></div>
+    <div class="comp"><div class="nm">Run simulation</div><div class="box" style="flex-direction:column;gap:9px;padding:8px"><div class="mini" style="align-self:flex-end"><span class="b">1×</span><span class="b on">100×</span><span class="b">1000×</span></div><div class="trk" style="width:100%"><div class="fill" style="width:46%"></div><div class="knob" style="left:46%"></div></div></div><div class="c">deterministic · scrubbable</div></div>
+    <div class="comp"><div class="nm">AI Advisor</div><div class="box" style="padding:8px"><div style="display:flex;gap:8px;align-items:center"><div class="glyph" style="width:26px;height:26px;border-radius:8px"><svg viewBox="0 0 24 24" fill="none" stroke="#c6f24e" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></div><span class="c" style="color:var(--screen-ink)">"Try the river."</span></div></div><div class="c">suggests, never overrides</div></div>
+  </div>
+
+  <!-- FOUR GAMES -->
+  <h2 class="rise"><span class="pin"></span>One look, four different games</h2>
+  <p class="sub">Each lesson recombines the kit — the glowing-deck chrome &amp; lime accent stay identical; only the parts change.</p>
+  <div class="decks">
+    <div class="rise"><div style="display:flex;gap:8px;margin-bottom:8px;align-items:center"><span class="tag">L1 · Waste Sorters</span><span class="cap" style="margin:0">classify · annotate · train</span></div>
+      <div class="deck"><div class="bar"><span>♻ Train the Sorter</span><span class="badge">model 0%</span></div>
+        <div class="scr"><div style="display:flex;gap:10px;align-items:center">
+          <svg viewBox="0 0 120 84" width="148" style="border:1px solid var(--screen-line);border-radius:9px;background:#0a262d"><rect x="22" y="18" width="68" height="50" rx="8" fill="none" stroke="var(--park)" stroke-width="3"/><circle cx="40" cy="32" r="7" fill="none" stroke="var(--water)" stroke-width="3"/><rect x="60" y="48" width="20" height="9" rx="2" fill="none" stroke="var(--health)" stroke-width="3"/></svg>
+          <div style="flex:1"><div class="tools" style="margin:0"><span class="tool" style="border-color:var(--park);color:var(--park)">▢ object</span><span class="tool" style="border-color:var(--water);color:var(--water)">○ landmark</span><span class="tool" style="border-color:var(--health);color:var(--health)">▭ label</span></div><button class="btn" style="margin-top:10px;width:100%">Train ▶</button></div>
+        </div><div class="tools"><span class="tool">grid</span><span class="tool">annotate</span><span class="tool">train</span></div></div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-      <div>
-        <div class="chiprow" style="margin-bottom:16px">
-          <button class="btn btn--lg">Run simulation ▶</button>
-          <button class="btn btn--teal">Optimize</button>
-          <button class="btn btn--ghost">Reset</button>
-        </div>
-        <div class="control">
-          <div class="head"><b>Bus frequency</b><span>every 6 min</span></div>
-          <div class="track"><div class="fill" style="width:55%;background:var(--transit)"></div><div class="knob" style="left:55%"></div></div>
-        </div>
-        <div class="control">
-          <div class="head"><b>Power budget</b><span>72%</span></div>
-          <div class="track"><div class="fill" style="width:72%;background:var(--power)"></div><div class="knob" style="left:72%;border-color:var(--power)"></div></div>
-        </div>
-      </div>
-      <div>
-        <div style="font-family:var(--font-display);font-weight:800;font-size:1.9rem;letter-spacing:-.02em">Sora — headings</div>
-        <div style="color:var(--ink-2);font-weight:600;margin:4px 0 14px">Plus Jakarta Sans — body &amp; data labels. Readable, modern, grown-up; not the rounded KG type.</div>
-        <div class="chiprow">
-          <span class="pill" style="border-color:#f5a52455;color:#9a6a12">⚡ Power 88%</span>
-          <span class="pill" style="border-color:#35c46a55;color:#1f8a48">🌳 Air good</span>
-          <span class="pill" style="border-color:#f0566b55;color:#b53a4a">🏥 1 hospital</span>
-          <span class="pill" style="border-color:#2aa7ff55;color:#1f7bc0">💧 Water OK</span>
-        </div>
-      </div>
+    <div class="rise" style="animation-delay:.07s"><div style="display:flex;gap:8px;margin-bottom:8px;align-items:center"><span class="tag">L2 · Subsurface Scan</span><span class="cap" style="margin:0">sense · trade-off</span></div>
+      <div class="deck"><div class="bar"><span>🛰 Site Survey</span><span class="badge">⏱ 0:18</span></div>
+        <div class="scr"><div style="display:flex;gap:10px"><div class="map" style="grid-template-columns:repeat(4,1fr);flex:1"><div class="tile"></div><div class="tile" style="background:var(--health)">⚠</div><div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile" style="background:var(--power)">⚡</div><div class="tile"></div></div>
+          <div style="flex:1"><div class="bars" style="height:40px;width:100%;margin-bottom:8px"><i style="height:30%"></i><i style="height:42%"></i><i style="height:88%;background:var(--health)"></i><i style="height:36%"></i></div><div class="trk" style="width:100%;margin-bottom:8px"><div class="fill" style="width:70%"></div><div class="knob" style="left:70%"></div></div><div class="trk" style="width:100%"><div class="fill" style="width:52%;background:var(--power)"></div><div class="knob" style="left:52%;border-color:var(--power)"></div></div></div>
+        </div><div class="tools"><span class="tool">grid</span><span class="tool">chart</span><span class="tool">sliders</span><span class="tool">timer</span></div></div></div>
+    </div>
+    <div class="rise" style="animation-delay:.14s"><div style="display:flex;gap:8px;margin-bottom:8px;align-items:center"><span class="tag">L4 · Drone Routing</span><span class="cap" style="margin:0">pathfinding</span></div>
+      <div class="deck"><div class="bar"><span>🚁 Plan the Route</span><span class="badge">no-fly 2</span></div>
+        <div class="scr"><svg viewBox="0 0 320 130" width="100%" style="background:#0a262d;border:1px solid var(--screen-line);border-radius:9px"><g stroke="#1f5663" stroke-width="1"><path d="M64 0V130M128 0V130M192 0V130M256 0V130M0 43H320M0 86H320"/></g><rect x="140" y="34" width="44" height="40" rx="6" fill="#15414b"/><text x="150" y="62" font-size="18">🏢</text><circle cx="220" cy="104" r="12" fill="#0a262d" stroke="var(--health)" stroke-width="2"/><text x="212" y="110" font-size="13">🐦</text><circle cx="30" cy="22" r="6" fill="var(--park)"/><text x="282" y="100" font-size="16">🎯</text><path d="M30 22H96V86H224V108H288" fill="none" stroke="var(--lime)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:9px"><button class="btn">Fly ▶</button><span class="cap" style="margin:0">finger-drag a path · tap fallback</span></div><div class="tools"><span class="tool">grid</span><span class="tool">path-draw</span><span class="tool">run</span></div></div></div>
+    </div>
+    <div class="rise" style="animation-delay:.21s"><div style="display:flex;gap:8px;margin-bottom:8px;align-items:center"><span class="tag">L18–20 · City finale</span><span class="cap" style="margin:0">build · tune · live-sim</span></div>
+      <div class="deck"><div class="bar"><span>🏙 New Harmony</span><div class="mini"><span class="b">10×</span><span class="b on">100×</span></div></div>
+        <div class="scr"><div style="display:flex;gap:10px"><div class="map" style="grid-template-columns:repeat(4,1fr);flex:1"><div class="tile" style="background:var(--house)">🏠</div><div class="tile"></div><div class="tile" style="background:var(--park)">🌳</div><div class="tile" style="background:var(--power)">⚡</div><div class="tile"></div><div class="tile" style="background:var(--health)">＋</div><div class="tile"></div><div class="tile" style="background:var(--transit)">🚌</div></div>
+          <div style="flex:1"><div class="bars" style="height:38px;width:100%;margin-bottom:8px"><i style="height:55%"></i><i style="height:72%"></i><i style="height:84%"></i><i style="height:92%"></i></div><div style="display:flex;gap:7px;align-items:center"><div class="glyph" style="width:24px;height:24px;border-radius:8px"><svg viewBox="0 0 24 24" fill="none" stroke="#c6f24e" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="3"/></svg></div><span class="cap" style="margin:0;color:var(--screen-ink-2)">Happy 78% · stable</span></div></div>
+        </div><div class="tools"><span class="tool">grid</span><span class="tool">drag-drop</span><span class="tool">sliders</span><span class="tool">charts</span><span class="tool">run</span><span class="tool">advisor</span></div></div></div>
     </div>
   </div>
 
-  <!-- THREE SCREENS -->
-  <h2 class="rise"><span class="pin"></span>Three modes, every city lesson</h2>
-  <p class="sub">A consistent deck: a top status bar (budget + sim speed), the work area in the middle, the AI Advisor on hand. Build → Tune → Simulate.</p>
-  <div class="screens">
-
-    <!-- BUILD -->
-    <div class="rise">
-      <div class="chiprow" style="margin-bottom:8px"><span class="tag">1 · Build</span><span class="cap" style="margin:0">design districts</span></div>
-      <div class="deck">
-        <div class="topbar"><span class="name">🏙️ New Harmony</span><span class="pill" style="background:#ffffff22;border:none;color:#fff">💰 1,200 credits</span></div>
-        <div class="body">
-          <div class="map">
-            <div class="tile" style="background:var(--house)">🏠</div><div class="tile road"></div><div class="tile" style="background:var(--park)">🌳</div><div class="tile empty"></div><div class="tile" style="background:var(--power)">⚡</div><div class="tile empty"></div>
-            <div class="tile road"></div><div class="tile road"></div><div class="tile road"></div><div class="tile" style="background:var(--health)">🏥</div><div class="tile road"></div><div class="tile empty"></div>
-            <div class="tile" style="background:var(--water)">💧</div><div class="tile empty"></div><div class="tile" style="background:var(--house)">🏠</div><div class="tile road"></div><div class="tile" style="background:var(--transit)">🚌</div><div class="tile empty"></div>
-          </div>
-          <div class="legend">
-            <span><i style="background:var(--house)"></i>Housing</span><span><i style="background:var(--power)"></i>Power</span>
-            <span><i style="background:var(--park)"></i>Parks</span><span><i style="background:var(--health)"></i>Health</span>
-            <span><i style="background:var(--transit)"></i>Transit</span>
-          </div>
-        </div>
-      </div>
-      <p class="cap">Drag zones from a palette onto the grid (every drag has a tap-to-place fallback). Canvas map has a keyboard/PDOM mirror.</p>
-    </div>
-
-    <!-- TUNE -->
-    <div class="rise" style="animation-delay:.08s">
-      <div class="chiprow" style="margin-bottom:8px"><span class="tag">2 · Tune</span><span class="cap" style="margin:0">teach &amp; optimize the AI</span></div>
-      <div class="deck">
-        <div class="topbar"><span class="name">🧠 AI Modules</span><span class="pill" style="background:#ffffff22;border:none;color:#fff">🎟️ 8 AI tokens</span></div>
-        <div class="body">
-          <div class="control"><div class="head"><b>Garbage route priority</b><span>balanced</span></div><div class="track"><div class="fill" style="width:48%;background:var(--waste)"></div><div class="knob" style="left:48%;border-color:var(--waste)"></div></div></div>
-          <div class="control"><div class="head"><b>Hospital vs Power (when scarce)</b><span>favour hospital</span></div><div class="track"><div class="fill" style="width:66%;background:var(--health)"></div><div class="knob" style="left:66%;border-color:var(--health)"></div></div></div>
-          <div class="advisor" style="margin-top:6px;padding:12px"><div class="ai-glyph" style="width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg></div><div style="font-weight:600;font-size:.86rem">If you favour hospitals, expect short power dips at night. Trade-off accepted?</div></div>
-        </div>
-      </div>
-      <p class="cap">Sliders/dials set the AI's rules; the Advisor explains each trade-off. (L19: connect nodes into a knowledge graph.)</p>
-    </div>
-
-    <!-- SIMULATE -->
-    <div class="rise" style="animation-delay:.16s">
-      <div class="chiprow" style="margin-bottom:8px"><span class="tag">3 · Simulate</span><span class="cap" style="margin:0">watch it live</span></div>
-      <div class="deck">
-        <div class="topbar"><span class="name">▶ Live Simulation</span><div class="speed"><span>1×</span><span>10×</span><span class="on">100×</span><span>1000×</span></div></div>
-        <div class="body">
-          <div class="chart" style="margin-bottom:10px"><i style="height:40%"></i><i style="height:55%"></i><i style="height:48%"></i><i style="height:70%"></i><i style="height:82%"></i><i style="height:76%"></i><i style="height:90%"></i><i style="height:84%"></i></div>
-          <div class="chiprow" style="margin-bottom:10px">
-            <span class="stat"><span class="dot" style="background:var(--park)"></span>Happiness 78%</span>
-            <span class="stat"><span class="dot" style="background:var(--power)"></span>Power stable</span>
-            <span class="stat"><span class="dot" style="background:var(--health)"></span>0 in queue</span>
-          </div>
-          <div class="timeline"><div class="prog"></div><div class="head2"></div><span style="margin-left:auto;font-weight:700;font-size:.8rem;color:var(--ink-3)">Year 3 of 10</span></div>
-        </div>
-      </div>
-      <p class="cap">Deterministic sim runs 1×–1000× (precomputed beyond). Charts + a scrubbable timeline; every readout has a text/aria label.</p>
-    </div>
-
-    <!-- RULES -->
-    <div class="rise" style="animation-delay:.24s">
-      <div class="chiprow" style="margin-bottom:8px"><span class="tag">Separation rules</span></div>
-      <div class="panel" style="height:calc(100% - 36px)">
-        <ul class="rules">
-          <li><b>Clearly not KG:</b> cool palette, geometric Sora type, data panels — no Bo, no sticker bounce.</li>
-          <li><b>Capable, not coddling:</b> real numbers, trade-offs, optimization — older kids feel trusted.</li>
-          <li><b>AI is a tool:</b> the Advisor suggests &amp; explains; the child stays the decision-maker.</li>
-          <li><b>Still accessible:</b> two-channel, ≥44px targets, Canvas map has a keyboard/PDOM mirror, CVD-safe system colours.</li>
-          <li><b>Deterministic sim:</b> fixed-point, seeded — same inputs → same city (the City contract).</li>
-        </ul>
-      </div>
-    </div>
-  </div>
+  <h2 class="rise"><span class="pin"></span>Separation rules</h2>
+  <div class="panel rise"><ul class="rules">
+    <li><b>Clearly not KG:</b> cool teal + electric lime, Bricolage type, glowing command screens, isometric city — no Bo, no sticker bounce.</li>
+    <li><b>Capable, not coddling:</b> real numbers, trade-offs, optimisation — older kids feel trusted.</li>
+    <li><b>AI is a tool:</b> the Advisor suggests &amp; explains; the child decides.</li>
+    <li><b>Still accessible:</b> two-channel, ≥44px targets, Canvas has a keyboard/PDOM mirror, CVD-safe system colours, high contrast on the dark deck.</li>
+    <li><b>Deterministic sim:</b> fixed-point + seeded — same inputs → same city.</li>
+  </ul></div>
 
   <p class="footnote">Preview only — fonts load from a CDN here so you can see the type; production self-hosts them.
-  React to this and I'll iterate, then codify BOTH tracks (KG Sticker Lab + Bo, Primary Command Deck) into the
-  standard, with the <code>edu-frontend</code> skill applying the right theme by track.</p>
+  React, then I lock the component list + this look into <code>primary-ui-ux.md</code> (out of DRAFT).</p>
 </div>
 </body>
 </html>

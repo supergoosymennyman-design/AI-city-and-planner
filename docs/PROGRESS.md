@@ -10,6 +10,21 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - **Done = git history; pending = this file.**
 
 ## Recently done (2026-06-07)
+- ◐ **UI/UX direction (visual design) — two distinct tracks, previews built.** Used the
+  frontend-design plugin to land bold, non-generic looks (after rejecting safe/generic first tries):
+  - **Kindergarten = "Sticker Lab + Bo"** ✅ *approved/locked direction* — bright, warm, cartoonish,
+    no-mascot-anxiety **screen-robot "Bo"** whose screen shows a fixed set of **6 SVG emoji faces**
+    (Hello/Hmm?/Listening/Learning!/Knows-it!/Oops) + a character-free **"AI knows" shelf**; the
+    teach→recognise→celebrate skeleton. Render: `docs/standards/kindergarten-ui-ux.preview.html`.
+  - **Primary = "The Architect's Table"** ◐ *direction proposed, not yet final* — premium
+    strategy-game look (isometric living city, **electric-lime-on-deep-teal**, Bricolage Grotesque
+    type, glowing command screens). Reframed from a single city dashboard into a **2D-sim component
+    kit** (grid stage · drag-drop · path-draw · charts · sliders · train-the-model · run-sim ·
+    AI-advisor) after reading the programme doc (~20 *different* AI mini-games, P1→P6, City finale
+    L18–20). Render: `docs/standards/primary-ui-ux.preview.html`.
+  - ☐ **Pending:** SME sign-off on the primary look → lift `primary-ui-ux.md` out of **DRAFT**;
+    then `tokens.css` → two themes (KG + primary) and build the track-aware `edu-frontend` skill.
+    Previews load fonts from a CDN (preview-only); production self-hosts.
 - ✓ **Curriculum taxonomy + naming locked to `(band, lesson)`** (pipeline item 1d). The course
   designer's master index (`source/kindergarten/English AI Discovery.pdf`) defines **two 20-lesson
   curricula — K2 and K3** (each split Phase 1 = 1–10, Phase 2 = 11–20), and lesson numbers **reset
