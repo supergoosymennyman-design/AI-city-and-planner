@@ -2,7 +2,7 @@
 
 Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update this in every PR** that completes or starts a tracked item. Legend: ✓ done · ◐ in progress / partial · ☐ pending.
 
-> Snapshot date: 2026-06-07 · Branch: `game/kindergarten-1-color-the-rainbow` (local, not pushed) · Latest: test infra (R1) + Color the Rainbow hardened (voice/UX/crash-proof) + breaker agents
+> Snapshot date: 2026-06-07 · `main` **pushed to GitHub** (private) · working branch `game/kindergarten-1-color-the-rainbow` · Latest: first push + test infra (R1) + Color the Rainbow hardened + breaker agents
 
 ## Where things live
 - **Plan (source of truth):** [docs/PLAN.md](PLAN.md) (in-repo copy; original was authored in `~/.claude/plans/`).
@@ -10,6 +10,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - **Done = git history; pending = this file.**
 
 ## Recently done (2026-06-07)
+- ✓ **First push to GitHub** — `main` is live (private) at `github.com/EdwardYCLui/AI-education` with full history. The **pre-push hook enforced the gate** (`validate` + 28 tests) before allowing the push, so CI discipline is proven; CI now runs on PRs. README refreshed as the team front door. ☐ GitHub-side UI remaining: **invite collaborators** (private repo — blocks clone), set About/topics, **branch protection** on `main`, **install CodeRabbit**.
 - ✓ **Test infra (R1) wired** — Vitest + RTL + jsdom; `npm test` chained into `validate`. New **`@edu/testing`** package: fake `ctx`/`AIServices`, a simulated `SpeechRecognition` (drives the real `listenOnce`), and a jsdom Canvas/`Path2D` stub. **28 tests** on Color the Rainbow.
 - ✓ **Color the Rainbow hardened** (voice + UX + resilience):
   - Fixed a quiz **freeze** — round-advance was gated on `speechSynthesis.onend` (Chrome drops it after `cancel()`); now a TTS-independent timer + a `speak()` failsafe resolve.
@@ -35,7 +36,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 ## Foundation (Plan §10)
 
 ### Day 0 — Prerequisites
-- ✓ `git init` (root repo, remote `origin` → EdwardYCLui/AI-education, not pushed)
+- ✓ `git init` + **first push** — `main` live (private) on `origin` → EdwardYCLui/AI-education (2026-06-07)
 - ◐ Monorepo scaffold — ✓ workspaces/`package.json`/`tsconfig.base`(allowJs)/`.nvmrc`/`.gitignore`/`.gitattributes`; ☐ Vite shared config, ☐ ESLint config
 - ☐ **Curriculum extraction** → `docs/curriculum/<lesson>.md` + `Lesson` enum (BLOCKS lesson cut / capability set) — R-blocker
 - ◐ Day-0/1 decisions: ✓ package scope `@edu/*`; ☐ deployment topology, ☐ https vs http, ☐ tfjs 4.x confirm, ☐ minimum device spec (all *recommended* in plan, not finalized)
@@ -47,7 +48,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - ✓ `AGENTS.md` / `CLAUDE.md` + code-style standard
 - ✓ `@edu/debug` (debug/assert/invariant) — supports debuggability-first style
 - ◐ `validate-contracts` gate — ✓ manifest + a11y two-channel + `dependsOn` DAG; ☐ per-namespace `ext` schema registration, ☐ populated-state serializable/byte-identical harness
-- ✓ **Portable gate:** CI (GitHub Actions `validate` job, pinned via `.nvmrc`), CODEOWNERS, `.coderabbit.yaml`, pre-push hook (`.githooks/` via `core.hooksPath`, no Husky dep), PR template (DoD) + new-game/bug issue forms — *CI activates once the repo is pushed*
+- ✓ **Portable gate:** CI (GitHub Actions `validate` job, pinned via `.nvmrc`), CODEOWNERS, `.coderabbit.yaml`, pre-push hook (`.githooks/` via `core.hooksPath`, no Husky dep), PR template (DoD) + new-game/bug issue forms — *pushed 2026-06-07; CI runs on PRs. ☐ branch protection + CodeRabbit install (UI)*
 - ☐ R8 ML perf measurement on real tablet + ratify perf budget
 
 ### Days 3–5 — Prove the hard paths
@@ -100,7 +101,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - ☐ 2 `new-game` → passes validate zero-edit
 - ☐ 3 host-standalone on tablet viewport (Playwright)
 - ☐ 4 two interacting subsystems (live + fast-forward, deterministic)
-- ◐ 5 `validate` + build green; CI mirror — local validate ✓; CI workflow added (green once pushed)
+- ◐ 5 `validate` + build green; CI mirror — local validate ✓ (28 tests); **pushed** → CI runs on PRs (pre-push hook enforced the gate on the first push)
 - ☐ 6 sync-agents consistency
 - ☐ 7 offline play + STT fallback
 - ☐ 8 i18n layer proven (English complete)
