@@ -20,8 +20,9 @@ NOT rewrite files — you report violations with `file:line` and a minimal fix.
 ## Checks
 1. **Manifest** parses against `GameManifest`; `capabilities` are from the `Capability` enum;
    `a11y.inputChannels` includes `tap`; pedagogy fields (`objective`, `successCriteria`,
-   `bigIdea`, `aiRepresentation`) are non-empty and **trace to the curriculum spec** (the
-   spec file exists; objective matches). `aiRepresentation` must honestly match the impl.
+   `bigIdea`, `aiRepresentation`, `misconception`) are non-empty and **trace to the approved
+   blueprint** at `docs/curriculum/<track>-NN-<slug>.md` (the blueprint exists; objective,
+   successCriteria and misconception match it). `aiRepresentation` must honestly match the impl.
 2. **ctx-only I/O.** Game touches the platform ONLY through `ctx` — no `window.*`, no globals,
    no direct `document`/`localStorage`/`speechSynthesis` in the GAME (those belong in the host).
    (The Canvas RAF/refs inside a game's own view are fine; reaching the platform is not.)
