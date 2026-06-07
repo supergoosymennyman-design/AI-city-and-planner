@@ -40,13 +40,17 @@ Goal: when something breaks, the code + comments + failure make the cause obviou
 
 ## Repo map
 ```
-packages/   contract ui city engine toolbox ai i18n audio teacher telemetry   (@edu/*, CODEOWNERS-gated)
+packages/   contract city engine toolbox ai i18n audio teacher telemetry   (@edu/*, CODEOWNERS-gated)
 apps/       host-standalone  host-city  launcher
 games/      kindergarten/<id>/  primary/<id>/
 scripts/    validate-contracts.mjs  new-game.mjs  ...
-docs/       curriculum/<lesson>.md  game-contract.md  city-architecture.md  ...
+docs/       curriculum/<lesson>.md  standards/*-ui-ux.md  PLAN.md  PROGRESS.md  ...
 source/     existing prototype — salvage/port source (R22), not the product
 ```
+> **No shared `@edu/ui` package** (removed 2026-06-07). Each game **owns its UI** — its own design
+> tokens, buttons, characters. The only UI boundary is the **vibe**:
+> `docs/standards/{ui-ux-common,kindergarten-ui-ux,primary-ui-ux}.md` + the render previews.
+> `kid-ux-reviewer` nudges vibe-match + a11y; nothing imports a UI component package.
 
 ## Commands
 - `npm install` — install workspaces

@@ -1,5 +1,15 @@
 # Plan: AI-Education Games Platform — Foundation, Team Workflow & Merge (v3 — React/TS)
 
+> **⚠ Supersessions since v3 (read first).** Two decisions override parts of this plan:
+> 1. **Blueprint-first build pipeline** — games are built from an approved per-lesson blueprint via
+>    `/build-game`, never cloned from a template (see the banner in §7 + the spec
+>    `docs/superpowers/specs/2026-06-07-blueprint-first-game-pipeline-design.md`).
+> 2. **No shared `@edu/ui` package** (removed 2026-06-07). There is **no shared UI
+>    component/token library**; each game **owns its UI**, and the only UI boundary is the **vibe**
+>    (`docs/standards/{ui-ux-common,kindergarten-ui-ux,primary-ui-ux}.md` + render previews).
+>    Every `@edu/ui` / "edu-frontend shared UI" reference below is **historical** — read it as
+>    "the game's own UI, built to the vibe."
+
 ## Context
 
 Web-app games that teach AI to **kindergarten (K2/K3)** and **primary (P1–P6)** students — one game per lesson. Two products:
@@ -65,7 +75,7 @@ Everything else below is architecture — owned by Claude, not decisions you mus
 | Build / dev | **Vite** (+ react plugin); static output, per-game code-split |
 | Shared model / sim state | **Zustand** store — lives *outside* React; clock + subsystem `tick` mutate it; views subscribe to slices |
 | Schema + runtime validation | **Zod** — one source for the manifest + `CityState` schema *and* their TS types |
-| Styling / design system | `@edu/ui` = **React Aria Components** (Apache-2.0; accessible primitives) + CSS Modules + CSS-variable tokens |
+| Styling / design system | **Per-game, no shared package** — each game owns its CSS-variable tokens + components, built to the *vibe* (`docs/standards/*-ui-ux.md`). *(Superseded: was a shared `@edu/ui` = React Aria + tokens.)* |
 | Heavy sim rendering | **Hand-rolled Canvas 2D** in a RAF loop, *outside* React (render throttled/compute-bound; PixiJS kept as documented fallback, not default — avoids a 2nd WebGL context vs TF.js) |
 | On-device ML | **PORT existing** (R22): MobileNet+`knn-classifier` teachable + coco-ssd on **one tfjs 4.x**; MediaPipe Hands + TF.js gesture trainer; `ConversationManager` (STT+VAD+TTS). Self-host all (cut CDNs). New infra: Audio **Howler.js**, offline **vite-plugin-pwa**, save/load **idb** |
 | Localization (text) | **English-primary.** `react-i18next` so strings aren't hardcoded (cheap to add a locale later), but the only required catalog is `en`; `zh-Hant` is a small/optional add |
@@ -88,7 +98,7 @@ ai-education/
 
   packages/            # shared core — CODEOWNERS-gated
     contract/   # @edu/contract  TS types + Zod schemas (GameModule, manifest, CityState), validators
-    ui/         # @edu/ui        React design system: Button/AICharacter/Dialog/DragBoard/Slider/Progress
+    # (removed) @edu/ui — no shared UI package; each game owns its UI to the vibe (docs/standards/*-ui-ux.md)
     city/       # @edu/city      CityState store (Zustand), sim clock, layer renderer, save/load, runner
     engine/     # @edu/engine    Canvas/RAF helpers, touch input, scene utils (standalone games)
     toolbox/    # @edu/toolbox   PORTED: ConversationManager (STT+VAD+TTS) + MobileNet+KNN teachable + MediaPipe Hands gesture; one tfjs 4.x, self-hosted
