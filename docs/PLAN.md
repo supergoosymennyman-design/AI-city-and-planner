@@ -334,6 +334,14 @@ A voice/camera/audio-first design *structurally excludes* deaf, non-verbal, blin
 > `verifier`; `contract-reviewer`/`kid-ux-reviewer`/`core-guardian` kept & lightly refined.
 > Per-game designer source now lands in `source/<track>/<NN-slug>/` first (hard precondition,
 > Gate 0). The mechanism taxonomy and "portable gate" philosophy below still hold.
+>
+> **Adversarial breakers (added 2026-06-07):** two post-build review agents beyond the static
+> reviewers — `game-breaker` (hunts crashes / freezes / leaks / dead-ends and reproduces each as a
+> FAILING test) and `ux-breaker` (explores OFF-RAIL play — silent no-ops, dead air, misleading
+> feedback, premise-vs-implementation mismatches). Distinct from `kid-ux-reviewer` (static a11y).
+> Both write test files only (no source edits/commits). Resilience is now **golden rule #12**
+> (AGENTS.md): best-effort, crash-proof `ctx` I/O + never gate game progression on a side-effect
+> resolving. Test infra (R1) is wired (Vitest + RTL + jsdom; doubles in `@edu/testing`).
 
 **Four mechanisms, each matched to what it's best at — this *is* the structure:**
 

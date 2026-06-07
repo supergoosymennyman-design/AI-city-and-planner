@@ -2,7 +2,7 @@
 
 Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update this in every PR** that completes or starts a tracked item. Legend: ✓ done · ◐ in progress / partial · ☐ pending.
 
-> Snapshot date: 2026-06-06 · Branch: `game/kindergarten-1-color-the-rainbow` (local, not pushed) · Latest: first game + reviewer subagents
+> Snapshot date: 2026-06-07 · Branch: `game/kindergarten-1-color-the-rainbow` (local, not pushed) · Latest: test infra (R1) + Color the Rainbow hardened (voice/UX/crash-proof) + breaker agents
 
 ## Where things live
 - **Plan (source of truth):** [docs/PLAN.md](PLAN.md) (in-repo copy; original was authored in `~/.claude/plans/`).
@@ -10,6 +10,13 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - **Done = git history; pending = this file.**
 
 ## Recently done (2026-06-07)
+- ✓ **Test infra (R1) wired** — Vitest + RTL + jsdom; `npm test` chained into `validate`. New **`@edu/testing`** package: fake `ctx`/`AIServices`, a simulated `SpeechRecognition` (drives the real `listenOnce`), and a jsdom Canvas/`Path2D` stub. **28 tests** on Color the Rainbow.
+- ✓ **Color the Rainbow hardened** (voice + UX + resilience):
+  - Fixed a quiz **freeze** — round-advance was gated on `speechSynthesis.onend` (Chrome drops it after `cancel()`); now a TTS-independent timer + a `speak()` failsafe resolve.
+  - **Crash-proof `ctx` I/O** — every `ctx.audio`/`ctx.ai` call try-caught; a rejecting `listenOnce` no longer dead-ends the mic. Promoted to **AGENTS.md golden rule #12** + a DoD checkpoint.
+  - **Voice model:** continuous listening in teaching (auto-on after "Teach AI!"), push-to-talk in the quiz; dev voice-sim panel in the host (`npm run dev` → 5173).
+  - **UX honesty:** unsupported colour (e.g. "green") gets an honest spoken reaction (not "I didn't catch that"); intro **scopes the promise** to the 3 colours; **tiered result** (0/5 teaches the mistraining lesson, never flat "Great job!").
+- ✓ **Adversarial breaker agents** — **`game-breaker`** (crashes/freezes/leaks/dead-ends) + **`ux-breaker`** (OFF-RAIL play: silent no-ops, dead air, misleading feedback, premise-vs-implementation mismatches). Both dogfooded on the game → found + fixed 5 crash-family breaks and 2 headline UX gaps; kept as regression tests. Distinct from `kid-ux-reviewer` (static a11y).
 - ✓ **Subagent roster + `/build-game` orchestrator built** (pipeline steps 1b–1c). New agents (`.ai/agents`, synced to `.claude`+`.opencode`): `blueprint-author`, `game-builder` (KG), `game-architect`+`game-implementer` (primary), `pedagogy-reviewer`, `verifier`. **Retired `game-scaffolder`** (no more template-cloning). Refined `contract-reviewer` to trace pedagogy fields to the approved blueprint. New orchestrator skill `.ai/skills/build-game` — one entry point: Gate 0 → blueprint → ★Gate 1 → build (track-aware) → parallel review → verify → bounded fix loop → ★Gate 2 (SME/playtest), with optional `--checkpoint` pauses.
 - ✓ **Pipeline hygiene:** `source/<track>/` lowercased (`kindergarten`/`primary`) for Linux-CI-safe Gate-0 paths; `sync-agents.mjs` now also mirrors `.ai/skills/<name>/` → `.claude/skills/` (skips eval workspaces); added `npm run sync`.
 - ✓ **`blueprint` skill built + benchmarked** (`.ai/skills/blueprint`, mirrored to `.claude/skills`): two-stage (faithful extract → build enrichment), KG + primary templates, valid-contract-values reference, Gate-0 precondition, self-check gate. Benchmarked on **Haiku** (with-skill vs no-skill ×3): with-skill more faithful, caught the `no-Math.random` determinism rule baselines missed, ~27% faster / ~10% fewer tokens. (Pipeline step 1a.)
@@ -21,7 +28,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - ✓ **`@edu/ui` started** (crayon tokens + `Button`) · **`apps/host-standalone` skeleton** (Vite host + concrete `GameContext`: TTS/STT/audio/storage/teacher) · **`@edu/contract`** gained additive `reducedMotion`.
 - ✓ **Reviewer subagents** (`kid-ux-reviewer`, `contract-reviewer`, `core-guardian`, `game-scaffolder`) + `scripts/sync-agents.mjs` → `.claude/agents` + `.opencode/agent`. Dogfooded on the game: captured + fixed ~15 issues (hi-DPI draw bug, crash-proofing/error boundary, honest feedback, a11y).
 - ✓ Curriculum spec: `docs/curriculum/kindergarten-03-color-the-rainbow.md` (Lesson 3 extracted).
-- ☐ Still pending for this game: tests (logic + render), `/new-game` + `/review-game` workflow, `edu-frontend` skill. Stray `docs/repo-overview.{html,pdf}` (agent-generated) left untracked — decide keep/remove.
+- ◐ This game (updated 2026-06-07): tests now cover voice + adversarial + UX (28 green); ☐ FSM-unit + render-smoke still nice-to-have for full DoD. `/new-game`+`/review-game` and `edu-frontend` **superseded** by `/build-game` + the `blueprint` skill + `docs/standards/kid-ui-ux.md`. Stray `docs/repo-overview.{html,pdf}` still untracked — decide keep/remove.
 
 ---
 
@@ -55,18 +62,18 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 ---
 
 ## Packages (`@edu/*`)
-- ✓ `contract`  ·  ✓ `debug`
-- ☐ `city` · ☐ `ui` · ☐ `engine` · ☐ `toolbox` · ☐ `ai` · ☐ `i18n` · ☐ `audio` · ☐ `teacher` · ☐ `telemetry`
+- ✓ `contract` · ✓ `debug` · ✓ `testing` (test doubles) · ◐ `ui` (crayon tokens + `Button`)
+- ☐ `city` · ☐ `engine` · ☐ `toolbox` · ☐ `ai` · ☐ `i18n` · ☐ `audio` · ☐ `teacher` · ☐ `telemetry`
 
 ## Apps
-- ☐ `host-standalone` · ☐ `host-city` (the merge) · ☐ `launcher` (minimal in slice, R20)
+- ◐ `host-standalone` (Vite host + concrete `GameContext`: TTS/STT/audio/storage/teacher + dev voice-sim) · ☐ `host-city` (the merge) · ☐ `launcher` (R20)
 
 ---
 
 ## Cross-cutting requirements (Plan §9) — status
 | R | Item | Status | Note |
 |---|---|---|---|
-| R1 | Testing infra | ☐ | Vitest/RTL/Playwright/fast-check not wired yet |
+| R1 | Testing infra | ◐ | Vitest + RTL + jsdom wired (`npm test` in `validate`); `@edu/testing` doubles; 28 tests on CtR. ☐ Playwright tablet-smoke + axe + fast-check |
 | R2 | Privacy / telemetry stub | ◐ | `Telemetry` iface in contract; impl + PII CI check pending |
 | R3 | Teacher controls | ◐ | `TeacherControls` iface in contract; impl pending |
 | R4 | Audio pipeline (English-primary) | ◐ | `AudioBus` iface in contract; impl pending |
@@ -77,7 +84,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 | R9 | Work logs | ◐ | convention documented; `logs/` dir + work-log skill usage pending |
 | R10 | Determinism + migration | ◐ | `SeededRng` + fixed-point in contract ✓; migration registry + fast-check harness pending |
 | R11 | Content pipeline (assets) | ☐ | owner + schedule |
-| R12 | Host fault tolerance | ☐ | snapshot/quarantine/rollback (§4h) |
+| R12 | Host fault tolerance | ◐ | game-level crash-proofing ✓ (golden rule #12: best-effort `ctx` I/O + host error boundary); sim snapshot/quarantine/rollback (§4h) pending |
 | R13 | Playtesting (kids+teacher, ~wk5) | ☐ | incl. SEN participant |
 | R14 | Session persistence | ◐ | `SessionInfo` in contract ✓; impl pending |
 | R15 | Consent / data governance | ☐ | DPA + parent notice + DPIA |
