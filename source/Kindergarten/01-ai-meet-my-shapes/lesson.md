@@ -1,0 +1,18 @@
+Lesson 1: AI Meet My Shapes
+🎯 Simple AI Explanation (Say in Part A)
+“Friends, today we have a special new friend: AI! AI stands for Artificial Intelligence. That means AI is a clever computer program that can learn — just like you — but right now it doesn’t know very much. We have to teach it! Let’s be teachers today.”
+⏱️ 25-Minute Script (Teacher Says → Kids Respond → AI Responds via App/Voice)
+🟢 PART A: Teach AI Shapes (8 minutes)
+ Teacher: “Boys and girls, today we have a very special new friend. This is AI! Say hello, AI.”AI (real app voice or teacher-simulated): “Hello, friends!” Teacher: [Say the AI explanation above] “Are you ready to teach AI about shapes?” Children: “Yes!” Teacher: “Fantastic! I’m going to draw something on the tablet. Watch carefully—don’t say the name yet.”(Teacher draws a simple circle using the app) Teacher: “AI, what is this?”AI (app responds or teacher voices): “Hmm… I don’t know! Can you teach me?” Teacher: “Oh! AI doesn’t know. Can you help? What is this shape?” Children: “A circle!” Teacher: “Let’s tell AI together. Say: ‘AI, this is a circle!’”All: “AI, this is a circle!”Teacher (to tablet): “Listen, AI. This is a circle.” (If app has a “teach” button, tap it; if not, draw again) AI: “Circle! I’m learning!” ✨(Repeat for square, triangle—same pattern)
+🔵 PART B: AI Remembers! (7 minutes)
+ Teacher: “Now AI has learned three shapes. Let’s test AI! AI, look at this shape.”(Draw circle again)
+AI (excited, via app): “I know, I know! It’s a circle!” 🎉 Teacher: “Wow! Did you hear that? AI remembered! Give yourselves a clap.”(Children clap) Teacher: “Okay, AI, what about this one?” (Draw square) AI: “It’s a square! I remember!” Teacher: “AI knows square! Let’s see… this one?” (Draw triangle) AI: “Triangle! Easy-peasy.” Teacher: “But what if I draw a shape we haven’t taught yet?” (Draw a star) Teacher: “AI, what is this?”AI (puzzled): “Hmm… I don’t know.” Teacher: “Because we never taught AI ‘star’. What should we do?” Children: “Teach it!” Teacher: “Yes! Let’s teach AI. Say: ‘AI, this is a star!’”All: “AI, this is a star!”Teacher (tap “teach” or redraw): “AI, this is a star.” AI: “Star! Thank you, teachers!” Teacher: “Let’s try the star again.” (Draw another star) AI: “I know! It’s a star!” Teacher: “Hooray! You’re amazing teachers.”
+🟣 PART C: Kids Draw, AI Learns (10 minutes)
+ Teacher: “Now let’s teach AI some fruit! Watch.” (Draw simple apple in app) Teacher: “AI, what is this?” AI: “I don’t know.” Teacher: “What fruit is red and round and yummy?” Children: “Apple!” Teacher: “You’re right. Let’s teach: ‘AI, this is an apple!’”All together. (Tap teach button or redraw) AI: “Apple! Crunch!” 🍎(Repeat with banana: draw curved shape → AI doesn’t know → kids teach → test with second banana → 
+ AI: “I know! It’s a banana!”) Teacher: “We have time for one more. Let’s teach AI what a car looks like.” (Draw simple car in app) Teacher: “AI?” AI: “I don’t know.” Teacher: “Friends, what is this?”
+ Children: “Car!” Teacher: “Teach AI.”All: “AI, this is a car!”Teacher (teach via app). AI: “Car! Vroom vroom! I’m learning so much today.” Teacher: “You were wonderful teachers. Give AI a wave. We’ll teach AI more next time.” AI: “Bye-bye, teachers!” 👋
+💡 Teacher Tips for Lesson 1
+App suggestions: AutoDraw (suggests icons as kids draw), Google Quick Draw (guesses drawings), or pre-record simple responses if no AI app available.
+If AI “guesses right” too fast: “AI is practicing! Let’s teach it again slowly.”
+Let children draw: 2-3 kids take turns drawing simple shapes for AI to “learn.”
+No internet? Pre-record AI responses on the tablet and play them at the right moments.

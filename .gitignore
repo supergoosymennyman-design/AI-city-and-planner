@@ -44,3 +44,6 @@ packages/toolbox/models/**/*.wasm
 
 # never commit student/playtest data (R13/§5c)
 /playtest-data/
+
+# skill-creator eval workspaces (transient benchmark artifacts)
+.ai/skills/*-workspace/

@@ -1,0 +1,26 @@
+{
+  "skill_name": "blueprint",
+  "evals": [
+    {
+      "id": 1,
+      "name": "kg-teach-a-label-shapes",
+      "prompt": "Write the game blueprint for kindergarten lesson 1 (AI Meet My Shapes). The designer's doc is already in source/kindergarten/01-ai-meet-my-shapes/.",
+      "expected_output": "docs/curriculum/kindergarten-01-ai-meet-my-shapes.md following the KG template: Stage-1 sections faithful to the source script (Simple AI explanation, Part A/B/C, teacher tips), Stage-2 enrichment with honest teachable-machine truth, capabilities from the enum (trainModel + speak etc.), aiRepresentation honest, two-channel a11y incl. tap, observable success criteria, misconception. Passes the skill's self-check.",
+      "files": ["source/kindergarten/01-ai-meet-my-shapes/lesson.md"]
+    },
+    {
+      "id": 2,
+      "name": "kg-pose-recognition-jump",
+      "prompt": "Create the blueprint for KG lesson 13, Jump AI Jump. Source is in source/kindergarten/13-jump-ai-jump/.",
+      "expected_output": "docs/curriculum/kindergarten-13-jump-ai-jump.md. Should pick recognizePose (body movement) as a capability honestly, keep voice non-required (tap present), and capture the teach-then-AI-calls-the-moves loop. Self-check passes.",
+      "files": ["source/kindergarten/13-jump-ai-jump/lesson.md"]
+    },
+    {
+      "id": 3,
+      "name": "primary-city-sim-l18",
+      "prompt": "Blueprint primary lesson 18 (Designing the AI City). The designer source is in source/primary/18-designing-the-ai-city/.",
+      "expected_output": "docs/curriculum/primary-18-designing-the-ai-city.md using the PRIMARY template: includes deterministic sim state (fixed-point, seeded rng, no Math.random), dependsOn as a DAG, City contribution + live-scale behavior, plus the standard enrichment. Self-check (including the primary-only items) passes.",
+      "files": ["source/primary/18-designing-the-ai-city/lesson.md"]
+    }
+  ]
+}
