@@ -117,12 +117,27 @@ function createAudio(): AudioBus {
         if (!hasTTS()) return resolve();
         if (opts?.interrupt) window.speechSynthesis.cancel();
         // ASCII-only so emoji/punctuation aren't read aloud awkwardly.
-        const u = new SpeechSynthesisUtterance(text.replace(/[^\x20-\x7E\s]/g, '').trim());
+        const clean = text.replace(/[^\x20-\x7E\s]/g, '').trim();
+        if (!clean) return resolve();
+        const u = new SpeechSynthesisUtterance(clean);
         u.lang = 'en-US';
         u.rate = 0.92;
         u.pitch = 1.15;
-        u.onend = () => resolve();
-        u.onerror = () => resolve();
+        // FAILSAFE: Chrome's speechSynthesis can silently never fire onend/onerror — especially
+        // right after cancel() — leaving this promise pending forever and hanging any caller that
+        // awaits it. Resolve once, whichever fires first: onend/onerror OR an estimated-duration
+        // timeout (~90ms/char, capped). Belt-and-suspenders with the game's TTS-independent
+        // advance timer; either layer alone prevents the freeze.
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(failsafe);
+          resolve();
+        };
+        u.onend = finish;
+        u.onerror = finish;
+        const failsafe = setTimeout(finish, Math.min(15000, 1000 + clean.length * 90));
         window.speechSynthesis.speak(u);
       }),
     playVO: async () => {

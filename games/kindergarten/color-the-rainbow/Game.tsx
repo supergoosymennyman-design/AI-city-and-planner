@@ -1,5 +1,5 @@
 import type { FC } from 'react';
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { GameContext, TFunction } from '@edu/contract';
 import { Button } from '@edu/ui';
 import type { BubbleMsg } from './logic/types.js';
@@ -58,27 +58,36 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
   useEffect(() => {
     if (data.sound && lastSoundData.current !== data) {
       lastSoundData.current = data;
-      ctx.audio.play(data.sound);
+      // Best-effort: a flaky/suspended AudioContext must never crash a child's game (§4h).
+      try {
+        ctx.audio.play(data.sound);
+      } catch {
+        /* chime is non-critical */
+      }
     }
   }, [data, ctx]);
 
   // The bot SPEAKS its current line (TTS) — the audio twin of the on-screen bubble (§6b).
-  // For a FEEDBACK line, advance the round AFTER speech ends (with a ≥1.2s floor so it stays
-  // readable even when TTS is silent/instant) — never a fixed timer that could truncate it.
+  // CRITICAL: game progression must NOT depend on TTS resolving. Chrome's speechSynthesis
+  // frequently never fires `onend` after cancel() (which interrupt:true calls), which used to
+  // wedge the quiz on the feedback screen forever (answer buttons are disabled during feedback
+  // → only a reload recovered). So we speak best-effort (fire-and-forget) and advance the round
+  // on our OWN guaranteed timer, independent of whether the utterance ever ends.
   useEffect(() => {
-    let cancelled = false;
-    let advanceTimer: ReturnType<typeof setTimeout> | undefined;
-    const isFeedback = data.state === 'game' && !!data.gameFeedback;
-    const startedAt = performance.now();
-    void ctx.audio.speak(bubbleText(t, data.bubble), { interrupt: true }).then(() => {
-      if (cancelled || !isFeedback) return;
-      const wait = Math.max(0, 1200 - (performance.now() - startedAt));
-      advanceTimer = setTimeout(() => dispatch({ type: 'ADVANCE_AFTER_FEEDBACK' }), wait);
-    });
-    return () => {
-      cancelled = true;
-      if (advanceTimer) clearTimeout(advanceTimer);
-    };
+    // Best-effort + crash-proof: a TTS device that throws synchronously (e.g. a vendor shim
+    // throwing on cancel()) would escape the effect into React's commit phase and unmount the
+    // whole game; a rejecting promise would leak. Swallow both — the on-screen bubble is the
+    // visual twin (§6b), and progression is on its own timer below, never gated on TTS.
+    try {
+      void ctx.audio.speak(bubbleText(t, data.bubble), { interrupt: true }).catch(() => {});
+    } catch {
+      /* TTS unavailable — non-fatal */
+    }
+    if (data.state === 'game' && data.gameFeedback) {
+      const advanceTimer = setTimeout(() => dispatch({ type: 'ADVANCE_AFTER_FEEDBACK' }), 1600);
+      return () => clearTimeout(advanceTimer);
+    }
+    return undefined;
   }, [data.bubble, data.state, data.gameFeedback, ctx, t]);
 
   // Teacher overlay → game. reset clears everything; replay restarts teaching (§ R3).
@@ -111,39 +120,78 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
   const [canListen, setCanListen] = useState(false);
   useEffect(() => {
     let mounted = true;
-    void ctx.ai.probe('listen').then((ok) => {
-      if (mounted) setCanListen(ok);
-    });
+    void ctx.ai
+      .probe('listen')
+      .then((ok) => {
+        if (mounted) setCanListen(ok);
+      })
+      .catch(() => {
+        if (mounted) setCanListen(false); // probe failed → treat as no STT (tap carries the lesson)
+      });
     return () => {
       mounted = false;
     };
   }, [ctx]);
 
-  // True after a listen heard nothing usable → prompt a retry instead of silently dying.
+  // True after a listen heard nothing usable → a gentle "try again" (we KEEP listening).
   const [micHint, setMicHint] = useState(false);
 
-  // PUSH-TO-TALK voice input — one clean listen per tap. The class taps 🎤, says the colour
-  // ("AI, this is red!" / answers the quiz), and can tap again ANY time. This is the fix for
-  // the reported bug: the old effect auto-listened once per prompt and, on a miss (timeout /
-  // no-speech / a non-colour word), never re-armed — so the mic went dead until the child
-  // tapped. Privacy (§5c): the cloud mic now opens ONLY on an explicit tap, never continuously.
-  const handleListen = useCallback(async () => {
-    if (listening) return; // ignore re-taps while a listen is already in flight
+  // Is the game in a phase that wants a spoken colour? (the teach-name step, or an active quiz
+  // round). The mic is meaningful only here.
+  const wantsColour =
+    (data.state === 'teaching' && data.awaitingColorName) ||
+    (data.state === 'game' && !!data.gamePick && !data.gameFeedback);
+
+  // AUTO-START / STOP the mic with the prompt. Pressing "Teach AI!" (or a new quiz round) opens
+  // the naming step → the mic turns on and STAYS on (continuous); leaving the prompt turns it
+  // off. This is the requested behaviour: voice keeps listening after Teach AI instead of needing
+  // a re-tap. Privacy (§5c): the cloud mic is open only DURING an active prompt, the child/teacher
+  // can Stop it (the mic button toggles), and tap/keyboard is always available.
+  useEffect(() => {
+    setListening(wantsColour && canListen);
+  }, [wantsColour, canListen]);
+
+  // Clear the "try again" nudge each time a fresh prompt begins.
+  useEffect(() => {
     setMicHint(false);
-    setListening(true);
-    const heard = await ctx.ai.listenOnce({ lang: 'en-US', timeoutMs: 6000 });
-    setListening(false);
-    const said = (heard ?? '').toLowerCase();
-    const match = COLOURS.find((c) => said.includes(c));
-    if (!match) {
-      setMicHint(true); // surfaces t('mic.again'); the mic button stays tappable
-      return;
-    }
-    // Dispatch against the LATEST state, not this closure's snapshot (see dataRef above).
-    const now = dataRef.current;
-    if (now.state === 'teaching' && now.awaitingColorName) dispatch({ type: 'ANSWER_COLOUR', colour: match });
-    else if (now.state === 'game' && now.gamePick && !now.gameFeedback) dispatch({ type: 'GAME_TAP', chosen: match });
-  }, [listening, ctx]);
+  }, [data.awaitingColorName, data.gamePick]);
+
+  // CONTINUOUS LISTEN LOOP — re-arms itself, so a miss / silence / non-colour word is NEVER a
+  // dead end (the bug: the old one-shot left the mic dead after a miss; saying a non-colour in
+  // the quiz looked frozen). Runs only while listening + in an active prompt; stops on a matched
+  // colour, on Stop, or when the phase changes. The small pace delay stops a tight spin if
+  // listenOnce resolves instantly (the real STT paces itself via its own ~5s timeout).
+  useEffect(() => {
+    if (!listening || !canListen || !wantsColour) return undefined;
+    let cancelled = false;
+    void (async () => {
+      while (!cancelled) {
+        // Real Web Speech REJECTS on onerror (no-speech / network / not-allowed / aborted). A
+        // rejection must behave like silence, NOT kill the loop — otherwise the mic dead-ends,
+        // regressing the very bug this loop exists to fix. Treat any failure as "heard nothing".
+        let heard: string | null = null;
+        try {
+          heard = await ctx.ai.listenOnce({ lang: 'en-US', timeoutMs: 5000 });
+        } catch {
+          heard = null;
+        }
+        if (cancelled) return;
+        const match = COLOURS.find((c) => (heard ?? '').toLowerCase().includes(c));
+        if (match) {
+          // Dispatch against the LATEST state, not this closure's snapshot (see dataRef above).
+          const now = dataRef.current;
+          if (now.state === 'teaching' && now.awaitingColorName) dispatch({ type: 'ANSWER_COLOUR', colour: match });
+          else if (now.state === 'game' && now.gamePick && !now.gameFeedback) dispatch({ type: 'GAME_TAP', chosen: match });
+          return; // got a colour → stop; the phase change resets `listening`
+        }
+        setMicHint(true); // heard nothing usable — keep listening, just nudge the child
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [listening, canListen, wantsColour, ctx]);
 
   // Quiz answer buttons get a stable shuffled order per round (don't reshuffle on re-render).
   const answerOrder = useMemo(() => shuffle(COLOURS), [data.gameRound, data.gamePick]);
@@ -180,11 +228,11 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
   // --- phase renderers (closures over data/dispatch/t) ---
 
   /**
-   * The shared push-to-talk mic (used in both teaching + quiz). Rendered only when STT is
-   * available (R21 gating) — otherwise voice is silently absent and tap carries the lesson.
-   * `disabled` lets the quiz suppress it while feedback is on screen.
+   * The shared mic (teaching + quiz). Continuous: it auto-listens during a prompt and the button
+   * TOGGLES listening (Stop / Start) — never a dead end. Rendered only when STT is available
+   * (R21 gating); otherwise voice is silently absent and tap carries the lesson.
    */
-  function renderMic(disabled = false) {
+  function renderMic() {
     if (!canListen) return null;
     return (
       <div className="ctr-mic-area">
@@ -192,11 +240,10 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
           type="button"
           className="ctr-mic"
           aria-pressed={listening}
-          aria-label={t('mic.tap')}
-          disabled={listening || disabled}
-          onClick={() => void handleListen()}
+          aria-label={listening ? t('mic.stop') : t('mic.tap')}
+          onClick={() => setListening((on) => !on)}
         >
-          <span aria-hidden="true">{t('mic.label')}</span>
+          <span aria-hidden="true">{listening ? t('mic.stopLabel') : t('mic.label')}</span>
         </button>
         {/* aria-live announces listening / retry for screen readers (the audio twin, §6b) */}
         <p className="ctr-listening" aria-live="polite">
@@ -277,7 +324,7 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
             <div className="ctr-shape-wrap" data-feedback={data.gameFeedback ?? ''}>
               <ShapeSvg shape={data.gameShape ?? 'circle'} fill={fill} ariaLabel={t('game.shapeAria')} />
             </div>
-            {renderMic(!!data.gameFeedback)}
+            {!data.gameFeedback && renderMic()}
             <div className="ctr-answers" role="group" aria-label={t('game.ask')}>
               {answerOrder.map((c) => (
                 <button

@@ -279,8 +279,9 @@
   outline: 4px solid var(--edu-blue, #3f8cff);
   outline-offset: 3px;
 }
-/* Gently pulse while the mic is open (the visual twin of "🎤 Listening…", §6b). */
+/* While listening, the button turns into a clear "stop" (red) and gently pulses (§6b). */
 .ctr-mic[aria-pressed='true'] {
+  background: var(--edu-red, #ef5a5a);
   animation: ctr-pulse 1.2s ease-in-out infinite;
 }
 .ctr-mic:disabled {
