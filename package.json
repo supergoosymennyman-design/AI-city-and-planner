@@ -22,10 +22,12 @@
     "sync": "node scripts/sync-agents.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "validate": "npm run typecheck && npm run contracts && npm run test",
     "build": "npm run typecheck"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^22.0.0",
