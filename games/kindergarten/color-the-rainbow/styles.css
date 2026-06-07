@@ -250,6 +250,42 @@
     opacity: 0.45;
   }
 }
+/* Push-to-talk mic — voice is opt-in (§5): tap it, say the colour, tap again any time. */
+.ctr-mic-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.ctr-mic {
+  min-height: var(--edu-tap-min, 64px);
+  padding: 0 30px;
+  font-family: var(--edu-font);
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--edu-primary-fg, #fffdf7);
+  background: var(--edu-primary, #ff7a3d);
+  border: 3px solid var(--edu-ink, #4a3f2f);
+  border-radius: 999px;
+  box-shadow: var(--edu-shadow);
+  cursor: pointer;
+  transition: transform var(--edu-dur-fast) var(--edu-ease-bounce);
+}
+.ctr-mic:active {
+  transform: translateY(4px);
+  box-shadow: var(--edu-shadow-press);
+}
+.ctr-mic:focus-visible {
+  outline: 4px solid var(--edu-blue, #3f8cff);
+  outline-offset: 3px;
+}
+/* Gently pulse while the mic is open (the visual twin of "🎤 Listening…", §6b). */
+.ctr-mic[aria-pressed='true'] {
+  animation: ctr-pulse 1.2s ease-in-out infinite;
+}
+.ctr-mic:disabled {
+  cursor: default;
+}
 .ctr-answers {
   display: flex;
   flex-wrap: wrap;

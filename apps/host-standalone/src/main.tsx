@@ -65,11 +65,28 @@ function HostShell() {
   );
 }
 
-const rootEl = document.getElementById('root');
-if (rootEl) {
-  createRoot(rootEl).render(
-    <StrictMode>
-      <HostShell />
-    </StrictMode>,
-  );
+/**
+ * Boot the host. In dev (and unless `?realvoice` is set) we install the click-driven voice
+ * simulator FIRST — so the game's `probe('listen')` already sees a recognizer when it mounts —
+ * then render. Both imports are dynamic + DEV-gated, so production never bundles @edu/testing.
+ */
+async function boot(): Promise<void> {
+  const useVoiceSim = import.meta.env.DEV && !new URLSearchParams(window.location.search).has('realvoice');
+  if (useVoiceSim) {
+    const [{ installFakeSpeechRecognition }, { mountVoiceSim }] = await Promise.all([
+      import('@edu/testing'),
+      import('./DevVoiceSim.js'),
+    ]);
+    mountVoiceSim(installFakeSpeechRecognition());
+  }
+  const rootEl = document.getElementById('root');
+  if (rootEl) {
+    createRoot(rootEl).render(
+      <StrictMode>
+        <HostShell />
+      </StrictMode>,
+    );
+  }
 }
+
+void boot();

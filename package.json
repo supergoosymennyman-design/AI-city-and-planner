@@ -19,14 +19,23 @@
     "setup": "node scripts/setup-hooks.mjs",
     "typecheck": "tsc --build",
     "contracts": "node scripts/validate-contracts.mjs",
-    "validate": "npm run typecheck && npm run contracts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate": "npm run typecheck && npm run contracts && npm run test",
     "build": "npm run typecheck"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.1.0",
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
     "react": "^18.3.0",
+    "react-dom": "^18.3.0",
     "typescript": "^5.6.0",
+    "vitest": "^2.1.8",
     "zod": "^3.23.0"
   }
 }
