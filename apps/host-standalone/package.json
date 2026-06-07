@@ -13,6 +13,9 @@
     "@edu/game-k2-03-color-the-rainbow": "*",
     "@edu/toolbox": "*",
     "@edu/ui": "*",
+    "@mediapipe/holistic": "^0.5.1675471629",
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs": "^4.22.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },
