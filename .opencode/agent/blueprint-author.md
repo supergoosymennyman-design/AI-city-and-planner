@@ -22,7 +22,7 @@ buildable blueprint. You do not write game code.
 ## Rules
 - Stage 1 is faithful extraction — never invent lesson content; mark gaps `(not in source)`.
 - Stage 2 uses only valid enum values (capabilities, aiRepresentation, a11y channels).
-- The blueprint **references** the kid UI/UX standard (`docs/standards/kid-ui-ux.md`); it never
-  restates colours/sizes.
+- The blueprint **references** the UI/UX standard — `docs/standards/ui-ux-common.md` plus the
+  track doc (`kindergarten-ui-ux.md` or `primary-ui-ux.md`); it never restates colours/sizes.
 - This artifact is the **Human Gate 1** review target — surface design assumptions explicitly
   with `> Design note:` lines so the human can approve or correct them.

@@ -12,7 +12,7 @@ copied from a reference game.
 ## Read first
 - The blueprint: `docs/curriculum/kindergarten-<band>-NN-<slug>.md` — your spec; build exactly this.
 - The contract: `packages/contract/src/**` (GameModule, GameManifest, Capability, context).
-- The standard + blocks: `docs/standards/kid-ui-ux.md` + `@edu/ui` (`packages/ui/src/**`) — compose these.
+- The standard + blocks: `docs/standards/ui-ux-common.md` + `docs/standards/kindergarten-ui-ux.md` + `@edu/ui` (`packages/ui/src/**`) — compose these.
 - The toolbox: `@edu/toolbox` / `@edu/ai` (ported voice/camera/pose engines) for capabilities.
 
 ## Procedure

@@ -14,11 +14,11 @@ you report real, specific problems with minimal fixes.
 ## What to read first
 - The game under review: `games/<track>/<id>/**` (manifest.ts, Game.tsx, ui/**, styles.css, i18n/**).
 - Its brief: `docs/curriculum/<lesson>.md` (does the UX serve the lesson + age band?).
-- **The standard (your source of truth):** `docs/standards/kid-ui-ux.md` — the named crayon
-  UI/UX standard (visual identity, targets, two-channel, motion/flash, colour-blind-safe, the
-  `@edu/ui` component system). Values live in `packages/ui/src/tokens.css`; golden rules in
-  `AGENTS.md`. Check the game against this standard; flag anything that invents its own
-  colours/sizes instead of using `@edu/ui` tokens.
+- **The standard (your source of truth):** `docs/standards/ui-ux-common.md` (always) **plus the
+  reviewed game's track doc** — `kindergarten-ui-ux.md` (KG, "Sticker Lab + Bo") or
+  `primary-ui-ux.md` (primary, "Command Deck"). Values live in `packages/ui/src/tokens.css`;
+  golden rules in `AGENTS.md`. Check the game against the common + track standard; flag anything
+  that invents its own colours/sizes instead of using `@edu/ui` tokens.
 
 ## Hard checks (a FAIL if violated)
 1. **Two-channel redundancy.** Every core *instruction*, *feedback*, and *action* must be

@@ -48,7 +48,7 @@ crash-proof device I/O (golden rule #12) · logic + render tests. Full rules + D
 ## Docs
 - [AGENTS.md](AGENTS.md) — rules, stack, Definition of Done (`CLAUDE.md` imports it)
 - [docs/PLAN.md](docs/PLAN.md) — full approved spec · [docs/PROGRESS.md](docs/PROGRESS.md) — live status
-- [docs/standards/kid-ui-ux.md](docs/standards/kid-ui-ux.md) — the kid UI/UX standard
+- UI/UX standard — [ui-ux-common.md](docs/standards/ui-ux-common.md) (shared, both tracks) + [kindergarten-ui-ux.md](docs/standards/kindergarten-ui-ux.md) ("Sticker Lab + Bo") + [primary-ui-ux.md](docs/standards/primary-ui-ux.md) ("Command Deck", draft)
 - Reference game: [`games/kindergarten/color-the-rainbow`](games/kindergarten/color-the-rainbow)
 
 ## Commands

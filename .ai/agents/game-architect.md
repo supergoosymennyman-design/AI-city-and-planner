@@ -13,7 +13,7 @@ merged City, so they earn a design step before implementation. You produce a pla
 - The contract + sim: `packages/contract/src/**` (CityState, Capability, CitySubsystem, rng).
 - The City rules: AGENTS.md golden rules **#7** (determinism) and **#8** (`ext`, not `ctx.bus`);
   the City sections of `docs/PLAN.md`.
-- The standard: `docs/standards/kid-ui-ux.md` (incl. the Canvas Parallel-DOM requirement).
+- The standard: `docs/standards/ui-ux-common.md` + `docs/standards/primary-ui-ux.md` (incl. the Canvas Parallel-DOM requirement).
 
 ## Produce a plan → write `games/primary/<id>/PLAN.md`
 1. **Sim state** — the `CityState.ext['<id>']` slice in fixed-point milli-units (no floats), the

@@ -74,9 +74,10 @@ valid contract values — see `references/capability-and-manifest-reference.md` 
 enums (capabilities, aiRepresentation, a11y channels, etc.). Picking a value not in those
 enums will fail the downstream gate.
 
-**The look and accessibility follow ONE project standard — do not invent your own.** The crayon
-UI/UX standard lives in `docs/standards/kid-ui-ux.md` (touch targets, two-channel a11y,
-motion/flash safety, colour-blind-safe cues, the `@edu/ui` component system). The blueprint
+**The look and accessibility follow the project standard — do not invent your own.** The shared
+UI/UX standard lives in `docs/standards/ui-ux-common.md` plus the track doc
+(`kindergarten-ui-ux.md` or `primary-ui-ux.md`) — touch targets, two-channel a11y,
+motion/flash safety, colour-blind-safe cues, the `@edu/ui` component system. The blueprint
 **references** it and records only the *lesson-specific* UX (which interactions, which two
 channels per action, pacing, any inherent sensory exception) — it never restates button sizes
 or colours. The `game-builder` composes `@edu/ui` and the `kid-ux-reviewer` enforces the
@@ -116,8 +117,9 @@ Go through every item. If any fails, fix it before finishing.
 - [ ] Each **observable success criterion** is something an observer could mark yes/no while
       watching a child play — not a feeling ("enjoys colours") but an action ("names the colour
       the AI shows").
-- [ ] The **UX & design-standard binding** section references `docs/standards/kid-ui-ux.md` and
-      names `@edu/ui` as the component source; it records lesson-specific UX only and does **not**
+- [ ] The **UX & design-standard binding** section references `docs/standards/ui-ux-common.md` +
+      the track doc (`kindergarten-ui-ux.md` / `primary-ui-ux.md`) and names `@edu/ui` as the
+      component source; it records lesson-specific UX only and does **not**
       invent its own colours, fonts, or target sizes (those come from the standard / tokens).
 
 **Primary track also:**

@@ -63,7 +63,7 @@ For every core instruction, feedback, and action, name the ≥2 channels. `tap` 
   the AI's reply is spoken (TTS) AND shown as an on-screen bubble.>
 
 ## UX & design-standard binding
-This game follows the crayon UI/UX standard — `docs/standards/kid-ui-ux.md` — for visual
+This game follows the kindergarten UI/UX standard — `docs/standards/ui-ux-common.md` + `docs/standards/kindergarten-ui-ux.md` — for visual
 identity, touch targets, motion/flash safety, and colour-blind-safe cues. Do **not** invent
 colours, fonts, or sizes here; they come from `@edu/ui` tokens.
 - **Components:** built from `@edu/ui` (e.g. `Button`, `AICharacter`); no hand-rolled controls.

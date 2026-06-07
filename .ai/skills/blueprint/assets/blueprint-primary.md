@@ -72,7 +72,7 @@ If none, write "none (introduces new state)".>
 - **Per-action redundancy:** <each core action reachable ≥2 ways; tap always present>
 
 ## UX & design-standard binding
-This game follows the crayon UI/UX standard — `docs/standards/kid-ui-ux.md` — for visual
+This game follows the primary UI/UX standard — `docs/standards/ui-ux-common.md` + `docs/standards/primary-ui-ux.md` — for visual
 identity, touch targets, motion/flash safety, colour-blind-safe cues, and (for the Canvas City)
 the Parallel-DOM + keyboard/switch requirement. Do **not** invent colours/fonts/sizes; they come
 from `@edu/ui` tokens.
