@@ -9,6 +9,9 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - **Rules/DoD:** [AGENTS.md](../AGENTS.md) · [DEFINITION_OF_DONE.md](../DEFINITION_OF_DONE.md)
 - **Done = git history; pending = this file.**
 
+## Recently done (2026-06-07)
+- ✓ **Blueprint-first pipeline — design approved** ([spec](superpowers/specs/2026-06-07-blueprint-first-game-pipeline-design.md)). Inverts the build flow from *clone-a-template* to *designer-source → skill-enriched blueprint (human-approved) → bespoke build from `@edu/*` blocks → autonomous review/fix → human SME sign-off*. Defines a shared **`blueprint` skill** (KG + primary, weak-model-followable), a **`/build-game`** orchestrator (2 human gates + optional `--checkpoint`, bounded fix loop), and a redesigned subagent roster (new: `blueprint-author`, `game-builder`, `game-architect`, `game-implementer`, `pedagogy-reviewer`, `verifier`; refined: `contract-reviewer`, `kid-ux-reviewer`, `core-guardian`; **retired: `game-scaffolder`**). Per-game source intake at `source/<track>/<NN-slug>/` (Gate 0). Supersedes [PLAN.md §7](PLAN.md). Implementation next.
+
 ## Recently done (2026-06-06)
 - ✓ **First game — Color the Rainbow** (KG Lesson 3, `games/kindergarten/color-the-rainbow`): draw-to-fill teachable-machine colour game on the **crayon `@edu/ui` standard**; honest learning (AI learns the label as given — no correction); voice STT + tap/keyboard fallback; passes `validate`.
 - ✓ **`@edu/ui` started** (crayon tokens + `Button`) · **`apps/host-standalone` skeleton** (Vite host + concrete `GameContext`: TTS/STT/audio/storage/teacher) · **`@edu/contract`** gained additive `reducedMotion`.
@@ -107,7 +110,8 @@ _Done 2026-06-06: **Portable gate** — CI workflow, CODEOWNERS, CodeRabbit, pre
 - **Generated SME progress board** (`docs/STATUS.md`) — design agreed 2026-06-06, **deferred** to prioritize shipping games (likely to change once real games/curriculum exist). Full design: [PLAN.md §6c](PLAN.md). In brief: a generative (never-hand-edited) board for the Education SME; sources = `docs/curriculum/lessons.json` registry + curriculum frontmatter + game manifests; `scripts/gen-status.mjs` (deterministic) + a `status:check` freshness gate in `validate`; doc-map nav headers + CLAUDE agent note.
 
 ## Next up (recommended order)
-1. **`@edu/city`** — the riskiest core (store/clock/topo runner/RNG/save-load/migration), or
-2. **Curriculum extraction** — unblocks the lesson cut + capability set, or
-3. **Port a reference game** — `nature_hunt` → contract template (R22).
-4. *(deferred) ESLint config* — wire sim-rule lint (no-`Math.random` / no `ctx.bus`-for-state / no persisted floats) into `validate` + CI once `@edu/city` exists; linting sim rules needs sim code to lint.
+1. **Blueprint-first pipeline build-out** ([spec](superpowers/specs/2026-06-07-blueprint-first-game-pipeline-design.md)) — in order: (a) `blueprint` skill (KG + primary templates), (b) redesigned subagents + retire `game-scaffolder` (regen via `sync-agents.mjs`), (c) `/build-game` orchestrator + Gate 0 + `--checkpoint` + fix loop, (d) `source/<track>/<NN-slug>/` intake + `lessons.json` registry.
+2. **`@edu/toolbox`/`@edu/ai` port** — port `source/toolbox/{conversation,joints,recognition}.js` into typed building blocks (dependency of bespoke builds, not template).
+3. **`@edu/city`** — the riskiest core (store/clock/topo runner/RNG/save-load/migration).
+4. **Curriculum extraction** — run the new `blueprint` skill across the 20 KG + primary lessons.
+5. *(deferred) ESLint config* — wire sim-rule lint (no-`Math.random` / no `ctx.bus`-for-state / no persisted floats) into `validate` + CI once `@edu/city` exists; linting sim rules needs sim code to lint.

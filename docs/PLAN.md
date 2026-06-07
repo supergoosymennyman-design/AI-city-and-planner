@@ -322,6 +322,19 @@ A voice/camera/audio-first design *structurally excludes* deaf, non-verbal, blin
 
 ## 7. Agent & subagent ecosystem
 
+> **⚠ Updated 2026-06-07 — blueprint-first redesign.** The game-build workflow below is
+> superseded by [docs/superpowers/specs/2026-06-07-blueprint-first-game-pipeline-design.md](superpowers/specs/2026-06-07-blueprint-first-game-pipeline-design.md).
+> Key changes: development is **blueprint-first, never template-clone** (`game-scaffolder` is
+> **retired**); a shared **`blueprint` skill** (KG + primary templates, weak-model-followable)
+> turns the designer's source doc into a buildable, human-approved blueprint; one
+> **`/build-game <track> <lesson>`** orchestrator drives design → implement → parallel review →
+> verify with a bounded fix loop and **two human gates** (approve blueprint; final SME/playtest
+> sign-off) plus optional `--checkpoint` pauses. New roster: `blueprint-author`,
+> `game-builder` (KG), `game-architect`+`game-implementer` (primary), `pedagogy-reviewer`,
+> `verifier`; `contract-reviewer`/`kid-ux-reviewer`/`core-guardian` kept & lightly refined.
+> Per-game designer source now lands in `source/<track>/<NN-slug>/` first (hard precondition,
+> Gate 0). The mechanism taxonomy and "portable gate" philosophy below still hold.
+
 **Four mechanisms, each matched to what it's best at — this *is* the structure:**
 
 | Mechanism | Role | Runs where |
