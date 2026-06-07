@@ -302,8 +302,8 @@ A voice/camera/audio-first design *structurally excludes* deaf, non-verbal, blin
 **Layout (hybrid):** "where we are" narrative + one-line foundation facts + **⚠ Needs your attention (SME)** strip + games **pipeline buckets** (📋 Spec needed → ✍️ Spec ready → 🔨 Building → 🔍 Needs SME review → ✅ Done) + drill-down links (spec · game · PROGRESS · PLAN · AGENTS).
 
 **Sources of truth (everything derived — no hand-asserted status):**
-- `docs/curriculum/lessons.json` — canonical lesson registry `[{lesson, track, title, ageBand?}]`; enables "gap" rows. The later `Lesson` enum derives from / is checked against it (so building this **de-risks** curriculum extraction, doesn't duplicate it).
-- `docs/curriculum/<lesson>.md` frontmatter — `smeReviewed`/`reviewer`/`owner` (SME edits the doc they own); spec-exists = file present.
+- `docs/curriculum/lessons.json` — canonical lesson registry **(BUILT 2026-06-07)**, keyed by **`(band, lesson)`** and nested `{track}.{band}[]` with `slug`/`title`/`altTitle`/`tools`/`sourceReady`/`built` (richer than the originally-sketched `[{lesson, track, title, ageBand?}]` — lesson numbers reset per band). Naming rule + taxonomy: [docs/curriculum/README.md](curriculum/README.md). Any later `Lesson` enum derives from / is checked against it.
+- `docs/curriculum/<track>-<band>-NN-<slug>.md` frontmatter — `smeReviewed`/`reviewer`/`owner` (SME edits the doc they own); spec-exists = file present.
 - compiled game manifests (`dist/manifest.js`) — built + pedagogy + a11y badges derived (Zod-validated, same path as `validate-contracts`).
 
 **Bucket logic:** no spec → 📋 · spec, no manifest → ✍️ · manifest invalid/incomplete → 🔨 · gates pass + `smeReviewed:false` → 🔍 · gates pass + reviewed → ✅.
@@ -327,7 +327,7 @@ A voice/camera/audio-first design *structurally excludes* deaf, non-verbal, blin
 > Key changes: development is **blueprint-first, never template-clone** (`game-scaffolder` is
 > **retired**); a shared **`blueprint` skill** (KG + primary templates, weak-model-followable)
 > turns the designer's source doc into a buildable, human-approved blueprint; one
-> **`/build-game <track> <lesson>`** orchestrator drives design → implement → parallel review →
+> **`/build-game <track> <band> <lesson>`** orchestrator drives design → implement → parallel review →
 > verify with a bounded fix loop and **two human gates** (approve blueprint; final SME/playtest
 > sign-off) plus optional `--checkpoint` pauses. New roster: `blueprint-author`,
 > `game-builder` (KG), `game-architect`+`game-implementer` (primary), `pedagogy-reviewer`,
