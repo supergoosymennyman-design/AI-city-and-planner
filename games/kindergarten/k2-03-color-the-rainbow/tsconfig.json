@@ -9,7 +9,6 @@
   "exclude": ["dist", "node_modules", "tests"],
   "references": [
     { "path": "../../../packages/contract" },
-    { "path": "../../../packages/ui" },
     { "path": "../../../packages/debug" }
   ]
 }

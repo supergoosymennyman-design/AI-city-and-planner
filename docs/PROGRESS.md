@@ -10,6 +10,14 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - **Done = git history; pending = this file.**
 
 ## Recently done (2026-06-07)
+- ✓ **Removed the shared `@edu/ui` package — "no boundary but the vibe".** Per design call: there
+  is **no shared UI component/token library**; each game **owns its UI** (its own `:root` tokens,
+  its own Button, its own Bo), and the *only* boundary is the **vibe** (`docs/standards/*-ui-ux.md`
+  + the render previews). Deleted `packages/ui`; `k2-03-color-the-rainbow` now self-contains the
+  Sticker Lab tokens + a local Button + Bo. Host/tsconfig/workspace de-referenced `@edu/ui`; the
+  standards + `game-builder`/`game-implementer`/`kid-ux-reviewer` + `blueprint` recast from
+  "compose @edu/ui" → "build your own UI, match the vibe". (README @edu/ui mentions left for the
+  parallel session that currently owns its edit.)
 - ✓ **Blueprint pipeline governance hardened (sanity-check follow-up).** Audited the blueprint-first
   pipeline for mass-production readiness and fixed the drift defects found:
   - **Generated-dir drift gate (root cause).** `.ai/**` is the canonical source of agents+skills;

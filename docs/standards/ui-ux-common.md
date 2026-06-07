@@ -8,9 +8,11 @@
 > - Kindergarten → [`kindergarten-ui-ux.md`](kindergarten-ui-ux.md) ("Sticker Lab + Bo")
 > - Primary → [`primary-ui-ux.md`](primary-ui-ux.md) ("Command Deck")
 >
-> Roles: `packages/ui/src/tokens.css` **implements** the values · `@edu/ui` **packages** them ·
-> `kid-ux-reviewer` **enforces** this + the track doc · the `edu-frontend` skill **teaches** them
-> · the `blueprint` skill **references** them. Change the standard here first, then the code.
+> **No shared UI package — the boundary is the VIBE, not a library.** There is no `@edu/ui`;
+> each game owns its own UI (its own tokens, components, characters). The *only* rule is that it
+> **matches the vibe** in this doc + the track doc + the render previews. Roles:
+> `kid-ux-reviewer` **checks vibe-match + a11y** · the `blueprint` skill **references** the vibe.
+> Change the vibe here first, then bring games to it.
 
 ## Who we design for
 Kindergarten (K2–K3) and primary (P1–P6) children on **tablets**, English-primary,
@@ -18,13 +20,13 @@ offline-preferred. Many are **pre-readers**; some are **deaf, non-verbal, blind,
 motor-impaired**. A design that needs reading, hearing, speaking, or fine motor control to
 operate **structurally excludes** a child. We commit to **WCAG 2.2 AA + W3C COGA**.
 
-## 1. Compose `@edu/ui` — never hardcode
-Build games from `@edu/ui` primitives + tokens so accessibility is inherited for free; **never**
-hand-roll a styled `<div>` button, and **no hardcoded colours/fonts/sizes** in games (golden
-rule #3 spirit). The library is intentionally **young** — grow it when the 2nd/3rd game needs a
-primitive, never speculatively (YAGNI); every new primitive must meet the a11y floor below first.
-`@edu/ui` carries **two themes** (a kindergarten theme and a primary theme); a game gets the
-right one from its `manifest.track`.
+## 1. Own your UI — match the vibe
+Each game builds its **own** UI (its own design tokens, buttons, characters) — there is no
+shared component package to import. Freedom in *how*; the **boundary is the vibe**: the look in
+this doc, the track doc, and the render previews. Define your tokens once per game (a `:root`
+block) so the look is consistent *within* the game; keep real interactive elements as native
+`<button>`s (keyboard + focus for free) at the a11y floor below. The reference for the look is
+the track preview (`*-ui-ux.preview.html`) — read it and match it; don't reinvent the vibe.
 
 ## 2. Two-channel redundancy (contract law — golden rule #6 / PLAN §6b R17)
 Every core **instruction**, **feedback**, and **action** must be reachable through **≥2
@@ -42,7 +44,8 @@ single-channel.
   switch-navigable.
 
 ## 4. Motion & flash safety (PLAN §6b R19)
-- Honour **`prefers-reduced-motion`** (tokens.css zeroes animation globally; games also branch in
+- Honour **`prefers-reduced-motion`** (each game's CSS zeroes animation globally via the
+  reduced-motion media query; games also branch in
   JS to swap animated transitions for instant ones — see `manifest.a11y.reducedMotion`).
 - Enforce **WCAG 2.3.1 flash limits** (≤3 general/red flashes per second) on bursts / cascades /
   fast-forward — a genuine **seizure safety** hazard, not a nicety.
@@ -83,7 +86,7 @@ face/expression assets.
 - **`validate-contracts`** — rejects `manifest.a11y` with single-channel core actions / missing `tap`.
 - **`kid-ux-reviewer`** — reviews each game against this doc **and** its track doc; FAILs on a
   missing channel, undersized targets, flash/motion violations, colour-only cues, voice-required
-  paths, or inventing colours/sizes instead of using `@edu/ui` tokens.
+  paths, or a UI that drifts from the vibe (track doc + preview).
 - **a11y lint + Playwright** (tablet viewport) + a **manual AT audit** (screen reader + switch) and
   an **SEN child** in the week-5 playtest (lint catches ~⅓; it can't detect "the deaf child has no
   path").

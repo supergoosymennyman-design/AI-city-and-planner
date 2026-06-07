@@ -1,9 +1,115 @@
 /*
- * Color the Rainbow — game styles (CRAYON COLOURING-BOOK standard).
- * Warm paper, hand-drawn wobble, sticker-lift shadows, big rounded targets. Pulls every
- * colour/space/shadow from @edu/ui tokens (var(--edu-*)) so the look stays consistent
- * across games. Class prefix `ctr-` avoids collisions when a host mounts several games.
+ * Color the Rainbow — game styles, SELF-CONTAINED to the "Sticker Lab" vibe.
+ * There is no shared @edu/ui package: each game owns its UI; the only boundary is the
+ * VIBE (docs/standards/kindergarten-ui-ux.md + the preview). The design tokens below are
+ * this game's own copy of that vibe — bright warm cream, candy palette, thick cartoon
+ * outlines, glossy "sticker" buttons. Class prefix `ctr-` avoids collisions when a host
+ * mounts several games.
  */
+
+/* ---- the Sticker Lab vibe, owned by this game (no shared package) ---- */
+:root {
+  /* Rounded, friendly type — resolves to SF Rounded on iPad; no CDN (offline-first). */
+  --edu-font: ui-rounded, 'SF Pro Rounded', 'Baloo 2', 'Hiragino Maru Gothic ProN',
+    'Quicksand', 'Segoe UI', system-ui, sans-serif;
+
+  /* Bright warm cream paper + warm-brown ink (never pure black — softer for young eyes). */
+  --edu-bg: #fff6e6;
+  --edu-bg-2: #ffeccd;
+  --edu-ink: #3a2a20;
+  --edu-fg: var(--edu-ink);
+  --edu-surface: #fffdf8;
+
+  /* Candy palette on warm cream (colour-blind-distinguishable by luminance + hue). */
+  --edu-red: #ff5a4d;
+  --edu-blue: #37b6ff;
+  --edu-yellow: #ffc02e;
+  --edu-green: #3fce7c;
+  --edu-grape: #9b6cff;
+  --edu-bubble: #ff6fb5;
+  --edu-primary: #ff5a4d;
+  --edu-primary-fg: #fffdf8;
+  --edu-celebrate: #ffd23f;
+
+  --edu-radius: 24px;
+  --edu-gap: 14px;
+
+  /* Thick "sticker" shadow: a hard ink offset (cartoon cut-out edge) + a soft ambient one. */
+  --edu-shadow: 0 6px 0 rgba(58, 42, 32, 0.85), 0 14px 22px -8px rgba(58, 42, 32, 0.4);
+  --edu-shadow-press: 0 2px 0 rgba(58, 42, 32, 0.85), 0 6px 12px -6px rgba(58, 42, 32, 0.4);
+
+  --edu-tap-min: 64px;
+  --edu-dur-fast: 140ms;
+  --edu-dur-base: 280ms;
+  --edu-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --edu-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The signature glossy "sticker" button (own copy — press it and it physically depresses). */
+.edu-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--edu-tap-min);
+  min-width: var(--edu-tap-min);
+  padding: 0 28px;
+  font-family: var(--edu-font);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--edu-primary-fg);
+  background: var(--edu-primary);
+  border: 3px solid var(--edu-ink);
+  border-radius: var(--edu-radius);
+  box-shadow: var(--edu-shadow);
+  cursor: pointer;
+  overflow: hidden;
+  touch-action: manipulation;
+  transition: transform var(--edu-dur-fast) var(--edu-ease-bounce),
+    box-shadow var(--edu-dur-fast) ease;
+}
+.edu-btn::before {
+  /* glossy top highlight — the peel-able sticker sheen */
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 5px;
+  height: 36%;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+.edu-btn:active {
+  transform: translateY(4px);
+  box-shadow: var(--edu-shadow-press);
+}
+.edu-btn:focus-visible {
+  outline: 4px solid var(--edu-blue);
+  outline-offset: 3px;
+}
+.edu-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+  box-shadow: var(--edu-shadow-press);
+}
+.edu-btn--secondary {
+  color: var(--edu-ink);
+  background: var(--edu-surface);
+}
+
+/* Motion safety (§6b R19): respect the OS "reduce motion" setting. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
 
 .ctr-app {
   position: relative;
@@ -391,18 +497,31 @@
   justify-content: center;
 }
 .ctr-name-btn {
+  position: relative;
+  overflow: hidden;
   min-height: var(--edu-tap-min, 64px);
   min-width: 128px;
   padding: 0 26px;
   font-family: var(--edu-font);
   font-size: 1.35rem;
   font-weight: 800;
-  color: #fffdf7;
-  border: 3px solid var(--edu-ink, #4a3f2f);
-  border-radius: var(--edu-radius, 22px);
+  color: #fffdf8;
+  border: 3px solid var(--edu-ink, #3a2a20);
+  border-radius: var(--edu-radius, 24px);
   box-shadow: var(--edu-shadow);
   cursor: pointer;
   transition: transform var(--edu-dur-fast) var(--edu-ease-bounce);
+}
+.ctr-name-btn::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 5px;
+  height: 34%;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.38);
+  pointer-events: none;
 }
 .ctr-name-btn:active {
   transform: translateY(4px);

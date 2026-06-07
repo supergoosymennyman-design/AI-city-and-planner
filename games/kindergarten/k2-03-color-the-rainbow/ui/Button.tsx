@@ -8,13 +8,12 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /**
- * The platform's signature "sticker" button (§6b accessibility, crayon standard).
+ * The glossy "sticker" button — this game's OWN copy (no shared @edu/ui package; the only
+ * boundary is the vibe, docs/standards/kindergarten-ui-ux.md). Styling lives in `styles.css`
+ * (`.edu-btn`) so `:active`/`:focus-visible` work (the press-down + focus ring).
  *
- * Styling lives in `tokens.css` (`.edu-btn`) so it can use `:active`/`:focus-visible`
- * (the satisfying press-down + focus ring) — a host imports `@edu/ui/tokens.css` once.
- *
- * A11y: native `<button>` → keyboard + focus for free; min target is `--edu-tap-min`
- * (64px, well above the 44px WCAG floor, larger for kindergarten hands).
+ * A11y: native `<button>` → keyboard + focus for free; min target is `--edu-tap-min` (64px,
+ * well above the 44px WCAG floor, larger for kindergarten hands).
  */
 export const Button: FC<ButtonProps> = ({ variant = 'primary', className, children, ...rest }) => {
   const cls = `edu-btn${variant === 'secondary' ? ' edu-btn--secondary' : ''}${className ? ' ' + className : ''}`;

@@ -13,8 +13,7 @@
   "types": "./index.tsx",
   "dependencies": {
     "@edu/contract": "*",
-    "@edu/debug": "*",
-    "@edu/ui": "*"
+    "@edu/debug": "*"
   },
   "peerDependencies": {
     "react": "^18.0.0"

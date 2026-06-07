@@ -20,7 +20,7 @@ nothing cloned, everything composed.
    `Math.random`; cross-subsystem state via namespaced `CityState.ext`, never `ctx.bus`;
    `dependsOn` is a DAG.
 3. **Canvas view OUTSIDE React** (RAF loop; never read/write the store from React render), with a
-   **Parallel DOM** + keyboard/switch mirror and live regions. Compose `@edu/ui`; crayon tokens;
+   **Parallel DOM** + keyboard/switch mirror and live regions. Build the game's OWN UI to the vibe (a `:root` token block matching `primary-ui-ux.md` + its preview — no shared UI package);
    strings via i18n.
 4. **Tests:** determinism (seeded round-trip), serializable state round-trip, render/unmount.
 5. Run `npm run validate` and iterate to green.

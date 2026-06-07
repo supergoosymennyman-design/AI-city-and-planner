@@ -5,7 +5,8 @@
 > this doc only covers what's *specific* to kindergarten.
 >
 > Visual reference (render): [`kindergarten-ui-ux.preview.html`](kindergarten-ui-ux.preview.html).
-> Values implemented in `packages/ui/src/tokens.css` (kindergarten theme).
+> No shared UI package — each game defines these values in its **own** `:root` token block.
+> Reference implementation: `games/kindergarten/k2-03-color-the-rainbow/styles.css`.
 
 ## Vibe
 **Bright, warm, cartoonish — a sunny sticker-book.** Warm cream paper, soft pastel background

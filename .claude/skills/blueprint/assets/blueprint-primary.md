@@ -72,11 +72,12 @@ If none, write "none (introduces new state)".>
 - **Per-action redundancy:** <each core action reachable ≥2 ways; tap always present>
 
 ## UX & design-standard binding
-This game follows the primary UI/UX standard — `docs/standards/ui-ux-common.md` + `docs/standards/primary-ui-ux.md` — for visual
-identity, touch targets, motion/flash safety, colour-blind-safe cues, and (for the Canvas City)
-the Parallel-DOM + keyboard/switch requirement. Do **not** invent colours/fonts/sizes; they come
-from `@edu/ui` tokens.
-- **Components:** built from `@edu/ui`; Canvas interactions have an accessible DOM mirror.
+This game's UI must match the primary **vibe** — `docs/standards/ui-ux-common.md` +
+`docs/standards/primary-ui-ux.md` + `primary-ui-ux.preview.html` — for visual identity, touch
+targets, motion/flash safety, colour-blind-safe cues, and (for the Canvas City) the Parallel-DOM
++ keyboard/switch requirement. No shared UI package; the game owns its own tokens + components,
+built to that vibe (don't drift from it).
+- **Components:** the game's own; Canvas interactions have an accessible DOM mirror.
 - **Lesson-specific UX:** <notable feel/pacing for THIS lesson — e.g. how the sim's state reads
   at a glance, how a colour-blind child distinguishes districts, drag-vs-tap for placement.>
 

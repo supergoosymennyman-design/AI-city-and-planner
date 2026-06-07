@@ -5,7 +5,8 @@
 > covers what's *specific* to primary.
 >
 > Visual reference (render): [`primary-ui-ux.preview.html`](primary-ui-ux.preview.html).
-> Values will live in `packages/ui/src/tokens.css` (primary theme — not built yet).
+> No shared UI package — each primary game defines these values in its **own** `:root` token block
+> (a reference implementation lands with the first primary game).
 >
 > **⚠ DRAFT — the *aesthetic* is settled; the *structure* is being reframed.** See "Open: reframe
 > to a component kit" below. Do not treat the three-screen city flow as final.

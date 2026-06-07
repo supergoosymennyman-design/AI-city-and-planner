@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { GameContext, TFunction } from '@edu/contract';
-import { Button } from '@edu/ui';
+import { Button } from './ui/Button.js';
 import type { BubbleMsg } from './logic/types.js';
 import { COLOURS, OTHER_COLOUR_WORDS, SHAPES, TOTAL_ROUNDS, WRONG_PHRASE_COUNT, freshData, rgbToHex, shuffle } from './logic/data.js';
 import { pickRound, reduce } from './logic/reducer.js';

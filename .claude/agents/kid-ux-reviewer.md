@@ -1,6 +1,6 @@
 ---
 name: kid-ux-reviewer
-description: Reviews ONE kindergarten/primary game for pre-reader + disability accessibility and kid-UX quality — two-channel redundancy, touch targets, motion/flash safety, voice-optional fallback, pacing, and adherence to the crayon @edu/ui standard. Use proactively after building or modifying a game's UI.
+description: Reviews ONE kindergarten/primary game for pre-reader + disability accessibility and kid-UX quality — two-channel redundancy, touch targets, motion/flash safety, voice-optional fallback, pacing, and adherence to the track vibe standard (each game owns its UI; no shared package). Use proactively after building or modifying a game's UI.
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---
@@ -18,7 +18,7 @@ you report real, specific problems with minimal fixes.
   reviewed game's track doc** — `kindergarten-ui-ux.md` (KG, "Sticker Lab + Bo") or
   `primary-ui-ux.md` (primary, "Command Deck"). Values live in `packages/ui/src/tokens.css`;
   golden rules in `AGENTS.md`. Check the game against the common + track standard; flag anything
-  that invents its own colours/sizes instead of using `@edu/ui` tokens.
+  whose UI drifts from the vibe (the track doc + its preview).
 
 ## Hard checks (a FAIL if violated)
 1. **Two-channel redundancy.** Every core *instruction*, *feedback*, and *action* must be
@@ -39,7 +39,7 @@ you report real, specific problems with minimal fixes.
 - Keyboard + focus-visible on every control; aria-live for the bot's spoken line.
 - Canvas/SVG interactions have an accessible equivalent (a real button, ARIA).
 - Pacing fits a 25-min KG lesson; feedback is encouraging, never punitive.
-- Uses `@edu/ui` tokens (no hardcoded colours/fonts); strings via `ctx.t` (no hardcoded text,
+- Defines its own design tokens and matches the vibe (no stray off-vibe colours/fonts); strings via `ctx.t` (no hardcoded text,
   incl. Canvas-drawn labels).
 - Colour is never the only cue (colour-blind safe).
 

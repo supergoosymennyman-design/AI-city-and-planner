@@ -12,7 +12,7 @@ copied from a reference game.
 ## Read first
 - The blueprint: `docs/curriculum/kindergarten-<band>-NN-<slug>.md` — your spec; build exactly this.
 - The contract: `packages/contract/src/**` (GameModule, GameManifest, Capability, context).
-- The standard + blocks: `docs/standards/ui-ux-common.md` + `docs/standards/kindergarten-ui-ux.md` + `@edu/ui` (`packages/ui/src/**`) — compose these.
+- The vibe (your boundary): `docs/standards/ui-ux-common.md` + `docs/standards/kindergarten-ui-ux.md` + the render preview `kindergarten-ui-ux.preview.html`. There is NO shared UI package — build the game's OWN UI to match the vibe.
 - The toolbox: `@edu/toolbox` / `@edu/ai` (ported voice/camera/pose engines) for capabilities.
 
 ## Procedure
@@ -21,7 +21,7 @@ copied from a reference game.
    gameplay. Add the project to the root `tsconfig.json` references.
 2. **Implement from the blueprint:** `manifest.ts` (pedagogy + a11y fields traced to the
    blueprint; capabilities from the enum; `tap` in `inputChannels`), `logic/` (pure reducer, no
-   platform I/O), `ui/` (compose `@edu/ui`; crayon tokens; no hardcoded colours/text),
+   platform I/O), `ui/` (the game's OWN components + a `:root` token block matching the vibe; no hardcoded user-facing text),
    `i18n/en.json` (every user-facing string), `tests/` (logic + render/unmount).
 3. **ctx-only + crash-proof (golden rules #2, #12):** wrap every `ctx.audio`/`ctx.ai` call; a
    throwing/hanging device degrades to the tap path; never gate progression on a side-effect
