@@ -20,6 +20,7 @@ Web-app games teaching AI to **kindergarten (K2/K3)** and **primary (P1–P6)** 
 9. **Tablet budgets:** lazy-load per game; one ML runtime per game + teardown; honor the size/perf budget. ★ size budget
 10. **Never break `@edu/*`** without core-guardian (CODEOWNERS). Inner sim schema is additive-only + versioned.
 11. **Salvage & port** existing capabilities (R22) — don't rebuild what works in `source/`.
+12. **Crash-proof, best-effort `ctx` I/O.** Wrap every `ctx.audio`/`ctx.ai` call: a device that throws, rejects, or hangs (a suspended `AudioContext`; Web Speech that rejects on `no-speech` or never fires `onend`) must degrade to the on-screen/tap path — **never crash the game or dead-end an input loop**. And **never gate game progression on a side-effect resolving** (advance on your own timer/state, not on TTS ending). Hunt these with the `game-breaker` agent + adversarial tests.
 
 ## Stack
 React 18 + TypeScript + Vite · Zustand (sim state outside React) · Zod (schema+types) · react-i18next ·
@@ -51,7 +52,8 @@ source/     existing prototype — salvage/port source (R22), not the product
 - `npm install` — install workspaces
 - `npm run typecheck` — `tsc --build`
 - `npm run contracts` — manifest + a11y + DAG validation gate
-- `npm run validate` — typecheck + contracts (lint/test added as tooling lands)
+- `npm run validate` — typecheck + contracts + test (lint added as tooling lands)
+- `npm test` — Vitest (React Testing Library + jsdom); shared doubles in `@edu/testing`
 - `npm run new-game` — scaffold a contract-conformant game (planned)
 
 ## Contract & City
@@ -59,7 +61,7 @@ source/     existing prototype — salvage/port source (R22), not the product
 - **Split freeze:** outer surfaces (GameModule/Manifest/Context) are frozen; inner sim schema (CityState/Capability/tick) is additive-only + versioned via core-guardian.
 
 ## Definition of Done (per game)
-`validate` green · English complete + strings externalized · standalone (+ city for primary) · logic + render tests · tablet-viewport tested · a11y two-channel · no new heavy deps · no PII · pedagogy gates (objective, age-appropriate, teaches concept, `aiRepresentation` recorded, SME review).
+`validate` green · English complete + strings externalized · standalone (+ city for primary) · logic + render tests · **resilient `ctx` I/O** (game-breaker: no crash/freeze/dead-end on a throwing/rejecting/hanging device) · tablet-viewport tested · a11y two-channel · no new heavy deps · no PII · pedagogy gates (objective, age-appropriate, teaches concept, `aiRepresentation` recorded, SME review).
 
 ## Plan & progress
 - **Plan (full rationale):** [docs/PLAN.md](docs/PLAN.md) — the approved spec; update here when scope changes.
