@@ -19,6 +19,7 @@
     "setup": "node scripts/setup-hooks.mjs",
     "typecheck": "tsc --build",
     "contracts": "node scripts/validate-contracts.mjs",
+    "sync": "node scripts/sync-agents.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "validate": "npm run typecheck && npm run contracts && npm run test",

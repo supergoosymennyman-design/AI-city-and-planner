@@ -11,7 +11,7 @@ Today's flow is **template-first**: `game-scaffolder` clones the reference game
 game, and starts coding before the lesson is actually understood.
 
 We want to invert it to **blueprint-first**: development starts from the course designer's
-detailed lesson flow (e.g. `source/Kindergarten/This is how the Kindergarten games should
+detailed lesson flow (e.g. `source/kindergarten/This is how the Kindergarten games should
 work.docx`). That flow is the **blueprint** — it must exist before any code — and the game is
 built *from it*, composing shared building blocks, never cloning another game. The subagent
 structure is redesigned so one command can take an approved blueprint to a CI-green, reviewed,

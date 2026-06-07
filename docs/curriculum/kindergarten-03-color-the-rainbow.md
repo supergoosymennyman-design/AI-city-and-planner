@@ -12,7 +12,7 @@ owner: ''
 
 # Lesson 3 — Color the Rainbow
 
-> Extracted from `source/Kindergarten/This is how the Kindergarten games should work.docx`.
+> Extracted from `source/kindergarten/This is how the Kindergarten games should work.docx`.
 > This is the authoritative brief the game is built to (DoD pedagogy gate). The full
 > 20-lesson extraction + `lessons.json` registry is a separate task (see PROGRESS).
 
