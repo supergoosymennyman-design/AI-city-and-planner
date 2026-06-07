@@ -42,6 +42,7 @@ export type BubbleMsg =
   | { k: 'teach.whatColour' }
   | { k: 'teach.alreadyKnow'; colour: Colour }
   | { k: 'teach.learned'; colour: Colour }
+  | { k: 'teach.unsupported' } // child said a real colour the AI doesn't support yet (red/blue/yellow only)
   | { k: 'game.ask' }
   | { k: 'game.correct' }
   | { k: 'game.wrong'; phrase: number; actual: Colour }
@@ -81,6 +82,7 @@ export type Action =
   | { type: 'TAP_SHAPE' }
   | { type: 'TEACH_COLOR' }
   | { type: 'ANSWER_COLOUR'; colour: Colour }
+  | { type: 'HEARD_UNSUPPORTED' } // heard a colour word outside red/blue/yellow → honest reaction
   | { type: 'START_ROUND'; pick: Colour; shape: Shape }
   | { type: 'GAME_TAP'; chosen: Colour }
   | { type: 'ADVANCE_AFTER_FEEDBACK' }

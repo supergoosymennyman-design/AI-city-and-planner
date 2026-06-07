@@ -75,6 +75,15 @@ export function reduce(data: GameData, action: Action): GameData {
       return base;
     }
 
+    case 'HEARD_UNSUPPORTED': {
+      // The child named a real colour the AI doesn't support yet (green/purple/…). Pure, honest
+      // feedback — NO learning, NO phase change — so the teachable-machine promise isn't faked
+      // ("teach me colours" only knows red/blue/yellow). Only meaningful mid-prompt.
+      if (data.state !== 'teaching' && data.state !== 'game') return data;
+      if (data.bubble.k === 'teach.unsupported') return data; // already saying it → no churn
+      return { ...data, bubble: { k: 'teach.unsupported' }, sound: null };
+    }
+
     case 'START_ROUND': {
       if (data.state !== 'game') return data;
       return {

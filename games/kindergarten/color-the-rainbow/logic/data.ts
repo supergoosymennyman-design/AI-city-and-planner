@@ -14,6 +14,24 @@ export const PALETTE: ReadonlyArray<{ name: Colour; hex: string }> = [
 export const COLOURS: readonly Colour[] = ['red', 'blue', 'yellow'];
 export const SHAPES: readonly Shape[] = ['circle', 'square', 'triangle'];
 
+/**
+ * Common colour words a child might SAY that this game doesn't teach yet. Used to react HONESTLY
+ * ("that's not one of my colours") instead of the misleading "I didn't catch that" — the AI DID
+ * hear a colour, it just only knows red/blue/yellow (the scoped teachable-machine promise).
+ */
+export const OTHER_COLOUR_WORDS: readonly string[] = [
+  'green',
+  'purple',
+  'pink',
+  'orange',
+  'black',
+  'white',
+  'brown',
+  'grey',
+  'gray',
+  'rainbow',
+];
+
 export const TOTAL_ROUNDS = 5;
 /** Number of rotating "wrong" encouragement phrases in the i18n catalog (feedback.wrong.0..N-1). */
 export const WRONG_PHRASE_COUNT = 8;

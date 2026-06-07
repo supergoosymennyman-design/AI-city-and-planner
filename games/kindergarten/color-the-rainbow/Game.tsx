@@ -3,7 +3,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { GameContext, TFunction } from '@edu/contract';
 import { Button } from '@edu/ui';
 import type { BubbleMsg } from './logic/types.js';
-import { COLOURS, SHAPES, TOTAL_ROUNDS, WRONG_PHRASE_COUNT, freshData, rgbToHex, shuffle } from './logic/data.js';
+import { COLOURS, OTHER_COLOUR_WORDS, SHAPES, TOTAL_ROUNDS, WRONG_PHRASE_COUNT, freshData, rgbToHex, shuffle } from './logic/data.js';
 import { pickRound, reduce } from './logic/reducer.js';
 import { ShapeSvg } from './ui/Shape.js';
 import { Palette } from './ui/Palette.js';
@@ -28,8 +28,12 @@ function bubbleText(t: TFunction, msg: BubbleMsg): string {
         phrase: t(`feedback.wrong.${msg.phrase % WRONG_PHRASE_COUNT}`),
         actual: t(`colour.${msg.actual}`),
       });
-    case 'result':
-      return t('result', { score: msg.score, total: TOTAL_ROUNDS });
+    case 'result': {
+      // Tiered (honest): 0–1 surfaces the mistraining lesson (Big Idea 3) + nudges Re-teach; 2–3
+      // a warm "good try"; 4–5 celebrates. Never flat "great job" at 0/5 (a wasted teaching moment).
+      const band = msg.score <= 1 ? 'low' : msg.score >= TOTAL_ROUNDS - 1 ? 'high' : 'mid';
+      return t(`result.${band}`, { score: msg.score, total: TOTAL_ROUNDS });
+    }
     default:
       // Simple, var-free lines (intro, teach.colorPrompt, game.ask, …).
       return t(msg.k);
@@ -171,7 +175,8 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
           heard = null; // real Web Speech REJECTS on no-speech/network/aborted → treat as silence
         }
         if (cancelled) return;
-        const match = COLOURS.find((c) => (heard ?? '').toLowerCase().includes(c));
+        const said = (heard ?? '').toLowerCase();
+        const match = COLOURS.find((c) => said.includes(c));
         if (match) {
           // Dispatch against the LATEST state, not this closure's snapshot (see dataRef above).
           const now = dataRef.current;
@@ -179,7 +184,15 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
           else if (now.state === 'game' && now.gamePick && !now.gameFeedback) dispatch({ type: 'GAME_TAP', chosen: match });
           return; // matched → stop; the phase/round change resets `listening`
         }
-        setMicHint(true); // heard nothing usable
+        // Heard a real colour we don't support (green/purple/…)? React HONESTLY via a spoken bubble —
+        // never the misleading "didn't catch that" (it DID hear a colour). Distinct from true
+        // silence/gibberish, which keeps the lightweight visual "say it again" hint.
+        if (OTHER_COLOUR_WORDS.some((c) => said.includes(c))) {
+          setMicHint(false);
+          dispatch({ type: 'HEARD_UNSUPPORTED' });
+        } else {
+          setMicHint(true); // silence/gibberish → visual "say it again" (shown when the mic is off)
+        }
         if (!continuous) {
           setListening(false); // quiz: one listen per tap — stop and wait for a re-tap
           return;
