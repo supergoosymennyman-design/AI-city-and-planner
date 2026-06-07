@@ -295,6 +295,9 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
               colour={data.selectedHex}
               filled={data.shapeFilled}
               onFilled={() => dispatch({ type: 'TAP_SHAPE' })}
+              // Dragging with no crayon → same TAP_SHAPE; the reducer's no-colour guard
+              // returns the 'teach.pickFirst' nudge instead of dead air (UX-breaker gap #1).
+              onPaintWithoutColour={() => dispatch({ type: 'TAP_SHAPE' })}
               reducedMotion={reducedMotion}
               fillLabel={t('teach.fillBtn')}
               ariaLabel={t('teach.shapeAria')}

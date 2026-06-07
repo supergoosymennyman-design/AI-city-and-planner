@@ -18,6 +18,13 @@ export interface PaintableShapeProps {
   filled: boolean;
   /** Fired exactly once when coverage crosses `threshold` OR "Fill it!" is pressed. */
   onFilled: () => void;
+  /**
+   * Fired when the child drags the canvas with NO crayon picked yet — the most natural
+   * first gesture (the colouring outline is right there). Lets the parent surface a
+   * "pick a colour first" nudge instead of swallowing the input as dead air (UX-breaker
+   * gap #1). The component only reports the event; the parent owns the response.
+   */
+  onPaintWithoutColour?: () => void;
   /** Coverage fraction (0–1) that auto-completes the fill. Default 0.6. */
   threshold?: number;
   /** Honour prefers-reduced-motion: skip the sparkle burst (§6b R19). */
@@ -77,6 +84,7 @@ export const PaintableShape: FC<PaintableShapeProps> = ({
   colour,
   filled,
   onFilled,
+  onPaintWithoutColour,
   threshold = 0.6,
   reducedMotion = false,
   fillLabel,
@@ -227,7 +235,13 @@ export const PaintableShape: FC<PaintableShapeProps> = ({
   }, [threshold, complete]);
 
   const onPointerDown = (e: ReactPointerEvent) => {
-    if (filled || !colour) return; // need a colour first; bubble/palette guide the child
+    if (filled) return; // already coloured — inert (no double-complete)
+    if (!colour) {
+      // Empty-handed drag on the biggest, most inviting target. Don't swallow it silently —
+      // tell the parent so it can nudge "pick a colour first" (two-channel). UX-breaker gap #1.
+      onPaintWithoutColour?.();
+      return;
+    }
     drawingRef.current = true;
     try {
       // Can throw InvalidPointerId if the OS already cancelled the touch (palm-reject).
