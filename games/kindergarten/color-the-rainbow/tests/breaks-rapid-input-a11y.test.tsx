@@ -4,7 +4,7 @@
  * Kids hammer buttons. We verify:
  *  - Double-tapping the SAME quiz answer before feedback paints does not double-score / skip a
  *    round (the reducer must debounce via gameFeedback).
- *  - A voice match and a tap landing in the same window do not both score.
+ *  - Quiz voice is push-to-talk (tap the mic) and scores a round exactly once (Model A).
  *  - The reducedMotion path renders the full lesson (no motion-only gating).
  *  - The bot bubble has an aria-live twin (the audio/screen-reader channel, §6b).
  */
@@ -46,18 +46,19 @@ describe('adversarial: rapid / racing input must not double-score or skip rounds
     vi.restoreAllMocks();
   });
 
-  it('a voice match + a tap in the same round score only once (no double GAME_TAP)', async () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0); // 'red'
+  it('quiz voice is push-to-talk and scores the round exactly once', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0); // pickRound → 'red'
     const fake = makeFakeAi();
-    fake.queueHeard('red'); // the mic will hear the correct colour
     render(<Game ctx={makeFakeContext({ catalog, ai: fake.ai })} />);
     await teachAllColours();
     await screen.findByText(/Round 1/);
 
-    // Tap red at (almost) the same instant the voice loop is hearing "red".
-    fireEvent.click(await screen.findByRole('button', { name: catalog['colour.red']! }));
+    // Model A: the quiz is tap-to-talk (the mic does NOT auto-listen). Queue the answer NOW (so the
+    // continuous teaching mic above doesn't eat it), then tap the mic → it hears "red" once →
+    // exactly one point (the reducer's gameFeedback guard prevents any double-score).
+    fake.queueHeard('red');
+    fireEvent.click(await screen.findByRole('button', { name: catalog['mic.tap']! }));
     await screen.findByText(catalog['game.correct']!);
-    // Even if both fired, the reducer's gameFeedback guard means score is 1, never 2.
     await screen.findByLabelText(catalog['score.label']!.replace('{{score}}', '1').replace('{{total}}', '5'));
     vi.restoreAllMocks();
   });

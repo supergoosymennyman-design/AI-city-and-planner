@@ -136,44 +136,39 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
   // True after a listen heard nothing usable → a gentle "try again" (we KEEP listening).
   const [micHint, setMicHint] = useState(false);
 
-  // Is the game in a phase that wants a spoken colour? (the teach-name step, or an active quiz
-  // round). The mic is meaningful only here.
-  const wantsColour =
-    (data.state === 'teaching' && data.awaitingColorName) ||
-    (data.state === 'game' && !!data.gamePick && !data.gameFeedback);
+  // Phases that want a spoken colour. TEACHING = continuous (the mic stays on after "Teach AI!",
+  // when the whole class chants together); the QUIZ = push-to-talk (each question is a deliberate
+  // tap, so an always-open mic can't catch the room and mis-answer the assessment, and it's tighter
+  // on privacy §5c). tap/keyboard is always present in both (R21).
+  const isTeach = data.state === 'teaching' && data.awaitingColorName;
+  const isQuiz = data.state === 'game' && !!data.gamePick && !data.gameFeedback;
+  const wantsColour = isTeach || isQuiz;
 
-  // AUTO-START / STOP the mic with the prompt. Pressing "Teach AI!" (or a new quiz round) opens
-  // the naming step → the mic turns on and STAYS on (continuous); leaving the prompt turns it
-  // off. This is the requested behaviour: voice keeps listening after Teach AI instead of needing
-  // a re-tap. Privacy (§5c): the cloud mic is open only DURING an active prompt, the child/teacher
-  // can Stop it (the mic button toggles), and tap/keyboard is always available.
+  // Teaching auto-opens the mic and keeps it on; the quiz starts each round mic-OFF (tap to talk).
+  // Keyed on `gamePick` too, so a previous round's voice match can't leave the next round hot.
   useEffect(() => {
-    setListening(wantsColour && canListen);
-  }, [wantsColour, canListen]);
+    setListening(isTeach && canListen);
+  }, [isTeach, canListen, data.gamePick]);
 
   // Clear the "try again" nudge each time a fresh prompt begins.
   useEffect(() => {
     setMicHint(false);
   }, [data.awaitingColorName, data.gamePick]);
 
-  // CONTINUOUS LISTEN LOOP — re-arms itself, so a miss / silence / non-colour word is NEVER a
-  // dead end (the bug: the old one-shot left the mic dead after a miss; saying a non-colour in
-  // the quiz looked frozen). Runs only while listening + in an active prompt; stops on a matched
-  // colour, on Stop, or when the phase changes. The small pace delay stops a tight spin if
-  // listenOnce resolves instantly (the real STT paces itself via its own ~5s timeout).
+  // LISTEN LOOP. Teaching re-arms itself (continuous) so a miss / silence / non-colour is never a
+  // dead end; the quiz does ONE listen per tap, then stops (re-tappable). Either way a rejection
+  // or silence is treated as "heard nothing" — it must never kill the loop or crash (rule #12).
   useEffect(() => {
     if (!listening || !canListen || !wantsColour) return undefined;
     let cancelled = false;
+    const continuous = isTeach; // teaching keeps listening; the quiz is one-shot per tap
     void (async () => {
       while (!cancelled) {
-        // Real Web Speech REJECTS on onerror (no-speech / network / not-allowed / aborted). A
-        // rejection must behave like silence, NOT kill the loop — otherwise the mic dead-ends,
-        // regressing the very bug this loop exists to fix. Treat any failure as "heard nothing".
         let heard: string | null = null;
         try {
           heard = await ctx.ai.listenOnce({ lang: 'en-US', timeoutMs: 5000 });
         } catch {
-          heard = null;
+          heard = null; // real Web Speech REJECTS on no-speech/network/aborted → treat as silence
         }
         if (cancelled) return;
         const match = COLOURS.find((c) => (heard ?? '').toLowerCase().includes(c));
@@ -182,16 +177,20 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
           const now = dataRef.current;
           if (now.state === 'teaching' && now.awaitingColorName) dispatch({ type: 'ANSWER_COLOUR', colour: match });
           else if (now.state === 'game' && now.gamePick && !now.gameFeedback) dispatch({ type: 'GAME_TAP', chosen: match });
-          return; // got a colour → stop; the phase change resets `listening`
+          return; // matched → stop; the phase/round change resets `listening`
         }
-        setMicHint(true); // heard nothing usable — keep listening, just nudge the child
-        await new Promise((r) => setTimeout(r, 350));
+        setMicHint(true); // heard nothing usable
+        if (!continuous) {
+          setListening(false); // quiz: one listen per tap — stop and wait for a re-tap
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 350)); // teaching: pace, then keep listening
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [listening, canListen, wantsColour, ctx]);
+  }, [listening, canListen, wantsColour, isTeach, ctx]);
 
   // Quiz answer buttons get a stable shuffled order per round (don't reshuffle on re-render).
   const answerOrder = useMemo(() => shuffle(COLOURS), [data.gameRound, data.gamePick]);

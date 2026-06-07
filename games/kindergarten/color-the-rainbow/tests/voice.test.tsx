@@ -2,9 +2,10 @@
  * Voice-input tests for Color the Rainbow — simulated at the `ctx.ai` boundary (no mic, no
  * browser, no network) via @edu/testing's `makeFakeAi` (queues what each `listenOnce()` "hears").
  *
- * Model under test = CONTINUOUS listening: after "Teach AI!" (and on each active quiz round) the
- * mic auto-listens and STAYS on; a miss / silence / non-colour word is never a dead end; the mic
- * button toggles Stop/Start; and the AI learns whatever label it's told (honest teachable machine).
+ * Model A — these all exercise the TEACHING phase, which is CONTINUOUS: after "Teach AI!" the mic
+ * auto-listens and STAYS on; a miss / silence / non-colour word is never a dead end; the mic button
+ * toggles Stop/Start; the AI learns whatever label it's told (honest teachable machine). (The quiz
+ * is push-to-talk — see breaks-rapid-input-a11y.test.tsx.)
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
