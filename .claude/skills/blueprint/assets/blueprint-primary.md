@@ -12,7 +12,7 @@ owner: ''
 
 # Lesson <NN> — <Title>
 
-> Extracted from `source/primary/<NN-slug>/<source file>`.
+> Extracted from `source/primary/<band>-<NN>-<slug>/<source file>`.
 > Stage 1 is faithful to the designer's flow; Stage 2 is the build enrichment. Primary games are
 > 2D-sim "AI City Architect" lessons — deterministic, and lessons 18–20 merge earlier games into
 > one authoritative City. This is the authoritative brief + input to /build-game.

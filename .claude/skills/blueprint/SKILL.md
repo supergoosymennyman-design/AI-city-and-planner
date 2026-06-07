@@ -2,8 +2,8 @@
 name: blueprint
 description: >-
   Turn a course designer's non-technical lesson source (a .docx/.md/.pdf in
-  source/<track>/<NN-slug>/) into a buildable, standardized GAME BLUEPRINT at
-  docs/curriculum/<track>-NN-<slug>.md. Use this BEFORE writing any game code — the
+  source/<track>/<band>-<NN>-<slug>/) into a buildable, standardized GAME BLUEPRINT at
+  docs/curriculum/<track>-<band>-NN-<slug>.md. Use this BEFORE writing any game code — the
   blueprint is the required, human-approved input to the /build-game pipeline. Trigger
   whenever someone wants to start a new AI-education game, "write the blueprint / lesson
   spec / curriculum brief", extract a lesson from the designer's doc, or turn a lesson
@@ -23,21 +23,24 @@ it with a **fixed two-stage procedure and fill-in-the-blank templates**, so the 
 same shape every time and **even a small/weak model can produce a correct blueprint** by
 copying a template and filling every slot — not by designing from a blank page.
 
-The output (`docs/curriculum/<track>-NN-<slug>.md`) is the contract between the designer and
+The output (`docs/curriculum/<track>-<band>-NN-<slug>.md`) is the contract between the designer and
 the build pipeline. The game's `manifest.ts` pedagogy fields trace back to it, so getting it
 right and honest here is what makes the downstream game correct.
 
 ## Before you start (hard precondition)
 
 The designer source **must already be present**. Check that
-`source/<track>/<NN-slug>/` exists and contains at least one file (`.docx`, `.md`, `.pdf`, or
+`source/<track>/<band>-<NN>-<slug>/` exists and contains at least one file (`.docx`, `.md`, `.pdf`, or
 plain text). If it is missing or empty, **stop** and tell the user:
 
-> "Drop the designer's lesson doc into `source/<track>/<NN-slug>/` first — the blueprint must
+> "Drop the designer's lesson doc into `source/<track>/<band>-<NN>-<slug>/` first — the blueprint must
 > be built from a source, not invented."
 
-`<track>` is `kindergarten` or `primary`. `<NN>` is the zero-padded lesson number (e.g. `03`).
-`<slug>` is the kebab-case lesson title (e.g. `color-the-rainbow`).
+`<track>` is `kindergarten` or `primary`. `<band>` is the grade band — `k2`/`k3` (kindergarten)
+or `p1`–`p6` (primary). `<NN>` is the zero-padded lesson number **within the band** (e.g. `03`).
+`<slug>` is the kebab-case lesson title (e.g. `color-the-rainbow`). Lesson numbers reset per
+band, so the band is required to disambiguate — see `docs/curriculum/README.md` and the canonical
+`docs/curriculum/lessons.json` registry.
 
 ## How to read the source
 
@@ -82,7 +85,7 @@ standard at review time.
 ## Procedure
 
 1. Confirm the precondition (source folder non-empty). If not, stop (see above).
-2. Pick the track template and **copy it verbatim** to `docs/curriculum/<track>-NN-<slug>.md`:
+2. Pick the track template and **copy it verbatim** to `docs/curriculum/<track>-<band>-NN-<slug>.md`:
    - kindergarten → `assets/blueprint-kindergarten.md`
    - primary → `assets/blueprint-primary.md`
 3. Read the source for this lesson. Do **Stage 1** — fill every Stage-1 slot from the source.
@@ -94,7 +97,7 @@ standard at review time.
 Go through every item. If any fails, fix it before finishing.
 
 **Both tracks:**
-- [ ] The output file is at `docs/curriculum/<track>-NN-<slug>.md` and has **no remaining
+- [ ] The output file is at `docs/curriculum/<track>-<band>-NN-<slug>.md` and has **no remaining
       `<...>` placeholders** and no leftover template instructions.
 - [ ] Stage-1 sections match the source (a reader of the docx would recognize this lesson);
       anything absent from the source is marked `(not in source)`, never invented.
@@ -132,6 +135,6 @@ Go through every item. If any fails, fix it before finishing.
 - If the source is ambiguous about a *design* choice (Stage 2), make the most pedagogically
   honest choice and add a short `> Design note:` line explaining it, rather than guessing
   silently. The human approves the blueprint at Gate 1, so surfaced assumptions are good.
-- The worked reference example is `docs/curriculum/kindergarten-03-color-the-rainbow.md` — read
+- The worked reference example is `docs/curriculum/kindergarten-k2-03-color-the-rainbow.md` — read
   it to see the target quality (especially the honest "teachable-machine truth" and a11y-scope
   sections).

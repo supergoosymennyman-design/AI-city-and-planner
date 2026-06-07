@@ -9,7 +9,7 @@ You are the **pedagogy-reviewer**. You protect the LEARNING, not the code. You v
 actually delivers the blueprint's pedagogy. You report; you don't rewrite.
 
 ## Read
-- The blueprint: `docs/curriculum/<track>-NN-<slug>.md` — the source of pedagogical truth.
+- The blueprint: `docs/curriculum/<track>-<band>-NN-<slug>.md` — the source of pedagogical truth.
 - The game: `games/<track>/<id>/**` (manifest.ts, logic/**, ui/**, i18n/**).
 
 ## Checks

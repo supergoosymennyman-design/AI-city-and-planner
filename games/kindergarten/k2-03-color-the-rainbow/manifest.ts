@@ -6,14 +6,15 @@ import type { GameManifest } from '@edu/contract';
  * @edu/contract, so this compiles to a dependency-free `dist/manifest.js` the gate can
  * load standalone (verbatimModuleSyntax erases the import).
  *
- * Lesson 3 of the kindergarten track (docs/curriculum/kindergarten-03-color-the-rainbow.md).
+ * K2 Lesson 3 of the kindergarten track (docs/curriculum/kindergarten-k2-03-color-the-rainbow.md).
  * Inputs: SAY the colour (STT, Android-Chrome only) OR tap/keyboard — tap is always present (§6b).
  */
 export const manifest: GameManifest = {
-  id: 'color-the-rainbow',
+  // id == band-NN-slug, 1:1 with the game folder (docs/curriculum/README.md naming rule).
+  id: 'k2-03-color-the-rainbow',
   track: 'kindergarten',
-  lesson: 3, // Lesson 3 — see docs/curriculum/kindergarten-03-color-the-rainbow.md
-  ageBand: 'K2-K3',
+  lesson: 3, // K2 Lesson 3 — see docs/curriculum/kindergarten-k2-03-color-the-rainbow.md
+  ageBand: 'K2', // the band, in caps (was 'K2-K3'; this lesson is specifically K2)
   title: { en: 'Color the Rainbow' },
   concept: 'Colours (red, blue, yellow) and that an AI only knows the labels you teach it',
   objective: {

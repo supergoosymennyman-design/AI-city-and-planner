@@ -5,6 +5,6 @@
     { "path": "./packages/debug" },
     { "path": "./packages/ui" },
     { "path": "./packages/toolbox" },
-    { "path": "./games/kindergarten/color-the-rainbow" }
+    { "path": "./games/kindergarten/k2-03-color-the-rainbow" }
   ]
 }

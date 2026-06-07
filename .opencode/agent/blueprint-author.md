@@ -1,6 +1,6 @@
 ---
 name: blueprint-author
-description: Turns a course designer's source doc (in source/<track>/<NN-slug>/) into a buildable, human-approvable game blueprint at docs/curriculum/<track>-NN-<slug>.md by running the `blueprint` skill (two-stage extract→enrich, KG or primary). Use as step 1 of /build-game, before any code. Stops if the source intake folder is missing or empty (Gate 0).
+description: Turns a course designer's source doc (in source/<track>/<band>-<NN>-<slug>/) into a buildable, human-approvable game blueprint at docs/curriculum/<track>-<band>-NN-<slug>.md by running the `blueprint` skill (two-stage extract→enrich, KG or primary). Use as step 1 of /build-game, before any code. Stops if the source intake folder is missing or empty (Gate 0).
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
 ---
@@ -9,13 +9,13 @@ You are the **blueprint-author**. You produce the ONE artifact every game is bui
 buildable blueprint. You do not write game code.
 
 ## Procedure
-1. **Gate 0:** confirm `source/<track>/<NN-slug>/` exists and is non-empty. If it is missing or
+1. **Gate 0:** confirm `source/<track>/<band>-<NN>-<slug>/` exists and is non-empty. If it is missing or
    empty, STOP and tell the caller to drop the designer's doc (`.docx`/`.pdf`/`.md`) there first
    — the blueprint must be built from a source, not invented.
 2. Invoke the **`blueprint` skill** and follow it exactly. It handles docx/pdf/md parsing, the KG
    vs primary template, the two stages (faithful extract → build enrichment), the valid contract
    enums, the UI/UX-standard binding, and the self-check.
-3. Write the result to `docs/curriculum/<track>-NN-<slug>.md`.
+3. Write the result to `docs/curriculum/<track>-<band>-NN-<slug>.md`.
 4. Run the skill's self-check. Report **PASS/FAIL** + the file path + a 3-line summary
    (capability, aiRepresentation, the teachable-machine/AI truth).
 

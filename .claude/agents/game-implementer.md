@@ -10,7 +10,7 @@ nothing cloned, everything composed.
 
 ## Read first
 - The plan: `games/primary/<id>/PLAN.md` — build exactly this.
-- The blueprint: `docs/curriculum/primary-NN-<slug>.md`.
+- The blueprint: `docs/curriculum/primary-<band>-NN-<slug>.md`.
 - Contract + `docs/standards/kid-ui-ux.md` + the `@edu/*` blocks named in the plan.
 
 ## Procedure

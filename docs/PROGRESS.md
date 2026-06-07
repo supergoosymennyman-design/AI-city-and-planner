@@ -10,6 +10,41 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - **Done = git history; pending = this file.**
 
 ## Recently done (2026-06-07)
+- ✓ **Curriculum taxonomy + naming locked to `(band, lesson)`** (pipeline item 1d). The course
+  designer's master index (`source/kindergarten/English AI Discovery.pdf`) defines **two 20-lesson
+  curricula — K2 and K3** (each split Phase 1 = 1–10, Phase 2 = 11–20), and lesson numbers **reset
+  per band** (K2 #3 *Color the Rainbow* ≠ K3 #3 *AI Architect*; some titles repeat, e.g.
+  *Play-Doh Fruits* = K2 #12 & K3 #12). The flat file structure didn't encode the band, so:
+  - New **`docs/curriculum/lessons.json`** registry (single source of truth: all 40 lessons, slug,
+    phase derived, tool tokens, status; PDF-vs-docx title conflicts resolved with `altTitle` for
+    #6 *Animals Stamp & Test* and #10 *Let's Throw AI a Birthday Party!*) + **`docs/curriculum/README.md`**
+    (the taxonomy + the **`{band}-{NN}-{slug}`** naming rule, one rule for both tracks).
+  - **Renamed to band-prefixed flat slugs:** game `games/kindergarten/k2-03-color-the-rainbow/`
+    (id `k2-03-color-the-rainbow`, `ageBand:'K2'` — was the wrong `'K2-K3'`; pkg
+    `@edu/game-k2-03-color-the-rainbow`); source fixtures `k2-01-…`/`k2-13-…`; blueprint
+    `kindergarten-k2-03-color-the-rainbow.md`. Host wiring (tsconfig ref, host dep, `main.tsx`
+    imports) updated; `npm install` + **`validate` green (45 tests)**.
+  - **Pipeline templates made band-aware:** `blueprint` + `/build-game` skills, blueprint assets,
+    evals, and the agents (`blueprint-author`, `contract-reviewer`, `game-architect`,
+    `game-builder`, `game-implementer`, `pedagogy-reviewer`) now use
+    `source/<track>/<band>-<NN>-<slug>/` and `docs/curriculum/<track>-<band>-NN-<slug>.md`;
+    `/build-game` gains a **band** arg (`/build-game kindergarten k2 3`). Synced to `.claude`/`.opencode`.
+  - **Enforced by CI, not habit:** `validate-contracts.mjs` now also runs a **curriculum check** —
+    every game folder, `source/<track>/*` intake dir, and `docs/curriculum/*.md` blueprint must
+    follow `{band}-{NN}-{slug}` **and** resolve to a `lessons.json` entry (with `ageBand`/`lesson`
+    matching). Tracks with no registry yet (primary) are skipped, so it auto-activates when primary
+    lessons land. Negative-tested (malformed + unregistered slugs fail with specific messages).
+  - **K2 source intake extracted (19/20 Gate-0-ready):** split the docx into
+    `source/kindergarten/k2-NN-<slug>/lesson.md` for every K2 lesson except #10 (registry
+    `sourceReady` flags updated). So `/build-game kindergarten k2 N` now has a real source for
+    N ∈ {1–9, 11–20}.
+  - ⚠ **Two content decisions still owned by the course designer:** (a) **K2 #10 conflict** —
+    the PDF index says *"Let's Throw AI a Birthday Party!"* (generative finale) but the docx
+    script for slot 10 is *"Simon Says, AI Says"* (a movement game); these are different lessons,
+    so #10 is **not** extracted and `sourceReady:false` until it's resolved. (b) **K3 has no
+    teacher scripts** — only PDF one-liners — so no K3 game can pass Gate 0 until the designer
+    authors them.
+
 - ✓ **First push to GitHub** — `main` is live (private) at `github.com/EdwardYCLui/AI-education` with full history. The **pre-push hook enforced the gate** (`validate` + 28 tests) before allowing the push, so CI discipline is proven; CI now runs on PRs. README refreshed as the team front door. ☐ GitHub-side UI remaining: **invite collaborators** (private repo — blocks clone), set About/topics, **branch protection** on `main`, **install CodeRabbit**.
 - ✓ **Test infra (R1) wired** — Vitest + RTL + jsdom; `npm test` chained into `validate`. New **`@edu/testing`** package: fake `ctx`/`AIServices`, a simulated `SpeechRecognition` (drives the real `listenOnce`), and a jsdom Canvas/`Path2D` stub. **28 tests** on Color the Rainbow.
 - ✓ **Color the Rainbow hardened** (voice + UX + resilience):
@@ -122,8 +157,8 @@ _Done 2026-06-06: **Portable gate** — CI workflow, CODEOWNERS, CodeRabbit, pre
 - **Generated SME progress board** (`docs/STATUS.md`) — design agreed 2026-06-06, **deferred** to prioritize shipping games (likely to change once real games/curriculum exist). Full design: [PLAN.md §6c](PLAN.md). In brief: a generative (never-hand-edited) board for the Education SME; sources = `docs/curriculum/lessons.json` registry + curriculum frontmatter + game manifests; `scripts/gen-status.mjs` (deterministic) + a `status:check` freshness gate in `validate`; doc-map nav headers + CLAUDE agent note.
 
 ## Next up (recommended order)
-1. **Blueprint-first pipeline — remaining** ([spec](superpowers/specs/2026-06-07-blueprint-first-game-pipeline-design.md)): ✓1a `blueprint` skill · ✓1b roster + retire scaffolder · ✓1c `/build-game` orchestrator · ☐1d `lessons.json` registry (lesson cut + capability set) · ☐ wire Playwright tablet-smoke + axe so `verifier` reports real GREEN (today it honestly says "not wired").
-   - **▶ RESUME HERE — end-to-end dry-run, BLOCKED on item 2 (toolbox port, parallel session).** When `@edu/toolbox`/`@edu/ai` land (merge toolbox + game-breaker branches to one first), run **`/build-game kindergarten 1`** (AI Meet My Shapes — fixture already in `source/kindergarten/01-ai-meet-my-shapes/`). Flow: Gate 0 → blueprint-author → ★Gate 1 (human approves blueprint) → game-builder (composes the new toolbox blocks) → parallel review (contract/kid-ux/pedagogy) → verifier → fix loop → ★Gate 2. This run is also the real test that the orchestrator + agents interlock, and surfaces any awkwardness in the toolbox API for the builder.
+1. **Blueprint-first pipeline — remaining** ([spec](superpowers/specs/2026-06-07-blueprint-first-game-pipeline-design.md)): ✓1a `blueprint` skill · ✓1b roster + retire scaffolder · ✓1c `/build-game` orchestrator · ✓1d `lessons.json` registry (K2+K3 1–20 from the PDF; band taxonomy — see below) · ☐ wire Playwright tablet-smoke + axe so `verifier` reports real GREEN (today it honestly says "not wired").
+   - **▶ RESUME HERE — end-to-end dry-run, BLOCKED on item 2 (toolbox port, parallel session).** When `@edu/toolbox`/`@edu/ai` land (merge toolbox + game-breaker branches to one first), run **`/build-game kindergarten k2 1`** (AI Meet My Shapes — fixture already in `source/kindergarten/k2-01-ai-meet-my-shapes/`). Flow: Gate 0 → blueprint-author → ★Gate 1 (human approves blueprint) → game-builder (composes the new toolbox blocks) → parallel review (contract/kid-ux/pedagogy) → verifier → fix loop → ★Gate 2. This run is also the real test that the orchestrator + agents interlock, and surfaces any awkwardness in the toolbox API for the builder.
 2. **`@edu/toolbox`/`@edu/ai` port** — port `source/toolbox/{conversation,joints,recognition}.js` into typed building blocks (dependency of bespoke builds, not template). *(In progress — parallel session.)*
 3. **`@edu/city`** — the riskiest core (store/clock/topo runner/RNG/save-load/migration).
 4. **Curriculum extraction** — run the new `blueprint` skill across the 20 KG + primary lessons.

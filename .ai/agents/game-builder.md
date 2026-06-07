@@ -1,6 +1,6 @@
 ---
 name: game-builder
-description: Builds a complete KINDERGARTEN game bespoke from an approved blueprint (docs/curriculum/kindergarten-NN-<slug>.md) — designs the interaction AND implements it (manifest, GameModule, logic, UI, i18n, tests, inert package.json/tsconfig shell), composing @edu/* building blocks. NEVER clones another game. Use in /build-game after Gate 1 for the kindergarten track.
+description: Builds a complete KINDERGARTEN game bespoke from an approved blueprint (docs/curriculum/kindergarten-<band>-NN-<slug>.md) — designs the interaction AND implements it (manifest, GameModule, logic, UI, i18n, tests, inert package.json/tsconfig shell), composing @edu/* building blocks. NEVER clones another game. Use in /build-game after Gate 1 for the kindergarten track.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
 ---
@@ -10,7 +10,7 @@ working, contract-conformant game — designed for THIS lesson, composed from sh
 copied from a reference game.
 
 ## Read first
-- The blueprint: `docs/curriculum/kindergarten-NN-<slug>.md` — your spec; build exactly this.
+- The blueprint: `docs/curriculum/kindergarten-<band>-NN-<slug>.md` — your spec; build exactly this.
 - The contract: `packages/contract/src/**` (GameModule, GameManifest, Capability, context).
 - The standard + blocks: `docs/standards/kid-ui-ux.md` + `@edu/ui` (`packages/ui/src/**`) — compose these.
 - The toolbox: `@edu/toolbox` / `@edu/ai` (ported voice/camera/pose engines) for capabilities.

@@ -1,0 +1,67 @@
+{
+  "_meta": {
+    "description": "Canonical lesson registry — the single source of truth for the (band, lesson) curriculum. See ./README.md for the taxonomy and naming rule.",
+    "source": "source/kindergarten/English AI Discovery.pdf (curriculum master index)",
+    "phaseRule": "phase is DERIVED, never stored: lesson <= 10 -> phase 1, else phase 2",
+    "slugRule": "{band}-{NN}-{slug}; game id and folder == band-NN-slug; ageBand == band in caps",
+    "fields": {
+      "title": "canonical title (PDF master index)",
+      "altTitle": "title used by the per-lesson teacher script when it disagrees with the PDF",
+      "objective": "lesson objective (PDF)",
+      "tools": "normalized platform-tool tokens the lesson needs (builder/capability hint)",
+      "lessonGroup": "links cross-band twins of the same lesson (contract manifest.lessonGroup)",
+      "hasScript": "a detailed 25-minute teacher script exists (the docx) -> can pass Gate 0 once split into source/",
+      "sourceReady": "already split into source/<track>/<band>-<NN>-<slug>/lesson.md",
+      "built": "a game exists under games/<track>/<band>-<NN>-<slug>/"
+    }
+  },
+  "kindergarten": {
+    "k2": [
+      { "lesson": 1,  "slug": "ai-meet-my-shapes",        "title": "AI, Meet My Shapes!",            "objective": "Teach AI to recognize 3 shapes (circle, square, triangle) via drawing; test if AI remembers.", "tools": ["drawing-recognition", "voice-to-text"], "hasScript": true, "sourceReady": true,  "built": false },
+      { "lesson": 2,  "slug": "robot-builder",            "title": "Robot Builder",                   "objective": "Review shapes; generate a simple robot from 2-step shape instructions.", "tools": ["drawing-recognition", "voice-to-text", "text-to-image"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 3,  "slug": "color-the-rainbow",        "title": "Color the Rainbow",               "objective": "Teach AI 3 primary colors (red, blue, yellow) by coloring shapes on tablet.", "tools": ["drawing-recognition", "coloring-recognition"], "hasScript": true, "sourceReady": true, "built": true },
+      { "lesson": 4,  "slug": "color-my-robot",           "title": "Color My Robot",                  "objective": "Review colors; generate a colored robot from voice instructions; color quiz.", "tools": ["voice-to-text", "text-to-image"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 5,  "slug": "nature-hunt",              "title": "Nature Hunt",                     "objective": "Teach AI nature items (sun, cloud, flower) by pointing to a real photo.", "tools": ["image-part-pointing"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 6,  "slug": "animals-stamp-and-test",   "title": "Animals Stamp & Test", "altTitle": "Stamp & Test", "objective": "Review nature; teach AI animals with toys & picture cards; AI tests students (\"Show me a duck\").", "tools": ["image-recognition", "voice-to-text"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 7,  "slug": "invent-a-silly-animal",    "title": "Invent a Silly Animal",          "objective": "Review game; students invent a hybrid animal, teach AI, AI generates it.", "tools": ["image-recognition", "text-to-image"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 8,  "slug": "ai-feeling-cards",         "title": "AI's Feeling Cards",             "objective": "Teach AI emotions (happy, sad, angry) using face picture cards; matching game.", "tools": ["image-recognition", "emotion-game"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 9,  "slug": "add-a-smile",              "title": "Add a Smile",                     "objective": "Review emotions; teach AI emotions via drawing faces; generate a face on the robot.", "tools": ["drawing-recognition", "voice-to-text", "text-to-image"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 10, "slug": "throw-ai-a-birthday-party","title": "Let's Throw AI a Birthday Party!", "altTitle": "Simon Says, AI Says", "objective": "Kids tell AI what to put in a birthday picture; AI generates the whole scene.", "tools": ["voice-to-text", "text-to-image"], "hasScript": true, "sourceReady": false, "built": false },
+      { "lesson": 11, "slug": "apple-banana-bear",        "title": "Apple, Banana, Bear",            "objective": "Teach AI fruits (apple, banana) and one animal (bear) using real toys; test by showing & asking.", "tools": ["image-recognition"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 12, "slug": "play-doh-fruits",          "title": "Play-Doh Fruits",                "objective": "Review fruits; students make a fruit with play-doh, show AI, AI names it (3D -> digital).", "tools": ["image-recognition"], "lessonGroup": "play-doh-fruits", "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 13, "slug": "jump-ai-jump",             "title": "Jump, AI, Jump!",                "objective": "Teach AI body movements (stand, jump, clap) via joint recognition; AI repeats the name.", "tools": ["joint-recognition"], "hasScript": true, "sourceReady": true,  "built": false },
+      { "lesson": 14, "slug": "dance-with-me",            "title": "Dance with Me",                  "objective": "Review movements; teach AI a simple 2-step dance (clap -> jump); AI performs back via avatar.", "tools": ["joint-recognition", "playback"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 15, "slug": "whats-that-sound",         "title": "What's That Sound?",             "objective": "Teach AI sounds (clap, stomp, \"wow\"); record, label, AI repeats sound back.", "tools": ["sound-recording"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 16, "slug": "make-a-beat",              "title": "Make a Beat",                    "objective": "Record 3 sounds, arrange into a 4-beat song; AI generates song from the arrangement.", "tools": ["songmaker"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 17, "slug": "point-and-learn",          "title": "Point & Learn",                  "objective": "Teach AI body parts (head, shoulders, knees, toes) via pointing on a body diagram.", "tools": ["image-part-pointing"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 18, "slug": "ais-turn-to-lead",         "title": "AI's Turn to Lead",              "objective": "AI gives simple movement commands (\"touch knees\"); students follow.", "tools": ["joint-recognition", "voice-to-text"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 19, "slug": "charades-with-ai",         "title": "Charades with AI",               "objective": "Teach AI animal actions via joint recognition; play animal charades, AI guesses.", "tools": ["joint-recognition"], "hasScript": true, "sourceReady": true, "built": false },
+      { "lesson": 20, "slug": "animal-dance-party",       "title": "Animal Dance Party",             "objective": "Choose an animal from Phase 1; AI animates that animal leading a simple dance.", "tools": ["joint-recognition", "text-to-image"], "hasScript": true, "sourceReady": true, "built": false }
+    ],
+    "k3": [
+      { "lesson": 1,  "slug": "zoo-visit",                "title": "Zoo Visit",                      "objective": "Teach AI 3 new animals (giraffe, zebra, elephant) using toys + play-doh stamps.", "tools": ["image-recognition"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 2,  "slug": "follow-the-pattern",       "title": "Follow the Pattern",             "objective": "Play a pattern-recognition game (shapes/colors); AI asks \"What comes next?\"", "tools": ["pattern-game"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 3,  "slug": "ai-architect",             "title": "AI Architect",                   "objective": "Generate a house using shapes + 2 colors (e.g. \"star window, red roof\").", "tools": ["voice-to-text", "text-to-image"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 4,  "slug": "emotion-mix-up",           "title": "Emotion Mix-Up",                 "objective": "Teach AI new emotions (scared, surprised) using drawing + picture cards.", "tools": ["drawing-recognition", "image-recognition"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 5,  "slug": "arrange-the-feelings",     "title": "Arrange the Feelings",           "objective": "Arrange 3 picture scenes (lost toy -> sad -> find toy -> happy); AI generates 1 sentence per scene.", "tools": ["story-scene", "text-generation"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 6,  "slug": "left-right-up-down",       "title": "Left, Right, Up, Down",          "objective": "Teach AI finger directions; combine into a pattern (left -> up -> right).", "tools": ["finger-recognition"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 7,  "slug": "my-own-instrument",        "title": "My Own Instrument",              "objective": "Record 5 sounds; arrange into an 8-beat song; AI generates a melody.", "tools": ["songmaker"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 8,  "slug": "fingers-and-joints-dance", "title": "Fingers-and-Joints Dance",       "objective": "Teach AI finger directions plus joint movements; combine into a 4-step dance.", "tools": ["finger-recognition", "joint-recognition"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 9,  "slug": "tell-me-a-story",          "title": "Tell Me a Story",                "objective": "Generate a 3-sentence story: character (robot), setting (garden), feeling (happy).", "tools": ["text-generation", "text-to-image"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 10, "slug": "instant-story-time",       "title": "Instant Story Time",             "objective": "Students generate one scene; AI describes it in 1 sentence.", "tools": ["drawing-recognition", "voice-to-text", "text-to-image"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 11, "slug": "numbers-on-fingers",       "title": "Numbers on Fingers",             "objective": "Teach AI numbers 6-10 using fingers; counting game (AI flashes fingers, kids say number).", "tools": ["finger-recognition"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 12, "slug": "play-doh-fruits",          "title": "Play-Doh Fruits",                "objective": "Students make a fruit with play-doh, show AI, AI names it (3D -> digital).", "tools": ["image-recognition"], "lessonGroup": "play-doh-fruits", "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 13, "slug": "fruit-animal",             "title": "Fruit Animal",                   "objective": "Generate a hybrid (e.g. \"a bear with an apple body\").", "tools": ["text-to-image", "drawing-recognition"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 14, "slug": "arrange-the-story",        "title": "Arrange the Story",              "objective": "Arrange 4 story scenes; AI generates 4 sentences total; class votes on best story.", "tools": ["story-scene", "text-generation"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 15, "slug": "make-a-monster",           "title": "Make a Monster",                 "objective": "Generate a monster from a few descriptive words (color, texture, body parts, emotion).", "tools": ["voice-to-text", "text-to-image"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 16, "slug": "step-step-stop",           "title": "Step, Step, Stop",               "objective": "Teach AI a sequence via joint recognition (step left, step right, stop, wave).", "tools": ["joint-recognition"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 17, "slug": "ai-music-video",           "title": "AI Music Video",                 "objective": "Combine song + dance; AI generates a full 30-second performance.", "tools": ["songmaker", "joint-recognition", "text-to-image"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 18, "slug": "what-am-i",                "title": "What Am I?",                     "objective": "Describe an object (sun, duck, apple); AI must guess within 3 tries.", "tools": ["drawing-recognition"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 19, "slug": "happy-feet-angry-stomp",   "title": "Happy Feet, Angry Stomp",        "objective": "Teach AI to connect emotion -> movement (happy = bouncy steps, angry = stomp).", "tools": ["joint-recognition", "emotion-game"], "hasScript": false, "sourceReady": false, "built": false },
+      { "lesson": 20, "slug": "ai-and-me-the-movie",      "title": "AI & Me: The Movie",             "objective": "Compose a full scene (character, setting, feeling, actions, 2 objects, 1-sentence story); AI animates it.", "tools": ["full-integration"], "hasScript": false, "sourceReady": false, "built": false }
+    ]
+  },
+  "primary": {
+    "_note": "Primary bands are p1-p6; lesson cut + AI City Architect curriculum TBD (PLAN open decisions)."
+  }
+}

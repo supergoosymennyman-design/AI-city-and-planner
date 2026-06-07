@@ -22,7 +22,11 @@ only at the two human gates.
 
 ## Inputs
 - **track** — `kindergarten` or `primary`.
-- **lesson** — the lesson number; derive `<NN>` (zero-padded) and a kebab `<slug>` (the game id).
+- **band** — the grade band: `k2`/`k3` (kindergarten) or `p1`–`p6` (primary). Required, because
+  lesson numbers reset per band (e.g. `/build-game kindergarten k2 3`).
+- **lesson** — the lesson number **within the band**; derive `<NN>` (zero-padded) and a kebab
+  `<slug>`. The game id and folder are `<band>-<NN>-<slug>`. Resolve title/slug from the canonical
+  `docs/curriculum/lessons.json` registry (see `docs/curriculum/README.md`).
 - Optional **`--checkpoint=<phase,...>`** — extra human pauses after named phases
   (`blueprint`, `design`, `build`, `review`, `verify`), on top of the two hard gates.
 - Optional **`--max-fix-rounds=N`** — fix-loop budget before escalating to a human (default **3**).
@@ -30,13 +34,13 @@ only at the two human gates.
 ## Pipeline
 
 ### Gate 0 — source intake present (hard precondition)
-Confirm `source/<track>/<NN-slug>/` exists and is non-empty (lowercase track). If not, **STOP**:
-> "Drop the designer's lesson doc into `source/<track>/<NN-slug>/` first — the blueprint must be
+Confirm `source/<track>/<band>-<NN>-<slug>/` exists and is non-empty (lowercase track). If not, **STOP**:
+> "Drop the designer's lesson doc into `source/<track>/<band>-<NN>-<slug>/` first — the blueprint must be
 > built from a source, not invented."
 
 ### Phase 1 — Blueprint  → ★ Human Gate 1
 Dispatch **blueprint-author** (it runs the `blueprint` skill). It writes
-`docs/curriculum/<track>-NN-<slug>.md` and self-checks.
+`docs/curriculum/<track>-<band>-NN-<slug>.md` and self-checks.
 **★ HUMAN GATE 1 (always):** present the blueprint path + its summary and ask the human to
 approve or request changes. Do **not** proceed to code until approved. (Loop blueprint-author on
 requested changes.)
@@ -69,7 +73,7 @@ ready" = green + human SME sign-off.
 
 ## Rules for you, the orchestrator
 - **Dispatch, don't do.** Run each step as a subagent so each gets a clean context; you keep the
-  thread and the decisions. Pass each subagent the `track`, `<NN-slug>`, and the relevant paths.
+  thread and the decisions. Pass each subagent the `track`, `<band>-<NN>-<slug>`, and the relevant paths.
 - **Respect the gates.** Gate 0/1/2 are non-negotiable. `--checkpoint` adds pauses; it never
   removes the hard gates.
 - **Be honest about partial tooling.** If Playwright/axe aren't wired yet, the verifier says so;

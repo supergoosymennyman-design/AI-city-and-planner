@@ -3,8 +3,8 @@ import type { ErrorInfo, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@edu/ui/tokens.css';
 import './host.css';
-import { game } from '@edu/game-color-the-rainbow';
-import en from '@edu/game-color-the-rainbow/i18n/en.json';
+import { game } from '@edu/game-k2-03-color-the-rainbow';
+import en from '@edu/game-k2-03-color-the-rainbow/i18n/en.json';
 import { createContext } from './context/createContext.js';
 
 /**

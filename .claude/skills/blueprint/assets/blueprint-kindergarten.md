@@ -12,7 +12,7 @@ owner: ''
 
 # Lesson <NN> — <Title>
 
-> Extracted from `source/kindergarten/<NN-slug>/<source file>`.
+> Extracted from `source/kindergarten/<band>-<NN>-<slug>/<source file>`.
 > Stage 1 below is faithful to the designer's script; Stage 2 is the build enrichment. This is
 > the authoritative brief the game is built to (DoD pedagogy gate) and the input to /build-game.
 
