@@ -8,6 +8,7 @@ import { pickRound, reduce } from './logic/reducer.js';
 import { ShapeSvg } from './ui/Shape.js';
 import { Palette } from './ui/Palette.js';
 import { PaintableShape } from './ui/PaintableShape.js';
+import { Bo, type BoFace } from './ui/Bo.js';
 import './styles.css';
 
 /**
@@ -210,13 +211,44 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
 
   const colourName = (c: string): string => t(`colour.${c}`);
 
+  // Which colours Bo has actually been taught (rgb !== null) — drives the visible "I know" shelf
+  // that makes Big Idea 3 concrete: Bo only knows what the class gave it.
+  const learnedColours = COLOURS.filter((c) => data.learned[c].rgb !== null);
+
+  // Bo's screen face for the current beat (kindergarten UI standard). Listening overrides phase.
+  const botFace: BoFace = listening
+    ? 'listening'
+    : data.state === 'intro'
+      ? 'hello'
+      : data.state === 'teaching'
+        ? data.bubble.k === 'teach.learned'
+          ? 'learning'
+          : 'hmm'
+        : data.state === 'game'
+          ? data.gameFeedback === 'correct'
+            ? 'knows'
+            : data.gameFeedback === 'wrong'
+              ? 'oops'
+              : 'hello'
+          : // result — tiered, matching the honest result bands
+            data.gameScore >= TOTAL_ROUNDS - 1
+            ? 'knows'
+            : data.gameScore <= 1
+              ? 'oops'
+              : 'hello';
+
   return (
     <div className="ctr-app" data-state={data.state}>
+      {/* Soft pastel paper blobs — warm atmosphere behind everything (Sticker Lab look). */}
+      <div className="ctr-blobs" aria-hidden="true">
+        <span className="ctr-blob b1" />
+        <span className="ctr-blob b2" />
+        <span className="ctr-blob b3" />
+        <span className="ctr-blob b4" />
+      </div>
       <header className="ctr-top">
         <div className="ctr-bot">
-          <span className="ctr-bot-char" role="img" aria-label={t('bot.name')}>
-            🤖
-          </span>
+          <Bo face={botFace} ariaLabel={t('bot.name')} />
           {/* aria-live so screen readers announce the bot's line (the audio twin, §6b) */}
           <p className="ctr-bubble" aria-live="polite">
             {bubbleText(t, data.bubble)}
@@ -232,6 +264,19 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
           </div>
         )}
       </header>
+
+      {/* "I know:" shelf — Bo's visible memory; appears once the class has taught a colour. */}
+      {learnedColours.length > 0 && (
+        <div className="ctr-knows">
+          <span className="ctr-knows-title">🧠 {t('bot.knows')}</span>
+          {learnedColours.map((c) => (
+            <span key={c} className="ctr-know-chip">
+              <span className="ctr-know-dot" aria-hidden="true" style={{ background: rgbToHex(data.learned[c].rgb!) }} />
+              {colourName(c)}
+            </span>
+          ))}
+        </div>
+      )}
 
       <main className="ctr-stage">{renderStage()}</main>
     </div>

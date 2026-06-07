@@ -1,5 +1,6 @@
 {
   "bot.name": "Rainbow Bot",
+  "bot.knows": "I know:",
   "palette.label": "Colours",
   "intro": "Hi! I'm Rainbow Bot! Will you teach me three colours — red, blue, and yellow?",
   "intro.title": "🌈 Colour the Rainbow!",

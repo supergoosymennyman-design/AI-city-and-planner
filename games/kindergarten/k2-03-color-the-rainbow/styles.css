@@ -29,6 +29,49 @@
 }
 .ctr-app > * {
   position: relative;
+  z-index: 1;
+}
+/* Soft pastel paper blobs (Sticker Lab warmth). Behind everything, clipped by the app overflow. */
+.ctr-blobs {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ctr-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(3px);
+  opacity: 0.4;
+}
+.ctr-blob.b1 {
+  width: 44vw;
+  height: 44vw;
+  background: #ffd58a;
+  left: -12vw;
+  top: -14vw;
+}
+.ctr-blob.b2 {
+  width: 38vw;
+  height: 38vw;
+  background: #ffb6c9;
+  right: -12vw;
+  top: 4vw;
+}
+.ctr-blob.b3 {
+  width: 40vw;
+  height: 40vw;
+  background: #a9e8c4;
+  left: 6vw;
+  bottom: -20vw;
+}
+.ctr-blob.b4 {
+  width: 32vw;
+  height: 32vw;
+  background: #acd9ff;
+  right: 2vw;
+  bottom: -12vw;
 }
 .ctr-app button {
   touch-action: manipulation;
@@ -48,16 +91,26 @@
   flex: 1;
   min-width: 0;
 }
-.ctr-bot-char {
-  font-size: 2.8rem;
-  line-height: 1;
-  animation: ctr-bob 2.6s ease-in-out infinite;
-  filter: drop-shadow(0 4px 0 rgba(74, 63, 47, 0.15));
+/* Bo — the screen-robot character. Gently floats; the screen shows the reactive face. */
+.ctr-bo {
+  flex: none;
+  display: inline-flex;
+}
+.ctr-bo-svg {
+  width: 84px;
+  height: auto;
+  filter: drop-shadow(0 5px 0 rgba(74, 63, 47, 0.16));
+  animation: ctr-bob 3s var(--edu-ease-bounce) infinite;
 }
 @keyframes ctr-bob {
   50% {
-    transform: translateY(-6px) rotate(-3deg);
+    transform: translateY(-6px);
   }
+}
+/* A tiny extra spark of life on the happy/learning beats (motion-safe via the global rule). */
+.ctr-bo[data-face='learning'] .ctr-bo-svg,
+.ctr-bo[data-face='knows'] .ctr-bo-svg {
+  animation-duration: 1.6s;
 }
 .ctr-bubble {
   position: relative;
@@ -94,6 +147,50 @@
 }
 .ctr-score .star.e {
   color: #d8ccb0;
+}
+
+/* ---- "I know:" shelf — Bo's visible memory (Big Idea 3 made concrete) ---- */
+.ctr-knows {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: -4px 22px 0;
+  padding: 8px 14px;
+  background: var(--edu-bg-2, #f4e7cd);
+  border: 3px solid var(--edu-ink, #4a3f2f);
+  border-radius: 16px;
+  box-shadow: var(--edu-shadow-press);
+  align-self: flex-start;
+}
+.ctr-knows-title {
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+.ctr-know-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+  background: var(--edu-surface, #fffdf7);
+  border: 3px solid var(--edu-ink, #4a3f2f);
+  border-radius: 12px;
+  box-shadow: var(--edu-shadow-press);
+  font-weight: 800;
+  font-size: 1rem;
+  animation: ctr-pop-in 0.45s var(--edu-ease-bounce) both;
+}
+.ctr-know-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--edu-ink, #4a3f2f);
+}
+@keyframes ctr-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-8deg);
+  }
 }
 
 /* ---- stage ---- */
