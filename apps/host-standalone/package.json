@@ -11,6 +11,7 @@
   "dependencies": {
     "@edu/contract": "*",
     "@edu/game-color-the-rainbow": "*",
+    "@edu/toolbox": "*",
     "@edu/ui": "*",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"

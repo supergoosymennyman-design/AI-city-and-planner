@@ -1,7 +1,4 @@
 import type {
-  AIServices,
-  AudioBus,
-  Capability,
   EventBus,
   GameContext,
   KeyValueStore,
@@ -10,11 +7,12 @@ import type {
   Telemetry,
   TFunction,
 } from '@edu/contract';
+import { createAIServices, createAudioBus } from '@edu/toolbox';
 
 /**
  * The standalone host's concrete {@link GameContext} — the "platform" a game runs on.
- * Everything is offline-first and local: storage = localStorage, audio = Web Audio +
- * speechSynthesis, ai = a graceful stub (ML/voice land in @edu/toolbox later). This is
+ * Everything is offline-first and local: storage = localStorage; audio (TTS + chimes)
+ * and ai (teachable image / pose / Web-Speech STT) are provided by @edu/toolbox. This is
  * the reference implementation each game's `ctx` is built against (§3, §5).
  */
 export interface HostOptions {
@@ -76,84 +74,6 @@ function createStorage(ns: string): KeyValueStore {
   };
 }
 
-/** Audio: synthesized chimes (ported from the prototype) + speechSynthesis TTS. */
-function createAudio(): AudioBus {
-  let actx: AudioContext | null = null;
-  const ensure = (): AudioContext | null => {
-    if (!actx) {
-      try {
-        const Ctor =
-          window.AudioContext ??
-          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        actx = Ctor ? new Ctor() : null;
-      } catch {
-        actx = null;
-      }
-    }
-    return actx;
-  };
-  const tones = (freqs: number[], type: OscillatorType, dur: number, gap: number, gain: number) => {
-    const a = ensure();
-    if (!a) return;
-    const t0 = a.currentTime;
-    freqs.forEach((f, i) => {
-      const osc = a.createOscillator();
-      const g = a.createGain();
-      osc.frequency.value = f;
-      osc.type = type;
-      const t = t0 + i * gap;
-      g.gain.setValueAtTime(gain, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      osc.connect(g);
-      g.connect(a.destination);
-      osc.start(t);
-      osc.stop(t + dur);
-    });
-  };
-  const hasTTS = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
-  return {
-    speak: (text, opts) =>
-      new Promise<void>((resolve) => {
-        if (!hasTTS()) return resolve();
-        if (opts?.interrupt) window.speechSynthesis.cancel();
-        // ASCII-only so emoji/punctuation aren't read aloud awkwardly.
-        const clean = text.replace(/[^\x20-\x7E\s]/g, '').trim();
-        if (!clean) return resolve();
-        const u = new SpeechSynthesisUtterance(clean);
-        u.lang = 'en-US';
-        u.rate = 0.92;
-        u.pitch = 1.15;
-        // FAILSAFE: Chrome's speechSynthesis can silently never fire onend/onerror — especially
-        // right after cancel() — leaving this promise pending forever and hanging any caller that
-        // awaits it. Resolve once, whichever fires first: onend/onerror OR an estimated-duration
-        // timeout (~90ms/char, capped). Belt-and-suspenders with the game's TTS-independent
-        // advance timer; either layer alone prevents the freeze.
-        let settled = false;
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(failsafe);
-          resolve();
-        };
-        u.onend = finish;
-        u.onerror = finish;
-        const failsafe = setTimeout(finish, Math.min(15000, 1000 + clean.length * 90));
-        window.speechSynthesis.speak(u);
-      }),
-    playVO: async () => {
-      /* no recorded VO in the standalone host (English TTS covers it) */
-    },
-    play: (sampleId) => {
-      if (sampleId === 'correct') tones([523, 659, 784], 'sine', 0.25, 0.1, 0.18);
-      else if (sampleId === 'wrong') tones([150], 'square', 0.35, 0, 0.12);
-      else if (sampleId === 'done') tones([880], 'sine', 0.2, 0, 0.15);
-    },
-    stop: () => {
-      if (hasTTS()) window.speechSynthesis.cancel();
-    },
-  };
-}
-
 /** UI-notification bus only (never authoritative state — that's CityState §4d). */
 function createBus(): EventBus {
   const handlers = new Map<string, Set<(payload?: unknown) => void>>();
@@ -185,84 +105,6 @@ function createTeacher(): TeacherControls {
   };
 }
 
-/** Minimal shape of the (non-standard, webkit-prefixed) Web Speech recognition object. */
-interface SpeechRecognitionLike {
-  lang: string;
-  interimResults: boolean;
-  maxAlternatives: number;
-  onresult: (e: { results?: ArrayLike<ArrayLike<{ transcript?: string }>> }) => void;
-  onerror: () => void;
-  onend: () => void;
-  start: () => void;
-  stop: () => void;
-}
-
-/**
- * On-device AI for the standalone host. Image/pose teachable models arrive via
- * @edu/toolbox later; today only `speak` (TTS) and `listen` (STT) are wired. `probe`
- * reports honestly so capability-gated games show their fallback (R21) — never a broken mic.
- */
-const ai: AIServices = {
-  probe: async (capability: Capability) => {
-    if (capability === 'speak') return typeof window !== 'undefined' && 'speechSynthesis' in window;
-    if (capability === 'listen') {
-      const w = window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
-      return typeof window !== 'undefined' && !!(w.SpeechRecognition ?? w.webkitSpeechRecognition);
-    }
-    return false; // image/pose/generate/train not available in the standalone host (M1)
-  },
-  trainImageClass: async () => {
-    throw new Error('teachable-image is not available in the standalone host (M1)');
-  },
-  classifyImage: async () => {
-    throw new Error('teachable-image is not available in the standalone host (M1)');
-  },
-  detectPose: async () => [],
-  /**
-   * STT via Web Speech (Android-Chrome only; resolves null where unavailable or on error,
-   * so callers fall back to tap — never a hung/broken mic, §5).
-   * ⚠️ PRIVACY (§5c): Web Speech is cloud-backed — the child's voice leaves the device. In
-   * production this MUST be consent/DPA-gated; a real host withholds `probe('listen')` until
-   * consent exists. It is enabled here so the teach-by-voice mechanic is demonstrable.
-   */
-  listenOnce: ({ lang = 'en-US', timeoutMs = 6000 } = {}) =>
-    new Promise<string | null>((resolve) => {
-      const w = window as unknown as {
-        SpeechRecognition?: new () => SpeechRecognitionLike;
-        webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-      };
-      const Rec = w.SpeechRecognition ?? w.webkitSpeechRecognition;
-      if (!Rec) return resolve(null);
-      let done = false;
-      let rec: SpeechRecognitionLike | null = null;
-      const finish = (result: string | null) => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        try {
-          rec?.stop();
-        } catch {
-          /* ignore */
-        }
-        resolve(result);
-      };
-      const timer = setTimeout(() => finish(null), timeoutMs);
-      try {
-        rec = new Rec();
-        rec.lang = lang;
-        rec.interimResults = false;
-        rec.maxAlternatives = 1;
-        rec.onresult = (e) => finish(e.results?.[0]?.[0]?.transcript ?? null);
-        rec.onerror = () => finish(null);
-        rec.onend = () => finish(null);
-        rec.start();
-      } catch {
-        finish(null);
-      }
-    }),
-  dispose: async () => {},
-};
-
 /** Assemble the full context a standalone game receives. */
 export function createContext(opts: HostOptions): GameContext {
   const session: SessionInfo = { deviceId: 'standalone', childId: opts.childId };
@@ -281,9 +123,13 @@ export function createContext(opts: HostOptions): GameContext {
     mode: 'standalone',
     ageBand: opts.ageBand,
     session,
-    ai,
+    // ai + audio are the canonical @edu/toolbox implementations (was an inline stub).
+    // PRIVACY (§5c): listenOnce uses cloud-backed Web Speech — the child's voice leaves
+    // the device. A production host MUST consent/DPA-gate `listen` (withhold its probe)
+    // before enabling it for children; it is on here so the teach-by-voice demo works.
+    ai: createAIServices(),
     t: createT(opts.catalog),
-    audio: createAudio(),
+    audio: createAudioBus(),
     storage: createStorage(`${opts.childId ?? 'anon'}:${opts.manifestId}`),
     bus: createBus(),
     teacher: createTeacher(),
