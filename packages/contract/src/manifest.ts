@@ -17,7 +17,7 @@ export const GameManifest = z.object({
   id: z.string().min(1), // globally unique; reserved at issue-distribution
   track: z.enum(['kindergarten', 'primary']),
   lesson: z.number().int(),
-  ageBand: z.string().min(1), // single target band, e.g. 'P5-P6' (TBD with lesson cut)
+  ageBand: z.string().min(1), // single band in caps, e.g. 'K2' / 'P5' — never a range (lesson cut TBD)
   lessonGroup: z.string().optional(), // links age-variants (future fan-out)
   title: LocalizedString,
   concept: z.string().min(1),

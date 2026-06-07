@@ -2,7 +2,7 @@
 lesson: <NN as integer>
 track: primary
 title: <Lesson title>
-ageBand: <e.g. P5-P6>
+ageBand: <the single band in caps, never a range — e.g. P5 (matches lessons.json; P5-P6 is wrong)>
 bigIdea: <integer 1-5>
 aiRepresentation: <real-model | rule-based | remix | remote-real — be honest>
 smeReviewed: false

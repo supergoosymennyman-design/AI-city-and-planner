@@ -148,7 +148,7 @@ export const GameManifest = z.object({       // Zod = schema + type in one
   id: z.string(),                  // globally unique; reserved at issue-distribution
   track: z.enum(['kindergarten','primary']),
   lesson: z.number(),
-  ageBand: z.string(),             // single target band, e.g. 'P5-P6'
+  ageBand: z.string(),             // single band in caps, e.g. 'K2' / 'P5' — never a range
   lessonGroup: z.string().optional(),        // links age-variants (future fan-out)
   title: z.record(z.string()),     // {en, 'zh-Hant'}
   concept: z.string(),

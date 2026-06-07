@@ -39,6 +39,29 @@ where the *experience* goes wrong when play deviates from the script. Don't re-r
    - **Does it match the PROMISE?** (the teachable-machine must react sensibly to an unsupported input)
    - **Can the child understand what to do next / recover?** (dead end / confusion = fail)
 
+## Verify the child PERCEIVES the response — not just that code fired (these are the misses that slip through)
+A handler that runs is NOT a handled path. The bugs that escape to a human tester all hide in the gap
+between "the action dispatched" and "the child saw/heard something". Before calling any off-rail path
+"handled", do ALL of:
+- **Assert on the RENDERED output, never the dispatch.** A reducer case / `dispatch(...)` that fires but
+  whose message is hidden by a conditional is STILL dead air. The classic trap: a status line rendered as
+  `listening ? "Listening…" : hint ? "try again" : ""` — in continuous-listen mode `listening` is always
+  true, so the hint is **structurally unreachable** and every unmatched utterance is silent. Read the JSX
+  and confirm the feedback element is actually shown in THAT state.
+- **Re-test the same off-rail input in EVERY mode/phase it can occur.** Voice has continuous-teach vs
+  push-to-talk-quiz; the SAME word can be visible in one and dead air in the other. Drive both. Don't
+  assume parity across states.
+- **Probe the BOUNDARY of any hardcoded set, not just a member of it.** If the game matches against a
+  fixed vocabulary/list (e.g. an `OTHER_*` array), a hardcoded list is itself a smell: test an item IN the
+  list AND items just OUTSIDE it (a synonym, an out-of-vocab colour like "violet"/"gold", pure gibberish).
+  The in-list case passing tells you nothing about the off-list case.
+- **Distrust existing handlers and existing green tests.** A passing reducer-level test can coexist with a
+  live dead-air bug, because it drove the fake at the `ctx` boundary and never checked visibility. Re-derive
+  from what renders; treat "there's already a handler/test for that" as a reason to look HARDER, not skip.
+- **Check the dev/test TOOLING can even produce the off-rail input.** If the DevVoiceSim / fixtures offer
+  no way to say "green" (only red/blue/yellow + gibberish), the path is unverifiable by hand — REPORT that
+  as a gap too, and note which off-rail inputs the tooling cannot currently exercise.
+
 ## Off-rail idea bank (a seed — brainstorm well beyond it)
 - **Outside the offered set:** say/teach a colour not in the palette (green/purple/pink/black…); say
   two colours at once; say "I don't know" / the bot's name / a number / gibberish; say nothing for long.

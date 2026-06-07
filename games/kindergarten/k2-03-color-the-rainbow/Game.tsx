@@ -257,9 +257,13 @@ export const Game: FC<{ ctx: GameContext }> = ({ ctx }) => {
         >
           <span aria-hidden="true">{listening ? t('mic.stopLabel') : t('mic.label')}</span>
         </button>
-        {/* aria-live announces listening / retry for screen readers (the audio twin, §6b) */}
+        {/* aria-live announces listening / retry for screen readers (the audio twin, §6b).
+            micHint takes PRIORITY over the "Listening…" label: in continuous teaching the mic
+            never stops, so if the retry hint only showed when !listening it would be structurally
+            unreachable — a heard-but-unmatched utterance (gibberish, or a colour we don't support)
+            would be DEAD AIR. Showing the hint while still listening is the honest, visible reaction. */}
         <p className="ctr-listening" aria-live="polite">
-          {listening ? t('listening') : micHint ? t('mic.again') : ''}
+          {micHint ? t('mic.again') : listening ? t('listening') : ''}
         </p>
       </div>
     );

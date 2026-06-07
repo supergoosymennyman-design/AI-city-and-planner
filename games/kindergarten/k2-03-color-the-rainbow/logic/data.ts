@@ -20,6 +20,10 @@ export const SHAPES: readonly Shape[] = ['circle', 'square', 'triangle'];
  * hear a colour, it just only knows red/blue/yellow (the scoped teachable-machine promise).
  */
 export const OTHER_COLOUR_WORDS: readonly string[] = [
+  // Kept deliberately broad: a child (or the class) will name colours far outside red/blue/yellow,
+  // and every one we recognise AS a colour earns the honest "not one of my colours yet" reaction
+  // instead of the generic "I didn't catch that". Anything still unmatched falls back to that hint
+  // (now visible), so there is no dead air either way — this list just makes the response kinder.
   'green',
   'purple',
   'pink',
@@ -30,6 +34,23 @@ export const OTHER_COLOUR_WORDS: readonly string[] = [
   'grey',
   'gray',
   'rainbow',
+  'violet',
+  'indigo',
+  'turquoise',
+  'teal',
+  'cyan',
+  'magenta',
+  'maroon',
+  'gold',
+  'golden',
+  'silver',
+  'beige',
+  'tan',
+  'lime',
+  'navy',
+  'peach',
+  'cream',
+  'lavender',
 ];
 
 export const TOTAL_ROUNDS = 5;

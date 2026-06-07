@@ -50,20 +50,35 @@ requested changes.)
 - **primary:** dispatch **game-architect** (writes `games/primary/<id>/PLAN.md`), then
   **game-implementer** (codes the plan). If `--checkpoint=design`, pause after the architect.
 
-### Phase 3 — Review (parallel)
+### Phase 3a — Static review (parallel)
 Dispatch these as concurrent subagents (one Task message, multiple calls):
 **contract-reviewer**, **kid-ux-reviewer**, **pedagogy-reviewer**, and (primary only)
 **core-guardian**. Collect every PASS/FAIL + the ranked findings.
+
+### Phase 3b — Adversarial break-tests (parallel, both tracks)
+Static review (3a) checks the code as written; this hunts what the happy path hides — and it is
+**not optional** (golden rule #12; the highest-yield bugs live here). Dispatch as concurrent
+subagents: **game-breaker** (crashes / freezes / leaks / dead-ends — a hanging or throwing
+`ctx.audio`/`ctx.ai`, junk/rapid/out-of-order input, phase-change-mid-async, teardown leaks) and
+**ux-breaker** (off-rail *experience* gaps — silent no-ops, misleading feedback, premise-vs-
+implementation mismatch like "teach any colour" accepting only three). They MAY write **only**
+`games/<track>/<id>/tests/**` (never game source); each new test is RED on a real break and
+becomes a committable regression. Collect both verdicts + the failing tests; their REDs flow into
+Phase 4's `validate` and the fix loop. (They report fixes — they don't patch source; some
+ux-breaker gaps are `[DESIGN DECISION]`s for the human, so surface those at Gate 2.)
 
 ### Phase 4 — Verify
 Dispatch **verifier** (`npm run validate` + tablet smoke + axe where wired). Get the GREEN/RED
 verdict with exact output.
 
 ### Fix loop (bounded)
-If any reviewer FAILs or the verifier is RED: summarize the blocking findings and dispatch the
-builder/implementer again to fix exactly those, then re-run Phase 3–4. Repeat up to
-`--max-fix-rounds` (default 3). If still not green, **STOP and escalate to the human** with the
-remaining findings — never loop forever, never claim green without the verifier's output.
+If any reviewer FAILs, a breaker produced a RED regression test, or the verifier is RED: summarize
+the blocking findings and dispatch the builder/implementer again to fix exactly those (for a
+breaker's RED test, the fix must make that test GREEN without deleting it), then re-run Phases
+3a–3b–4. Repeat up to `--max-fix-rounds` (default 3). If still not green, **STOP and escalate to
+the human** with the remaining findings — never loop forever, never claim green without the
+verifier's output. (A ux-breaker `[DESIGN DECISION]` is not a code bug — carry it to Gate 2 for the
+human, don't burn fix rounds on it.)
 
 ### ★ Human Gate 2 — SME / playtest sign-off
 When reviews pass and the verifier is GREEN, the game is **automation-complete**. Present a

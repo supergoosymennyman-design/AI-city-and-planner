@@ -2,7 +2,7 @@
 lesson: <NN as integer, e.g. 3>
 track: kindergarten
 title: <Lesson title>
-ageBand: <e.g. K2-K3>
+ageBand: <the single band in caps, never a range — e.g. K2 (matches lessons.json; K2-K3 is wrong)>
 bigIdea: <integer 1-5; teach-by-example is usually 3>
 aiRepresentation: <real-model | rule-based | remix | remote-real — be honest>
 smeReviewed: false

@@ -37,6 +37,12 @@ export interface VoiceSimController {
 // constructor handed to the app and the controller handed to the test share one target.
 let current: FakeSpeechRecognition | null = null;
 
+// A phrase clicked while NO recognizer is listening (e.g. the ~350ms gap between continuous-teach
+// listen windows, or a click a beat before the mic opens). Without this, that click is silently
+// dropped → "pressing banana does nothing". Instead we hold the last such phrase and deliver it to
+// the next recognizer that starts, so a hand-driven click always produces a reaction.
+let pendingSay: string | null = null;
+
 /** Minimal, hand-driven implementation of the Web Speech recognition object. */
 class FakeSpeechRecognition {
   lang = '';
@@ -50,6 +56,13 @@ class FakeSpeechRecognition {
   start(): void {
     this.ended = false;
     current = this; // become the active recognizer the controller drives
+    // A phrase was clicked before this window opened — deliver it now. Microtask so start()
+    // returns first (listenOnce attaches onresult BEFORE calling start, so the handler is ready).
+    if (pendingSay !== null) {
+      const transcript = pendingSay;
+      pendingSay = null;
+      queueMicrotask(() => this.deliver(transcript));
+    }
   }
 
   stop(): void {
@@ -80,7 +93,9 @@ class FakeSpeechRecognition {
 
 /** The single controller the app + tests share (acts on whichever recognizer is active). */
 const controller: VoiceSimController = {
-  say: (transcript) => current?.deliver(transcript),
+  // Deliver to the active recognizer if one is listening; otherwise queue for the next window
+  // (so a click in the dead gap between listens isn't lost — see `pendingSay`).
+  say: (transcript) => (current ? current.deliver(transcript) : void (pendingSay = transcript)),
   silence: () => current?.stop(),
   error: () => current?.fail(),
   get active() {
@@ -108,4 +123,5 @@ export function uninstallFakeSpeechRecognition(
   delete target.SpeechRecognition;
   delete target.webkitSpeechRecognition;
   current = null;
+  pendingSay = null;
 }

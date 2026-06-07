@@ -17,10 +17,12 @@
     },
     {
       "id": 3,
-      "name": "primary-city-sim-l18",
-      "prompt": "Blueprint primary lesson 18 (Designing the AI City). The designer source is in source/primary/18-designing-the-ai-city/.",
-      "expected_output": "docs/curriculum/primary-18-designing-the-ai-city.md using the PRIMARY template: includes deterministic sim state (fixed-point, seeded rng, no Math.random), dependsOn as a DAG, City contribution + live-scale behavior, plus the standard enrichment. Self-check (including the primary-only items) passes.",
-      "files": ["source/primary/18-designing-the-ai-city/lesson.md"]
+      "name": "primary-city-sim-capstone",
+      "status": "pending",
+      "note": "NOT yet runnable: the primary lesson cut + bands are TBD (lessons.json primary = TBD) and no source/primary/** exists, so Gate 0 blocks it. Kept to document PRIMARY-template coverage. Paths MUST follow the band-aware rule primary-<band>-<NN>-<slug> (docs/curriculum/README.md) — the old bandless primary-18-... form was wrong. Fill <band>/<NN>/<slug> and drop the designer source in once the primary curriculum lands.",
+      "prompt": "Blueprint the primary 'AI City Architect' city-merge capstone lesson once its source exists at source/primary/<band>-<NN>-<slug>/ (e.g. p6-18-designing-the-ai-city).",
+      "expected_output": "docs/curriculum/primary-<band>-<NN>-<slug>.md (e.g. primary-p6-18-designing-the-ai-city.md) using the PRIMARY template: deterministic sim state (fixed-point milli-units, seeded rng, no Math.random), dependsOn as a DAG, City contribution + live-scale (1x-1000x) behavior, plus the standard enrichment. Self-check (including the primary-only items) passes.",
+      "files": ["source/primary/<band>-<NN>-<slug>/lesson.md"]
     }
   ]
 }

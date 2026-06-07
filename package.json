@@ -20,10 +20,11 @@
     "typecheck": "tsc --build",
     "contracts": "node scripts/validate-contracts.mjs",
     "sync": "node scripts/sync-agents.mjs",
+    "sync:check": "node scripts/sync-agents.mjs --check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "validate": "npm run typecheck && npm run contracts && npm run test",
+    "validate": "npm run sync:check && npm run typecheck && npm run contracts && npm run test",
     "build": "npm run typecheck"
   },
   "devDependencies": {

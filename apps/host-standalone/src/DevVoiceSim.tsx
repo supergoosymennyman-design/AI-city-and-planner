@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { VoiceSimController } from '@edu/testing';
 
@@ -42,14 +43,31 @@ function VoiceSimPanel({ controller }: { controller: VoiceSimController }): JSX.
   // Each says a full phrase (the game matches the colour substring), so it also exercises the
   // "AI, this is red!" wording. "banana" → a heard-but-no-colour miss; "silence" → heard nothing.
   const say = (phrase: string) => () => controller.say(phrase);
+
+  // Reflect whether a recognizer is mid-listen. The mic is only "live" during a listen window
+  // (continuous after Teach AI!, or push-to-talk in the quiz); a click while idle is now QUEUED to
+  // the next window rather than dropped, but showing the state explains the rhythm to the tester.
+  const [live, setLive] = useState(controller.active);
+  useEffect(() => {
+    const id = setInterval(() => setLive(controller.active), 120);
+    return () => clearInterval(id);
+  }, [controller]);
+
   return (
     <div style={panel} aria-hidden="true">
       <strong>🎤 Voice simulator (dev)</strong>
+      <span style={{ opacity: 0.85, fontSize: 11, color: live ? '#7CFC9A' : '#E6B800' }}>
+        {live ? '● mic listening — click a phrase' : '○ mic idle — your next click is queued'}
+      </span>
       <span style={{ opacity: 0.8, fontSize: 11 }}>1) Tap 🎤 in the game · 2) Click what the child says:</span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         <button type="button" style={chip} onClick={say('this is red')}>🔴 red</button>
         <button type="button" style={chip} onClick={say('this is blue')}>🔵 blue</button>
         <button type="button" style={chip} onClick={say('this is yellow')}>🟡 yellow</button>
+        {/* OFF-RAIL probes — a colour the AI doesn't support, gibberish, and silence. These exist
+            so the unsupported / heard-but-unmatched paths are testable by hand (the original gap:
+            you couldn't say "green" through the sim, so the dead-air bug was invisible in dev). */}
+        <button type="button" style={chip} onClick={say('this is green')}>🟢 green (unsupported)</button>
         <button type="button" style={chip} onClick={say('banana')}>🍌 "banana" (no match)</button>
         <button type="button" style={chip} onClick={() => controller.silence()}>🤐 silence</button>
       </div>

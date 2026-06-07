@@ -102,6 +102,9 @@ Go through every item. If any fails, fix it before finishing.
       `<...>` placeholders** and no leftover template instructions.
 - [ ] Stage-1 sections match the source (a reader of the docx would recognize this lesson);
       anything absent from the source is marked `(not in source)`, never invented.
+- [ ] Frontmatter matches the registry: `ageBand` is the **single band in caps** matching the
+      slug (`K2`/`K3`/`P1`…`P6` — **never** a range like `K2-K3`), and `lesson`/`track`/`title`
+      agree with this `(band, lesson)`'s entry in `docs/curriculum/lessons.json`.
 - [ ] `bigIdea` is an integer 1–5 (AI4K12 Big Idea).
 - [ ] `aiRepresentation` is one of `real-model | rule-based | remix | remote-real`, and it is
       **honest** — it describes what the game will actually do, not what sounds impressive.
@@ -137,6 +140,9 @@ Go through every item. If any fails, fix it before finishing.
 - If the source is ambiguous about a *design* choice (Stage 2), make the most pedagogically
   honest choice and add a short `> Design note:` line explaining it, rather than guessing
   silently. The human approves the blueprint at Gate 1, so surfaced assumptions are good.
-- The worked reference example is `docs/curriculum/kindergarten-k2-03-color-the-rainbow.md` — read
-  it to see the target quality (especially the honest "teachable-machine truth" and a11y-scope
-  sections).
+- There is **no canonical worked-example blueprint yet** — build strictly from the template you
+  copied above and the self-check; those are the spec. (The older
+  `docs/curriculum/kindergarten-k2-03-color-the-rainbow.md` is a **pre-standard exploration spike**,
+  **not** a reference: it predates this template, is missing several Stage-2 sections — Interaction
+  design, AI capability & representation, Win/fail, the structured Inputs block, and the UX &
+  design-standard binding — and would fail the self-check. Do **not** copy its shape.)
