@@ -25,7 +25,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "validate": "npm run sync:check && npm run typecheck && npm run contracts && npm run test",
-    "build": "npm run typecheck"
+    "build": "npm run typecheck && npm run build --workspace @edu/host-standalone",
+    "preview": "npm run preview --workspace @edu/host-standalone",
+    "play": "npm run build && npm run preview"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
