@@ -67,7 +67,10 @@ RecognitionManager.prototype.initialize = function () {
   var self = this;
   this._loading = true;
   var tasks = [this._loadExtractor()];
-  if (this.options.cocoSsd && this.options.tf) tasks.push(this._loadCocoSsd());
+  // coco-ssd is OPT-IN via a self-hosted cocoModelUrl. Default coco-ssd.load() fetches its weights
+  // from a CDN (breaks offline / rule #4), and the teachable mobilenet+KNN path never needs it — so we
+  // only load the fallback detector when the host explicitly self-hosts it.
+  if (this.options.cocoSsd && this.options.tf && this.options.cocoModelUrl) tasks.push(this._loadCocoSsd());
   Promise.all(tasks)
     .then(function () {
       self._loading = false;

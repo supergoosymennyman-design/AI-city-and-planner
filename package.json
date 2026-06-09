@@ -21,6 +21,7 @@
     "contracts": "node scripts/validate-contracts.mjs",
     "sync": "node scripts/sync-agents.mjs",
     "sync:check": "node scripts/sync-agents.mjs --check",
+    "vendor-ml": "node scripts/vendor-ml-assets.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

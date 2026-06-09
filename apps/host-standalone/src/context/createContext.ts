@@ -124,10 +124,17 @@ export function createContext(opts: HostOptions): GameContext {
     ageBand: opts.ageBand,
     session,
     // ai + audio are the canonical @edu/toolbox implementations (was an inline stub).
-    // PRIVACY (§5c): listenOnce uses cloud-backed Web Speech — the child's voice leaves
-    // the device. A production host MUST consent/DPA-gate `listen` (withhold its probe)
-    // before enabling it for children; it is on here so the teach-by-voice demo works.
-    ai: createAIServices(),
+    // SELF-HOSTED ML (rule #4 / offline): point the teachable-image extractor + hand tracker at the
+    // host-served assets under /ml/ (vendored by `npm run vendor-ml`), so nothing fetches from a CDN.
+    // BASE_URL respects the deploy base (base:'./'). coco-ssd fallback is left off (no cocoModelUrl).
+    // PRIVACY (§5c): listenOnce uses cloud-backed Web Speech — the child's voice leaves the device.
+    // A production host MUST consent/DPA-gate `listen` (withhold its probe) before enabling it for
+    // children; it is on here so the teach-by-voice demo works.
+    ai: createAIServices({
+      mobilenetUrl: `${import.meta.env.BASE_URL}ml/mobilenet/model.json`,
+      mpWasmBase: `${import.meta.env.BASE_URL}ml/tasks-vision/wasm`,
+      handModelUrl: `${import.meta.env.BASE_URL}ml/tasks-vision/hand_landmarker.task`,
+    }),
     t: createT(opts.catalog),
     audio: createAudioBus(),
     storage: createStorage(`${opts.childId ?? 'anon'}:${opts.manifestId}`),

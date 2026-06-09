@@ -36,8 +36,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
-# self-hosted ML models (large; provenance-pinned & fetched, not committed)
-# keep small placeholder manifests, ignore the binaries
+# self-hosted ML models (large; provenance-pinned & fetched by `npm run vendor-ml`, not committed)
+apps/host-standalone/public/ml/
+packages/toolbox/assets/
 packages/toolbox/models/**/*.bin
 packages/toolbox/models/**/*.task
 packages/toolbox/models/**/*.wasm

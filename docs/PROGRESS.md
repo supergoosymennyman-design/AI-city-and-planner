@@ -30,9 +30,15 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
   - **Tests** rewritten to inject fakes (jsdom has no tfjs/WebGL): `recognition.test.ts` (7) + `ai.test.ts`
     detectPose/KNN cases. **`npm run validate` green (60 tests).** New DEV harnesses
     `apps/host-standalone/src/Dev{Camera,Pose}Sim.tsx` (`?camera` / `?pose`) for real-webcam testing.
-  - ☐ **Follow-up (rule #4 / offline):** self-host the MobileNet model + tasks-vision wasm/.task files
-    (both currently load from CDN on first use → online-only). `scripts/vendor-ml-assets.mjs` already
-    stages MediaPipe assets; extend to host `public/` + wire `mobilenetUrl`/`mpWasmBase`/`handModelUrl`.
+  - ✓ **Self-hosted for offline (rule #4) — no CDN at runtime.** `scripts/vendor-ml-assets.mjs`
+    rewritten to vendor into `apps/host-standalone/public/ml/` (git-ignored): MobileNet v2 model.json+shards
+    (TF Hub, redirect-followed), the tasks-vision wasm (copied from node_modules), and `hand_landmarker.task`.
+    `createContext` points the toolbox at `/ml/**` via `mobilenetUrl`/`mpWasmBase`/`handModelUrl`; coco-ssd
+    is now **opt-in** behind a self-hosted `cocoModelUrl` (its default load hits a CDN, and the teach path
+    never needs it). `npm run vendor-ml` + host `pre(dev|build)` hook (idempotent). **Verified offline:**
+    teach→classify works with assets served from `localhost/ml/` (200) and **zero CDN requests**
+    (`window.fetch` interceptor recorded none); coco gated off so a correct classify *proves* the local
+    MobileNet loaded. validate green (60 tests).
 
 
 - ✓ **"Click-and-play" static build wired (build → open a URL).** Q: can the React+TS games run like

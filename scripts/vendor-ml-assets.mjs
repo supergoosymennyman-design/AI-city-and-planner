@@ -1,58 +1,100 @@
 #!/usr/bin/env node
 /*
- * vendor-ml-assets.mjs — stage self-hosted ML runtime assets for @edu/toolbox.
+ * vendor-ml-assets.mjs — stage self-hosted ML model + runtime assets for the host (rule #4: no
+ * third-party CDN at runtime; offline-first). Writes into apps/host-standalone/public/ml/ so Vite
+ * serves them at /ml/ and (later) the PWA service worker precaches them. The dir is git-ignored —
+ * run this once after `npm install` (and it's wired as a pre(dev|build) step). Idempotent: existing,
+ * non-empty files are skipped, so re-runs need no network.
  *
- * Rule #4 (no third-party CDN at runtime): the ML libraries are loaded from npm,
- * but MediaPipe's .wasm/.tflite/model files are fetched at runtime via locateFile.
- * This dev tool copies them out of node_modules into packages/toolbox/assets/
- * (git-ignored) so a host can serve them locally. coco-ssd weights are fetched by
- * the lib; pass a local `cocoModelUrl` to keep that offline too.
+ *   public/ml/mobilenet/model.json + shards      — teachable-image feature extractor (createAIServices mobilenetUrl)
+ *   public/ml/tasks-vision/wasm/*                — MediaPipe Tasks Vision runtime (FilesetResolver / mpWasmBase)
+ *   public/ml/tasks-vision/hand_landmarker.task  — hand landmark model (handModelUrl)
  *
- * Usage:  node scripts/vendor-ml-assets.mjs
+ * Usage:  npm run vendor-ml   (or: node scripts/vendor-ml-assets.mjs)
  */
-import { mkdir, readdir, copyFile, access } from 'node:fs/promises';
+import { mkdir, readdir, copyFile, writeFile, stat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
-const assetsDir = join(repoRoot, 'packages', 'toolbox', 'assets');
+const mlDir = join(repoRoot, 'apps', 'host-standalone', 'public', 'ml');
 
-async function exists(p) {
+// MobileNet v2, alpha 1.0 (224) — matches the createAIServices default (version 2, alpha 1.0).
+// Served by TF Hub; ?tfjs-format=file redirects to the real (signed) storage object, which fetch follows.
+const MOBILENET_TFHUB = 'https://tfhub.dev/google/imagenet/mobilenet_v2_100_224/classification/2';
+// MediaPipe hand landmarker (float16) — the official model bundle.
+const HAND_TASK_URL =
+  'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+
+async function nonEmpty(p) {
   try {
-    await access(p);
-    return true;
+    return (await stat(p)).size > 0;
   } catch {
     return false;
   }
 }
 
-async function copyHolistic() {
-  const src = join(repoRoot, 'node_modules', '@mediapipe', 'holistic');
-  if (!(await exists(src))) {
-    console.log('•  @mediapipe/holistic not installed — skipping.');
-    console.log('   Install it where the host bundles (it is an optional peer dep), then re-run.');
+/** Download a URL to `dest` (skipped if already present). Follows redirects (TF Hub → signed storage). */
+async function download(url, dest, label) {
+  if (await nonEmpty(dest)) {
+    console.log(`•  ${label}: already present — skip`);
     return;
   }
-  const dest = join(assetsDir, 'mediapipe', 'holistic');
-  await mkdir(dest, { recursive: true });
-  const wanted = /\.(wasm|tflite|binarypb|data|js)$/i;
-  const files = (await readdir(src)).filter((f) => wanted.test(f));
-  for (const f of files) await copyFile(join(src, f), join(dest, f));
-  console.log(`✓  Holistic: copied ${files.length} asset file(s) -> ${dest}`);
+  await mkdir(dirname(dest), { recursive: true });
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${label}: HTTP ${res.status} for ${url}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  await writeFile(dest, buf);
+  console.log(`✓  ${label}: ${(buf.length / 1e6).toFixed(1)} MB -> ${dest}`);
+}
+
+/** Vendor a tfjs graph model (model.json + its weight shards) from a TF Hub base URL. */
+async function vendorTfHubModel(base, destDir, label) {
+  await mkdir(destDir, { recursive: true });
+  const modelJsonDest = join(destDir, 'model.json');
+  let manifest;
+  if (await nonEmpty(modelJsonDest)) {
+    console.log(`•  ${label} model.json: already present — skip`);
+    const { readFile } = await import('node:fs/promises');
+    manifest = JSON.parse(await readFile(modelJsonDest, 'utf8'));
+  } else {
+    const res = await fetch(`${base}/model.json?tfjs-format=file`);
+    if (!res.ok) throw new Error(`${label}: HTTP ${res.status} for model.json`);
+    manifest = await res.json();
+    await writeFile(modelJsonDest, JSON.stringify(manifest));
+    console.log(`✓  ${label} model.json -> ${modelJsonDest}`);
+  }
+  // Weight shards are listed relative in weightsManifest[].paths; fetch each via the same TF Hub base.
+  const paths = (manifest.weightsManifest || []).flatMap((g) => g.paths || []);
+  for (const p of paths) {
+    await download(`${base}/${p}?tfjs-format=file`, join(destDir, p), `${label} ${p}`);
+  }
+}
+
+/** Copy the tasks-vision wasm runtime out of node_modules (no download needed). */
+async function copyTasksVisionWasm(destDir) {
+  const src = join(repoRoot, 'node_modules', '@mediapipe', 'tasks-vision', 'wasm');
+  if (!(await nonEmpty(join(src, 'vision_wasm_internal.wasm')))) {
+    console.log('•  @mediapipe/tasks-vision not installed — skipping wasm copy.');
+    return;
+  }
+  await mkdir(destDir, { recursive: true });
+  const files = await readdir(src);
+  for (const f of files) await copyFile(join(src, f), join(destDir, f));
+  console.log(`✓  tasks-vision wasm: copied ${files.length} file(s) -> ${destDir}`);
 }
 
 async function main() {
-  console.log('Vendoring self-hosted ML assets (no CDN, rule #4)...\n');
-  await mkdir(assetsDir, { recursive: true });
-  await copyHolistic();
-  console.log('\nNext (host wiring step):');
-  console.log('  - serve packages/toolbox/assets/ and pass its base path as');
-  console.log('    `holisticAssetBase` to createAIServices.');
-  console.log('  - vendor coco-ssd weights locally and pass `cocoModelUrl`.');
+  console.log('Vendoring self-hosted ML assets into public/ml/ (no CDN at runtime, rule #4)...\n');
+  await mkdir(mlDir, { recursive: true });
+  await vendorTfHubModel(MOBILENET_TFHUB, join(mlDir, 'mobilenet'), 'MobileNet v2');
+  await copyTasksVisionWasm(join(mlDir, 'tasks-vision', 'wasm'));
+  await download(HAND_TASK_URL, join(mlDir, 'tasks-vision', 'hand_landmarker.task'), 'hand_landmarker.task');
+  console.log('\n✓ Done. The host serves these at /ml/** and createContext points the toolbox at them.');
 }
 
 main().catch((e) => {
-  console.error('vendor-ml-assets failed:', e);
+  console.error('vendor-ml-assets failed:', e.message);
   process.exitCode = 1;
 });

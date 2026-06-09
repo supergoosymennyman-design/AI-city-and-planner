@@ -186,7 +186,8 @@ describe('RecognitionManager — MobileNet + KNN teachable loop (the KG camera m
 describe('RecognitionManager — coco-ssd fallback (no taught classes)', () => {
   it('falls back to object detection when teachable is empty', async () => {
     const coco = cocoReturning([{ class: 'banana', score: 0.88, bbox: [0, 0, 1, 1] }]);
-    const mgr = new RecognitionManager({ tf: fakeTf, cocoSsd: coco.lib });
+    // coco is opt-in via a (self-hosted) cocoModelUrl — otherwise it never loads (offline default).
+    const mgr = new RecognitionManager({ tf: fakeTf, cocoSsd: coco.lib, cocoModelUrl: 'local://coco' });
     await initAndReady(mgr);
 
     const r = await mgr.classifyFrame(frame(150));
@@ -199,6 +200,7 @@ describe('RecognitionManager — coco-ssd fallback (no taught classes)', () => {
     const mgr = new RecognitionManager({
       tf: fakeTf,
       cocoSsd: coco.lib,
+      cocoModelUrl: 'local://coco',
       mobilenet: fakeMobilenet().lib,
       knnClassifier: fakeKnn().lib,
       enableTeaching: true,
@@ -220,6 +222,7 @@ describe('RecognitionManager — destroy()', () => {
     const mgr = new RecognitionManager({
       tf: fakeTf,
       cocoSsd: coco.lib,
+      cocoModelUrl: 'local://coco',
       mobilenet: fakeMobilenet().lib,
       knnClassifier: knn.lib,
       enableTeaching: true,

@@ -152,13 +152,18 @@ describe('createAIServices.detectPose (rule #12: never throws)', () => {
 
 describe('createAIServices.classifyImage / trainImageClass (rule #12)', () => {
   it('returns the detector best label', async () => {
-    const ai = createAIServices({ tf: fakeTf, cocoSsd: cocoReturning([{ class: 'dog', score: 0.9, bbox: [0, 0, 1, 1] }]) });
+    // coco is opt-in via a (self-hosted) cocoModelUrl — otherwise it never loads (offline default).
+    const ai = createAIServices({
+      tf: fakeTf,
+      cocoSsd: cocoReturning([{ class: 'dog', score: 0.9, bbox: [0, 0, 1, 1] }]),
+      cocoModelUrl: 'local://coco',
+    });
     const r = await ai.classifyImage({} as HTMLVideoElement);
     expect(r).toEqual({ label: 'dog', confidence: 0.9 });
   });
 
   it('resolves a safe default when the detector rejects', async () => {
-    const ai = createAIServices({ tf: fakeTf, cocoSsd: cocoRejecting() });
+    const ai = createAIServices({ tf: fakeTf, cocoSsd: cocoRejecting(), cocoModelUrl: 'local://coco' });
     const r = await ai.classifyImage({} as HTMLVideoElement);
     expect(r).toEqual({ label: 'unknown', confidence: 0 });
   });
@@ -175,6 +180,7 @@ describe('createAIServices.classifyImage / trainImageClass (rule #12)', () => {
     const ai = createAIServices({
       tf: fakeTf,
       cocoSsd: cocoReturning([{ class: 'dog', score: 0.95, bbox: [0, 0, 1, 1] }]),
+      cocoModelUrl: 'local://coco',
       mobilenet: fakeMobilenet(),
       knnClassifier: fakeKnn(),
     });
