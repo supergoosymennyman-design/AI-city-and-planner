@@ -2,12 +2,31 @@
 
 Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update this in every PR** that completes or starts a tracked item. Legend: ✓ done · ◐ in progress / partial · ☐ pending.
 
-> Snapshot date: 2026-06-07 · `main` **pushed to GitHub** (private) · working branch `game/kindergarten-1-color-the-rainbow` · Latest: first push + test infra (R1) + Color the Rainbow hardened + breaker agents
+> Snapshot date: 2026-06-09 · `main` **pushed to GitHub** (private) · working branch `main` · Latest: camera teach→test loop proven (`@edu/toolbox`) + cross-tool agent sync made opencode-native
 
 ## Where things live
 - **Plan (source of truth):** [docs/PLAN.md](PLAN.md) (in-repo copy; original was authored in `~/.claude/plans/`).
 - **Rules/DoD:** [AGENTS.md](../AGENTS.md) · [DEFINITION_OF_DONE.md](../DEFINITION_OF_DONE.md)
 - **Done = git history; pending = this file.**
+
+## Recently done (2026-06-09)
+- ✓ **Cross-tool agent sync made opencode-native (Claude ↔ opencode parity, one canonical source).**
+  The 11 subagents are authored once in `.ai/agents/*.md`; `scripts/sync-agents.mjs` now **translates**
+  the frontmatter per tool instead of copying it verbatim, so each toolchain gets idiomatic agents
+  without anyone hand-editing a generated dir:
+  - **`.claude/agents/*`** keep Claude-native frontmatter (`name`, `description`, `tools`,
+    `model: inherit`).
+  - **`.opencode/agent/*`** now emit **opencode-native** frontmatter — drop `name` (opencode derives
+    it from the filename) and the Claude-only `model: inherit`, add `mode: subagent`, and translate
+    the `tools:` line into a `permission:` block (`edit`/`bash`/`webfetch` → `allow`/`deny`). All 11
+    opencode agents + the generator regenerated.
+  - **Skills stay single-source — `.claude/skills/` only, deliberately NOT `.opencode/`.** Updated the
+    sync rationale: opencode now supports skills and reads `.claude/skills/<name>/SKILL.md` directly via
+    its Claude-compat layer (identical `name`+`description` format), so a second `.opencode/skills/`
+    copy would **double-register** every skill (opencode discovers from *both* dirs). Contrast agents —
+    opencode does **not** read `.claude/agents`, which is exactly why those need a translated copy.
+  - Enforced by the existing **`npm run sync:check`** drift gate (runs first in `validate`), so a stale
+    or hand-edited tool dir fails typecheck/CI/pre-push.
 
 ## Recently done (2026-06-07)
 - ✓ **Removed the shared `@edu/ui` package — "no boundary but the vibe".** Per design call: there
@@ -182,7 +201,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - ☐ 3 host-standalone on tablet viewport (Playwright)
 - ☐ 4 two interacting subsystems (live + fast-forward, deterministic)
 - ◐ 5 `validate` + build green; CI mirror — local validate ✓ (28 tests); **pushed** → CI runs on PRs (pre-push hook enforced the gate on the first push)
-- ☐ 6 sync-agents consistency
+- ◐ 6 sync-agents consistency — `npm run sync:check` drift gate enforces `.ai/**` → `.claude`/`.opencode` regenerability (first in `validate`); per-tool frontmatter translation (Claude vs opencode-native) landed
 - ☐ 7 offline play + STT fallback
 - ☐ 8 i18n layer proven (English complete)
 - ☐ 9 device matrix + live-scale ceiling measured
