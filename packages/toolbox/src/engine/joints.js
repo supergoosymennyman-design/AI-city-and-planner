@@ -1,473 +1,308 @@
 /*
- * JointDetectionManager — MediaPipe Holistic wrapper (hands / pose / face).
+ * JointDetectionManager — hand + pose landmark detection.
  *
- * Ported from source/toolbox/joints.js (R22 prototype). Differences from the
- * original, all required by the @edu/toolbox port (see plan):
- *   - NO remote fetch: the original injected a remote <script> and read a global
- *     `Holistic`. Here the Holistic constructor is INJECTED via
- *     options.HolisticCtor and asset files resolve under options.holisticAssetBase
- *     (a host-served local path) — rule #4, no third-party CDN at runtime.
- *   - sendOnce(frame): a one-shot Promise path the AIServices.detectPose adapter
- *     uses, so it never has to race the continuous _startDetection loop.
- *   - ESM `export` at the end (verbatimModuleSyntax requires a real export).
- * Types live in joints.d.ts (hand-written; takes precedence over this .js).
+ * METHOD: Google's MAINTAINED MediaPipe Tasks Vision API (@mediapipe/tasks-vision) — HandLandmarker
+ * and PoseLandmarker. Replaced the deprecated @mediapipe/holistic "Solutions" API (PLAN §5: "consider
+ * migrating to the maintained @mediapipe/tasks-vision"). The Tasks API is simpler: detectForVideo()
+ * returns results SYNCHRONOUSLY (no onResults callback dance) and self-hosting is just serving the
+ * /wasm dir + the .task model files.
+ *
+ * Port rules:
+ *   - NO CDN globals: the tasks-vision module is INJECTED via options.visionTasks ({FilesetResolver,
+ *     HandLandmarker, PoseLandmarker}); the wasm dir + model files resolve under host-served URLs
+ *     (options.wasmBase / handModelUrl / poseModelUrl). When absent the manager stays inert and
+ *     reports via onError — never throws at construct (rule #12).
+ *   - sendOnce(frame): a one-shot path the AIServices.detectPose adapter uses. It returns a NORMALISED
+ *     result ({rightHandLandmarks,leftHandLandmarks,poseLandmarks}) — the SAME shape the old Holistic
+ *     produced — so ai.ts's resultsToLandmarks mapping is unchanged.
+ *   - Gesture helpers (countExtendedFingers / classifyGesture / ...) operate on a 21-point {x,y,z}
+ *     hand-landmark array, which Tasks Vision produces identically — so they carry over untouched.
+ *   - ESM `export` at the end. Types live in joints.d.ts (hand-written; takes precedence).
  */
-function JointDetectionManager(options){
+function JointDetectionManager(options) {
   options = options || {};
   this.options = {
     enableHands: options.enableHands !== undefined ? options.enableHands : true,
     enablePose: options.enablePose !== undefined ? options.enablePose : false,
-    enableFace: options.enableFace !== undefined ? options.enableFace : false,
-    maxNumHands: options.maxNumHands || 2,
-    runningMode: options.runningMode || 'video',
-    detectionInterval: options.detectionInterval || 100,
-    modelComplexity: options.modelComplexity || 1,
+    numHands: options.numHands || 2,
+    runningMode: options.runningMode || 'VIDEO',
     minDetectionConfidence: options.minDetectionConfidence || 0.5,
     minTrackingConfidence: options.minTrackingConfidence || 0.5,
-    // Injected MediaPipe Holistic constructor (no CDN global). When absent the
-    // manager stays inert and reports via onError — never throws at construct.
-    HolisticCtor: options.HolisticCtor || null,
-    // Local base path the host serves Holistic's .wasm/.tflite assets from.
-    holisticAssetBase: options.holisticAssetBase || ''
+    // Injected tasks-vision module (no CDN global): { FilesetResolver, HandLandmarker, PoseLandmarker }.
+    visionTasks: options.visionTasks || null,
+    // Host-served URLs (rule #4). wasmBase = dir holding vision_wasm_internal.wasm etc.; *ModelUrl = .task files.
+    wasmBase: options.wasmBase || '',
+    handModelUrl: options.handModelUrl || '',
+    poseModelUrl: options.poseModelUrl || '',
+    // 'GPU' (WebGL) where available; the caller can force 'CPU' on weak devices.
+    delegate: options.delegate || 'GPU',
   };
 
   this.ready = false;
   this.cameraActive = false;
-  this.detecting = false;
-  this.modelsReady = {hands: false, pose: false, face: false};
-
   this._video = null;
   this._stream = null;
-  this._holistic = null;
-  this._detectLoop = null;
-  this._lastHolisticResults = null;
-  this._lastHands = [];
-  this._lastPose = null;
-  this._lastFace = null;
-  this._currentCallbacks = null;
-  // Resolver for an in-flight sendOnce(); set just before send(), cleared in onResults.
-  this._pendingOnce = null;
+  this._hand = null; // HandLandmarker instance
+  this._pose = null; // PoseLandmarker instance
+  // detectForVideo requires strictly-increasing timestamps PER landmarker instance; a monotonic
+  // counter satisfies that without needing Date.now()/performance.now().
+  this._ts = 0;
 
   this.onHandsDetected = null;
   this.onPoseDetected = null;
-  this.onFaceDetected = null;
   this.onGesture = null;
   this.onCameraReady = null;
   this.onError = null;
   this.onReady = null;
 }
 
-JointDetectionManager.prototype.initialize = function(){
-  var anyEnabled = this.options.enableHands || this.options.enablePose || this.options.enableFace;
-  if(!anyEnabled){
+JointDetectionManager.prototype.initialize = function () {
+  var self = this;
+  var vt = this.options.visionTasks;
+  var anyEnabled = this.options.enableHands || this.options.enablePose;
+  if (!vt || !vt.FilesetResolver || !anyEnabled) {
+    if (!vt && this.onError) this.onError('tasks-vision not injected');
     this.ready = true;
-    if(this.onReady) this.onReady(true);
+    if (this.onReady) this.onReady(true);
     return;
   }
-  // Injection-only: the lib is provided by the adapter (npm, not CDN). No script loading.
-  this._setupHolistic();
+  // Async model load (FilesetResolver + createFromOptions). Always reaches a ready state (rule #12):
+  // a failed load just leaves that landmarker null and the path degrades, never wedges the adapter.
+  this._setup()
+    .then(function () {
+      self.ready = true;
+      if (self.onReady) self.onReady(true);
+    })
+    .catch(function (err) {
+      if (self.onError) self.onError('tasks-vision setup: ' + ((err && err.message) || 'failed'));
+      self.ready = true;
+      if (self.onReady) self.onReady(true);
+    });
 };
 
-JointDetectionManager.prototype._setupHolistic = function(){
-  var self = this;
-  var HolisticCtor = this.options.HolisticCtor;
-  if(!HolisticCtor){
-    if(this.onError) this.onError('Holistic constructor not injected');
-    this.ready = true;
-    if(this.onReady) this.onReady(true);
-    return;
+JointDetectionManager.prototype._setup = async function () {
+  var vt = this.options.visionTasks;
+  var o = this.options;
+  var fileset = await vt.FilesetResolver.forVisionTasks(o.wasmBase);
+  if (o.enableHands && vt.HandLandmarker) {
+    this._hand = await vt.HandLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: o.handModelUrl, delegate: o.delegate },
+      runningMode: o.runningMode,
+      numHands: o.numHands,
+      minHandDetectionConfidence: o.minDetectionConfidence,
+      minTrackingConfidence: o.minTrackingConfidence,
+    });
   }
-  var base = this.options.holisticAssetBase || '';
-  try {
-    this._holistic = new HolisticCtor({
-      locateFile: function(file){ return base + file; }
+  if (o.enablePose && vt.PoseLandmarker) {
+    this._pose = await vt.PoseLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: o.poseModelUrl, delegate: o.delegate },
+      runningMode: o.runningMode,
+      numPoses: 1,
+      minPoseDetectionConfidence: o.minDetectionConfidence,
+      minTrackingConfidence: o.minTrackingConfidence,
     });
-    this._holistic.setOptions({
-      modelComplexity: this.options.modelComplexity,
-      smoothLandmarks: true,
-      refineFaceLandmarks: this.options.enableFace,
-      minDetectionConfidence: this.options.minDetectionConfidence,
-      minTrackingConfidence: this.options.minTrackingConfidence
-    });
-    this._holistic.onResults(function(results){
-      self._lastHolisticResults = results;
-      // One-shot capture for sendOnce(): resolve the pending promise with this
-      // result and clear it, BEFORE the continuous-callback fan-out, so a single
-      // detectPose() call gets exactly one result and never hangs.
-      if(self._pendingOnce){
-        var resolveOnce = self._pendingOnce;
-        self._pendingOnce = null;
-        resolveOnce(results);
-      }
-      self._processResults();
-    });
-  } catch(e){
-    if(this.onError) this.onError('Holistic setup: '+((e && e.message) || 'failed'));
   }
-  this.ready = true;
-  this.modelsReady.hands = this.options.enableHands;
-  this.modelsReady.pose = this.options.enablePose;
-  this.modelsReady.face = this.options.enableFace;
-  if(this.onReady) this.onReady(true);
 };
 
 /**
- * One-shot detection: push a single frame and resolve with the next results.
- * Bypasses the continuous _startDetection loop entirely so there is no cross-talk
- * between a one-off detectPose() and any running stream. Resolves null if the
- * model isn't ready or send() throws/rejects; the caller adds a timeout failsafe
- * (onResults legitimately never fires when nothing is in frame).
+ * One-shot detection: run the enabled landmarkers on a single frame and resolve a NORMALISED result
+ * (the old Holistic shape) so the adapter mapping is unchanged. Resolves null if nothing is ready or
+ * detectForVideo throws. Never rejects (rule #12).
  */
-JointDetectionManager.prototype.sendOnce = function(frame){
+JointDetectionManager.prototype.sendOnce = function (frame) {
   var self = this;
-  return new Promise(function(resolve){
-    if(!self._holistic || !frame){ resolve(null); return; }
-    self._pendingOnce = resolve;
+  return new Promise(function (resolve) {
+    if (!frame || (!self._hand && !self._pose)) {
+      resolve(null);
+      return;
+    }
     try {
-      var p = self._holistic.send({image: frame});
-      if(p && typeof p.then === 'function'){
-        p.catch(function(){
-          if(self._pendingOnce === resolve){ self._pendingOnce = null; resolve(null); }
-        });
+      self._ts += 1;
+      var ts = self._ts;
+      var out = { rightHandLandmarks: null, leftHandLandmarks: null, poseLandmarks: null };
+      if (self._hand) {
+        var hr = self._hand.detectForVideo(frame, ts);
+        if (hr && hr.landmarks) {
+          for (var i = 0; i < hr.landmarks.length; i++) {
+            var cat =
+              (hr.handedness && hr.handedness[i] && hr.handedness[i][0] && hr.handedness[i][0].categoryName) || '';
+            // MediaPipe handedness is from the camera's view; we just need a primary hand for gestures.
+            if (cat === 'Left' && !out.leftHandLandmarks) out.leftHandLandmarks = hr.landmarks[i];
+            else if (cat === 'Right' && !out.rightHandLandmarks) out.rightHandLandmarks = hr.landmarks[i];
+            else if (!out.rightHandLandmarks) out.rightHandLandmarks = hr.landmarks[i];
+          }
+        }
       }
-    } catch(e){
-      if(self._pendingOnce === resolve){ self._pendingOnce = null; resolve(null); }
+      if (self._pose) {
+        var pr = self._pose.detectForVideo(frame, ts);
+        if (pr && pr.landmarks && pr.landmarks.length > 0) out.poseLandmarks = pr.landmarks[0];
+      }
+      // Fan out to continuous listeners (used by dev harnesses), best-effort.
+      if (self.onHandsDetected && (out.leftHandLandmarks || out.rightHandLandmarks)) {
+        self.onHandsDetected(out.rightHandLandmarks || out.leftHandLandmarks);
+      }
+      if (self.onPoseDetected && out.poseLandmarks) self.onPoseDetected(out.poseLandmarks);
+      if (self.onGesture) {
+        var primary = out.rightHandLandmarks || out.leftHandLandmarks;
+        if (primary) self.onGesture(self.classifyGesture(primary));
+      }
+      resolve(out);
+    } catch (e) {
+      if (self.onError) self.onError('detectForVideo: ' + ((e && e.message) || 'failed'));
+      resolve(null);
     }
   });
 };
 
-JointDetectionManager.prototype.startCamera = function(videoElement, callback){
-  if(this.cameraActive){ if(callback) callback(true); return; }
+/* ------------------------------------------------------------------ camera -- */
+
+JointDetectionManager.prototype.startCamera = function (videoElement, callback) {
+  if (this.cameraActive) {
+    if (callback) callback(true);
+    return;
+  }
   var self = this;
   this._video = videoElement || this._createVideo();
-  navigator.mediaDevices.getUserMedia({
-    video: {facingMode:'user', width:{ideal:640}, height:{ideal:480}}
-  }).then(function(stream){
-    self._stream = stream;
-    self._video.srcObject = stream;
-    self._video.play().then(function(){
+  navigator.mediaDevices
+    .getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } })
+    .then(function (stream) {
+      self._stream = stream;
+      self._video.srcObject = stream;
+      return self._video.play();
+    })
+    .then(function () {
       self.cameraActive = true;
-      if(self.onCameraReady) self.onCameraReady(true);
-      if(callback) callback(true);
-    }).catch(function(e){
-      if(self.onError) self.onError('camera-play: '+e.message);
-      if(callback) callback(false);
+      if (self.onCameraReady) self.onCameraReady(true);
+      if (callback) callback(true);
+    })
+    .catch(function (e) {
+      if (self.onError) self.onError('camera: ' + e.message);
+      if (callback) callback(false);
     });
-  }).catch(function(e){
-    if(self.onError) self.onError('camera: '+e.message);
-    if(callback) callback(false);
-  });
 };
 
-JointDetectionManager.prototype.stopCamera = function(){
-  if(this._stream){
-    this._stream.getTracks().forEach(function(t){t.stop()});
+JointDetectionManager.prototype.stopCamera = function () {
+  if (this._stream) {
+    this._stream.getTracks().forEach(function (t) {
+      t.stop();
+    });
     this._stream = null;
   }
-  if(this._video){
+  if (this._video) {
     this._video.pause();
     this._video.srcObject = null;
   }
   this.cameraActive = false;
 };
 
-JointDetectionManager.prototype._createVideo = function(){
+JointDetectionManager.prototype._createVideo = function () {
   var video = document.createElement('video');
-  video.setAttribute('playsinline','');
-  video.setAttribute('autoplay','');
+  video.setAttribute('playsinline', '');
+  video.setAttribute('autoplay', '');
   video.muted = true;
   return video;
 };
 
-JointDetectionManager.prototype.detectHands = function(videoElement, callback){
-  this._startDetection(videoElement, {onHands: callback});
-};
+/* ------------------------------------------------- gesture classification -- */
+/* These operate on a 21-point {x,y,z} hand-landmark array (identical in Tasks Vision). */
 
-JointDetectionManager.prototype.detectPose = function(videoElement, callback){
-  this._startDetection(videoElement, {onPose: callback});
-};
-
-JointDetectionManager.prototype.detectAll = function(videoElement, callbacks){
-  this._startDetection(videoElement, callbacks);
-};
-
-JointDetectionManager.prototype._startDetection = function(videoElement, callbacks){
-  if(this.detecting){
-    for(var k in callbacks){ if(callbacks[k]) this._currentCallbacks[k] = callbacks[k]; }
-    return;
-  }
-  var video = videoElement || this._video;
-  if(!video) return;
-  this.detecting = true;
-  this._currentCallbacks = callbacks || {};
-  this._holisticBusy = false;
-  var self = this;
-
-  function detectFn(){
-    // Stop only when detection is explicitly turned off. Do NOT bail just because
-    // the model is still loading — keep polling so the loop survives being started
-    // before the model is ready, and picks it up once it arrives.
-    if(!self.detecting) return;
-    if(self._holistic && !self._holisticBusy && video.readyState >= 2){
-      self._holisticBusy = true;
-      self._holistic.send({image: video}).then(function(){
-        self._holisticBusy = false;
-      }).catch(function(err){
-        self._holisticBusy = false;
-        if(self.onError) self.onError('Holistic: ' + (err.message || 'send failed'));
-      });
-    }
-    self._detectLoop = setTimeout(detectFn, self.options.detectionInterval);
-  }
-
-  this._detectLoop = setTimeout(detectFn, 100);
-};
-
-JointDetectionManager.prototype._processResults = function(){
-  var r = this._lastHolisticResults;
-  if(!r) return;
-  var cbs = this._currentCallbacks;
-
-  if(this.options.enableHands){
-    var hands = this._getHands(r);
-    this._lastHands = hands;
-    if(cbs && cbs.onHands) cbs.onHands(hands);
-    if(this.onHandsDetected) this.onHandsDetected(hands);
-    var g = this._detectGestures(hands);
-    if(g){
-      if(cbs && cbs.onGesture) cbs.onGesture(g);
-      if(this.onGesture) this.onGesture(g);
-    }
-  }
-
-  if(this.options.enablePose){
-    var pose = this._getPose(r);
-    this._lastPose = pose;
-    if(cbs && cbs.onPose) cbs.onPose(pose);
-    if(this.onPoseDetected) this.onPoseDetected(pose);
-  }
-
-  if(this.options.enableFace){
-    var face = this._getFace(r);
-    this._lastFace = face;
-    if(cbs && cbs.onFace) cbs.onFace(face);
-    if(this.onFaceDetected) this.onFaceDetected(face);
-  }
-};
-
-JointDetectionManager.prototype._getHands = function(results){
-  var hands = [];
-  if(results.leftHandLandmarks && results.leftHandLandmarks.length > 0){
-    hands.push({landmarks: results.leftHandLandmarks, handedness: 'Left', score: 1});
-  }
-  if(results.rightHandLandmarks && results.rightHandLandmarks.length > 0){
-    hands.push({landmarks: results.rightHandLandmarks, handedness: 'Right', score: 1});
-  }
-  return hands;
-};
-
-JointDetectionManager.prototype._getPose = function(results){
-  if(results.poseLandmarks && results.poseLandmarks.length > 0){
-    return {landmarks: results.poseLandmarks, score: 1};
-  }
-  return null;
-};
-
-JointDetectionManager.prototype._getFace = function(results){
-  if(results.faceLandmarks && results.faceLandmarks.length > 0){
-    return {landmarks: results.faceLandmarks, score: 1};
-  }
-  return null;
-};
-
-JointDetectionManager.prototype._runHandDetection = function(video){
-  return this._lastHands;
-};
-
-JointDetectionManager.prototype._runPoseDetection = function(video){
-  return this._lastPose;
-};
-
-JointDetectionManager.prototype.stop = function(){
-  this.detecting = false;
-  if(this._detectLoop){
-    clearTimeout(this._detectLoop);
-    this._detectLoop = null;
-  }
-};
-
-JointDetectionManager.prototype._detectGestures = function(hands){
-  if(!hands || hands.length === 0) return null;
-  var results = [];
-
-  for(var i=0;i<hands.length;i++){
-    var hand = hands[i];
-    var landmarks = hand.landmarks;
-    if(!landmarks || landmarks.length < 21) continue;
-
-    var gesture = this._classifyHandGesture(landmarks);
-    var handedness = hand.handedness || 'Unknown';
-
-    results.push({
-      type: gesture,
-      hand: handedness,
-      score: hand.score || 0,
-      landmarks: landmarks
-    });
-  }
-
-  if(results.length === 0) return null;
-  // Always hand back a single gesture object so consumers can rely on `.type` /
-  // `.hand`. Report the primary (first-detected) hand.
-  return results[0];
-};
-
-JointDetectionManager.prototype._classifyHandGesture = function(landmarks){
+/** Public: classify a hand-landmark array into a coarse gesture name. */
+JointDetectionManager.prototype.classifyGesture = function (landmarks) {
+  if (!landmarks || landmarks.length < 21) return 'other';
   var wrist = landmarks[0];
-  var thumbTip = landmarks[4];
   var indexTip = landmarks[8];
-  var indexPip = landmarks[6];
   var middleTip = landmarks[12];
-  var middlePip = landmarks[10];
-  var ringTip = landmarks[16];
-  var ringPip = landmarks[14];
-  var pinkyTip = landmarks[20];
-  var pinkyPip = landmarks[18];
-
   var fingers = this.countExtendedFingers(landmarks);
   var thumbExtended = this._isThumbExtended(landmarks);
-  // Check the index finger specifically (tip above its PIP joint) rather than
-  // "≥1 finger up" — otherwise e.g. a lone raised middle finger would read as an
-  // extended index and mis-trigger the 'point' gesture below.
+  // Index specifically (tip above its PIP) so a lone middle finger doesn't read as 'point'.
   var indexExtended = landmarks[8].y < landmarks[6].y;
   var allExtended = fingers >= 4;
 
-  if(!thumbExtended && !indexExtended && fingers <= 1){
-    return 'fist';
-  }
-
-  if(thumbExtended && !indexExtended && fingers <= 2){
-    return 'thumbs_up';
-  }
-
-  if(!thumbExtended && indexExtended && fingers <= 2){
-    return 'point';
-  }
-
-  if(allExtended){
-    return 'open';
-  }
-
-  if(fingers === 2 && indexExtended){
+  if (!thumbExtended && !indexExtended && fingers <= 1) return 'fist';
+  if (thumbExtended && !indexExtended && fingers <= 2) return 'thumbs_up';
+  if (!thumbExtended && indexExtended && fingers <= 2) return 'point';
+  if (allExtended) return 'open';
+  if (fingers === 2 && indexExtended) {
     var dist = this._distance(indexTip, wrist);
     var midDist = this._distance(middleTip, wrist);
-    if(midDist > dist * 0.7) return 'two_fingers';
+    if (midDist > dist * 0.7) return 'two_fingers';
     return 'peace';
   }
-
   return 'other';
 };
 
-JointDetectionManager.prototype.countExtendedFingers = function(landmarks){
-  if(!landmarks || landmarks.length < 21) return 0;
+JointDetectionManager.prototype.countExtendedFingers = function (landmarks) {
+  if (!landmarks || landmarks.length < 21) return 0;
   var count = 0;
-  // The thumb extends sideways (x-axis), so the tip-above-PIP (y-axis) test used
-  // for the other fingers doesn't apply to it — delegate to the dedicated x-based
-  // check instead of mis-counting it.
-  if(this._isThumbExtended(landmarks)) count++;
-  // Index, middle, ring, pinky: tip higher than its PIP (smaller y) ⇒ extended.
+  // The thumb extends sideways (x-axis), so the tip-above-PIP (y) test for the other fingers doesn't
+  // apply — delegate to the dedicated x-based check.
+  if (this._isThumbExtended(landmarks)) count++;
   var tips = [8, 12, 16, 20];
   var pips = [6, 10, 14, 18];
-  for(var i=0;i<tips.length;i++){
-    if(landmarks[tips[i]].y < landmarks[pips[i]].y) count++;
+  for (var i = 0; i < tips.length; i++) {
+    if (landmarks[tips[i]].y < landmarks[pips[i]].y) count++;
   }
   return count;
 };
 
-JointDetectionManager.prototype.isHandOpen = function(landmarks){
-  if(!landmarks || landmarks.length < 21) return false;
+JointDetectionManager.prototype.isHandOpen = function (landmarks) {
+  if (!landmarks || landmarks.length < 21) return false;
   return this.countExtendedFingers(landmarks) >= 4;
 };
 
-JointDetectionManager.prototype.isPointing = function(landmarks){
-  if(!landmarks || landmarks.length < 21) return false;
-  var indexTip = landmarks[8];
-  var indexPip = landmarks[6];
-  var middlePip = landmarks[10];
-  var ringPip = landmarks[14];
-  var pinkyPip = landmarks[18];
-  var indexExtended = indexTip.y < indexPip.y;
-  var othersCurled = middlePip.y < landmarks[12].y &&
-                      ringPip.y < landmarks[16].y &&
-                      pinkyPip.y < landmarks[20].y;
-  return indexExtended && othersCurled;
-};
-
-JointDetectionManager.prototype.getHandDirection = function(landmarks){
-  if(!landmarks || landmarks.length < 5) return {x:0,y:0};
+JointDetectionManager.prototype.getHandDirection = function (landmarks) {
+  if (!landmarks || landmarks.length < 5) return { x: 0, y: 0 };
   var wrist = landmarks[0];
   var indexMcp = landmarks[5];
   var dx = indexMcp.x - wrist.x;
   var dy = indexMcp.y - wrist.y;
-  var len = Math.sqrt(dx*dx+dy*dy);
-  if(len===0) return {x:0,y:0};
-  return {x:dx/len, y:dy/len};
+  var len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return { x: 0, y: 0 };
+  return { x: dx / len, y: dy / len };
 };
 
-JointDetectionManager.prototype._isThumbExtended = function(landmarks){
-  var thumbTip = landmarks[4];
-  var thumbMcp = landmarks[2];
-  return thumbTip.x < thumbMcp.x - 0.02;
+JointDetectionManager.prototype._isThumbExtended = function (landmarks) {
+  return landmarks[4].x < landmarks[2].x - 0.02;
 };
 
-JointDetectionManager.prototype._getPalmCenter = function(landmarks){
-  var x=0,y=0,z=0;
-  for(var i=0;i<5;i++){
-    x+=landmarks[i].x;
-    y+=landmarks[i].y;
-    z+=landmarks[i].z;
-  }
-  return {x:x/5, y:y/5, z:z/5};
+JointDetectionManager.prototype._distance = function (a, b) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
 };
 
-JointDetectionManager.prototype._distance = function(a,b){
-  return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);
-};
-
-JointDetectionManager.prototype.getState = function(){
+JointDetectionManager.prototype.getState = function () {
   return {
     ready: this.ready,
     cameraActive: this.cameraActive,
-    detecting: this.detecting,
-    handsReady: this.modelsReady.hands,
-    poseReady: this.modelsReady.pose,
-    faceReady: this.modelsReady.face,
+    handsReady: !!this._hand,
+    poseReady: !!this._pose,
     handsEnabled: this.options.enableHands,
     poseEnabled: this.options.enablePose,
-    faceEnabled: this.options.enableFace
   };
 };
 
-JointDetectionManager.prototype.destroy = function(){
-  this.stop();
+JointDetectionManager.prototype.destroy = function () {
   this.stopCamera();
-  // Settle any in-flight sendOnce() before tearing down, so a pending detectPose
-  // promise never hangs when dispose() races it.
-  if(this._pendingOnce){
-    var resolveOnce = this._pendingOnce;
-    this._pendingOnce = null;
-    resolveOnce(null);
+  // Free the MediaPipe WASM/GPU graphs before dropping references; GC won't reclaim the native
+  // graph, so without close() every re-creation leaks one.
+  if (this._hand && typeof this._hand.close === 'function') {
+    try {
+      this._hand.close();
+    } catch (e) {
+      /* ignore */
+    }
   }
-  // Free the MediaPipe WASM/GPU graph before dropping the reference. GC won't
-  // reclaim the native graph for us; without this every re-creation leaks one.
-  if(this._holistic && typeof this._holistic.close === 'function'){
-    try { this._holistic.close(); } catch(e){}
+  if (this._pose && typeof this._pose.close === 'function') {
+    try {
+      this._pose.close();
+    } catch (e) {
+      /* ignore */
+    }
   }
-  this._holistic = null;
+  this._hand = null;
+  this._pose = null;
   this.ready = false;
   this.onHandsDetected = null;
   this.onPoseDetected = null;
-  this.onFaceDetected = null;
   this.onGesture = null;
   this.onCameraReady = null;
   this.onError = null;

@@ -10,6 +10,48 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 - **Done = git history; pending = this file.**
 
 ## Recently done (2026-06-09)
+- ✓ **On-device ML actually works now — both paths verified on a real webcam.** The toolbox ML was
+  "green tests, broken in reality": a `import(/* @vite-ignore */ variableSpecifier)` meant Vite never
+  resolved tfjs/MediaPipe, so **the libraries never loaded in the browser** — the camera demo only ever
+  "worked" because the old KNN used pixel features (no lib). Fixed + upgraded both paths:
+  - **Recognition (teachable image):** replaced the coarse 28×28 pixel-downsample features (useless on a
+    real camera — lighting/background dominated) with **MobileNet embeddings + `@tensorflow-models/knn-classifier`**
+    (the real Teachable Machine method; context7 `/tensorflow/tfjs-models`). New deps `mobilenet@2.1.1`
+    + `knn-classifier@1.2.6`. **User-confirmed working on a real webcam.**
+  - **Joints (hand/pose):** migrated off the **deprecated `@mediapipe/holistic`** to the maintained
+    **`@mediapipe/tasks-vision`** (`HandLandmarker` + synchronous `detectForVideo`; PLAN §5). `sendOnce`
+    keeps the old result shape so `resultsToLandmarks` is unchanged; gesture helpers carried over.
+    **User-confirmed hand tracking working on a real webcam.**
+  - **Root-cause fix (debuggability):** the broken import + a fully-swallowed `mgr.onError` made a total
+    library-load failure show as a cheerful "unknown, 0%". Switched all ML loads to **literal
+    `import('pkg')`** specifiers (Vite-resolvable + code-split) and wired engine errors to
+    `debug('toolbox:recognition'|'toolbox:joints')`. Caught only because a live browser run contradicted
+    green unit tests — fakes prove wiring, not that libs load.
+  - **Tests** rewritten to inject fakes (jsdom has no tfjs/WebGL): `recognition.test.ts` (7) + `ai.test.ts`
+    detectPose/KNN cases. **`npm run validate` green (60 tests).** New DEV harnesses
+    `apps/host-standalone/src/Dev{Camera,Pose}Sim.tsx` (`?camera` / `?pose`) for real-webcam testing.
+  - ☐ **Follow-up (rule #4 / offline):** self-host the MobileNet model + tasks-vision wasm/.task files
+    (both currently load from CDN on first use → online-only). `scripts/vendor-ml-assets.mjs` already
+    stages MediaPipe assets; extend to host `public/` + wire `mobilenetUrl`/`mpWasmBase`/`handModelUrl`.
+
+
+- ✓ **"Click-and-play" static build wired (build → open a URL).** Q: can the React+TS games run like
+  a double-clicked HTML file? A (confirmed via context7 `/vitejs/vite`): **not from `file://`** —
+  browsers block ES-module `<script>`s over `file://` (CORS), so a naked double-click of the built
+  `index.html` is blank. The supported path is **serve the static build over http(s)**:
+  - `apps/host-standalone/vite.config.ts` now sets **`base: './'`** → relative asset URLs, so the
+    built `dist/` is portable (domain root, sub-path, or `vite preview` all work).
+  - Root scripts made real: **`build`** now actually builds the app (`tsc --build` + `vite build`,
+    was typecheck-only), plus **`preview`** and a one-shot **`play`** (`build && preview`).
+  - Verified: `npm run build` → 186 kB JS / 59 kB gzip (tfjs/coco are dynamic-imported only by
+    camera/pose games, so the voice+draw game stays light); `npm run preview` → **the production
+    build is fully playable at `http://localhost:4173/`** (intro → teach phase, **0 console errors**,
+    Playwright-driven). `dist/` is gitignored.
+  - Caveat recorded: camera/ML games need http(s) even when bundled (they `fetch()` tfjs/MediaPipe
+    WASM, blocked on `file://`; getUserMedia needs a secure context). True offline "click-and-play"
+    = the planned `vite-plugin-pwa` install-once cache (PLAN §1), not a loose file.
+  - ⚠ **Stray:** `demos/teach-the-robot/index.html` — a zero-dependency vanilla teachable-machine
+    game built during a misread (it IS double-click-playable, as the file:// contrast); keep-or-remove TBD.
 - ✓ **Cross-tool agent sync made opencode-native (Claude ↔ opencode parity, one canonical source).**
   The 11 subagents are authored once in `.ai/agents/*.md`; `scripts/sync-agents.mjs` now **translates**
   the frontmatter per tool instead of copying it verbatim, so each toolchain gets idiomatic agents
@@ -27,6 +69,33 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
     opencode does **not** read `.claude/agents`, which is exactly why those need a translated copy.
   - Enforced by the existing **`npm run sync:check`** drift gate (runs first in `validate`), so a stale
     or hand-edited tool dir fails typecheck/CI/pre-push.
+
+## Recently done (2026-06-08)
+- ✓ **Camera toolbox proven working (teach→test loop tested).** The `@edu/toolbox`
+  `RecognitionManager` (teachable-image: pixel-feature **KNN** + coco-ssd object-detection fallback)
+  was wired into `createAIServices` but its KNN branch — *the* kindergarten "teach AI → test AI"
+  camera mechanic — had **zero tests** (only the coco-ssd branch was covered). Now:
+  - **`@edu/testing` jsdom canvas stub upgraded** (backward-compatible): `drawImage(frame)` carries a
+    `frame.__tint` (0–255 grey) into `getImageData`, so distinct synthetic frames yield
+    class-distinct pixel features in jsdom (which renders `<canvas>` as `<div>` without the native
+    `canvas` package — confirmed via context7 `/jsdom/jsdom`). Untinted frames still return all-zeros,
+    so the PaintableShape "painted=0" coverage tests are unaffected.
+  - **New `recognition.test.ts` (7) + 1 adapter test in `ai.test.ts`:** teach two classes → later
+    frames classify to the taught label; **a trained class beats a confident coco-ssd prediction**
+    (dog@0.95 → "sun"), proving teach-overrides-pretrained; empty-store/null-frame → `{unknown,0}`;
+    `getKnownClasses`/`getState`/`destroy` (disposes WebGL tensors, clears callbacks).
+  - **`npm run validate` green** (EXIT=0): sync:check + typecheck + contracts + **59 tests** (toolbox 17→25).
+  - **Proven in a REAL browser, not just jsdom:** new DEV-only harness
+    `apps/host-standalone/src/DevCameraSim.tsx` (mount with `npm run dev --workspace @edu/host-standalone`
+    → `http://localhost:5173/?camera`) drives the live `ctx.ai` teach→test loop on a webcam. Driven
+    headless via Playwright + a canvas-backed fake `getUserMedia`: taught red→**Thing A (100%)**,
+    blue→**Thing B (100%)**, 0 console errors — the genuine pipeline
+    (`getUserMedia → video → drawImage → getImageData → KNN`) discriminates classes.
+  - **Perf fix surfaced by the live run:** `recognition.js` scratch + camera canvases now use
+    `getContext('2d', { willReadFrequently: true })` (per-frame getImageData readbacks; killed the
+    Canvas2D GPU-readback warning).
+  - ☐ **Follow-ups (flagged, not done):** MobileNet-embedding upgrade (replace the coarse pixel
+    downsample — the code's own fidelity note) and the mechanical `recognition.js`→`.ts` conversion.
 
 ## Recently done (2026-06-07)
 - ✓ **Removed the shared `@edu/ui` package — "no boundary but the vibe".** Per design call: there
@@ -163,7 +232,7 @@ Living status of the build vs the approved plan ([PLAN.md](PLAN.md)). **Update t
 
 ## Packages (`@edu/*`)
 - ✓ `contract` · ✓ `debug` · ✓ `testing` (test doubles) · ◐ `ui` (crayon tokens + `Button`)
-- ☐ `city` · ☐ `engine` · ☐ `toolbox` · ☐ `ai` · ☐ `i18n` · ☐ `audio` · ☐ `teacher` · ☐ `telemetry`
+- ◐ `toolbox` (PORTED: `createAIServices` STT/TTS/pose + **teachable-image camera** [RecognitionManager: KNN teach→test + coco-ssd fallback] + `createAudioBus`; engines still allowJs `.js`+`.d.ts`; `@edu/ai` `AIServices` impl lives here) · ☐ `city` · ☐ `engine` · ☐ `i18n` · ☐ `audio` · ☐ `teacher` · ☐ `telemetry`
 
 ## Apps
 - ◐ `host-standalone` (Vite host + concrete `GameContext`: TTS/STT/audio/storage/teacher + dev voice-sim) · ☐ `host-city` (the merge) · ☐ `launcher` (R20)

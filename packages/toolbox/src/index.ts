@@ -17,12 +17,9 @@ export type { ToolboxAudioOptions } from './audio.js';
 export { JointDetectionManager } from './engine/joints.js';
 export type {
   JointDetectionOptions,
-  HolisticCtor,
-  HolisticInstance,
-  HolisticResults,
+  VisionTasksLib,
+  JointResults,
   MpLandmark,
-  HandResult,
-  GestureResult,
 } from './engine/joints.js';
 
 export { RecognitionManager } from './engine/recognition.js';

@@ -1,39 +1,43 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createAIServices } from './ai.js';
-import type { HolisticCtor } from './engine/joints.js';
+import type { VisionTasksLib, MpLandmark } from './engine/joints.js';
 import type { CocoSsdLib, TfLib } from './engine/recognition.js';
 
 /* ------------------------------------------------------------------ fakes -- */
 
-type Emit = 'hand' | 'none' | 'silent';
+/** A 21-point hand the fake HandLandmarker reports. */
+const HAND_21: MpLandmark[] = Array.from({ length: 21 }, (_, i) => ({ x: i / 21, y: 0.5, z: 0 }));
 
-/** A fake MediaPipe Holistic whose behaviour we control per test. */
-function makeFakeHolistic(emit: Emit = 'hand', throwOnNew = false) {
+/**
+ * A fake @mediapipe/tasks-vision module whose detectForVideo behaviour we control per test. The real
+ * detectForVideo is synchronous, so there is no "never responds" failure mode — the rule #12 cases are
+ * a throwing detector and a landmarker that fails to build.
+ */
+function makeFakeVisionTasks(opts: { hand?: MpLandmark[] | 'throw' | 'none'; failBuild?: boolean } = {}) {
   let closed = false;
-  class Fake {
-    cb: ((r: unknown) => void) | null = null;
-    constructor(_cfg: { locateFile?: (f: string) => string }) {
-      if (throwOnNew) throw new Error('holistic ctor boom');
-    }
-    setOptions(_o: unknown) {}
-    onResults(cb: (r: unknown) => void) {
-      this.cb = cb;
-    }
-    send(_input: { image: unknown }) {
-      if (emit === 'silent') return Promise.resolve(); // never calls onResults
-      return Promise.resolve().then(() => {
-        if (emit === 'none') this.cb?.({});
-        else
-          this.cb?.({
-            rightHandLandmarks: Array.from({ length: 21 }, (_, i) => ({ x: i / 21, y: 0.5, z: 0 })),
-          });
-      });
-    }
-    close() {
+  const hand = opts.hand === undefined ? HAND_21 : opts.hand;
+  const landmarker = {
+    detectForVideo: () => {
+      if (hand === 'throw') throw new Error('detectForVideo boom');
+      if (hand === 'none') return { landmarks: [], handedness: [] };
+      return { landmarks: [hand], handedness: [[{ categoryName: 'Right' }]] };
+    },
+    close: () => {
       closed = true;
-    }
-  }
-  return { Ctor: Fake as unknown as HolisticCtor, wasClosed: () => closed };
+    },
+  };
+  const ctor = {
+    createFromOptions: async () => {
+      if (opts.failBuild) throw new Error('createFromOptions boom');
+      return landmarker;
+    },
+  };
+  const lib = {
+    FilesetResolver: { forVisionTasks: async () => ({}) },
+    HandLandmarker: ctor,
+    PoseLandmarker: ctor,
+  } as unknown as VisionTasksLib;
+  return { lib, wasClosed: () => closed };
 }
 
 const fakeTf: TfLib = { ready: () => Promise.resolve() };
@@ -48,6 +52,39 @@ const cocoRejecting = (): CocoSsdLib => ({
     dispose() {},
   }),
 });
+
+/** Fake MobileNet feature extractor: infer(frame) → embedding echoing frame.__v (jsdom has no tfjs). */
+const fakeMobilenet = () => ({
+  load: async () => ({
+    infer: (img: unknown) => ({ __v: (img as { __v?: number } | null)?.__v ?? 0, dispose() {} }),
+    dispose() {},
+  }),
+});
+/** Fake knn-classifier: nearest-neighbour over the scalar embeddings (same contract as the real lib). */
+const fakeKnn = () => {
+  const store: Record<string, number[]> = {};
+  return {
+    create: () => ({
+      addExample: (ex: { __v?: number }, label: string) => {
+        (store[label] ??= []).push(ex.__v ?? 0);
+      },
+      predictClass: async (input: { __v?: number }) => {
+        const q = input.__v ?? 0;
+        let best: string | null = null;
+        let bestD = Infinity;
+        for (const [label, vals] of Object.entries(store))
+          for (const v of vals) if (Math.abs(v - q) < bestD) { bestD = Math.abs(v - q); best = label; }
+        const confidences: Record<string, number> = {};
+        for (const l of Object.keys(store)) confidences[l] = l === best ? 1 : 0;
+        return { label: best, classIndex: 0, confidences };
+      },
+      getNumClasses: () => Object.keys(store).length,
+      getClassExampleCount: () =>
+        Object.fromEntries(Object.entries(store).map(([k, v]) => [k, v.length])),
+      dispose() {},
+    }),
+  };
+};
 
 /* ----------------------------------------------------------- speech stubs -- */
 
@@ -79,32 +116,31 @@ afterEach(() => {
 
 /* ------------------------------------------------------------------ tests -- */
 
-describe('createAIServices.detectPose (rule #12: never hangs/throws)', () => {
+describe('createAIServices.detectPose (rule #12: never throws)', () => {
   it('returns the primary hand landmarks when a hand is detected', async () => {
-    const { Ctor } = makeFakeHolistic('hand');
-    const ai = createAIServices({ holisticCtor: Ctor });
+    const ai = createAIServices({ visionTasks: makeFakeVisionTasks().lib });
     const lm = await ai.detectPose({} as HTMLVideoElement);
     expect(lm).toHaveLength(21);
     expect(lm[0]).toHaveProperty('x');
   });
 
-  it('resolves [] when the model never responds (timeout failsafe)', async () => {
-    const { Ctor } = makeFakeHolistic('silent');
-    const ai = createAIServices({ holisticCtor: Ctor, detectPoseTimeoutMs: 10 });
-    const lm = await ai.detectPose({} as HTMLVideoElement);
-    expect(lm).toEqual([]);
+  it('resolves [] when nothing is in frame', async () => {
+    const ai = createAIServices({ visionTasks: makeFakeVisionTasks({ hand: 'none' }).lib });
+    expect(await ai.detectPose({} as HTMLVideoElement)).toEqual([]);
   });
 
-  it('resolves [] when the Holistic constructor throws', async () => {
-    const { Ctor } = makeFakeHolistic('hand', /* throwOnNew */ true);
-    const ai = createAIServices({ holisticCtor: Ctor });
-    const lm = await ai.detectPose({} as HTMLVideoElement);
-    expect(lm).toEqual([]);
+  it('resolves [] when detectForVideo throws', async () => {
+    const ai = createAIServices({ visionTasks: makeFakeVisionTasks({ hand: 'throw' }).lib });
+    expect(await ai.detectPose({} as HTMLVideoElement)).toEqual([]);
+  });
+
+  it('resolves [] when the landmarker fails to build', async () => {
+    const ai = createAIServices({ visionTasks: makeFakeVisionTasks({ failBuild: true }).lib });
+    expect(await ai.detectPose({} as HTMLVideoElement)).toEqual([]);
   });
 
   it('serializes concurrent calls without cross-talk', async () => {
-    const { Ctor } = makeFakeHolistic('hand');
-    const ai = createAIServices({ holisticCtor: Ctor });
+    const ai = createAIServices({ visionTasks: makeFakeVisionTasks().lib });
     const [a, b] = await Promise.all([
       ai.detectPose({} as HTMLVideoElement),
       ai.detectPose({} as HTMLVideoElement),
@@ -131,6 +167,26 @@ describe('createAIServices.classifyImage / trainImageClass (rule #12)', () => {
     const ai = createAIServices({ tf: fakeTf, cocoSsd: cocoReturning([]) });
     await expect(ai.trainImageClass('cat', {} as HTMLCanvasElement)).resolves.toBeUndefined();
   });
+
+  it('classifyImage returns a taught MobileNet+KNN class over the detector (the KG teach→test loop)', async () => {
+    // Full adapter wiring: trainImageClass → RecognitionManager.addSample (MobileNet embedding → KNN),
+    // then classifyImage → classifyFrame. coco-ssd is present but a *trained* class must win, mirroring
+    // "teach AI → test AI". Frames carry __v so the injected fake extractor yields class-distinct embeddings.
+    const ai = createAIServices({
+      tf: fakeTf,
+      cocoSsd: cocoReturning([{ class: 'dog', score: 0.95, bbox: [0, 0, 1, 1] }]),
+      mobilenet: fakeMobilenet(),
+      knnClassifier: fakeKnn(),
+    });
+    const bright = { __v: 220 } as unknown as HTMLCanvasElement;
+    const dark = { __v: 30 } as unknown as HTMLCanvasElement;
+    for (let i = 0; i < 4; i++) {
+      await ai.trainImageClass('sun', bright);
+      await ai.trainImageClass('night', dark);
+    }
+    expect(await ai.classifyImage(bright)).toEqual({ label: 'sun', confidence: expect.any(Number) });
+    expect((await ai.classifyImage(dark)).label).toBe('night');
+  });
 });
 
 describe('createAIServices.listenOnce (rule #12)', () => {
@@ -156,19 +212,18 @@ describe('createAIServices.listenOnce (rule #12)', () => {
 });
 
 describe('createAIServices.dispose + probe', () => {
-  it('dispose() frees the Holistic graph and later calls degrade to []', async () => {
-    const { Ctor, wasClosed } = makeFakeHolistic('hand');
-    const ai = createAIServices({ holisticCtor: Ctor });
-    await ai.detectPose({} as HTMLVideoElement); // builds the engine
+  it('dispose() frees the landmarker graph and later calls degrade to []', async () => {
+    const f = makeFakeVisionTasks();
+    const ai = createAIServices({ visionTasks: f.lib });
+    expect(await ai.detectPose({} as HTMLVideoElement)).toHaveLength(21); // builds + detects
     await ai.dispose();
-    expect(wasClosed()).toBe(true);
+    expect(f.wasClosed()).toBe(true);
     const after = await ai.detectPose({} as HTMLVideoElement);
     expect(after).toEqual([]);
   });
 
   it('probe is honest per capability', async () => {
-    const { Ctor } = makeFakeHolistic('hand');
-    const ai = createAIServices({ holisticCtor: Ctor });
+    const ai = createAIServices({ visionTasks: makeFakeVisionTasks().lib });
     expect(await ai.probe('recognizePose')).toBe(true);
     expect(await ai.probe('converse')).toBe(false);
     expect(await ai.probe('generateImage')).toBe(false);

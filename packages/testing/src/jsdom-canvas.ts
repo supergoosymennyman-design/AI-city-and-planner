@@ -7,9 +7,21 @@
  * Call once from a Vitest setup file. Safe no-op outside a DOM env.
  */
 
+/** A source a test can hand to `drawImage` to make `getImageData` return a known, uniform colour. */
+interface TintedSource {
+  /** 0–255 grey value the drawn frame "contains"; lets image-ML tests produce distinguishable pixels. */
+  __tint?: number;
+}
+
 /** A do-nothing 2D context covering the methods our components call (drawing is irrelevant here). */
 function makeContext2D(): Record<string, unknown> {
   const noop = (): void => {};
+  // The last `__tint` a synthetic frame carried into drawImage. `null` = nothing tinted yet, so
+  // getImageData stays all-zeros (preserves the PaintableShape "painted count = 0" coverage tests).
+  // When a test draws a `{ __tint }` frame, getImageData echoes it back as a uniform opaque buffer —
+  // enough for the teachable-image KNN (pixel-downsample features) to tell two classes apart in jsdom,
+  // which otherwise renders <canvas> as a <div> (no real getImageData). See @edu/toolbox recognition.
+  let tint: number | null = null;
   return {
     setTransform: noop,
     clearRect: noop,
@@ -17,7 +29,11 @@ function makeContext2D(): Record<string, unknown> {
     restore: noop,
     clip: noop,
     fillRect: noop,
-    drawImage: noop,
+    drawImage: (src: TintedSource | unknown): void => {
+      if (src && typeof (src as TintedSource).__tint === 'number') {
+        tint = (src as TintedSource).__tint as number;
+      }
+    },
     stroke: noop,
     translate: noop,
     scale: noop,
@@ -30,10 +46,22 @@ function makeContext2D(): Record<string, unknown> {
     closePath: noop,
     fill: noop,
     putImageData: noop,
-    // Coverage sampling reads `.data`; return transparent pixels so "painted" count is 0.
-    getImageData: (_x: number, _y: number, w: number, h: number) => ({
-      data: new Uint8ClampedArray(Math.max(0, (w | 0) * (h | 0) * 4)),
-    }),
+    // Coverage sampling reads `.data`. Untinted → transparent pixels (painted count 0, the default).
+    // After a tinted drawImage → a uniform opaque grey, so feature extraction yields a stable,
+    // class-distinct vector instead of all-zeros.
+    getImageData: (_x: number, _y: number, w: number, h: number) => {
+      const len = Math.max(0, (w | 0) * (h | 0) * 4);
+      const data = new Uint8ClampedArray(len);
+      if (tint !== null) {
+        for (let i = 0; i < len; i += 4) {
+          data[i] = tint;
+          data[i + 1] = tint;
+          data[i + 2] = tint;
+          data[i + 3] = 255;
+        }
+      }
+      return { data };
+    },
     createLinearGradient: () => ({ addColorStop: noop }),
     // Settable style props (assignments must not throw).
     fillStyle: '#000',

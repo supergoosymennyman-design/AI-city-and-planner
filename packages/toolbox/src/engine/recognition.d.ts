@@ -25,21 +25,72 @@ export interface TfLib {
   ready?(): Promise<void>;
 }
 
+/** A feature embedding tensor — we only ever pass it to the KNN then dispose it. */
+export interface EmbeddingTensor {
+  dispose?(): void;
+}
+
+/** Minimal MobileNet model shape: turn a frame into a feature embedding. */
+export interface MobilenetModel {
+  /** `embedding=true` returns the penultimate-layer activation (the feature vector), not class logits. */
+  infer(img: unknown, embedding?: boolean): EmbeddingTensor;
+  dispose?(): void;
+}
+
+/** Minimal MobileNet module shape — INJECTED (no CDN global). */
+export interface MobilenetLib {
+  load(config?: {
+    version?: number;
+    alpha?: number;
+    modelUrl?: string;
+    inputRange?: [number, number];
+  }): Promise<MobilenetModel>;
+}
+
+/** Result of knn-classifier predictClass: label + per-label confidence map. */
+export interface KnnPrediction {
+  label: string | null;
+  classIndex: number;
+  confidences: Record<string, number>;
+}
+
+/** Minimal knn-classifier instance shape (the subset we use). */
+export interface KnnClassifier {
+  addExample(example: EmbeddingTensor, label: string): void;
+  predictClass(input: EmbeddingTensor, k?: number): Promise<KnnPrediction>;
+  getNumClasses(): number;
+  getClassExampleCount(): Record<string, number>;
+  clearAllClasses?(): void;
+  dispose(): void;
+}
+
+/** Minimal knn-classifier module shape — INJECTED (no CDN global). */
+export interface KnnClassifierLib {
+  create(): KnnClassifier;
+}
+
 export interface RecognitionOptions {
-  modelType?: string;
   scoreThreshold?: number;
   cameraFacingMode?: string;
   maxTeachSamples?: number;
-  width?: number;
-  height?: number;
   knnTopK?: number;
   enableTeaching?: boolean;
   /** Injected TensorFlow.js (no CDN). */
   tf?: TfLib | null;
-  /** Injected coco-ssd module (no CDN). */
+  /** Injected coco-ssd module (no CDN) — the no-training fallback. */
   cocoSsd?: CocoSsdLib | null;
+  /** Injected MobileNet module (no CDN) — the teachable feature extractor. */
+  mobilenet?: MobilenetLib | null;
+  /** Injected knn-classifier module (no CDN). */
+  knnClassifier?: KnnClassifierLib | null;
   /** Local (host-served) coco-ssd model graph URL. */
   cocoModelUrl?: string;
+  /** Local (host-served) MobileNet model graph URL. */
+  mobilenetUrl?: string;
+  /** MobileNet version (1|2) — default 2. */
+  mobilenetVersion?: number;
+  /** MobileNet width multiplier (0.25/0.5/0.75/1.0) — default 1.0 (best accuracy). */
+  mobilenetAlpha?: number;
 }
 
 export interface ClassifyResult {
@@ -59,15 +110,17 @@ export declare class RecognitionManager {
   onReady: ((ready: boolean) => void) | null;
   onClassTaught: ((info: { label: string; sampleCount: number }) => void) | null;
 
-  /** Load the injected coco-ssd model (or go KNN-only if none injected). */
+  /** Load the MobileNet extractor + KNN (and optional coco-ssd), then fire onReady. */
   initialize(): void;
-  /** Add one labeled KNN sample from a single frame. */
+  /** Add one labeled MobileNet-embedding sample from a single frame. */
   addSample(label: string, frame: unknown): boolean;
   /** Classify one frame → {label, confidence}; never rejects. */
   classifyFrame(frame: unknown): Promise<ClassifyResult>;
 
   startCamera(videoElement: unknown, facingMode?: string, callback?: (ok: boolean) => void): void;
   stopCamera(): void;
+  classifyImage(videoElement: unknown, callback?: (r: ClassifyResult) => void): void;
+  teachClass(label: string, videoElement: unknown, numSamples?: number, callback?: (ok: boolean) => void): void;
   getKnownClasses(): Array<{ label: string; sampleCount: number }>;
   getState(): Record<string, unknown>;
   destroy(): void;

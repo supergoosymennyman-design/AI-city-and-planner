@@ -70,7 +70,34 @@ function HostShell() {
  * then render. Both imports are dynamic + DEV-gated, so production never bundles @edu/testing.
  */
 async function boot(): Promise<void> {
-  const useVoiceSim = import.meta.env.DEV && !new URLSearchParams(window.location.search).has('realvoice');
+  const params = new URLSearchParams(window.location.search);
+  const rootEl = document.getElementById('root');
+  if (!rootEl) return;
+
+  // DEV-only `?camera`: mount the live teachable-image harness instead of the game, to test the
+  // real `ctx.ai` camera path (trainImageClass → classifyImage) against an actual webcam (§5).
+  if (import.meta.env.DEV && params.has('camera')) {
+    const { DevCameraSim } = await import('./DevCameraSim.js');
+    createRoot(rootEl).render(
+      <StrictMode>
+        <DevCameraSim ai={ctx.ai} />
+      </StrictMode>,
+    );
+    return;
+  }
+
+  // DEV-only `?pose`: mount the live hand/pose harness to test `ctx.ai.detectPose` (§5).
+  if (import.meta.env.DEV && params.has('pose')) {
+    const { DevPoseSim } = await import('./DevPoseSim.js');
+    createRoot(rootEl).render(
+      <StrictMode>
+        <DevPoseSim ai={ctx.ai} />
+      </StrictMode>,
+    );
+    return;
+  }
+
+  const useVoiceSim = import.meta.env.DEV && !params.has('realvoice');
   if (useVoiceSim) {
     const [{ installFakeSpeechRecognition }, { mountVoiceSim }] = await Promise.all([
       import('@edu/testing'),
@@ -78,14 +105,11 @@ async function boot(): Promise<void> {
     ]);
     mountVoiceSim(installFakeSpeechRecognition());
   }
-  const rootEl = document.getElementById('root');
-  if (rootEl) {
-    createRoot(rootEl).render(
-      <StrictMode>
-        <HostShell />
-      </StrictMode>,
-    );
-  }
+  createRoot(rootEl).render(
+    <StrictMode>
+      <HostShell />
+    </StrictMode>,
+  );
 }
 
 void boot();

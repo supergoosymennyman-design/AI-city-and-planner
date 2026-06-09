@@ -1,7 +1,8 @@
 /**
- * Hand-written types for joints.js (the typed boundary for the port). This .d.ts
- * sits beside joints.js so TypeScript uses it for types and does NOT synthesize a
- * declaration from the .js (avoids fragile declaration-from-JS under composite).
+ * Hand-written types for joints.js (the typed boundary for the port). This .d.ts sits beside joints.js
+ * so TypeScript uses it for types and does NOT synthesize a declaration from the .js.
+ *
+ * Backed by @mediapipe/tasks-vision (HandLandmarker / PoseLandmarker), injected — never a CDN global.
  */
 
 /** A MediaPipe normalized landmark (image coords 0..1; z relative; visibility optional). */
@@ -12,52 +13,54 @@ export interface MpLandmark {
   visibility?: number;
 }
 
-/** The results object MediaPipe Holistic hands to its onResults callback. */
-export interface HolisticResults {
-  leftHandLandmarks?: MpLandmark[];
-  rightHandLandmarks?: MpLandmark[];
-  poseLandmarks?: MpLandmark[];
-  faceLandmarks?: MpLandmark[];
+/** Normalised one-shot result (mirrors the old Holistic shape so ai.ts mapping is unchanged). */
+export interface JointResults {
+  rightHandLandmarks?: MpLandmark[] | null;
+  leftHandLandmarks?: MpLandmark[] | null;
+  poseLandmarks?: MpLandmark[] | null;
 }
 
-/** Minimal structural shape of a MediaPipe Holistic instance (we don't depend on upstream types). */
-export interface HolisticInstance {
-  setOptions(options: Record<string, unknown>): void;
-  onResults(cb: (results: HolisticResults) => void): void;
-  send(input: { image: unknown }): Promise<void> | void;
-  close?(): void | Promise<void>;
+/** What a tasks-vision landmarker's detectForVideo() returns (the subset we read). */
+export interface LandmarkerResult {
+  landmarks?: MpLandmark[][];
+  handedness?: Array<Array<{ categoryName?: string }>>;
 }
 
-/** Constructor for a Holistic instance — INJECTED (never a CDN global). */
-export type HolisticCtor = new (config: { locateFile?: (file: string) => string }) => HolisticInstance;
+/** A constructed HandLandmarker/PoseLandmarker instance (the subset we call). */
+export interface VisionLandmarker {
+  detectForVideo(frame: unknown, timestampMs: number): LandmarkerResult;
+  close?(): void;
+}
+
+/** The HandLandmarker/PoseLandmarker classes' static `createFromOptions`. */
+export interface VisionLandmarkerCtor {
+  createFromOptions(fileset: unknown, options: Record<string, unknown>): Promise<VisionLandmarker>;
+}
+
+/** Minimal shape of the INJECTED @mediapipe/tasks-vision module. */
+export interface VisionTasksLib {
+  FilesetResolver: { forVisionTasks(wasmBase: string): Promise<unknown> };
+  HandLandmarker?: VisionLandmarkerCtor;
+  PoseLandmarker?: VisionLandmarkerCtor;
+}
 
 export interface JointDetectionOptions {
   enableHands?: boolean;
   enablePose?: boolean;
-  enableFace?: boolean;
-  maxNumHands?: number;
+  numHands?: number;
   runningMode?: string;
-  detectionInterval?: number;
-  modelComplexity?: number;
   minDetectionConfidence?: number;
   minTrackingConfidence?: number;
-  /** Injected MediaPipe Holistic constructor (no CDN). */
-  HolisticCtor?: HolisticCtor | null;
-  /** Local base path the host serves Holistic's asset files from. */
-  holisticAssetBase?: string;
-}
-
-export interface HandResult {
-  landmarks: MpLandmark[];
-  handedness: string;
-  score: number;
-}
-
-export interface GestureResult {
-  type: string;
-  hand: string;
-  score: number;
-  landmarks: MpLandmark[];
+  /** Injected @mediapipe/tasks-vision module (no CDN). */
+  visionTasks?: VisionTasksLib | null;
+  /** Host-served URL of the dir holding the tasks-vision wasm files. */
+  wasmBase?: string;
+  /** Host-served URL of the hand_landmarker .task model. */
+  handModelUrl?: string;
+  /** Host-served URL of the pose_landmarker .task model. */
+  poseModelUrl?: string;
+  /** Inference delegate: 'GPU' (WebGL) or 'CPU'. */
+  delegate?: string;
 }
 
 export declare class JointDetectionManager {
@@ -65,30 +68,26 @@ export declare class JointDetectionManager {
 
   ready: boolean;
   cameraActive: boolean;
-  detecting: boolean;
 
-  onHandsDetected: ((hands: HandResult[]) => void) | null;
-  onPoseDetected: ((pose: { landmarks: MpLandmark[]; score: number } | null) => void) | null;
-  onFaceDetected: ((face: { landmarks: MpLandmark[]; score: number } | null) => void) | null;
-  onGesture: ((g: GestureResult) => void) | null;
+  onHandsDetected: ((hand: MpLandmark[]) => void) | null;
+  onPoseDetected: ((pose: MpLandmark[]) => void) | null;
+  onGesture: ((gesture: string) => void) | null;
   onCameraReady: ((ready: boolean) => void) | null;
   onError: ((message: string) => void) | null;
   onReady: ((ready: boolean) => void) | null;
 
-  /** Build the Holistic instance from the injected constructor. */
+  /** Async-load the enabled landmarkers from the injected tasks-vision module, then fire onReady. */
   initialize(): void;
-  /** One-shot detection: push one frame, resolve with the next results (null if unavailable). */
-  sendOnce(frame: unknown): Promise<HolisticResults | null>;
-  /** Continuous detection loop (escape hatch for live tracking). */
-  detectAll(videoElement: unknown, callbacks: Record<string, (arg: never) => void>): void;
+  /** One-shot detection: run enabled landmarkers on one frame; resolve normalised results (null if unavailable). */
+  sendOnce(frame: unknown): Promise<JointResults | null>;
   startCamera(videoElement: unknown, callback?: (ok: boolean) => void): void;
   stopCamera(): void;
-  stop(): void;
-  destroy(): void;
 
-  isPointing(landmarks: MpLandmark[]): boolean;
+  /** Classify a 21-point hand-landmark array into a coarse gesture name. */
+  classifyGesture(landmarks: MpLandmark[]): string;
   isHandOpen(landmarks: MpLandmark[]): boolean;
   countExtendedFingers(landmarks: MpLandmark[]): number;
   getHandDirection(landmarks: MpLandmark[]): { x: number; y: number };
   getState(): Record<string, unknown>;
+  destroy(): void;
 }
