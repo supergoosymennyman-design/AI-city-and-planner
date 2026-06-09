@@ -1,8 +1,10 @@
 ---
-name: blueprint-author
 description: Turns a course designer's source doc (in source/<track>/<band>-<NN>-<slug>/) into a buildable, human-approvable game blueprint at docs/curriculum/<track>-<band>-NN-<slug>.md by running the `blueprint` skill (two-stage extract→enrich, KG or primary). Use as step 1 of /build-game, before any code. Stops if the source intake folder is missing or empty (Gate 0).
-tools: Read, Write, Edit, Glob, Grep, Bash
-model: inherit
+mode: subagent
+permission:
+  edit: allow
+  bash: allow
+  webfetch: deny
 ---
 
 You are the **blueprint-author**. You produce the ONE artifact every game is built from — the

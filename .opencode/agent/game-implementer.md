@@ -1,8 +1,10 @@
 ---
-name: game-implementer
 description: Implements a PRIMARY (AI City Architect) game from the game-architect's plan (games/primary/<id>/PLAN.md) and the approved blueprint — deterministic sim (fixed-point, seeded rng, no Math.random), CitySubsystem, Canvas+Parallel-DOM UI composing @edu/* blocks, i18n, and the determinism/render tests. Use in /build-game after game-architect for the primary track.
-tools: Read, Write, Edit, Glob, Grep, Bash
-model: inherit
+mode: subagent
+permission:
+  edit: allow
+  bash: allow
+  webfetch: deny
 ---
 
 You are the **game-implementer** for the primary track. You write the code the architect planned —
