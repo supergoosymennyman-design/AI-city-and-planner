@@ -781,15 +781,18 @@ function applyBuildingModel(type) {
     // Skyscraper (AI Finance Tower): sprinkle window sparkles on the tower
     // faces — small emissive points that twinkle in the main loop.
     if (spot.glbType === 'skyscraper') addSkyscraperSparkles(spot, s, st.size);
-    // Shared generic model: add a glowing roof accent so the plain facilities
-    // still read as part of the futuristic city (bloom-lit, toneMapped:false).
+    // Shared generic model: add a subtle glowing roof rim so the plain
+    // facilities still read as part of the futuristic city (bloom-lit,
+    // toneMapped:false). Sized to the ACTUAL scaled model — the generic.glb is
+    // a small unit (~0.44m) scaled by `s` (height-capped), so sizing to the
+    // layout footprint made a slab ~3x wider than the real building.
     if (spot.glbType === 'generic') {
       const topY = s * st.size.y;
       const accent = new THREE.Mesh(
-        new THREE.BoxGeometry(spot.fp[0] * 0.9, 0.4, spot.fp[1] * 0.9),
-        new THREE.MeshBasicMaterial({ color: 0x66f0ff, toneMapped: false })
+        new THREE.BoxGeometry(s * st.size.x * 0.95, 0.25, s * st.size.z * 0.95),
+        new THREE.MeshBasicMaterial({ color: 0x3aa8c8, transparent: true, opacity: 0.75, toneMapped: false })
       );
-      accent.position.set(spot.x, topY + 0.2, spot.z);
+      accent.position.set(spot.x, topY + 0.1, spot.z);
       scene.add(accent);
     }
   }
@@ -904,13 +907,14 @@ function buildGenericFacilities() {
     }
 
     // Glow accent on the fallback box so the plain facilities don't read as
-    // drab cuboids while the GLB loads (or if it never does).
+    // drab cuboids while the GLB loads (or if it never does). Matches the
+    // GLB-path accent's subtler teal rim (dim, semi-transparent, bloom-tinted).
     if (glbType === 'generic') {
       const accent = new THREE.Mesh(
-        new THREE.BoxGeometry(fp[0] * 0.9, 0.4, fp[1] * 0.9),
-        new THREE.MeshBasicMaterial({ color: 0x66f0ff, toneMapped: false })
+        new THREE.BoxGeometry(fp[0] * 0.9, 0.25, fp[1] * 0.9),
+        new THREE.MeshBasicMaterial({ color: 0x3aa8c8, transparent: true, opacity: 0.75, toneMapped: false })
       );
-      accent.position.set(cx, h + 0.2, cz);
+      accent.position.set(cx, h + 0.1, cz);
       scene.add(accent);
       glbState.generic.fallbacks.push(accent);
     }
