@@ -321,10 +321,14 @@ let _treePacks = null;    // Quaternius tree packs (each holds 5 named variants)
 let _parkModel = null;   // shared park GLB (trees + benches + fountain)
 function loadTreeModels() {
   return Promise.all([
-    _treeLoader.loadAsync(ASSET_BASE + 'models/tree.glb'),
-    _treeLoader.loadAsync(ASSET_BASE + 'models/tree-high.glb'),
-  ]).then(([a, b]) => { _treeModels = { tree: a.scene, treeHigh: b.scene }; return _treeModels; })
-    .catch((e) => { console.warn('[city-builder] tree GLB failed', e); _treeModels = null; return null; });
+    _treeLoader.loadAsync(ASSET_BASE + 'models/tree.glb').catch((e) => { console.warn('[city-builder] tree GLB failed', e); return null; }),
+    _treeLoader.loadAsync(ASSET_BASE + 'models/tree-high.glb').catch((e) => { console.warn('[city-builder] tree-high GLB failed', e); return null; }),
+  ]).then(([a, b]) => {
+    _treeModels = {};
+    if (a) _treeModels.tree = a.scene;
+    if (b) _treeModels.treeHigh = b.scene;
+    return Object.keys(_treeModels).length ? _treeModels : null;
+  });
 }
 function loadTreePacks() {
   const urls = {
@@ -401,7 +405,7 @@ function addPark(cx, cz, radius) {
 }
 
 function addTree(x, z, scale) {
-  if (_treePacks) {
+  if (_treePacks && Object.keys(_treePacks).length) {
     // Pick a random pack (normal/pine/birch/maple/dead) then a random variant
     // node inside it; clone the whole pack, drop the other 4 variants, and
     // centre the chosen one at the origin before placing it.
@@ -1315,7 +1319,30 @@ function startEntryFlow() {
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────
+function showBootError(msg) {
+  // Never leave the loading spinner frozen: surface a clear error + retry.
+  const loading = document.getElementById('loading');
+  const fill = document.getElementById('loading-fill');
+  if (fill) fill.style.width = '100%';
+  const sub = document.querySelector('.entry-card p');
+  if (sub) sub.textContent = '⚠️ ' + msg;
+  const localBtn = document.getElementById('entry-local');
+  if (localBtn) localBtn.textContent = '↻ Try again';
+  const overlay = document.getElementById('entry-overlay');
+  if (overlay) overlay.classList.remove('hidden');
+  if (loading) loading.classList.add('done');   // hide the loading overlay
+}
+
 async function boot() {
+  try {
+    await bootInner();
+  } catch (e) {
+    console.error('[city-builder] boot failed:', e);
+    showBootError('Something went wrong building your city — tap to try again.');
+  }
+}
+
+async function bootInner() {
   setupScene();
   labelRenderer = createLabelRenderer(stage);
 
