@@ -642,75 +642,142 @@ function exportCity() {
     : '⚠️ Could not save to this browser (storage full) — use the downloaded my-ai-city.json instead.');
 }
 
-// ─── AI advisor ─────────────────────────────────────────
-function advisorSummary() {
-  const m = computeMetrics(state.layout);
-  return {
-    buildingCount: state.layout.buildings.length,
-    roadCount: state.layout.roads.length,
-    parkCount: state.layout.parks.length,
-    types: state.layout.buildings.reduce((acc, b) => { acc[b.type] = (acc[b.type] || 0) + 1; return acc; }, {}),
-    metrics: { score: m.score, accessibility: m.accessibility, coverage: m.coverage, spread: m.spread, zoning: m.zoning },
-    problems: m.problems,
-  };
+// Pending plan (optimise → review → Apply / Keep). Stored so Apply/Keep
+// buttons can commit or discard without re-running the optimizer.
+let _pendingPlan = null;
+
+const THEME_LABEL = {
+  add: '🏠 Homes & facilities',
+  move: '↔️ Better placement',
+  remove: '🧹 Less clutter',
+  add_park: '🌳 Parks',
+};
+const METRIC_LABEL = {
+  accessibility: 'road access',
+  coverage: 'home coverage',
+  spread: 'spread',
+  zoning: 'quiet zones',
+};
+const METRIC_ICON = { accessibility: '🛣️', coverage: '🏘️', spread: '🧩', zoning: '🤫' };
+
+function metricBadges(improved) {
+  if (!improved || !improved.length) return '';
+  return ' <span class="metric-badges">' +
+    improved.map((m) => `<span class="metric-badge">${METRIC_ICON[m] || ''} ${METRIC_LABEL[m] || m} ↑</span>`).join('') +
+    '</span>';
 }
 
 /**
- * Optimise the city right now: move/add/remove buildings on the map instantly.
- * Roads and parks are preserved; mission-building duplicates are tidied. The
- * previous layout is pushed onto the undo stack so ↩️ Undo reverts everything.
+ * Optimise the city right now: the buddy proposes a measured plan (score-gated
+ * hill-climb). The student reviews the reasons and taps Apply or Keep; the
+ * previous layout is pushed onto the undo stack only when Apply is chosen.
  */
 async function askAdvisor() {
   if (state.aiBusy) return;
   state.aiBusy = true;
   const btn = document.getElementById('btn-ai');
   btn.disabled = true;
-  btn.textContent = '🤖 Thinking…';
+  btn.textContent = '🤖 Checking…';
   try {
-    // Yield once so the browser can paint the busy state (the optimizer is
-    // synchronous; without this the button looks dead during the run).
+    // Yield once so the browser can paint the busy state.
     await new Promise((r) => setTimeout(r, 0));
     const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
-    const summary = advisorSummary();
-    const H = summary.types['housing'] || 0;
-    // A varied town scale (12–20 homes offline) so each run is a little different.
-    const strategy = { housing: Math.max(H, 12 + (seed % 9)) };
+    const before = computeMetrics(state.layout);
 
-    const { layout: optimized, diff } = optimizeLayout(state.layout, strategy, seed);
+    const { layout: optimized, diff, after } = optimizeLayout(state.layout, {}, seed);
+    _pendingPlan = { layout: optimized, diff, before, after };
 
-    // Apply instantly — undo stack reverts it.
-    pushUndo();
-    state.layout = optimized;
-    state.selectedIdx = -1;
-    updateMetrics();
-    render();
+    renderPlan(before, after, diff);
 
-    // One-line summary (toast) + the detailed reasons (sidebar).
-    const addN = diff.filter((d) => d.action === 'add').reduce((s, d) => s + (d.count || 1), 0);
-    const moveN = diff.filter((d) => d.action === 'move').length;
-    const remN = diff.filter((d) => d.action === 'remove').length;
-    const parkN = diff.filter((d) => d.action === 'add_park').length;
-    const parts = [];
-    if (addN) parts.push(`added ${addN} building${addN > 1 ? 's' : ''}`);
-    if (moveN) parts.push(`moved ${moveN}`);
-    if (remN) parts.push(`removed ${remN}`);
-    if (parkN) parts.push(`added ${parkN} park${parkN > 1 ? 's' : ''}`);
-    toast(`✅ Optimised — ${parts.length ? parts.join(', ') : 'already well balanced'}. ↩️ Undo to revert.`);
-
-    if (diff.length) {
-      aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> Done! Your roads are untouched, and duplicate or out-of-ratio buildings were tidied up.<ul class="plan-list">'
-        + diff.map((d) => `<li>${d.reason}</li>`).join('')
-        + '</ul>';
+    if (!diff.length) {
+      toast('✅ Your city is already well balanced — nothing to change!');
     } else {
-      aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> Your city is already well balanced — nothing to change! 🌟';
+      const addN = diff.filter((d) => d.action === 'add').length;
+      const moveN = diff.filter((d) => d.action === 'move').length;
+      const remN = diff.filter((d) => d.action === 'remove').length;
+      const parkN = diff.filter((d) => d.action === 'add_park').length;
+      const parts = [];
+      if (addN) parts.push(`${addN} added`);
+      if (moveN) parts.push(`${moveN} moved`);
+      if (remN) parts.push(`${remN} removed`);
+      if (parkN) parts.push(`${parkN} park${parkN > 1 ? 's' : ''}`);
+      toast(`🤖 I found ${parts.length ? parts.join(', ') : 'a few small tweaks'} — review and apply!`);
     }
   } catch (e) {
-    aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> Hmm, I couldn\u2019t optimise right now — try again!';
+    console.error('[planner] optimize failed:', e);
+    aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> Hmm, I couldn\u2019t check your city right now — try again!';
+    _pendingPlan = null;
   } finally {
     state.aiBusy = false;
     btn.disabled = false;
     btn.textContent = '🤖 Optimize';
   }
+}
+
+function renderPlan(before, after, diff) {
+  // Group reasons by theme, preserving order.
+  const order = ['add', 'move', 'remove', 'add_park'];
+  const groups = order
+    .map((action) => ({
+      action,
+      label: THEME_LABEL[action] || action,
+      items: diff.filter((d) => d.action === action),
+    }))
+    .filter((g) => g.items.length);
+
+  const gain = after.score - before.score;
+  const scoreLine = gain > 0
+    ? `City Score: <strong>${before.score}</strong> → <strong>${after.score}</strong> <span class="score-gain">(+${gain})</span>`
+    : `City Score stays <strong>${before.score}</strong> — already well balanced!`;
+
+  const groupsHtml = groups.map((g) => `
+    <div class="plan-group">
+      <div class="plan-group-title">${g.label}</div>
+      <ul class="plan-list">
+        ${g.items.map((d) => `<li>${d.reason}${metricBadges(d.improved)}</li>`).join('')}
+      </ul>
+    </div>`).join('');
+
+  aiOutput.innerHTML = `
+    <span class="ai-buddy">Your coding buddy</span> I checked your city and here's what I found.
+    <div class="plan-score">${scoreLine}</div>
+    ${groupsHtml || '<div class="plan-note">Nothing to change — your city is already well balanced! 🌟</div>'}
+    ${diff.length ? `
+      <div class="plan-actions">
+        <button class="plan-apply" id="plan-apply">✅ Apply changes</button>
+        <button class="plan-keep" id="plan-keep">🙅 Keep my city</button>
+      </div>` : ''}`;
+
+  const applyBtn = document.getElementById('plan-apply');
+  const keepBtn = document.getElementById('plan-keep');
+  if (applyBtn) applyBtn.addEventListener('click', applyPlan);
+  if (keepBtn) keepBtn.addEventListener('click', () => {
+    _pendingPlan = null;
+    aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> No problem — your city stays exactly as you built it! 🌟';
+    toast('👍 Kept your city as-is');
+  });
+}
+
+function applyPlan() {
+  if (!_pendingPlan) return;
+  const { layout, diff } = _pendingPlan;
+  pushUndo();
+  state.layout = layout;
+  state.selectedIdx = -1;
+  updateMetrics();
+  render();
+  const addN = diff.filter((d) => d.action === 'add').length;
+  const moveN = diff.filter((d) => d.action === 'move').length;
+  const remN = diff.filter((d) => d.action === 'remove').length;
+  const parkN = diff.filter((d) => d.action === 'add_park').length;
+  const parts = [];
+  if (addN) parts.push(`${addN} building${addN > 1 ? 's' : ''} added`);
+  if (moveN) parts.push(`${moveN} moved`);
+  if (remN) parts.push(`${remN} removed`);
+  if (parkN) parts.push(`${parkN} park${parkN > 1 ? 's' : ''}`);
+  toast(`✅ Applied — ${parts.join(', ')}! ↩️ Undo to revert.`);
+  aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> Done! Your city is smarter now. 🌟';
+  _pendingPlan = null;
 }
 // ─── Wire up UI ─────────────────────────────────────────
 document.getElementById('btn-undo').addEventListener('click', undo);
