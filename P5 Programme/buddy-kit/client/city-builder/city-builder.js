@@ -518,6 +518,89 @@ function flushTrees() {
   _treePlacements = [];
 }
 
+// ─── Nature filler (bushes/flowers/rocks) ────────────────────────────────
+// Small Kenney Nature Kit (CC0) models scattered inside parks to make the
+// green spaces feel lush. Same two-phase pipeline as trees: load → normalize
+// each variant once → queue placements → flush into per-variant InstancedMesh.
+const NATURE_FILLER_FILES = [
+  'plant_bush.glb', 'plant_bushDetailed.glb', 'plant_bushTriangle.glb',
+  'flower_yellowA.glb', 'flower_yellowB.glb', 'flower_purpleA.glb', 'flower_purpleB.glb',
+  'grass_leafs.glb', 'grass_leafsLarge.glb',
+  'rock_smallA.glb', 'rock_smallB.glb', 'mushroom_redTall.glb',
+];
+let _natureVariants = [];     // [{geo, height}]
+let _naturePlacements = [];   // [{x, z, scale, v}]
+let _natureLoaded = false;
+
+function loadNatureFiller() {
+  if (_natureLoaded) return;
+  _natureLoaded = true;
+  const loader = new GLTFLoader();
+  Promise.all(NATURE_FILLER_FILES.map((f) =>
+    loader.loadAsync('assets/models/nature-filler/' + f).catch((e) => { console.warn('[nature-filler] failed', f, e); return null; })
+  )).then((gltfs) => {
+    for (const gltf of gltfs) {
+      if (!gltf) continue;
+      const n = normalizeTreeToGeometry(gltf.scene);
+      if (n) _natureVariants.push(n);
+    }
+    // If any variants loaded, flush anything queued before load finished.
+    flushNatureFiller();
+  });
+}
+
+function addNatureFiller(x, z, scale) {
+  if (_natureVariants.length) {
+    const v = Math.floor(Math.random() * _natureVariants.length);
+    _naturePlacements.push({ x, z, scale, v });
+    return;
+  }
+  // Variants not ready yet (async load) — queue; flush runs when they arrive.
+  _naturePlacements.push({ x, z, scale, v: -1 });
+}
+
+function flushNatureFiller() {
+  if (!_natureVariants.length) return;
+  const ready = _naturePlacements.filter((p) => p.v >= 0);
+  const pending = _naturePlacements.filter((p) => p.v < 0);
+  // Assign any pending (queued-before-load) placements to random variants.
+  for (const p of pending) { p.v = Math.floor(Math.random() * _natureVariants.length); ready.push(p); }
+  _naturePlacements = [];
+  if (!ready.length) return;
+  const counts = new Array(_natureVariants.length).fill(0);
+  for (const p of ready) counts[p.v]++;
+  const mats = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+  const instByVariant = new Map();
+  _natureVariants.forEach((variant, vi) => {
+    if (!counts[vi]) return;
+    const inst = new THREE.InstancedMesh(variant.geo, mats, counts[vi]);
+    inst.count = 0;
+    inst.castShadow = false;                 // tiny props — skip shadow cost
+    inst.userData.isNatureFiller = true;
+    scene.add(inst);
+    instByVariant.set(vi, inst);
+  });
+  const m = new THREE.Matrix4();
+  const pos = new THREE.Vector3();
+  const scl = new THREE.Vector3();
+  const quat = new THREE.Quaternion();
+  const placed = new Array(_natureVariants.length).fill(0);
+  for (const p of ready) {
+    const inst = instByVariant.get(p.v);
+    if (!inst) continue;
+    const variant = _natureVariants[p.v];
+    const idx = placed[p.v]++;
+    pos.set(p.x, 0, p.z);
+    const h = variant.height || 1;
+    scl.setScalar((p.scale * 4) / h);
+    quat.identity();
+    m.compose(pos, quat, scl);
+    inst.setMatrixAt(idx, m);
+    inst.count = idx + 1;
+    inst.instanceMatrix.needsUpdate = true;
+  }
+}
+
 function addPark(cx, cz, radius) {
   const grass = new THREE.Mesh(
     new THREE.CircleGeometry(radius, 28),
@@ -557,6 +640,15 @@ function addPark(cx, cz, radius) {
     const ang = hashString(i * 31 + Math.round(cx)) * 0.7 + i * 1.7;
     const r = radius * (0.18 + 0.28 * ((hashString(i * 17 + Math.round(cz)) % 10) / 10));
     addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.7 + ((hashString(i * 23) % 10) / 10) * 0.5);
+  }
+  // Nature filler: bushes, flowers, rocks, grass tufts — denser near the
+  // centre model (fountain), sparser toward the ring so the park reads lush
+  // but the trees still stand out.
+  const fillN = Math.max(4, Math.round(radius / 6));
+  for (let i = 0; i < fillN; i++) {
+    const ang = hashString(i * 41 + Math.round(cx * 7)) * 0.9 + i * 2.3;
+    const r = radius * (0.15 + 0.5 * ((hashString(i * 29 + Math.round(cz * 3)) % 10) / 10));
+    addNatureFiller(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.5 + ((hashString(i * 11) % 10) / 10) * 0.7);
   }
 }
 
@@ -1531,12 +1623,14 @@ async function bootInner() {
   await loadTreeModels();
   await loadTreePacks();
   await loadParkModel();
+  loadNatureFiller();   // async — bushes/flowers/rocks for parks
   fill.style.width = '60%';
 
   buildTreeVariants();
   carveParks();
   carveRoads();
   flushTrees();
+  flushNatureFiller();  // placements queued during carve; flush what's loaded
   buildQuestLandmarks();
   buildGenericFacilities();
   fill.style.width = '80%';
