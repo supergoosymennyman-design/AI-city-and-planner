@@ -200,11 +200,6 @@ function drawBuildings(w, h) {
   const minP = screenToPlan(0, h), maxP = screenToPlan(w, 0);
   const x0 = Math.min(minP.x, maxP.x) - 40, x1 = Math.max(minP.x, maxP.x) + 40;
   const z0 = Math.min(minP.y, maxP.y) - 40, z1 = Math.max(minP.y, maxP.y) + 40;
-  // LOD: the footprint rect is cheap (fillRect) so it ALWAYS draws — even at
-  // the default zoom (px≈0.18 a 20m building is only ~3.6px, but it must be
-  // visible). Only the emoji + label (expensive text) are dropped when too
-  // small to read.
-  const showDetail = state.view.px > 0.8;   // ~16px for a 20m building
   for (let i = 0; i < layout.buildings.length; i++) {
     const b = layout.buildings[i];
     const spec = catalogType(b.type);
@@ -226,18 +221,20 @@ function drawBuildings(w, h) {
     ctx.lineWidth = i === state.selectedIdx ? 3 : 1;
     ctx.strokeRect(x, y, bw, bh);
 
-    // emoji + short label (only when they'd actually be legible)
-    if (showDetail) {
-      const emojiSize = Math.max(12, Math.min(bw, bh) * 0.5);
-      ctx.font = `${emojiSize}px sans-serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(spec?.emoji || '🏢', c.x, c.y - emojiSize * 0.28);
+    // Icon: ALWAYS draw the building's emoji (same icon as its catalog
+    // button) so the student can identify what's what at any zoom. Sized from
+    // the on-screen footprint but clamped to a readable floor; at the default
+    // zoom a 20m building (~3.6px) still shows an ~11px icon.
+    const emojiSize = Math.max(11, Math.min(28, Math.min(bw, bh) * 0.5));
+    ctx.font = `${emojiSize}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(spec?.emoji || '🏢', c.x, c.y - emojiSize * 0.28);
 
-      if (bw > 34) {
-        ctx.font = '700 11px Nunito, sans-serif';
-        ctx.fillStyle = '#eaf2f8';
-        ctx.fillText(shortName(spec?.name || b.type), c.x, c.y + emojiSize * 0.55);
-      }
+    // Short label — only when the building is big enough to hold it (zoomed in).
+    if (bw > 34) {
+      ctx.font = '700 11px Nunito, sans-serif';
+      ctx.fillStyle = '#eaf2f8';
+      ctx.fillText(shortName(spec?.name || b.type), c.x, c.y + emojiSize * 0.55);
     }
   }
 }
