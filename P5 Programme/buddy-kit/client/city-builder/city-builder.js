@@ -582,7 +582,7 @@ function buildQuestLandmarks() {
     // industrial GLB instead of a procedural design — but keep their beacon and
     // label so they still read as mission buildings.
     if (INDUSTRIAL_SPECIALS.includes(b.type)) {
-      (glbState.industrial || (glbState.industrial = { model: null, size: null, spots: [], fallbacks: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType: 'industrial' });
+      (glbState.industrial || (glbState.industrial = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType: 'industrial' });
       // Plain placeholder until the GLB loads (or if it never does).
       const ph = new THREE.Mesh(
         new THREE.BoxGeometry(fp[0], h, fp[1]),
@@ -600,7 +600,7 @@ function buildQuestLandmarks() {
 
     // AI Finance Tower uses the skyscraper GLB (with window sparkles).
     if (b.type === 'finance_tower') {
-      (glbState.skyscraper || (glbState.skyscraper = { model: null, size: null, spots: [], fallbacks: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType: 'skyscraper' });
+      (glbState.skyscraper || (glbState.skyscraper = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType: 'skyscraper' });
       // Placeholder until the GLB loads.
       const ph = new THREE.Mesh(
         new THREE.BoxGeometry(fp[0], h, fp[1]),
@@ -712,14 +712,52 @@ const GLB_BUILDING_TYPES = {
   industrial: 'assets/models/industrial.glb',
   skyscraper: 'assets/models/skyscraper.glb',
 };
+// Residential variations (Kenney City Kit Suburban, CC0): each housing spot
+// renders as a 2×2 block of units; each unit picks a RANDOM variant so a
+// student's neighbourhood looks lived-in instead of cloned.
+const HOUSING_VARIANTS = [
+  'assets/models/housing-variants/housing-a.glb',
+  'assets/models/housing-variants/housing-c.glb',
+  'assets/models/housing-variants/housing-h.glb',
+  'assets/models/housing-variants/housing-j.glb',
+  'assets/models/housing-variants/housing-n.glb',
+  'assets/models/housing-variants/housing-u.glb',
+];
 // Facilities that share the generic model until they get their own GLB.
 const GENERIC_FACILITY_TYPES = ['school', 'hospital', 'library', 'stadium', 'fire', 'police'];
 // Mission buildings that use the industrial GLB instead of a procedural design.
 const INDUSTRIAL_SPECIALS = ['water', 'power', 'recycling', 'delivery', 'traffic_lab', 'traffic_emergency', 'subsurface', 'monitoring'];
 const glbState = {};   // type → { model, size, spots:[], fallbacks:[], loading }
 
+// Housing variants loader: every residential model shares the same base unit
+// scale (Kenney suburban buildings are ~1.3m units), so we load them into a
+// common pool keyed by URL. `glbState.housing` keeps the ORIGINAL model for
+// the fallback, and this pool provides the per-unit variation.
+const housingVariantModels = [];   // [{ model, size }] loaded in order
+let housingVariantsLoaded = false;
+
+function loadHousingVariants() {
+  if (housingVariantsLoaded) return;
+  housingVariantsLoaded = true;
+  const loader = new GLTFLoader();
+  for (const url of HOUSING_VARIANTS) {
+    loader.loadAsync(url)
+      .then((gltf) => {
+        const m = gltf.scene;
+        const box = new THREE.Box3().setFromObject(m);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        m.position.sub(center);        // centre on origin, feet near y=0
+        m.position.y -= box.min.y;     // sit base on y=0
+        housingVariantModels.push({ model: m, size });
+        applyBuildingModel('housing'); // re-apply so new units use available variants
+      })
+      .catch((e) => { console.warn('[housing variant] GLB load failed:', url, e); });
+  }
+}
+
 function loadBuildingModel(type, url) {
-  const st = glbState[type] || (glbState[type] = { model: null, size: null, spots: [], fallbacks: [], loading: false });
+  const st = glbState[type] || (glbState[type] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false });
   if (st.loading) return;
   st.loading = true;
   new GLTFLoader().loadAsync(url)
@@ -748,23 +786,40 @@ function applyBuildingModel(type) {
     mesh.material && mesh.material.dispose();
   }
   st.fallbacks.length = 0;
+  // …and any GLB clones applied by an earlier pass (variants load async, so
+  // re-applying must not stack duplicates).
+  for (const clone of st.applied || []) {
+    scene.remove(clone);
+    clone.traverse((o) => {
+      if (o.isMesh) {
+        o.geometry && o.geometry.dispose();
+        if (o.material) { if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose()); else o.material.dispose(); }
+      }
+    });
+  }
+  st.applied = [];
   // …and place a GLB clone on every spot (geometry shared, cheap).
   for (const spot of st.spots) {
     // Housing renders as a 2×2 block of four smaller units inside the same
-    // footprint — one map icon = one residential block, not one tower.
+    // footprint — one map icon = one residential block, not one tower. Each
+    // unit picks a RANDOM variant from the Kenney suburban pool when any have
+    // loaded, so a neighbourhood looks varied; otherwise the base housing model.
     if (type === 'housing') {
       const unit = spot.fp[0] / 2 - 1;   // half the footprint minus a tiny gap
-      const s = Math.min(
-        unit / st.size.x,
-        unit / st.size.z,
-        (spot.h || 24) / st.size.y
-      );
+      const variants = housingVariantModels.length ? housingVariantModels : [{ model: st.model, size: st.size }];
       for (const [dx, dz] of [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]]) {
-        const clone = st.model.clone(true);
+        const v = variants[Math.floor(Math.random() * variants.length)];
+        const s = Math.min(
+          unit / v.size.x,
+          unit / v.size.z,
+          (spot.h || 24) / v.size.y
+        );
+        const clone = v.model.clone(true);
         clone.scale.setScalar(s);
         clone.position.set(spot.x + dx * spot.fp[0], 0, spot.z + dz * spot.fp[1]);
         clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
         scene.add(clone);
+        st.applied.push(clone);
       }
       continue;
     }
@@ -778,6 +833,7 @@ function applyBuildingModel(type) {
     clone.position.set(spot.x, 0, spot.z);
     clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     scene.add(clone);
+    st.applied.push(clone);
     // Skyscraper (AI Finance Tower): sprinkle window sparkles on the tower
     // faces — small emissive points that twinkle in the main loop.
     if (spot.glbType === 'skyscraper') addSkyscraperSparkles(spot, s, st.size);
@@ -857,7 +913,7 @@ function buildGenericFacilities() {
     // Route each facility to its GLB slot: dedicated (office/housing) or the
     // shared generic model for the plain facilities.
     const glbType = GLB_BUILDING_TYPES[b.type] ? b.type : (GENERIC_FACILITY_TYPES.includes(b.type) ? 'generic' : null);
-    if (glbType) (glbState[glbType] || (glbState[glbType] = { model: null, size: null, spots: [], fallbacks: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType });
+    if (glbType) (glbState[glbType] || (glbState[glbType] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType });
 
     // Facade colour by height band (osm-city palette), with the lit-window
     // emissive texture on mid/high-rise so the student's own buildings read
@@ -1489,6 +1545,7 @@ async function bootInner() {
   city.streetProps = streetProps;
   // Async — replace procedural GLB-backed buildings (office towers, housing) when ready.
   for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) loadBuildingModel(type, url);
+  loadHousingVariants();
 
   await spawnChampion();
   wireRendererInteraction();
