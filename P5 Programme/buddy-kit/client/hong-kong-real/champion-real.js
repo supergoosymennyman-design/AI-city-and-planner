@@ -34,22 +34,50 @@ const BOUNDS = 3200;
 export async function createChampion(assetBase, city) {
   const loader = new GLTFLoader();
   const group = new THREE.Group();
+  const _dirV = new THREE.Vector3();   // scratch — avoid per-frame allocations
   const FACING_OFFSET = 0;
   const clips = {};
+  // Clips the champion needs on day one (loop + jump/wave are one-shot but
+  // common); everything else (turns, dances) lazy-loads on first use so boot
+  // only waits on the essential few, fetched in parallel.
+  const CORE_CLIP_FILES = {
+    Walking: 'walking.glb', 'Fast Run': 'fastrun.glb', Jumping: 'jumping.glb', Waving: 'waving.glb',
+  };
   async function loadSharedClips() {
     try {
-      const base = await loader.loadAsync(assetBase + 'clips/idle.glb');
+      const [base, ...rest] = await Promise.all([
+        loader.loadAsync(assetBase + 'clips/idle.glb'),
+        ...Object.values(CORE_CLIP_FILES).map((f) => loader.loadAsync(assetBase + 'clips/' + f).catch((e) => { console.warn('clip load failed:', f, e); return null; })),
+      ]);
       for (const clip of base.animations) clips[clip.name] = clip.optimize();
+      for (const g of rest) {
+        if (g && g.animations && g.animations[0]) clips[g.animations[0].name] = g.animations[0].optimize();
+      }
     } catch (e) {
       console.warn('[champion] idle clip load failed — animation disabled:', e);
-      return;
     }
-    for (const [clipName, file] of Object.entries(CLIP_FILES)) {
-      try {
-        const g = await loader.loadAsync(assetBase + 'clips/' + file);
-        if (g.animations && g.animations[0]) clips[g.animations[0].name] = g.animations[0].optimize();
-      } catch (e) { console.warn('clip load failed:', clipName, e); }
-    }
+  }
+
+  // Load a non-core clip on demand (turns, dances, sit). Idempotent + cached.
+  const _lazyClipPromises = {};
+  function ensureClip(file) {
+    if (clips[file]) return Promise.resolve();
+    if (_lazyClipPromises[file]) return _lazyClipPromises[file];
+    _lazyClipPromises[file] = loader.loadAsync(assetBase + 'clips/' + file)
+      .then((g) => {
+        if (g.animations && g.animations[0]) {
+          const clip = g.animations[0].optimize();
+          const name = clip.name;
+          clips[name] = clip;
+          // If the mixer already exists, bind this new action right away.
+          if (mixer) {
+            const key = Object.keys(CLIP_NAMES).find((k) => CLIP_NAMES[k] === name) || (DANCE_NAMES.includes(name) ? name : null);
+            if (key) actions[key] = mixer.clipAction(clip);
+          }
+        }
+      })
+      .catch((e) => { console.warn('clip load failed:', file, e); });
+    return _lazyClipPromises[file];
   }
 
   let model = null, mixer = null, actions = {}, currentName = 'idle';
@@ -193,7 +221,12 @@ export async function createChampion(assetBase, city) {
   function triggerOneShot(name) {
     if (state.oneShot) return;
     const a = actions[name];
-    if (!a) return;
+    if (!a) {
+      // Lazy clip not loaded yet — kick off the load and retry when ready.
+      const file = CLIP_FILES[Object.keys(CLIP_NAMES).find((k) => CLIP_NAMES[k] === name) || name] || lazyFileFor(name);
+      if (file) { ensureClip(file).then(() => { if (currentName === 'idle' && !state.oneShot) triggerOneShot(name); }); }
+      return;
+    }
     const looping = actions[loopingName()];
     if (looping) looping.paused = true;
     currentName = name;
@@ -207,6 +240,15 @@ export async function createChampion(assetBase, city) {
       finishOneShot();
     };
     mixer.addEventListener('finished', onFinished);
+  }
+  // Map dance/sit names to their clip file for lazy loading.
+  function lazyFileFor(name) {
+    const byName = {
+      hiphop: 'hiphop.glb', breakdance: 'breakdance.glb', mmakick: 'mmakick.glb',
+      lockingdance: 'lockingdance.glb', chickendance: 'chickendance.glb',
+      strikejog: 'strikejog.glb', sittinglaugh: 'sittinglaugh.glb',
+    };
+    return byName[name] || null;
   }
   function finishOneShot() {
     const back = actions[loopingName()];
@@ -299,12 +341,12 @@ export async function createChampion(assetBase, city) {
       if (hasMove) {
         state.mode = input.running ? 'run' : 'walk';
         playState(state.mode);
-        const dir = new THREE.Vector3(input.x, 0, input.z).normalize();
+        _dirV.set(input.x || 0, 0, input.z || 0).normalize();
         const speedScale = input.speedScale || 1;
         const baseSpeed = (input.running ? RUN_SPEED : WALK_SPEED);
         const speed = baseSpeed * speedScale;
         if (actions[state.mode]) actions[state.mode].timeScale = speedScale;
-        state.vel.copy(dir.multiplyScalar(speed));
+        state.vel.copy(_dirV.multiplyScalar(speed));
         const targetYaw = Math.atan2(input.x, input.z) + FACING_OFFSET;
         let diff = targetYaw - state.facing;
         while (diff > Math.PI) diff -= Math.PI * 2;

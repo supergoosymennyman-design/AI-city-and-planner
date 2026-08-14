@@ -24,7 +24,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { design as questDesign } from '../hong-kong-real/quest-buildings.js';
-import { QUESTS, loadQuestState, questStatus, questTheme, questComplete } from '../hong-kong-real/quests.js';
+import { QUESTS, loadQuestState, questStatus, questTheme, questComplete, invalidateQuestState } from '../hong-kong-real/quests.js';
 import { createChampion, WALK_SPEED } from '../hong-kong-real/champion-real.js';
 import { createDrones } from '../hong-kong-real/drones.js';
 import { createDecoTaxis } from '../hong-kong-real/deco-taxis.js';
@@ -184,22 +184,22 @@ function setupScene() {
   camera.lookAt(1000, 10, 1000);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.5 : 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.25 : 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = IS_MOBILE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   stage.appendChild(renderer.domElement);
 
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.1, 0.5, 0.35);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), IS_MOBILE ? 0.85 : 1.1, 0.5, 0.35);
   bloom.threshold = 0.35;
-  bloom.strength = IS_MOBILE ? 1.0 : 1.1;
+  bloom.strength = IS_MOBILE ? 0.85 : 1.1;
   composer.addPass(bloom);
-  const sat = { uniforms: { tDiffuse: { value: null }, amount: { value: 1.28 } },
+  const sat = { uniforms: { tDiffuse: { value: null }, amount: { value: IS_MOBILE ? 1.15 : 1.28 } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
     fragmentShader: 'uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv; const vec3 LUMA=vec3(0.2126,0.7152,0.0722); void main(){ vec4 c=texture2D(tDiffuse,vUv); float luma=dot(c.rgb,LUMA); c.rgb=mix(vec3(luma),c.rgb,amount); gl_FragColor=c; }' };
   composer.addPass(new ShaderPass(sat));
@@ -207,14 +207,18 @@ function setupScene() {
     vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
     fragmentShader: 'uniform sampler2D tDiffuse; uniform float intensity; varying vec2 vUv; void main(){ vec4 c=texture2D(tDiffuse,vUv); float d=distance(vUv,vec2(0.5)); float v=1.0-intensity*smoothstep(0.4,0.9,d); gl_FragColor=vec4(c.rgb*v,c.a); }' };
   composer.addPass(new ShaderPass(vig));
-  composer.addPass(new SMAAPass(window.innerWidth * renderer.getPixelRatio(), window.innerHeight * renderer.getPixelRatio()));
+  // Mobile: renderer MSAA is already on — skip the extra SMAA pass (double AA).
+  // Desktop: SMAA cleans up edges cheaply at 2x pixel ratio.
+  if (!IS_MOBILE) {
+    composer.addPass(new SMAAPass(window.innerWidth * renderer.getPixelRatio(), window.innerHeight * renderer.getPixelRatio()));
+  }
   composer.addPass(new OutputPass());
 
   scene.add(new THREE.HemisphereLight(0x33406e, 0x1a2440, 1.15));
   const sun = new THREE.DirectionalLight(0xffd9b3, 1.5);
   sun.position.set(1000, 1600, 1200);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(IS_MOBILE ? 1024 : 2048, IS_MOBILE ? 1024 : 2048);
   sun.shadow.camera.left = -1200; sun.shadow.camera.right = 1200;
   sun.shadow.camera.top = 1200; sun.shadow.camera.bottom = -1200;
   scene.add(sun);
@@ -913,9 +917,11 @@ function setupAirTraffic() {
   taxi = createFlyingTaxi(scene, { walkSpeed: 18, runSpeed: 70, landingZones });
 
   // Decorative skyline traffic + sentinels over the densified city footprint.
+  // Tablets get a lighter swarm — these are pure decoration and each one is a
+  // per-frame update + instance write.
   const bounds = cityBounds || { minX: 0, maxX: 2000, minZ: 0, maxZ: 2000 };
-  decoTaxis = createDecoTaxis(scene, 16, { bounds });
-  skySentinels = createSkySentinels(scene, 10, { bounds });
+  decoTaxis = createDecoTaxis(scene, IS_MOBILE ? 8 : 16, { bounds });
+  skySentinels = createSkySentinels(scene, IS_MOBILE ? 5 : 10, { bounds });
 
   // Patrol drones visit the student's major buildings AND generic facilities.
   const stops = layout.buildings.map((b) => {
@@ -962,6 +968,7 @@ function toggleTaxi() {
   updateFlyButtons();
 }
 
+const _camPos = new THREE.Vector3();
 function updateCamera(dt, taxiActive) {
   const focus = taxiActive ? taxi.getPos() : (champion ? champion.state.pos : orbit.target);
   // Ease the zoom toward the mode's distance: overview → walk → taxi (closest).
@@ -972,12 +979,12 @@ function updateCamera(dt, taxiActive) {
     orbit.theta += dt * 0.05;
   }
   const cosP = Math.cos(orbit.phi);
-  const pos = new THREE.Vector3(
+  _camPos.set(
     focus.x + orbit.dist * Math.sin(orbit.theta) * Math.sin(orbit.phi),
     focus.y + orbit.dist * cosP,
     focus.z + orbit.dist * Math.cos(orbit.theta) * Math.sin(orbit.phi)
   );
-  camera.position.lerp(pos, Math.min(1, dt * 6));
+  camera.position.lerp(_camPos, Math.min(1, dt * 6));
   camera.lookAt(focus.x, focus.y + 2, focus.z);
   orbit.target.lerp(focus, Math.min(1, dt * 3));
 }
@@ -1037,6 +1044,7 @@ function openMinigame(data) {
     if (!st.completed.includes(data.questId)) {
       st.completed.push(data.questId);
       try { localStorage.setItem('hk_ai_city_quests_v1', JSON.stringify(st)); } catch (err) { /* ignore */ }
+      invalidateQuestState();
     }
     showToast(`✅ ${data.name} complete!`);
   };
@@ -1120,11 +1128,18 @@ function loop(now) {
   updateCamera(dt, taxiActive);
   if (specialSystem) updateBeacons(now);
   if (skyscraperSparkles.length) updateSkyscraperSparkles(tNow);
-  if (labelRenderer) labelRenderer.render(scene, camera);
-  if (minimap) minimap.update();
-  updateDebugHud();
+  // CSS2D labels + minimap + HUD are DOM/canvas writes — throttle to ~30 Hz
+  // (every other frame) so they never contend with the GL render for the main
+  // thread on a tablet.
+  if ((now - _lastDomUpdate) > 33) {
+    _lastDomUpdate = now;
+    if (labelRenderer) labelRenderer.render(scene, camera);
+    if (minimap) minimap.update();
+    updateDebugHud();
+  }
   composer.render();
 }
+let _lastDomUpdate = 0;
 
 // ─── Debug HUD (people / vehicles / drones live counts) ────────────────────
 // A small readout in the corner so we can see at a glance whether the living
