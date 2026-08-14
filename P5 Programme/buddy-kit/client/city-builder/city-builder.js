@@ -45,6 +45,13 @@ import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout } from '../ci
 const ASSET_BASE = '../champion-city/assets/';
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
 
+// The recycling centre opens the P5 Lesson 1 example game (Recycle-Eye —
+// Recycling Dataset Tycoon) instead of the shared P3 waste-sorters demo.
+// Scoped to THIS 3D simulation only; the HK topography sim keeps its own URL.
+const QUEST_GAME_URL_OVERRIDES = {
+  14: 'https://p5-project-01.ai-education.workers.dev/', // Recycling Lab → P5 Lesson 1 example game
+};
+
 const IS_MOBILE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || window.innerWidth <= 768;
 
 // ─── osm-city facade palette (kept in sync — single aesthetic source) ─────
@@ -775,7 +782,7 @@ function buildQuestLandmarks() {
         new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, colorWrite: false, depthWrite: false })
       );
       hit.position.set(ref.cx, Math.max(12, ref.top / 2), ref.cz);
-      hit.userData = { kind: 'quest', questId: q.id, name: q.labelEn, gameUrl: q.gameUrl };
+      hit.userData = { kind: 'quest', questId: q.id, name: q.labelEn, gameUrl: QUEST_GAME_URL_OVERRIDES[q.id] || q.gameUrl };
       scene.add(hit);
       interactMeshes.push(hit);
     }
