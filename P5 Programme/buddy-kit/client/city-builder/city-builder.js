@@ -1387,10 +1387,13 @@ function startEntryFlow() {
   if (!saved) localBtn.textContent = '▶ Start with an empty sample';
 
   const begin = (raw) => {
-    if (loadLayout(raw)) {
-      overlay.classList.add('hidden');
-      boot();
+    if (!loadLayout(raw)) return;
+    if (!isWebGLAvailable()) {
+      showBootError('This device can\u2019t run the 3D view (WebGL is off or blocked). Go back to the 2D planner — your city is saved!');
+      return;
     }
+    overlay.classList.add('hidden');
+    boot();
   };
 
   localBtn.addEventListener('click', () => {
@@ -1424,6 +1427,18 @@ function startEntryFlow() {
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────
+// Cheap WebGL support check. Returns true if a context can be created at all
+// (we don't keep it — setupScene() creates the real one).
+function isWebGLAvailable() {
+  try {
+    const test = document.createElement('canvas');
+    const gl = test.getContext('webgl2') || test.getContext('webgl') || test.getContext('experimental-webgl');
+    return !!gl;
+  } catch (e) {
+    return false;
+  }
+}
+
 function showBootError(msg) {
   // Never leave the loading spinner frozen: surface a clear error + retry.
   const loading = document.getElementById('loading');
