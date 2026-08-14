@@ -310,7 +310,47 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       }
     }
 
-    // 2b. Move a noisy building away from homes (zoning). Only the noisy/
+    // 2b. Relocate-for-accessibility: generic/housing/noisy buildings too far
+    //     from any road (> accessibleDist) get trial-moved to a road-adjacent
+    //     spot. Accessibility is 40% of the score and is otherwise frozen
+    //     (roads are never added), so this is the move that fixes "my whole
+    //     city is far from the road". Specials stay put.
+    if (!didImprove) {
+      const farList = buildings().filter((b) =>
+        !isSpecial(b) && distToRoad(b.pos[0], b.pos[1], segs) > METRIC_PARAMS.accessibleDist * 2.5
+      );
+      for (const b of farList) {
+        const spots = candidateSpots(out, b.type, rng, segs);
+        for (const [sx, sz] of spots) {
+          // The new spot must be near a road (that's the whole point).
+          if (distToRoad(sx, sz, segs) > METRIC_PARAMS.accessibleDist) continue;
+          const trial = JSON.parse(JSON.stringify(out));
+          const tb = findBuildingAt(trial, b);
+          if (!tb) continue;
+          const from = tb.pos.slice();
+          tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
+          const m = computeMetrics(trial);
+          if (m.accessibility > after.accessibility + 1e-9) {
+            const improved = metricDeltas(after, m);
+            const name = catalogType(b.type)?.name || b.type;
+            const distBefore = Math.round(distToRoad(from[0], from[1], segs));
+            const distAfter = Math.round(distToRoad(tb.pos[0], tb.pos[1], segs));
+            diff.push({
+              action: 'move', what: b.type, count: 1, from, to: tb.pos.slice(),
+              reason: `Moved the ${name} closer to a road (${distBefore}m → ${distAfter}m away) so people can actually reach it — road access improved.`,
+              improved, fromScore: after.score, toScore: m.score,
+            });
+            out.buildings = trial.buildings;
+            after = m;
+            didImprove = true;
+            break;
+          }
+        }
+        if (didImprove) break;
+      }
+    }
+
+    // 2c. Move a noisy building away from homes (zoning). Only the noisy/
     //     generic member; specials stay put.
     if (!didImprove) {
       const noisyList = buildings().filter((b) => isNoisyType(b.type));
@@ -343,7 +383,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       }
     }
 
-    // 2c. Add a park when homes are far from green space (coverage).
+    // 2d. Add a park when homes are far from green space (coverage).
     if (!didImprove && parks.length < 5) {
       const spots = parkSpots(out, rng);
       for (const [sx, sz] of spots) {
@@ -365,7 +405,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       }
     }
 
-    // 2d. Remove an excess duplicate when it doesn't hurt (leaner city).
+    // 2e. Remove an excess duplicate when it doesn't hurt (leaner city).
     //     HARD RULE: special/mission buildings (incl. city_central) are NEVER
     //     removed — only generic duplicates can be trimmed.
     if (!didImprove) {

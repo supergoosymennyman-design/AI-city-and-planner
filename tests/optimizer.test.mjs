@@ -74,6 +74,8 @@ test('empty-ish layout is safe (no throw, valid, score non-decreasing)', () => {
 });
 
 test('already-well-balanced city stays untouched', () => {
+  // A city whose buildings are all genuinely road-adjacent + covered + quiet:
+  // the optimizer should find nothing worth changing.
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [
@@ -83,18 +85,53 @@ test('already-well-balanced city stays untouched', () => {
     parks: [{ cx: 800, cz: 800, radius: 80 }, { cx: 1300, cz: 1300, radius: 80 }],
     buildings: [
       { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
-      { type: 'housing', pos: [700, 700], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [1300, 1300], footprint: [20, 20], height: 24 },
-      { type: 'school', pos: [900, 700], footprint: [26, 24], height: 20 },
-      { type: 'hospital', pos: [1100, 1300], footprint: [30, 26], height: 34 },
-      { type: 'shop', pos: [700, 1300], footprint: [32, 32], height: 26 },
-      { type: 'office', pos: [1300, 700], footprint: [20, 20], height: 40 },
+      // homes on the crossing roads, near services + parks
+      { type: 'housing', pos: [960, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1040, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 960], footprint: [26, 24], height: 20 },
+      { type: 'hospital', pos: [1000, 1040], footprint: [30, 26], height: 34 },
+      { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
+      { type: 'office', pos: [1060, 1000], footprint: [20, 20], height: 40 },
     ],
   };
   const layout = sanitizeLayout(raw);
+  const before = computeMetrics(layout);
   const { layout: out, diff } = optimizeLayout(layout, {}, 42);
+  assert.ok(before.accessibility >= 0.9, 'fixture should be road-adjacent');
+  assert.ok(before.coverage >= 0.9, 'fixture should be covered');
   assert.equal(diff.length, 0, 'a balanced city should need no changes');
   assert.equal(out.buildings.length, layout.buildings.length);
+  assert.ok(validateLayout(out).ok);
+});
+
+test('road-poor city: accessibility and score materially improve (not 1-tweak)', () => {
+  // Buildings clustered far from the only road — the classic "so far from
+  // optimal" case. The optimizer must move them closer (not just add a park).
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1900], [1900, 1900]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [120, 120], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [140, 140], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [160, 120], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [120, 160], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [300, 140], footprint: [26, 24], height: 20 },
+      { type: 'hospital', pos: [340, 140], footprint: [30, 26], height: 34 },
+      { type: 'power', pos: [150, 150], footprint: [24, 24], height: 44 },
+      { type: 'city_central', pos: [1800, 120], footprint: [28, 28], height: 100 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const before = computeMetrics(layout);
+  const { layout: out, diff, after } = optimizeLayout(layout, {}, 1);
+  const m = computeMetrics(out);
+  assert.ok(before.accessibility < 0.2, 'fixture should be road-poor');
+  assert.ok(m.accessibility > before.accessibility + 0.2,
+    `accessibility should materially improve (${(before.accessibility * 100).toFixed(0)} -> ${(m.accessibility * 100).toFixed(0)}%)`);
+  assert.ok(after.score > before.score + 15, 'score should materially improve');
+  const moves = diff.filter((d) => d.action === 'move');
+  assert.ok(moves.length >= 3, 'should move several stranded buildings, not one');
   assert.ok(validateLayout(out).ok);
 });
 
