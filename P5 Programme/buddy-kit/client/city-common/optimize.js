@@ -24,9 +24,12 @@
  */
 
 import { catalogType, specialKeys } from './catalog.js';
-import { computeMetrics, roadSegments, METRIC_PARAMS } from './metrics.js';
+import { computeMetrics, roadSegments, METRIC_PARAMS, ratioTargets, servicesNear, utilitiesNear } from './metrics.js';
 
-const NOISY = new Set(['power', 'traffic_lab', 'traffic_emergency', 'delivery', 'recycling']);
+// Heavy-noisy facilities kept away from homes. POWER is NOT in this set — it is
+// a required utility (homes need it nearby) with only a mild setback (see
+// METRIC_PARAMS.powerSetbackDist), matching real-world practice.
+const NOISY = new Set(METRIC_PARAMS.noisyTypes);
 const HOUSING = 'housing';
 const CIVIC = ['school', 'hospital', 'shop', 'office', 'library', 'fire', 'police', 'stadium'];
 const MARGIN = 4;            // meters of clearance between buildings
@@ -126,12 +129,16 @@ function findBuildingAt(layout, b) {
   );
 }
 
-/** Is a home within coverage range of a school, hospital or park? */
-function homeCovered(layout, home) {
-  const services = (layout.buildings || []).filter((b) => b.type === 'school' || b.type === 'hospital');
-  if (services.some((s) => Math.hypot(s.pos[0] - home.pos[0], s.pos[1] - home.pos[1]) <= METRIC_PARAMS.coverageDist)) return true;
-  const parks = layout.parks || [];
-  return parks.some((p) => Math.hypot(p.cx - home.pos[0], p.cz - home.pos[1]) <= METRIC_PARAMS.coverageDist);
+/** Service types a home is missing (of METRIC_PARAMS.serviceTypes). */
+function missingServices(layout, home) {
+  const near = servicesNear(layout, home);
+  return METRIC_PARAMS.serviceTypes.filter((t) => !near.includes(t));
+}
+
+/** Utility types a home is missing (of METRIC_PARAMS.utilityTypes). */
+function missingUtilities(layout, home) {
+  const near = utilitiesNear(layout, home);
+  return METRIC_PARAMS.utilityTypes.filter((t) => !near.includes(t));
 }
 
 /**
@@ -189,7 +196,7 @@ function candidateSpots(layout, type, rng, segs) {
 
 /** Snapshot of the 4 sub-metrics as a comparable tuple. */
 function metricTuple(m) {
-  return [m.accessibility, m.coverage, m.spread, m.zoning];
+  return [m.accessibility, m.coverage, m.utilities, m.spread, m.zoning, m.balance];
 }
 
 /**
@@ -226,10 +233,10 @@ function spreadCandidates(layout, b, rng, segs) {
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, MAX_CANDIDATES).map((s) => [s.x, s.z]);
 }function metricDeltas(before, after) {
-  const names = ['accessibility', 'coverage', 'spread', 'zoning'];
+  const names = ['accessibility', 'coverage', 'utilities', 'spread', 'zoning', 'balance'];
   const improved = [];
   const tb = metricTuple(before), ta = metricTuple(after);
-  for (let i = 0; i < 4; i++) if (ta[i] > tb[i] + 1e-9) improved.push(names[i]);
+  for (let i = 0; i < names.length; i++) if (ta[i] > tb[i] + 1e-9) improved.push(names[i]);
   return improved;
 }
 
@@ -254,7 +261,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
   let after = before;
 
   const maxIter = Math.min(MAX_ITERATIONS, Math.max(4, opts.maxIter ?? MAX_ITERATIONS));
-  const maxAdd = Math.max(1, opts.maxAdd ?? 8);   // safety cap on additions per run
+  const maxAdd = Math.max(1, opts.maxAdd ?? 14);   // safety cap on additions per run
 
   // ── 1. Resolve overlaps first (a hard constraint: no overlaps ever left).
   //    Nudge only the noisy/generic member; never a non-noisy special.
@@ -300,38 +307,41 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     const prevScore = after.score;
     let didImprove = false;
 
-    // 2a. Add a building ONLY to close a genuine coverage gap: a home with no
-    //     nearby school/hospital/park. We find the uncovered homes first, then
-    //     trial-add the missing service near them. Accessibility-only gains do
-    //     NOT drive additions — the student's scale is respected.
+    // 2a. Add missing SERVICES near homes that lack them (school, shop,
+    //     hospital, fire, police). Each service is required independently —
+    //     a park can't substitute. Also add missing UTILITIES (water, power,
+    //     bus) at district range. Accessibility-only gains do NOT drive adds;
+    //     the student's scale is respected (ratioTargets caps the count).
     const H = countType(HOUSING);
     const want = ratioTargets(H);
     if (addedTotal < maxAdd) {
       const homes = buildings().filter((b) => b.type === HOUSING);
-      const uncovered = homes.filter((h) => !homeCovered(out, h));
-      // The facility types a student's own scale implies are missing.
-      const typesToConsider = CIVIC.filter((t) => countType(t) < want[t]);
-      for (const t of typesToConsider) {
+      // 2a-i. Services: for each home, figure out which service it lacks, then
+      //        try adding that service near such homes.
+      const missingByType = {};
+      for (const t of METRIC_PARAMS.serviceTypes) missingByType[t] = [];
+      for (const h of homes) {
+        for (const t of missingServices(out, h)) missingByType[t].push(h);
+      }
+      for (const t of METRIC_PARAMS.serviceTypes) {
         if (addedTotal >= maxAdd) break;
+        if (countType(t) >= want[t]) continue;          // already at ratio
+        const needy = missingByType[t];
+        if (!needy.length) continue;
         const spots = candidateSpots(out, t, rng, segs);
         for (const [sx, sz] of spots) {
-          // Only trial-add if it can plausibly cover an uncovered home:
-          // within coverage range of at least one uncovered home.
-          if (uncovered.length && !uncovered.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.coverageDist)) {
-            continue;
-          }
+          if (!needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.coverageDist)) continue;
           const trial = JSON.parse(JSON.stringify(out));
           pushBuilding(trial, t, [sx, sz], catalogType(t)?.height);
           const m = computeMetrics(trial);
-          // Keep ONLY if coverage (the real gap) improved.
           if (m.coverage > after.coverage + 1e-9) {
             const improved = metricDeltas(after, m);
             const name = catalogType(t)?.name || t;
-            const nFixed = uncovered.filter((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.coverageDist).length;
+            const nFixed = needy.filter((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.coverageDist).length;
             diff.push({
               action: 'add', what: t, count: 1,
               from: null, to: [sx, sz],
-              reason: `Added a ${name} so ${nFixed === 1 ? 'a home' : nFixed + ' homes'} nearby ${nFixed === 1 ? 'has' : 'have'} a school, hospital or park to reach — coverage improved.`,
+              reason: `Added a ${name} so ${nFixed === 1 ? 'a home' : nFixed + ' homes'} nearby has a ${name} to reach — services improved.`,
               improved, fromScore: after.score, toScore: m.score,
             });
             out.buildings = trial.buildings;
@@ -339,6 +349,42 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
             addedTotal++;
             didImprove = true;
             break;   // one add per type per iteration
+          }
+        }
+      }
+      // 2a-ii. Utilities (water/power/bus) — homes need these within district
+      //        range. Only added if a home genuinely lacks them.
+      const missingUtilByType = {};
+      for (const t of METRIC_PARAMS.utilityTypes) missingUtilByType[t] = [];
+      for (const h of homes) {
+        for (const t of missingUtilities(out, h)) missingUtilByType[t].push(h);
+      }
+      for (const t of METRIC_PARAMS.utilityTypes) {
+        if (addedTotal >= maxAdd) break;
+        if (countType(t) >= want[t] || countType(t) >= 1) continue;   // one of each is enough
+        const needy = missingUtilByType[t];
+        if (!needy.length) continue;
+        const spots = candidateSpots(out, t, rng, segs);
+        for (const [sx, sz] of spots) {
+          if (!needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.utilityDist)) continue;
+          const trial = JSON.parse(JSON.stringify(out));
+          pushBuilding(trial, t, [sx, sz], catalogType(t)?.height);
+          const m = computeMetrics(trial);
+          if (m.utilities > after.utilities + 1e-9) {
+            const improved = metricDeltas(after, m);
+            const name = catalogType(t)?.name || t;
+            const nFixed = needy.filter((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.utilityDist).length;
+            diff.push({
+              action: 'add', what: t, count: 1,
+              from: null, to: [sx, sz],
+              reason: `Added the ${name} so ${nFixed === 1 ? 'a home' : nFixed + ' homes'} nearby have ${catalogType(t)?.name || t.toLowerCase()} — utilities improved.`,
+              improved, fromScore: after.score, toScore: m.score,
+            });
+            out.buildings = trial.buildings;
+            after = m;
+            addedTotal++;
+            didImprove = true;
+            break;
           }
         }
       }
@@ -508,6 +554,92 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       }
     }
 
+    // 2c3. Reposition a UTILITY (water/power/bus) closer to homes that lack
+    //     it. Utilities are specials: we may move them (reviewable) but never
+    //     remove them. Keep only if utilities coverage improves.
+    if (!didImprove) {
+      const homes = buildings().filter((b) => b.type === HOUSING);
+      for (const t of METRIC_PARAMS.utilityTypes) {
+        const util = buildings().find((b) => b.type === t);
+        if (!util) continue;
+        const needy = homes.filter((h) => !utilitiesNear(out, h).includes(t));
+        if (!needy.length) continue;
+        const spots = candidateSpots(out, t, rng, segs);
+        const fp = util.footprint || footprintFor(t);
+        for (const [sx, sz] of spots) {
+          if (!needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.utilityDist)) continue;
+          // Don't move power right next to a home (mild setback).
+          if (t === 'power' && homes.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) < METRIC_PARAMS.powerSetbackDist)) continue;
+          const trial = JSON.parse(JSON.stringify(out));
+          const tu = findBuildingAt(trial, util);
+          if (!tu) continue;
+          const overlaps = trial.buildings.some((o) => {
+            if (o === tu) return false;
+            const ofp = o.footprint || footprintFor(o.type);
+            return Math.abs(o.pos[0] - sx) < (ofp[0] + fp[0]) / 2 + MARGIN &&
+                   Math.abs(o.pos[1] - sz) < (ofp[1] + fp[1]) / 2 + MARGIN;
+          });
+          if (overlaps) continue;
+          const from = tu.pos.slice();
+          tu.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
+          const m = computeMetrics(trial);
+          if (m.utilities > after.utilities + 1e-9) {
+            const improved = metricDeltas(after, m);
+            const name = catalogType(t)?.name || t;
+            diff.push({
+              action: 'move', what: t, count: 1, from, to: tu.pos.slice(),
+              reason: `Moved the ${name} closer to homes that were too far away — utilities improved.`,
+              improved, fromScore: after.score, toScore: m.score,
+            });
+            out.buildings = trial.buildings;
+            after = m;
+            didImprove = true;
+            break;
+          }
+        }
+        if (didImprove) break;
+      }
+    }
+
+    // 2c4. Power setback: if a power grid sits right next to a home (within
+    //     the mild hum distance), move it just far enough away.
+    if (!didImprove) {
+      const power = buildings().find((b) => b.type === 'power');
+      const homes = buildings().filter((b) => b.type === HOUSING);
+      if (power && homes.some((h) => Math.hypot(h.pos[0] - power.pos[0], h.pos[1] - power.pos[1]) < METRIC_PARAMS.powerSetbackDist)) {
+        const spots = candidateSpots(out, 'power', rng, segs);
+        const fp = power.footprint || footprintFor('power');
+        for (const [sx, sz] of spots) {
+          if (homes.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) < METRIC_PARAMS.powerSetbackDist)) continue;
+          const trial = JSON.parse(JSON.stringify(out));
+          const tp = findBuildingAt(trial, power);
+          if (!tp) continue;
+          const overlaps = trial.buildings.some((o) => {
+            if (o === tp) return false;
+            const ofp = o.footprint || footprintFor(o.type);
+            return Math.abs(o.pos[0] - sx) < (ofp[0] + fp[0]) / 2 + MARGIN &&
+                   Math.abs(o.pos[1] - sz) < (ofp[1] + fp[1]) / 2 + MARGIN;
+          });
+          if (overlaps) continue;
+          const from = tp.pos.slice();
+          tp.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
+          const m = computeMetrics(trial);
+          if (m.zoning > after.zoning + 1e-9 && m.score >= after.score - 2) {
+            const improved = metricDeltas(after, m);
+            diff.push({
+              action: 'move', what: 'power', count: 1, from, to: tp.pos.slice(),
+              reason: 'Moved the Smart Power Grid a little away from the nearest home — the hum is fine at a small distance.',
+              improved, fromScore: after.score, toScore: m.score,
+            });
+            out.buildings = trial.buildings;
+            after = m;
+            didImprove = true;
+            break;
+          }
+        }
+      }
+    }
+
     // 2d. Add a park when homes are far from green space (coverage).
     if (!didImprove && parks.length < 5) {
       const spots = parkSpots(out, rng);
@@ -589,20 +721,6 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
   }
 
   return { layout: out, diff, before, after };
-}
-
-/** Per-housing ratios (what a student's own city implies). */
-export function ratioTargets(H) {
-  return {
-    school: Math.max(1, Math.ceil(H / 10)),
-    hospital: Math.max(1, Math.ceil(H / 15)),
-    shop: Math.max(1, Math.ceil(H / 8)),
-    office: Math.max(1, Math.ceil(H / 6)),
-    library: 1,
-    fire: 1,
-    police: 1,
-    stadium: 1,
-  };
 }
 
 function parkSpots(layout, rng) {

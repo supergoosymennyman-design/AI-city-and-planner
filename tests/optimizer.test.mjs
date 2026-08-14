@@ -7,8 +7,8 @@
 // Run: node --test tests/optimizer.test.mjs   (from the repo root)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { optimizeLayout, ratioTargets } from '../P5 Programme/buddy-kit/client/city-common/optimize.js';
-import { computeMetrics } from '../P5 Programme/buddy-kit/client/city-common/metrics.js';
+import { optimizeLayout } from '../P5 Programme/buddy-kit/client/city-common/optimize.js';
+import { computeMetrics, ratioTargets } from '../P5 Programme/buddy-kit/client/city-common/metrics.js';
 import { validateLayout, sanitizeLayout } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
 import { specialKeys } from '../P5 Programme/buddy-kit/client/city-common/catalog.js';
 
@@ -74,8 +74,8 @@ test('empty-ish layout is safe (no throw, valid, score non-decreasing)', () => {
 });
 
 test('already-well-balanced city stays untouched', () => {
-  // A city whose buildings are all genuinely road-adjacent + covered + quiet:
-  // the optimizer should find nothing worth changing.
+  // A city whose homes are near all 5 required services + utilities, on roads,
+  // spread, quiet: the optimizer should find nothing worth changing.
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [
@@ -85,12 +85,17 @@ test('already-well-balanced city stays untouched', () => {
     parks: [{ cx: 800, cz: 800, radius: 80 }, { cx: 1300, cz: 1300, radius: 80 }],
     buildings: [
       { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
-      // homes on the crossing roads, near services + parks
+      // homes on the crossing, near every service + utility
       { type: 'housing', pos: [960, 1000], footprint: [20, 20], height: 24 },
       { type: 'housing', pos: [1040, 1000], footprint: [20, 20], height: 24 },
-      { type: 'school', pos: [1000, 960], footprint: [26, 24], height: 20 },
-      { type: 'hospital', pos: [1000, 1040], footprint: [30, 26], height: 34 },
+      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
       { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
+      { type: 'hospital', pos: [1000, 1050], footprint: [30, 26], height: 34 },
+      { type: 'fire', pos: [1000, 920], footprint: [22, 20], height: 16 },
+      { type: 'police', pos: [1000, 1080], footprint: [22, 20], height: 18 },
+      { type: 'water', pos: [1000, 700], footprint: [24, 24], height: 40 },
+      { type: 'power', pos: [1000, 1300], footprint: [24, 24], height: 44 },
+      { type: 'bus', pos: [760, 1000], footprint: [26, 20], height: 38 },
       { type: 'office', pos: [1060, 1000], footprint: [20, 20], height: 40 },
     ],
   };
@@ -98,8 +103,9 @@ test('already-well-balanced city stays untouched', () => {
   const before = computeMetrics(layout);
   const { layout: out, diff } = optimizeLayout(layout, {}, 42);
   assert.ok(before.accessibility >= 0.9, 'fixture should be road-adjacent');
-  assert.ok(before.coverage >= 0.9, 'fixture should be covered');
-  assert.equal(diff.length, 0, 'a balanced city should need no changes');
+  assert.ok(before.coverage >= 0.9, 'fixture should have all services near homes');
+  assert.ok(before.utilities >= 0.9, 'fixture should have utilities near homes');
+  assert.equal(diff.length, 0, `a balanced city should need no changes (got ${diff.length}: ${diff.map(d => d.action + ' ' + d.what).join(', ')})`);
   assert.equal(out.buildings.length, layout.buildings.length);
   assert.ok(validateLayout(out).ok);
 });
@@ -135,6 +141,72 @@ test('road-poor city: accessibility and score materially improve (not 1-tweak)',
   assert.ok(validateLayout(out).ok);
 });
 
+test('park-only homes: optimizer adds missing services + utilities, not "already good"', () => {
+  // The bug that started this: homes near a park alone read as 100% covered,
+  // so the optimizer said "already good". Now a park is only a half-weight
+  // bonus — homes still need school/shop/hospital/fire/police + utilities.
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [{ cx: 1000, cz: 1000, radius: 70 }],
+    buildings: [
+      { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
+      { type: 'housing', pos: [900, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1100, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1000, 900], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1000, 1100], footprint: [20, 20], height: 24 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const before = computeMetrics(layout);
+  const { layout: out, diff } = optimizeLayout(layout, {}, 1);
+  const m = computeMetrics(out);
+  assert.ok(before.coverage < 0.4, 'park alone should NOT satisfy coverage');
+  assert.ok(m.coverage > before.coverage + 0.2, `coverage should improve (${(before.coverage * 100).toFixed(0)} -> ${(m.coverage * 100).toFixed(0)}%)`);
+  assert.ok(diff.some((d) => d.action === 'add' && d.what === 'school'), 'should add a school');
+  assert.ok(diff.some((d) => d.action === 'add' && d.what === 'shop'), 'should add a shop');
+  assert.ok(diff.some((d) => d.action === 'add' && d.what === 'hospital'), 'should add a hospital');
+  assert.ok(diff.length >= 3, 'should make several additions, not be "already good"');
+  assert.ok(validateLayout(out).ok);
+});
+
+test('utilities far away: reposition a water/power/bus closer to homes', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [
+      { points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' },
+      { points: [[1000, 100], [1000, 1900]], width: 14, class: 'primary' },
+    ],
+    parks: [],
+    buildings: [
+      { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
+      { type: 'housing', pos: [900, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1100, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
+      { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
+      { type: 'hospital', pos: [1000, 1050], footprint: [30, 26], height: 34 },
+      { type: 'fire', pos: [880, 1000], footprint: [22, 20], height: 16 },
+      { type: 'police', pos: [1120, 1000], footprint: [22, 20], height: 18 },
+      // water is 700m away from homes — clearly too far to serve them
+      { type: 'water', pos: [300, 1700], footprint: [24, 24], height: 40 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const before = computeMetrics(layout);
+  const { layout: out, diff } = optimizeLayout(layout, {}, 5);
+  const m = computeMetrics(out);
+  const water = out.buildings.find((b) => b.type === 'water');
+  assert.ok(water, 'water should never be removed');
+  assert.ok(before.utilities < 1, 'fixture should have a utility gap');
+  assert.ok(m.utilities > before.utilities + 1e-9, `utilities should improve (${(before.utilities * 100).toFixed(0)} -> ${(m.utilities * 100).toFixed(0)}%)`);
+  // water should have moved closer to the homes
+  const homeDist = (w) => Math.min(
+    ...layout.buildings.filter((b) => b.type === 'housing').map((h) => Math.hypot(w.pos[0] - h.pos[0], w.pos[1] - h.pos[1]))
+  );
+  assert.ok(diff.some((d) => d.action === 'move' && d.what === 'water'), 'water should be repositioned');
+  assert.ok(validateLayout(out).ok);
+});
+
 test('noisy-near-homes city: zoning materially improves (noisy building moved)', () => {
   const raw = {
     version: 2, scaleMeters: 2000,
@@ -144,7 +216,7 @@ test('noisy-near-homes city: zoning materially improves (noisy building moved)',
       { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
       { type: 'housing', pos: [400, 1000], footprint: [20, 20], height: 24 },
       { type: 'housing', pos: [600, 1000], footprint: [20, 20], height: 24 },
-      { type: 'power', pos: [410, 1000], footprint: [24, 24], height: 44 },   // noisy next to homes
+      { type: 'delivery', pos: [410, 1000], footprint: [26, 22], height: 44 },   // noisy next to homes
     ],
   };
   const layout = sanitizeLayout(raw);
@@ -154,6 +226,28 @@ test('noisy-near-homes city: zoning materially improves (noisy building moved)',
   assert.ok(before.zoning < 0.8, 'fixture should have a zoning conflict');
   assert.ok(m.zoning > before.zoning + 0.1, `zoning should improve (${(before.zoning * 100).toFixed(0)} -> ${(m.zoning * 100).toFixed(0)}%)`);
   assert.ok(diff.some((d) => d.action === 'move' && NOISY.has(d.what)), 'the noisy building should be moved');
+  assert.ok(validateLayout(out).ok);
+});
+
+test('power-next-to-home: power moved to a mild setback (not deleted, not far)', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
+      { type: 'housing', pos: [400, 1000], footprint: [20, 20], height: 24 },
+      { type: 'power', pos: [410, 1000], footprint: [24, 24], height: 44 },     // 10m from home
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const before = computeMetrics(layout);
+  const { layout: out, diff } = optimizeLayout(layout, {}, 11);
+  const m = computeMetrics(out);
+  // power must still exist (utilities specials never removed)
+  assert.ok(out.buildings.some((b) => b.type === 'power'), 'power should never be removed');
+  // and zoning should improve (power no longer 10m from home)
+  assert.ok(m.zoning >= before.zoning, `zoning should not regress (${(before.zoning * 100).toFixed(0)} -> ${(m.zoning * 100).toFixed(0)}%)`);
   assert.ok(validateLayout(out).ok);
 });
 
