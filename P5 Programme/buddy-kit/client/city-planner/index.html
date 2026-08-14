@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI City Planner</title>
+  <meta name="description" content="Design your own AI city — place buildings, draw roads, paint parks, and get AI optimization help.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header id="topbar">
+  <div class="title">🏙️ AI City Planner</div>
+  <div class="tools" role="toolbar" aria-label="Planning tools">
+    <button class="tool-btn active" data-tool="place" aria-pressed="true">🏗️ Place</button>
+    <button class="tool-btn" data-tool="road" aria-pressed="false">🛣️ Road</button>
+    <button class="tool-btn" data-tool="park" aria-pressed="false">🌳 Park</button>
+    <button class="tool-btn" data-tool="select" aria-pressed="false">👆 Move</button>
+  </div>
+  <div class="actions">
+    <button id="btn-undo" class="action-btn" title="Undo last change">↩️</button>
+    <button id="btn-clear" class="action-btn" title="Clear the city">🗑️</button>
+    <button id="btn-ai" class="action-btn ai">🤖 Optimize</button>
+    <button id="btn-export" class="action-btn primary">💾 Generate my city</button>
+  </div>
+</header>
+
+<div id="hint-bar" aria-live="polite">Tap the map to place a building.</div>
+
+<main id="map-wrap">
+  <div id="drawer" aria-label="Building catalog">
+    <div class="drawer-title">Buildings</div>
+    <div id="catalog-list"></div>
+  </div>
+  <canvas id="map" aria-label="City map canvas"></canvas>
+  <aside id="metrics-panel" aria-label="City score and metrics">
+    <div class="score-block">
+      <div class="score-label">City Score</div>
+      <div class="score-ring" id="score">0</div>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Road access</span>
+      <div class="bar"><div class="bar-fill" id="m-access"></div></div>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Home coverage</span>
+      <div class="bar"><div class="bar-fill" id="m-coverage"></div></div>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Spread</span>
+      <div class="bar"><div class="bar-fill" id="m-spread"></div></div>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Peace & quiet</span>
+      <div class="bar"><div class="bar-fill" id="m-zoning"></div></div>
+    </div>
+    <div id="problems" aria-live="polite"></div>
+    <div id="ai-output" aria-live="polite"></div>
+  </aside>
+</main>
+
+<!-- Optimize review modal: the buddy's proposed plan, Apply / Keep -->
+<div id="plan-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="City optimisation plan">
+  <div class="modal-backdrop" data-plan-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="ai-buddy">🤖 Your coding buddy</span>
+      <button class="modal-close" data-plan-close aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="plan-modal-body"></div>
+  </div>
+</div>
+
+<div id="toast" aria-live="polite"></div>
+
+<script type="module" src="planner.js"></script>
+</body>
+</html>

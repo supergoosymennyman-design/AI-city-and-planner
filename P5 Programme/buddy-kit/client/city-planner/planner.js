@@ -725,8 +725,8 @@ function renderPlan(before, after, diff) {
 
   const gain = after.score - before.score;
   const scoreLine = gain > 0
-    ? `City Score: <strong>${before.score}</strong> → <strong>${after.score}</strong> <span class="score-gain">(+${gain})</span>`
-    : `City Score stays <strong>${before.score}</strong> — already well balanced!`;
+    ? `<strong>${before.score}</strong> → <strong>${after.score}</strong> <span class="score-gain">(+${gain})</span>`
+    : `stays <strong>${before.score}</strong>`;
 
   const groupsHtml = groups.map((g) => `
     <div class="plan-group">
@@ -736,34 +736,57 @@ function renderPlan(before, after, diff) {
       </ul>
     </div>`).join('');
 
-  aiOutput.innerHTML = `
-    <span class="ai-buddy">Your coding buddy</span> I checked your city and here's what I found.
-    <div class="plan-score">${scoreLine}</div>
+  const body = document.getElementById('plan-modal-body');
+  body.innerHTML = `
+    <div class="plan-intro">I checked your city and here's what I found.</div>
+    <div class="plan-score">City Score: ${scoreLine}</div>
     ${groupsHtml || '<div class="plan-note">Nothing to change — your city is already well balanced! 🌟</div>'}
     ${diff.length ? `
       <div class="plan-actions">
         <button class="plan-apply" id="plan-apply">✅ Apply changes</button>
         <button class="plan-keep" id="plan-keep">🙅 Keep my city</button>
-      </div>` : ''}`;
+      </div>` : '<div class="plan-actions"><button class="plan-keep" id="plan-keep">👍 Got it</button></div>'}`;
 
+  const modal = document.getElementById('plan-modal');
+  modal.classList.remove('hidden');
+  // Focus the primary action so the student can Apply with one tap.
   const applyBtn = document.getElementById('plan-apply');
-  const keepBtn = document.getElementById('plan-keep');
+  if (applyBtn) applyBtn.focus();
+
+  // Close on backdrop / X / Esc — but NOT on Apply (that commits the plan).
+  modal.querySelectorAll('[data-plan-close]').forEach((el) => {
+    el.addEventListener('click', () => closePlanModal());
+  });
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') { closePlanModal(); document.removeEventListener('keydown', esc); }
+  });
+
   if (applyBtn) applyBtn.addEventListener('click', applyPlan);
+  const keepBtn = document.getElementById('plan-keep');
   if (keepBtn) keepBtn.addEventListener('click', () => {
     _pendingPlan = null;
+    closePlanModal();
     aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> No problem — your city stays exactly as you built it! 🌟';
     toast('👍 Kept your city as-is');
   });
 }
 
+function closePlanModal() {
+  const modal = document.getElementById('plan-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
 function applyPlan() {
   if (!_pendingPlan) return;
   const { layout, diff } = _pendingPlan;
+  const oldLayout = state.layout;
   pushUndo();
   state.layout = layout;
   state.selectedIdx = -1;
   updateMetrics();
   render();
+  flashChanges(oldLayout, diff);
+  closePlanModal();
   const addN = diff.filter((d) => d.action === 'add').length;
   const moveN = diff.filter((d) => d.action === 'move').length;
   const remN = diff.filter((d) => d.action === 'remove').length;
@@ -776,6 +799,40 @@ function applyPlan() {
   toast(`✅ Applied — ${parts.join(', ')}! ↩️ Undo to revert.`);
   aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> Done! Your city is smarter now. 🌟';
   _pendingPlan = null;
+}
+
+// Briefly outline the buildings the plan changed (green=added, blue=moved,
+// red=removed) so the student sees exactly what changed on the map.
+function flashChanges(oldLayout, diff) {
+  const FLASH_MS = 2200;
+  const marks = [];   // {x, z, w, h, color}
+  for (const d of diff) {
+    if (d.action === 'remove' && d.from) {
+      marks.push({ x: d.from[0], z: d.from[1], w: 22, h: 22, color: '#ff5c5c' });
+    } else if (d.action === 'add' && d.to) {
+      marks.push({ x: d.to[0], z: d.to[1], w: 26, h: 26, color: '#3ddc84' });
+    } else if (d.action === 'move' && d.to) {
+      marks.push({ x: d.to[0], z: d.to[1], w: 26, h: 26, color: '#00b7ff' });
+    }
+  }
+  if (!marks.length) return;
+  const end = Date.now() + FLASH_MS;
+  function drawFlash() {
+    render();   // repaint the base map
+    for (const mk of marks) {
+      const c = planToScreen(mk.x, mk.z);
+      const s = Math.max(8, mk.w * state.view.px);
+      ctx.save();
+      ctx.strokeStyle = mk.color;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = mk.color;
+      ctx.shadowBlur = 8;
+      ctx.strokeRect(c.x - s / 2, c.y - s / 2, s, s);
+      ctx.restore();
+    }
+    if (Date.now() < end) requestAnimationFrame(drawFlash);
+  }
+  drawFlash();
 }
 // ─── Wire up UI ─────────────────────────────────────────
 document.getElementById('btn-undo').addEventListener('click', undo);
