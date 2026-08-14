@@ -323,6 +323,14 @@ const _treeLoader = new GLTFLoader();
 let _treeModels = null;
 let _treePacks = null;    // Quaternius tree packs (each holds 5 named variants)
 let _parkModel = null;   // shared park GLB (trees + benches + fountain)
+
+// Tree instancing: each GLB pack variant is normalised ONCE into a shared
+// single-geometry mesh; addTree() only QUEUES a placement, and flushTrees()
+// (called after carving) writes them into per-variant InstancedMeshes. This
+// collapses ~300 separate tree clones into ~10 instanced draw calls.
+let _treeVariants = [];   // [{geo, height}] — normalized, feet on y=0
+let _treePlacements = []; // [{x, z, scale, v}] — queued until flush
+
 function loadTreeModels() {
   return Promise.all([
     _treeLoader.loadAsync(ASSET_BASE + 'models/tree.glb').catch((e) => { console.warn('[city-builder] tree GLB failed', e); return null; }),
@@ -366,6 +374,150 @@ function loadParkModel() {
     .catch((e) => { console.warn('[city-builder] park GLB failed', e); _parkModel = null; return null; });
 }
 
+// Convert any interleaved-buffer attributes to plain BufferAttributes so
+// BufferGeometryUtils.mergeGeometries can merge them (it refuses interleaved).
+// Read through the attribute's own getX/getY/getZ/getW accessors — they
+// correctly handle interleaved/normalized storage (raw array offsets in the
+// shared buffer are NOT plain float positions, e.g. GLB interleaved UV/index
+// data, so never index .array directly).
+function deInterleave(geo) {
+  const names = Object.keys(geo.attributes);
+  for (const name of names) {
+    const attr = geo.attributes[name];
+    if (attr && attr.isInterleavedBufferAttribute) {
+      const itemSize = attr.itemSize;
+      const count = attr.count;
+      const arr = new Float32Array(count * itemSize);
+      const getters = [attr.getX.bind(attr), attr.getY.bind(attr), attr.getZ.bind(attr), attr.getW.bind(attr)];
+      for (let i = 0; i < count; i++) {
+        for (let s = 0; s < itemSize && s < 4; s++) arr[i * itemSize + s] = getters[s](i);
+      }
+      geo.setAttribute(name, new THREE.BufferAttribute(arr, itemSize));
+    }
+  }
+  return geo;
+}
+
+// Normalise one tree model into a single shared geometry: bake the clone's
+// transforms into the vertices, merge sub-meshes, centre on origin, feet on
+// y=0. Returns {geo, height} or null. `height` is the tree's natural height so
+// instances can be scaled to a target size like the old clone path did.
+function normalizeTreeToGeometry(root) {
+  try {
+    const clone = root.clone(true);
+    clone.updateMatrixWorld(true);
+    const geos = [];
+    let maxY = -Infinity;
+    clone.traverse((o) => {
+      if (o.isMesh && o.geometry) {
+        const g = deInterleave(o.geometry.clone());
+        g.applyMatrix4(o.matrixWorld);
+        const box = new THREE.Box3().setFromBufferAttribute(g.attributes.position);
+        if (box.max.y > maxY) maxY = box.max.y;
+        if (!g.getAttribute('normal')) g.computeVertexNormals();
+        geos.push(g);
+      }
+    });
+    if (!geos.length) return null;
+    const merged = BufferGeometryUtils.mergeGeometries(geos, false);
+    if (!merged) return null;
+    // Centre X/Z on origin, sit base on y=0.
+    const b = new THREE.Box3().setFromBufferAttribute(merged.attributes.position);
+    const size = new THREE.Vector3(); b.getSize(size);
+    const center = new THREE.Vector3(); b.getCenter(center);
+    merged.translate(-center.x, -b.min.y, -center.z);
+    return { geo: merged, height: Math.max(size.y, 0.5) };
+  } catch (e) {
+    console.warn('[city-builder] tree normalise failed', e);
+    return null;
+  }
+}
+
+function buildTreeVariants() {
+  _treeVariants = [];
+  // Packs first (richest visuals); each pack has 5 variant nodes.
+  if (_treePacks && Object.keys(_treePacks).length) {
+    for (const packKey of Object.keys(_treePacks)) {
+      const pack = _treePacks[packKey];
+      const variantNodes = (pack.children || []).filter((c) => c.isMesh || (c.children && c.children.length));
+      for (const v of variantNodes) {
+        const n = normalizeTreeToGeometry(v);
+        if (n) _treeVariants.push(n);
+      }
+    }
+  }
+  // Fallback simple tree models (tree.glb / tree-high.glb).
+  if (!_treeVariants.length && _treeModels) {
+    for (const key of ['tree', 'treeHigh']) {
+      if (_treeModels[key]) {
+        const n = normalizeTreeToGeometry(_treeModels[key]);
+        if (n) _treeVariants.push(n);
+      }
+    }
+  }
+}
+
+function addTree(x, z, scale) {
+  if (_treeVariants.length) {
+    const v = Math.floor(Math.random() * _treeVariants.length);
+    _treePlacements.push({ x, z, scale, v });
+    return;
+  }
+  // No GLB trees at all — procedural fallback stays as individual meshes.
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16, 0.2, 0.8, 8),
+    new THREE.MeshStandardMaterial({ color: 0x6d4c2f, roughness: 0.9 })
+  );
+  trunk.position.set(x, 0.4, z);
+  scene.add(trunk);
+  const leaf = new THREE.Mesh(
+    new THREE.SphereGeometry(0.7, 8, 6),
+    new THREE.MeshStandardMaterial({ color: 0x3d8b4f, roughness: 0.85 })
+  );
+  leaf.position.set(x, 1.1, z);
+  scene.add(leaf);
+}
+
+// Write queued tree placements into per-variant InstancedMeshes. Call after
+// ALL addTree() calls (park trees + street trees) so capacities are exact.
+function flushTrees() {
+  if (!_treePlacements.length) return;
+  const counts = new Array(_treeVariants.length).fill(0);
+  for (const p of _treePlacements) counts[p.v]++;
+  const mats = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+  const instByVariant = new Map();   // variant index -> InstancedMesh
+  _treeVariants.forEach((variant, vi) => {
+    if (!counts[vi]) return;
+    const inst = new THREE.InstancedMesh(variant.geo, mats, counts[vi]);
+    inst.count = 0;
+    inst.castShadow = true;
+    inst.receiveShadow = false;
+    inst.userData.isCityTree = true;   // debug/verify hook
+    scene.add(inst);
+    instByVariant.set(vi, inst);
+  });
+  const m = new THREE.Matrix4();
+  const pos = new THREE.Vector3();
+  const scl = new THREE.Vector3();
+  const quat = new THREE.Quaternion();
+  const placed = new Array(_treeVariants.length).fill(0);
+  for (const p of _treePlacements) {
+    const inst = instByVariant.get(p.v);
+    if (!inst) continue;
+    const variant = _treeVariants[p.v];
+    const idx = placed[p.v]++;
+    pos.set(p.x, 0, p.z);
+    const h = variant.height || 1;
+    scl.setScalar((p.scale * 4) / h);
+    quat.identity();
+    m.compose(pos, quat, scl);
+    inst.setMatrixAt(idx, m);
+    inst.count = idx + 1;
+    inst.instanceMatrix.needsUpdate = true;
+  }
+  _treePlacements = [];
+}
+
 function addPark(cx, cz, radius) {
   const grass = new THREE.Mesh(
     new THREE.CircleGeometry(radius, 28),
@@ -406,68 +558,6 @@ function addPark(cx, cz, radius) {
     const r = radius * (0.18 + 0.28 * ((hashString(i * 17 + Math.round(cz)) % 10) / 10));
     addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.7 + ((hashString(i * 23) % 10) / 10) * 0.5);
   }
-}
-
-function addTree(x, z, scale) {
-  if (_treePacks && Object.keys(_treePacks).length) {
-    // Pick a random pack (normal/pine/birch/maple/dead) then a random variant
-    // node inside it; clone the whole pack, drop the other 4 variants, and
-    // centre the chosen one at the origin before placing it.
-    const packKeys = Object.keys(_treePacks);
-    const packKey = packKeys[Math.floor(Math.random() * packKeys.length)];
-    const pack = _treePacks[packKey];
-    const variantNodes = pack.children.filter((c) => c.isMesh || (c.children && c.children.length));
-    const chosen = variantNodes[Math.floor(Math.random() * variantNodes.length)];
-    const clone = pack.clone(true);
-    const chosenClone = clone.getObjectByName(chosen.name) || clone.children[0];
-    // Remove the other variants from the clone (keep only the chosen tree).
-    for (let i = clone.children.length - 1; i >= 0; i--) {
-      const c = clone.children[i];
-      if (c !== chosenClone) {
-        clone.remove(c);
-        c.traverse && c.traverse((o) => { if (o.isMesh) { o.geometry && o.geometry.dispose(); if (o.material) { if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose()); else o.material.dispose(); } } });
-      }
-    }
-    // Re-centre the chosen variant on the origin (its pack had it offset along X).
-    if (chosenClone) {
-      const box = new THREE.Box3().setFromObject(chosenClone);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      chosenClone.position.x -= center.x;
-      chosenClone.position.z -= center.z;
-      // Sit the base on y=0.
-      chosenClone.position.y -= box.min.y;
-      // Scale to fit the requested size.
-      const h = size.y || 1;
-      chosenClone.scale.multiplyScalar((scale * 4) / h);
-    }
-    clone.position.set(x, 0, z);
-    clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
-    scene.add(clone);
-    return;
-  }
-  if (_treeModels) {
-    const variant = (hashString(Math.round(x * 31 + z * 17)) % 4 === 0) ? 'treeHigh' : 'tree';
-    const clone = _treeModels[variant].clone(true);
-    clone.position.set(x, 0, z);
-    clone.scale.setScalar(scale);
-    clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
-    scene.add(clone);
-    return;
-  }
-  // fallback procedural tree
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.16, 0.2, 0.8, 8),
-    new THREE.MeshStandardMaterial({ color: 0x6d4c2f, roughness: 0.9 })
-  );
-  trunk.position.set(x, 0.4, z);
-  scene.add(trunk);
-  const leaf = new THREE.Mesh(
-    new THREE.SphereGeometry(0.7, 8, 6),
-    new THREE.MeshStandardMaterial({ color: 0x3d8b4f, roughness: 0.85 })
-  );
-  leaf.position.set(x, 1.1, z);
-  scene.add(leaf);
 }
 
 // ─── Special/quest buildings (design + beacons + labels) ──────────────────
@@ -1368,8 +1458,10 @@ async function bootInner() {
   await loadParkModel();
   fill.style.width = '60%';
 
+  buildTreeVariants();
   carveParks();
   carveRoads();
+  flushTrees();
   buildQuestLandmarks();
   buildGenericFacilities();
   fill.style.width = '80%';
