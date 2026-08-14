@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>My AI City — 3D</title>
+  <script>
+    // Browser support check: this sim needs ES modules + import maps.
+    (function () {
+      var ok = (function () {
+        var s = document.createElement('script');
+        var hasImportMapProp = 'importmap' in s;
+        var hasSupportsAPI = !!window.HTMLScriptElement && typeof HTMLScriptElement.supports === 'function';
+        if (hasSupportsAPI) return !!HTMLScriptElement.supports('importmap');
+        return hasImportMapProp;
+      })();
+      if (ok) return;
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;' +
+        'background:#0b1220;color:#eaf2f8;font:700 16px system-ui,sans-serif;text-align:center;padding:28px;';
+      d.textContent = 'This AI City game needs a modern browser (Chrome, Edge, Firefox, or Safari). Please update and reload.';
+      document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(d); });
+    })();
+  </script>
+  <link rel="stylesheet" href="../champion-city/styles.css">
+  <style>
+    #entry-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #0b132b, #16224a);
+      font-family: var(--font-ui, sans-serif); color: #eaf2f8;
+    }
+    #entry-overlay.hidden { display: none; }
+    .visually-hidden {
+      position: absolute !important; width: 1px; height: 1px;
+      margin: -1px; padding: 0; border: 0;
+      clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden;
+      white-space: nowrap;
+    }
+    .entry-card {
+      width: min(520px, 92vw); text-align: center;
+      background: rgba(20, 30, 60, 0.92);
+      border: 2px solid #00f2fe; border-radius: 20px;
+      padding: 26px 24px;
+      box-shadow: 0 0 60px rgba(0,242,254,0.2);
+    }
+    .entry-card h1 { margin: 0 0 6px; font-size: 26px; color: #00f2fe; }
+    .entry-card p { margin: 0 0 16px; font-size: 15px; color: #9fb0c7; }
+    .entry-btn {
+      display: block; width: 100%;
+      min-height: 54px; margin: 8px 0;
+      border-radius: 14px; border: 2px solid transparent;
+      background: #1a2442; color: #eaf2f8;
+      font-size: 16px; font-weight: 800; cursor: pointer;
+    }
+    .entry-btn:hover { border-color: #00f2fe; }
+    .entry-btn.primary { background: #00ff9d; color: #06283a; }
+    .entry-hint { font-size: 12px; color: #6b7a93; margin-top: 10px; }
+    #paste-wrap textarea {
+      width: 100%; min-height: 90px; margin-top: 8px;
+      border-radius: 10px; border: 1px solid #33406e;
+      background: #0b132b; color: #eaf2f8;
+      font-family: ui-monospace, monospace; font-size: 12px; padding: 8px;
+    }
+  </style>
+</head>
+<body>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/three.module.js",
+    "three/addons/": "/vendor/three/addons/",
+    "three/examples/jsm/": "/vendor/three/addons/"
+  }
+}
+</script>
+
+<div id="stage"></div>
+
+<div id="loading">
+  <div class="loading-logo">🏙️</div>
+  <div class="loading-title">My AI City</div>
+  <div class="loading-sub">Building your city…</div>
+  <div class="loading-bar"><div id="loading-fill"></div></div>
+</div>
+
+<!-- Entry: load a student layout -->
+<div id="entry-overlay">
+  <div class="entry-card">
+    <h1>🏙️ My AI City</h1>
+    <p>Your city from the planner is ready to explore in 3D!</p>
+    <button class="entry-btn primary" id="entry-local">▶ Start my saved city</button>
+    <label class="entry-btn" id="entry-file" for="file-input">📁 Upload my-city.json</label>
+    <button class="entry-btn" id="entry-paste">📋 Paste JSON</button>
+    <button class="entry-btn" id="entry-sample">🇭🇰 Try the Hong Kong sample city</button>
+    <input type="file" id="file-input" accept=".json,application/json" class="visually-hidden">
+    <div id="paste-wrap" style="display:none">
+      <textarea id="paste-box" placeholder='Paste your layout JSON here…'></textarea>
+      <button class="entry-btn primary" id="paste-go">Load it!</button>
+    </div>
+    <div class="entry-hint">Tip: build a city in the 2D planner, then press "Generate my city" — it lands here automatically.</div>
+  </div>
+</div>
+
+<header id="hud-top">
+  <div class="hud-left"><span class="hud-title">🏙️ My AI City</span></div>
+  <div class="hud-center"><span class="hud-champion">Champion</span></div>
+  <div class="hud-right"><span class="hud-mission-count">🤖 Your AI City</span></div>
+</header>
+
+<button id="orbit-toggle" aria-label="Look around (rotate camera)" aria-pressed="false">🎥</button>
+<button id="skin-toggle" aria-label="Choose skin" aria-expanded="false">🎨</button>
+<div id="skin-panel" aria-hidden="true">
+  <div class="skin-panel-title">Choose your champion</div>
+  <div id="skin-list"></div>
+</div>
+
+<div id="toasts"></div>
+
+<!-- Building-entry vignette + mission card -->
+<div id="enter-vignette" class="hidden"></div>
+<div id="enter-mission" class="hidden">
+  <div class="em-card">
+    <div class="em-number">🔐 MISSION 00</div>
+    <div class="em-icon">🎯</div>
+    <div class="em-title">
+      <div class="em-zh">進入</div>
+      <div class="em-en">Loading…</div>
+    </div>
+    <div class="em-theme">"Ready the AI!"</div>
+    <div class="em-reason"></div>
+    <button class="em-start">▶ Start Mission</button>
+    <div class="em-bar"><div class="em-fill"></div></div>
+  </div>
+</div>
+
+<div id="quest-prompt" class="hidden">
+  <div class="quest-prompt-label" id="quest-prompt-label">🏛️</div>
+  <button id="quest-prompt-btn">🎮 Enter</button>
+</div>
+
+<!-- Minigame overlay -->
+<div id="game-overlay" class="hidden">
+  <div id="game-overlay-bar">
+    <span id="game-overlay-title">Minigame</span>
+    <div class="game-overlay-actions">
+      <button id="game-overlay-done">✅ 完成 Done</button>
+      <button id="game-overlay-close">↩ 返回城市 Return to City</button>
+    </div>
+  </div>
+  <iframe id="game-frame" title="Minigame" allow="microphone; camera"></iframe>
+</div>
+
+<div id="controls">
+  <div class="controls-left">
+    <div class="action-bar">
+      <button class="action-btn" id="btn-run">🏃<span>Run</span></button>
+      <button class="action-btn hidden" id="btn-jump">🦘<span>Jump</span></button>
+      <button class="action-btn hidden" id="btn-flyup">⬆️<span>Climb</span></button>
+      <button class="action-btn hidden" id="btn-flydown">⬇️<span>Descend</span></button>
+      <button class="action-btn" id="btn-taxi">🚕<span>Taxi</span></button>
+      <button class="action-btn" id="btn-wave">👋<span>Wave</span></button>
+      <button class="action-btn" id="btn-dance">💃<span>Dance</span></button>
+    </div>
+    <div class="dpad">
+      <button class="dpad-btn dpad-up" data-dir="up" aria-label="Forward">▲</button>
+      <button class="dpad-btn dpad-left" data-dir="left" aria-label="Left">◀</button>
+      <button class="dpad-btn dpad-down" data-dir="down" aria-label="Back">▼</button>
+      <button class="dpad-btn dpad-right" data-dir="right" aria-label="Right">▶</button>
+    </div>
+  </div>
+</div>
+
+<div id="buddy-root"></div>
+
+<script src="/buddy-boot.js"></script>
+<script type="module" src="city-builder.js"></script>
+</body>
+</html>

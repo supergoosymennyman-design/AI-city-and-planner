@@ -1,0 +1,1362 @@
+/**
+ * city-builder/city-builder.js — Realistic 3D template for a student-designed city.
+ *
+ * Pipeline:
+ *   1. Render the student's layout DIRECTLY as a realistic city (no prefab):
+ *        - buildings → facade palette + lit-window texture + roof caps
+ *        - special/mission buildings → distinctive designs + beacons + labels
+ *        - roads → asphalt ribbons + neon edges + centerlines
+ *        - parks → grass + trees
+ *   2. Spawn the champion + buddy + skins + minigame overlay (full sim features).
+ *
+ * The student layout comes from localStorage (set by the 2D planner), a file
+ * upload, pasted JSON, or a bundled sample.
+ */
+
+import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { design as questDesign } from '../hong-kong-real/quest-buildings.js';
+import { QUESTS, loadQuestState, questStatus, questTheme, questComplete } from '../hong-kong-real/quests.js';
+import { createChampion, WALK_SPEED } from '../hong-kong-real/champion-real.js';
+import { createDrones } from '../hong-kong-real/drones.js';
+import { createDecoTaxis } from '../hong-kong-real/deco-taxis.js';
+import { createSkySentinels } from '../hong-kong-real/sky-sentinels.js';
+import { createFlyingTaxi } from '../champion-city/taxi.js';
+import { createTraffic } from './traffic.js';
+import { createPedestrians } from './pedestrians.js';
+import { createStreetProps } from './street-props.js';
+import { createMinimap } from './minimap.js';
+import { mountCityBuddy } from './buddy.js';
+import { createLabelRenderer } from '../champion-city/labels.js';
+import { mountSkinSidebar } from '../champion-city/skins.js';
+import { playTap } from '../champion-city/sound.js';
+import { catalogType, isSpecial } from '../city-common/catalog.js';
+import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout } from '../city-common/layout.js';
+
+const ASSET_BASE = '../champion-city/assets/';
+const STORAGE_KEY = 'p5_city_planner_layout_v1';
+
+const IS_MOBILE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || window.innerWidth <= 768;
+
+// ─── osm-city facade palette (kept in sync — single aesthetic source) ─────
+const FACADE_PALETTE = [
+  { max: 15,  roughness: 0.90, metalness: 0.02, intensity: 0.00, colors: [0xe2d5c0, 0xd4c2a8, 0xc8af90] },
+  { max: 30,  roughness: 0.85, metalness: 0.05, intensity: 0.10, colors: [0xb8a188, 0xa89882, 0xb3a691] },
+  { max: 60,  roughness: 0.80, metalness: 0.10, intensity: 0.20, colors: [0x878e91, 0x968d7f, 0x7d8a8e] },
+  { max: 120, roughness: 0.35, metalness: 0.30, intensity: 0.38, colors: [0x7a9ba5, 0x8caaba, 0x6b8f9e] },
+  { max: 999, roughness: 0.25, metalness: 0.45, intensity: 0.55, colors: [0x4a5f70, 0x3a4a58, 0x2d3640] },
+];
+
+let _windowTex = null;
+function getWindowTexture() {
+  if (_windowTex) return _windowTex;
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#060a18';
+  ctx.fillRect(0, 0, size, size);
+  const cols = 14, rows = 22, cw = size / cols, ch = size / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const lit = ((r * 7 + c * 13) % 5) < 4;
+      ctx.fillStyle = lit ? '#00f2fe' : '#12203a';
+      ctx.globalAlpha = lit ? 0.4 + 0.4 * (((r * 31 + c * 17) % 10) / 10) : 1;
+      ctx.fillRect(c * cw + 3, r * ch + 3, cw - 6, ch - 6);
+    }
+  }
+  ctx.globalAlpha = 1;
+  _windowTex = new THREE.CanvasTexture(canvas);
+  _windowTex.wrapS = _windowTex.wrapT = THREE.RepeatWrapping;
+  _windowTex.colorSpace = THREE.SRGBColorSpace;
+  return _windowTex;
+}
+
+function hashString(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+// ─── Sample layout (bundled so the whole thing is testable without the planner)
+function sampleLayout() {
+  return {
+    version: 2,
+    scaleMeters: 2000,
+    roads: [
+      { points: [[200, 1000], [1800, 1000]], width: 14, class: 'primary' },
+      { points: [[1000, 200], [1000, 1800]], width: 14, class: 'primary' },
+      { points: [[600, 550], [600, 1450]], width: 9, class: 'tertiary' },
+      { points: [[1400, 550], [1400, 1450]], width: 9, class: 'tertiary' },
+      { points: [[550, 700], [1450, 700]], width: 7, class: 'residential' },
+      { points: [[550, 1300], [1450, 1300]], width: 7, class: 'residential' },
+    ],
+    parks: [
+      { cx: 1400, cz: 1400, radius: 120 },
+      { cx: 500, cz: 500, radius: 110 },
+      { cx: 800, cz: 1550, radius: 80 },
+    ],
+    buildings: [
+      // mission buildings
+      { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
+      { type: 'finance_tower', pos: [760, 1080], footprint: [24, 24], height: 80 },
+      { type: 'sentiment_lab', pos: [1230, 900], footprint: [22, 22], height: 45 },
+      { type: 'atc', pos: [1360, 1180], footprint: [20, 20], height: 70 },
+      { type: 'water', pos: [820, 620], footprint: [24, 24], height: 40 },
+      { type: 'power', pos: [1380, 620], footprint: [24, 24], height: 44 },
+      { type: 'traffic_lab', pos: [720, 900], footprint: [22, 20], height: 40 },
+      { type: 'recycling', pos: [1280, 1080], footprint: [24, 20], height: 36 },
+      { type: 'drone_routing', pos: [1180, 1280], footprint: [24, 24], height: 55 },
+      { type: 'health', pos: [900, 1280], footprint: [24, 20], height: 42 },
+      // housing + facilities
+      { type: 'housing', pos: [700, 700], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [730, 740], footprint: [20, 20], height: 22 },
+      { type: 'housing', pos: [1300, 1300], footprint: [20, 20], height: 26 },
+      { type: 'housing', pos: [1330, 1340], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [500, 1200], footprint: [20, 20], height: 22 },
+      { type: 'housing', pos: [1500, 800], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1100, 700], footprint: [26, 24], height: 20 },
+      { type: 'hospital', pos: [900, 1300], footprint: [30, 26], height: 34 },
+      { type: 'shop', pos: [1120, 760], footprint: [32, 32], height: 26 },
+      { type: 'library', pos: [880, 1240], footprint: [22, 20], height: 18 },
+      { type: 'office', pos: [860, 960], footprint: [20, 20], height: 40 },
+      { type: 'stadium', pos: [600, 1500], footprint: [36, 30], height: 30 },
+      { type: 'fire', pos: [1500, 1500], footprint: [22, 20], height: 16 },
+      { type: 'police', pos: [500, 900], footprint: [22, 20], height: 18 },
+    ],
+  };
+}
+
+// ─── Boot ────────────────────────────────────────────────────────────────
+const stage = document.getElementById('stage');
+let scene, camera, renderer, composer, labelRenderer;
+let city = {};            // object passed to champion/buddy (scene/camera/renderer/spawnWorld)
+let champion = null;
+let sim = null;
+let layout = null;
+
+let specialSystem = null; // { beacon, beaconPositions, meshes }
+const interactMeshes = []; // raycast targets for building entry
+
+// Air traffic
+let taxi = null;          // player's flying taxi
+let decoTaxis = null;     // decorative skyline taxis
+let skySentinels = null;  // high-altitude drifting lights
+let drones = null;        // patrol drones
+let traffic = null;       // road vehicles
+let pedestrians = null;   // people walking along the sidewalks
+let streetProps = null;   // streetlights + benches
+let minimap = null;
+
+// Navigation targets (from the buddy's walk/fly actions)
+let walkNav = null;       // {x, z} — champion auto-walks here
+let taxiNav = null;       // {x, z, y} — taxi auto-flies here
+
+// Densify state (from loadLayout)
+let growScale = 1;        // champion scale multiplier (buildings grow too)
+let cityBounds = null;    // tightened bounds for minimap + sky traffic
+
+// Orbit / input state
+// Distances are context-aware: overview (no champion) / walk / taxi ride.
+const orbit = {
+  theta: 0.6, phi: 1.1, dist: 62, target: new THREE.Vector3(1000, 0, 1000), locked: false,
+  distWalk: 26, distTaxi: 15,
+};
+const input = { x: 0, z: 0, running: false, jump: false, wave: false, dance: false, ascend: false, descend: false };
+let keys = {};
+
+// ─── Scene setup (osm-city look) ─────────────────────────────────────────
+function setupScene() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x16224a);
+  scene.fog = new THREE.FogExp2(0x16224a, 0.0007);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.5, 30000);
+  camera.position.set(1000, 220, 1350);
+  camera.lookAt(1000, 10, 1000);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.5 : 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.25;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.appendChild(renderer.domElement);
+
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.1, 0.5, 0.35);
+  bloom.threshold = 0.35;
+  bloom.strength = IS_MOBILE ? 1.0 : 1.1;
+  composer.addPass(bloom);
+  const sat = { uniforms: { tDiffuse: { value: null }, amount: { value: 1.28 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv; const vec3 LUMA=vec3(0.2126,0.7152,0.0722); void main(){ vec4 c=texture2D(tDiffuse,vUv); float luma=dot(c.rgb,LUMA); c.rgb=mix(vec3(luma),c.rgb,amount); gl_FragColor=c; }' };
+  composer.addPass(new ShaderPass(sat));
+  const vig = { uniforms: { tDiffuse: { value: null }, intensity: { value: 0.42 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; uniform float intensity; varying vec2 vUv; void main(){ vec4 c=texture2D(tDiffuse,vUv); float d=distance(vUv,vec2(0.5)); float v=1.0-intensity*smoothstep(0.4,0.9,d); gl_FragColor=vec4(c.rgb*v,c.a); }' };
+  composer.addPass(new ShaderPass(vig));
+  composer.addPass(new SMAAPass(window.innerWidth * renderer.getPixelRatio(), window.innerHeight * renderer.getPixelRatio()));
+  composer.addPass(new OutputPass());
+
+  scene.add(new THREE.HemisphereLight(0x33406e, 0x1a2440, 1.15));
+  const sun = new THREE.DirectionalLight(0xffd9b3, 1.5);
+  sun.position.set(1000, 1600, 1200);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -1200; sun.shadow.camera.right = 1200;
+  sun.shadow.camera.top = 1200; sun.shadow.camera.bottom = -1200;
+  scene.add(sun);
+  const rim = new THREE.DirectionalLight(0x00f2fe, 0.5);
+  rim.position.set(-1400, 900, -1200);
+  scene.add(rim);
+
+  // Ground
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(20000, 20000),
+    new THREE.MeshStandardMaterial({ color: 0x141a2e, roughness: 0.9 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.1;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  city.scene = scene;
+  city.camera = camera;
+  city.renderer = renderer;
+  city.resize = () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
+  };
+}
+
+function darken(hex, factor) {
+  const n = parseInt(String(hex).replace('#', ''), 16);
+  const r = Math.round(((n >> 16) & 255) * factor);
+  const g = Math.round(((n >> 8) & 255) * factor);
+  const b = Math.round((n & 255) * factor);
+  return (r << 16) | (g << 8) | b;
+}
+
+function buildRoadsInto(group, roads, opts = {}) {
+  const asphGeos = [];
+  const edgeGeos = [];
+  const laneGeos = [];
+  for (const road of roads) {
+    const half = (road.width || ROAD_WIDTH[road.class] || ROAD_WIDTH.residential) / 2;
+    const pts = road.points.map(([x, z]) => new THREE.Vector3(x, 0, z));
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const dx = b.x - a.x, dz = b.z - a.z;
+      const len = Math.hypot(dx, dz);
+      if (len < 0.01) continue;
+      const nx = (-dz / len) * half, nz = (dx / len) * half;
+      const y = opts.elevated ? 0.07 : 0.03;
+      const edgeY = opts.elevated ? 0.09 : 0.06;
+      asphGeos.push(buildQuad(a, b, nx, nz, y));
+      edgeGeos.push(linePair(a, b, nx, nz, edgeY));
+      laneGeos.push([a.x, laneY(opts), a.z, b.x, laneY(opts), b.z]);
+    }
+  }
+  if (asphGeos.length) {
+    const merged = BufferGeometryUtils.mergeGeometries(asphGeos, false);
+    const color = opts.elevated ? 0x2f3b57 : 0x232c44;
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.2 });
+    const mesh = new THREE.Mesh(merged, mat);
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+  if (edgeGeos.length) {
+    const pts = [];
+    for (const g of edgeGeos) pts.push(...g);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    const mat = new THREE.LineBasicMaterial({ color: opts.elevated ? 0xffffff : 0x00f2fe, transparent: true, opacity: opts.elevated ? 0.85 : 0.7 });
+    group.add(new THREE.LineSegments(geo, mat));
+  }
+  if (laneGeos.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(laneGeos.flat(), 3));
+    const mat = new THREE.LineBasicMaterial({ color: opts.elevated ? 0x00ff9d : 0xffffff, transparent: true, opacity: opts.elevated ? 0.9 : 0.5 });
+    group.add(new THREE.LineSegments(geo, mat));
+  }
+}
+
+function laneY(opts) { return opts.elevated ? 0.1 : 0.08; }
+
+function buildQuad(a, b, nx, nz, y) {
+  const p = [];
+  p.push(a.x + nx, y, a.z + nz, a.x - nx, y, a.z - nz, b.x + nx, y, b.z + nz);
+  p.push(b.x + nx, y, b.z + nz, a.x - nx, y, a.z - nz, b.x - nx, y, b.z - nz);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function linePair(a, b, nx, nz, y) {
+  return [
+    a.x + nx, y, a.z + nz, b.x + nx, y, b.z + nz,
+    a.x - nx, y, a.z - nz, b.x - nx, y, b.z - nz,
+  ];
+}
+
+// ─── Fabric: parks (grass + trees) ────────────────────────────────────────
+const _treeLoader = new GLTFLoader();
+let _treeModels = null;
+let _treePacks = null;    // Quaternius tree packs (each holds 5 named variants)
+let _parkModel = null;   // shared park GLB (trees + benches + fountain)
+function loadTreeModels() {
+  return Promise.all([
+    _treeLoader.loadAsync(ASSET_BASE + 'models/tree.glb'),
+    _treeLoader.loadAsync(ASSET_BASE + 'models/tree-high.glb'),
+  ]).then(([a, b]) => { _treeModels = { tree: a.scene, treeHigh: b.scene }; return _treeModels; })
+    .catch((e) => { console.warn('[city-builder] tree GLB failed', e); _treeModels = null; return null; });
+}
+function loadTreePacks() {
+  const urls = {
+    normal: 'assets/models/nature/tree-normal.glb',
+    pine: 'assets/models/nature/tree-pine.glb',
+    birch: 'assets/models/nature/tree-birch.glb',
+    maple: 'assets/models/nature/tree-maple.glb',
+    dead: 'assets/models/nature/tree-dead.glb',
+  };
+  const keys = Object.keys(urls);
+  return Promise.all(keys.map((k) => _treeLoader.loadAsync(urls[k]).catch((e) => { console.warn('[city-builder] tree pack failed', k, e); return null; })))
+    .then((scenes) => {
+      _treePacks = {};
+      scenes.forEach((s, i) => { if (s) _treePacks[keys[i]] = s.scene; });
+      return _treePacks;
+    });
+}
+function loadParkModel() {
+  return _treeLoader.loadAsync('assets/models/park.glb')
+    .then((gltf) => {
+      const m = gltf.scene;
+      const box = new THREE.Box3().setFromObject(m);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      m.position.sub(center);            // centre the model on its origin
+      m.position.y -= size.y / 2;        // sit its base on y=0
+      m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      _parkModel = m;
+      return m;
+    })
+    .catch((e) => { console.warn('[city-builder] park GLB failed', e); _parkModel = null; return null; });
+}
+
+function addPark(cx, cz, radius) {
+  const grass = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 28),
+    // Matches the ground texture of the park GLB (dominant #386800 olive green)
+    // so the circle blends into the park model instead of clashing with it.
+    new THREE.MeshStandardMaterial({ color: 0x386800, roughness: 0.95 })
+  );
+  grass.rotation.x = -Math.PI / 2;
+  grass.position.set(cx, 0.02, cz);
+  grass.receiveShadow = true;
+  scene.add(grass);
+  // Shared park model (trees + benches + fountain) in the middle of the circle.
+  if (_parkModel) {
+    const clone = _parkModel.clone(true);
+    // Scale so the model's footprint (~2.6×2.5m after the baked rotation) fits
+    // comfortably inside the circle — about 60% of the diameter.
+    const target = radius * 0.6;
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    clone.scale.setScalar(target / maxDim);
+    clone.position.set(cx, 0, cz);
+    scene.add(clone);
+  }
+  // trees ring — denser, and fill the empty inner band so the green circle
+  // reads as a lush park, not a sparse lawn. Keep the middle clear where the
+  // park model (fountain/benches) sits.
+  const count = Math.max(6, Math.round(radius / 8));
+  for (let i = 0; i < count; i++) {
+    const ang = (i / count) * Math.PI * 2 + hashString(i + '') * 0.3;
+    const r = radius * (0.4 + 0.55 * ((hashString(i * 7) % 10) / 10));
+    addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.8 + ((hashString(i * 13) % 10) / 10) * 0.6);
+  }
+  // Fill the mid band (between the centre model and the outer ring).
+  const fillCount = Math.max(3, Math.round(radius / 12));
+  for (let i = 0; i < fillCount; i++) {
+    const ang = hashString(i * 31 + Math.round(cx)) * 0.7 + i * 1.7;
+    const r = radius * (0.18 + 0.28 * ((hashString(i * 17 + Math.round(cz)) % 10) / 10));
+    addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.7 + ((hashString(i * 23) % 10) / 10) * 0.5);
+  }
+}
+
+function addTree(x, z, scale) {
+  if (_treePacks) {
+    // Pick a random pack (normal/pine/birch/maple/dead) then a random variant
+    // node inside it; clone the whole pack, drop the other 4 variants, and
+    // centre the chosen one at the origin before placing it.
+    const packKeys = Object.keys(_treePacks);
+    const packKey = packKeys[Math.floor(Math.random() * packKeys.length)];
+    const pack = _treePacks[packKey];
+    const variantNodes = pack.children.filter((c) => c.isMesh || (c.children && c.children.length));
+    const chosen = variantNodes[Math.floor(Math.random() * variantNodes.length)];
+    const clone = pack.clone(true);
+    const chosenClone = clone.getObjectByName(chosen.name) || clone.children[0];
+    // Remove the other variants from the clone (keep only the chosen tree).
+    for (let i = clone.children.length - 1; i >= 0; i--) {
+      const c = clone.children[i];
+      if (c !== chosenClone) {
+        clone.remove(c);
+        c.traverse && c.traverse((o) => { if (o.isMesh) { o.geometry && o.geometry.dispose(); if (o.material) { if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose()); else o.material.dispose(); } } });
+      }
+    }
+    // Re-centre the chosen variant on the origin (its pack had it offset along X).
+    if (chosenClone) {
+      const box = new THREE.Box3().setFromObject(chosenClone);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      chosenClone.position.x -= center.x;
+      chosenClone.position.z -= center.z;
+      // Sit the base on y=0.
+      chosenClone.position.y -= box.min.y;
+      // Scale to fit the requested size.
+      const h = size.y || 1;
+      chosenClone.scale.multiplyScalar((scale * 4) / h);
+    }
+    clone.position.set(x, 0, z);
+    clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
+    scene.add(clone);
+    return;
+  }
+  if (_treeModels) {
+    const variant = (hashString(Math.round(x * 31 + z * 17)) % 4 === 0) ? 'treeHigh' : 'tree';
+    const clone = _treeModels[variant].clone(true);
+    clone.position.set(x, 0, z);
+    clone.scale.setScalar(scale);
+    clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
+    scene.add(clone);
+    return;
+  }
+  // fallback procedural tree
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16, 0.2, 0.8, 8),
+    new THREE.MeshStandardMaterial({ color: 0x6d4c2f, roughness: 0.9 })
+  );
+  trunk.position.set(x, 0.4, z);
+  scene.add(trunk);
+  const leaf = new THREE.Mesh(
+    new THREE.SphereGeometry(0.7, 8, 6),
+    new THREE.MeshStandardMaterial({ color: 0x3d8b4f, roughness: 0.85 })
+  );
+  leaf.position.set(x, 1.1, z);
+  scene.add(leaf);
+}
+
+// ─── Special/quest buildings (design + beacons + labels) ──────────────────
+function buildQuestLandmarks() {
+  const bodyGeoms = [];
+  const accentGeoms = [];
+  const beaconPositions = [];
+  const questRefs = [];
+
+  for (const b of layout.buildings) {
+    if (!isSpecial(b.type)) continue;
+    const spec = catalogType(b.type);
+    const q = QUESTS.find((qq) => qq.id === spec.questId);
+    if (!q) continue;
+    // Student intent is exact — place at the layout position.
+    const cx = b.pos[0];
+    const cz = b.pos[1];
+    const fp = b.footprint || spec.footprint || [22, 22];
+    const h = Math.min(220, Math.max(8, b.height || spec.height || 30));
+
+    // Industrial mission buildings (water, power, recycling…) render the shared
+    // industrial GLB instead of a procedural design — but keep their beacon and
+    // label so they still read as mission buildings.
+    if (INDUSTRIAL_SPECIALS.includes(b.type)) {
+      (glbState.industrial || (glbState.industrial = { model: null, size: null, spots: [], fallbacks: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType: 'industrial' });
+      // Plain placeholder until the GLB loads (or if it never does).
+      const ph = new THREE.Mesh(
+        new THREE.BoxGeometry(fp[0], h, fp[1]),
+        new THREE.MeshStandardMaterial({ color: 0x3a4650, roughness: 0.85, metalness: 0.3 })
+      );
+      ph.position.set(cx, h / 2, cz);
+      ph.castShadow = true;
+      scene.add(ph);
+      glbState.industrial.fallbacks.push(ph);
+      beaconPositions.push({ x: cx, y: h + 6, z: cz, anchor: h });
+      questRefs.push({ q, cx, cz, top: h });
+      addBuildingLabel(q.labelZh, q.labelEn, cx, h + 14, cz);
+      continue;
+    }
+
+    // AI Finance Tower uses the skyscraper GLB (with window sparkles).
+    if (b.type === 'finance_tower') {
+      (glbState.skyscraper || (glbState.skyscraper = { model: null, size: null, spots: [], fallbacks: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType: 'skyscraper' });
+      // Placeholder until the GLB loads.
+      const ph = new THREE.Mesh(
+        new THREE.BoxGeometry(fp[0], h, fp[1]),
+        new THREE.MeshStandardMaterial({ color: 0x2d3640, roughness: 0.7, metalness: 0.4 })
+      );
+      ph.position.set(cx, h / 2, cz);
+      ph.castShadow = true;
+      scene.add(ph);
+      glbState.skyscraper.fallbacks.push(ph);
+      beaconPositions.push({ x: cx, y: h + 6, z: cz, anchor: h });
+      questRefs.push({ q, cx, cz, top: h });
+      addBuildingLabel(q.labelZh, q.labelEn, cx, h + 14, cz);
+      continue;
+    }
+
+    const d = questDesign(spec.questId, cx, cz);
+    bodyGeoms.push(...d.b);
+    accentGeoms.push(...d.a);
+
+    // real top for beacon anchor
+    const maxY = (arr) => { let m = -Infinity; for (const g of arr) { if (!g.boundingBox) g.computeBoundingBox(); if (g.boundingBox) m = Math.max(m, g.boundingBox.max.y); } return m; };
+    const top = Math.max(maxY(d.b), maxY(d.a));
+    const anchor = Number.isFinite(top) ? top : (b.height || 30);
+    beaconPositions.push({ x: cx, y: anchor + 6, z: cz, anchor });
+    questRefs.push({ q, cx, cz, top: anchor });
+
+    // CSS2D label
+    addBuildingLabel(q.labelZh, q.labelEn, cx, anchor + 14, cz);
+  }
+
+  if (bodyGeoms.length) {
+    const bodies = new THREE.Mesh(
+      BufferGeometryUtils.mergeGeometries(bodyGeoms, false),
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.3 })
+    );
+    bodies.castShadow = true;
+    scene.add(bodies);
+  }
+  if (accentGeoms.length) {
+    const accents = new THREE.Mesh(
+      BufferGeometryUtils.mergeGeometries(accentGeoms, false),
+      new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false })
+    );
+    scene.add(accents);
+  }
+
+  // Beacons
+  if (beaconPositions.length) {
+    const state = loadQuestState();
+    const beacon = new THREE.InstancedMesh(
+      new THREE.OctahedronGeometry(2.2, 0),
+      new THREE.MeshBasicMaterial({ toneMapped: false }),
+      beaconPositions.length
+    );
+    const m = new THREE.Matrix4(), v = new THREE.Vector3(), qq = new THREE.Quaternion(), ss = new THREE.Vector3();
+    const colour = new THREE.Color();
+    beaconPositions.forEach((bp, i) => {
+      v.set(bp.x, bp.y, bp.z);
+      qq.setFromEuler(new THREE.Euler(0, Math.PI / 4, 0.6));
+      m.compose(v, qq, ss.set(1, 1, 1));
+      beacon.setMatrixAt(i, m);
+      const st = questStatus(questRefs[i].q, state);
+      colour.setHex(st === 'completed' ? 0x00ff9d : st === 'unlocked' ? 0x00f2fe : 0x3a3f46);
+      beacon.setColorAt(i, colour);
+    });
+    beacon.instanceMatrix.needsUpdate = true;
+    beacon.instanceColor.needsUpdate = true;
+    scene.add(beacon);
+    specialSystem = { beacon, beaconPositions, questRefs };
+  }
+
+  // Register special buildings for tap interaction — an invisible hit-sphere
+  // (colorWrite off so it never renders) centred on the building.
+  for (const ref of questRefs) {
+    const q = ref.q;
+    if (q.gameUrl) {
+      const hit = new THREE.Mesh(
+        new THREE.SphereGeometry(12, 6, 5),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, colorWrite: false, depthWrite: false })
+      );
+      hit.position.set(ref.cx, Math.max(12, ref.top / 2), ref.cz);
+      hit.userData = { kind: 'quest', questId: q.id, name: q.labelEn, gameUrl: q.gameUrl };
+      scene.add(hit);
+      interactMeshes.push(hit);
+    }
+  }
+}
+
+function addBuildingLabel(zh, en, x, y, z) {
+  if (!labelRenderer) return;
+  const el = document.createElement('div');
+  el.className = 'building-label quest-label';
+  el.innerHTML = `<div class="bl-zh">${zh}</div><div class="bl-en">${en}</div>`;
+  const label = new CSS2DObject(el);
+  label.position.set(x, y, z);
+  scene.add(label);
+}
+
+// ─── Generic facilities (realistic facades + label) ───────────────────────
+// GLB-backed building types. Each renders as a facade extrusion immediately,
+// then swaps to the GLB clone when it loads. The shared `generic` model is used
+// for the plain facilities (school, hospital, shop, …) that don't have their
+// own dedicated building yet.
+const GLB_BUILDING_TYPES = {
+  office: 'assets/models/office-tower.glb',
+  housing: 'assets/models/housing.glb',
+  shop: 'assets/models/mall.glb',
+  generic: 'assets/models/generic.glb',
+  industrial: 'assets/models/industrial.glb',
+  skyscraper: 'assets/models/skyscraper.glb',
+};
+// Facilities that share the generic model until they get their own GLB.
+const GENERIC_FACILITY_TYPES = ['school', 'hospital', 'library', 'stadium', 'fire', 'police'];
+// Mission buildings that use the industrial GLB instead of a procedural design.
+const INDUSTRIAL_SPECIALS = ['water', 'power', 'recycling', 'delivery', 'traffic_lab', 'traffic_emergency', 'subsurface', 'monitoring'];
+const glbState = {};   // type → { model, size, spots:[], fallbacks:[], loading }
+
+function loadBuildingModel(type, url) {
+  const st = glbState[type] || (glbState[type] = { model: null, size: null, spots: [], fallbacks: [], loading: false });
+  if (st.loading) return;
+  st.loading = true;
+  new GLTFLoader().loadAsync(url)
+    .then((gltf) => {
+      const m = gltf.scene;
+      const box = new THREE.Box3().setFromObject(m);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      m.position.sub(center);        // centre the model on its origin
+      st.model = m; st.size = size;
+      applyBuildingModel(type);
+    })
+    .catch((e) => {
+      console.warn(`[${type}] GLB load failed — keeping procedural`, e);
+      st.model = null;
+    });
+}
+
+function applyBuildingModel(type) {
+  const st = glbState[type];
+  if (!st || !st.model) return;
+  // Remove the procedural fallback meshes…
+  for (const mesh of st.fallbacks) {
+    scene.remove(mesh);
+    mesh.geometry && mesh.geometry.dispose();
+    mesh.material && mesh.material.dispose();
+  }
+  st.fallbacks.length = 0;
+  // …and place a GLB clone on every spot (geometry shared, cheap).
+  for (const spot of st.spots) {
+    // Housing renders as a 2×2 block of four smaller units inside the same
+    // footprint — one map icon = one residential block, not one tower.
+    if (type === 'housing') {
+      const unit = spot.fp[0] / 2 - 1;   // half the footprint minus a tiny gap
+      const s = Math.min(
+        unit / st.size.x,
+        unit / st.size.z,
+        (spot.h || 24) / st.size.y
+      );
+      for (const [dx, dz] of [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]]) {
+        const clone = st.model.clone(true);
+        clone.scale.setScalar(s);
+        clone.position.set(spot.x + dx * spot.fp[0], 0, spot.z + dz * spot.fp[1]);
+        clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        scene.add(clone);
+      }
+      continue;
+    }
+    const clone = st.model.clone(true);
+    const s = Math.min(
+      spot.fp[0] / st.size.x,
+      spot.fp[1] / st.size.z,
+      (spot.h || 24) / st.size.y
+    );
+    clone.scale.setScalar(s);
+    clone.position.set(spot.x, 0, spot.z);
+    clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    scene.add(clone);
+    // Skyscraper (AI Finance Tower): sprinkle window sparkles on the tower
+    // faces — small emissive points that twinkle in the main loop.
+    if (spot.glbType === 'skyscraper') addSkyscraperSparkles(spot, s, st.size);
+    // Shared generic model: add a glowing roof accent so the plain facilities
+    // still read as part of the futuristic city (bloom-lit, toneMapped:false).
+    if (spot.glbType === 'generic') {
+      const topY = s * st.size.y;
+      const accent = new THREE.Mesh(
+        new THREE.BoxGeometry(spot.fp[0] * 0.9, 0.4, spot.fp[1] * 0.9),
+        new THREE.MeshBasicMaterial({ color: 0x66f0ff, toneMapped: false })
+      );
+      accent.position.set(spot.x, topY + 0.2, spot.z);
+      scene.add(accent);
+    }
+  }
+}
+
+// ─── Skyscraper window sparkles (AI Finance Tower) ─────────────────────────
+// Small emissive points scattered over the tower's four faces that twinkle in
+// the main loop — "sparkle a bit / have a few lights" on the finance tower.
+const skyscraperSparkles = [];   // { points, base, phase } — updated each frame
+function addSkyscraperSparkles(spot, s, modelSize) {
+  const w = modelSize.x * s, h = modelSize.y * s, d = modelSize.z * s;
+  const count = 90;
+  const positions = new Float32Array(count * 3);
+  const baseAlpha = new Float32Array(count);
+  const phase = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    // Pick a face (0..3) and a random spot on it, slightly proud of the surface.
+    const face = Math.floor(Math.random() * 4);
+    const u = (Math.random() * 2 - 1) * 0.46;
+    const v = (Math.random() * 0.92 + 0.04) * h;   // spread up the tower
+    const inset = 0.3;
+    switch (face) {
+      case 0: positions.set([spot.x + u * w, v, spot.z + d / 2 + inset], i * 3); break;   // +Z
+      case 1: positions.set([spot.x + u * w, v, spot.z - d / 2 - inset], i * 3); break;   // -Z
+      case 2: positions.set([spot.x + w / 2 + inset, v, spot.z + u * d], i * 3); break;   // +X
+      case 3: positions.set([spot.x - w / 2 - inset, v, spot.z + u * d], i * 3); break;   // -X
+    }
+    baseAlpha[i] = 0.3 + Math.random() * 0.7;
+    phase[i] = Math.random() * Math.PI * 2;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({
+    color: 0xfff2c8, size: 0.9, sizeAttenuation: true,
+    transparent: true, opacity: 0.9, toneMapped: false,
+    depthWrite: false,
+  });
+  const points = new THREE.Points(geo, mat);
+  scene.add(points);
+  skyscraperSparkles.push({ points, baseAlpha, phase, count, h });
+}
+
+function updateSkyscraperSparkles(tNow) {
+  for (const sp of skyscraperSparkles) {
+    sp.points.material.opacity = 0.55 + 0.35 * Math.sin(tNow * 0.8 + sp.phase[0]);
+  }
+}
+
+function buildGenericFacilities() {
+  for (const b of layout.buildings) {
+    if (isSpecial(b.type)) continue;
+    const spec = catalogType(b.type);
+    if (!spec) continue;
+    const cx = b.pos[0];
+    const cz = b.pos[1];
+    const fp = b.footprint || spec.footprint || [20, 20];
+    // GLB-backed types can read too short if the source layout kept the small
+    // catalog height — office towers should look like towers next to specials.
+    const MIN_H = { office: 110 };
+    const h = Math.min(220, Math.max(8, MIN_H[b.type] ?? (b.height || spec.height || 20)));
+
+    // Route each facility to its GLB slot: dedicated (office/housing) or the
+    // shared generic model for the plain facilities.
+    const glbType = GLB_BUILDING_TYPES[b.type] ? b.type : (GENERIC_FACILITY_TYPES.includes(b.type) ? 'generic' : null);
+    if (glbType) (glbState[glbType] || (glbState[glbType] = { model: null, size: null, spots: [], fallbacks: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType });
+
+    // Facade colour by height band (osm-city palette), with the lit-window
+    // emissive texture on mid/high-rise so the student's own buildings read
+    // as a real city, not toy boxes.
+    const band = FACADE_PALETTE.findIndex((p) => h <= p.max);
+    const cfg = FACADE_PALETTE[band];
+    const facade = cfg.colors[hashString(b.type + '|' + cx) % cfg.colors.length];
+    // Housing = one residential block of four units; everything else = one box.
+    const quad = b.type === 'housing';
+    const units = quad ? [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]] : [[0, 0]];
+    const unitFp = quad ? [fp[0] / 2 - 1, fp[1] / 2 - 1] : fp;
+    for (const [dx, dz] of units) {
+      const ux = cx + dx * fp[0];
+      const uz = cz + dz * fp[1];
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(unitFp[0], h, unitFp[1]),
+        new THREE.MeshStandardMaterial({
+          color: facade, roughness: cfg.roughness, metalness: cfg.metalness,
+          emissive: 0xffffff, emissiveMap: getWindowTexture(), emissiveIntensity: Math.max(0.15, cfg.intensity),
+        })
+      );
+      mesh.position.set(ux, h / 2, uz);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      if (glbType) glbState[glbType].fallbacks.push(mesh);
+
+      // Roof cap
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(unitFp[0] + 0.12, 0.22, unitFp[1] + 0.12),
+        new THREE.MeshStandardMaterial({ color: darken(facade, 0.55), roughness: 0.6, metalness: 0.25 })
+      );
+      cap.position.set(ux, h + 0.11, uz);
+      cap.castShadow = true;
+      scene.add(cap);
+      if (glbType) glbState[glbType].fallbacks.push(cap);
+    }
+
+    // Name label
+    if (labelRenderer) {
+      const el = document.createElement('div');
+      el.className = 'building-label';
+      el.innerHTML = `<div class="bl-en">${spec.name}</div>`;
+      const label = new CSS2DObject(el);
+      label.position.set(cx, h + 6, cz);
+      scene.add(label);
+    }
+
+    // Glow accent on the fallback box so the plain facilities don't read as
+    // drab cuboids while the GLB loads (or if it never does).
+    if (glbType === 'generic') {
+      const accent = new THREE.Mesh(
+        new THREE.BoxGeometry(fp[0] * 0.9, 0.4, fp[1] * 0.9),
+        new THREE.MeshBasicMaterial({ color: 0x66f0ff, toneMapped: false })
+      );
+      accent.position.set(cx, h + 0.2, cz);
+      scene.add(accent);
+      glbState.generic.fallbacks.push(accent);
+    }
+  }
+}
+
+// ─── Student parks + roads ────────────────────────────────────────────────
+function carveParks() {
+  for (const p of layout.parks) {
+    addPark(p.cx, p.cz, p.radius);
+  }
+}
+
+function carveRoads() {
+  buildRoadsInto(scene, layout.roads, {});
+  scatterStreetTrees();
+}
+
+// Scatter trees along both sides of every road (street trees), offset from the
+// centreline so they don't sit on the carriageway. Uses the Quaternius packs.
+function scatterStreetTrees() {
+  if (!_treePacks) return;
+  for (const road of layout.roads || []) {
+    const half = (road.width || ROAD_WIDTH[road.class] || ROAD_WIDTH.residential) / 2;
+    const off = half + 3.5;
+    for (const side of [1, -1]) {
+      const pts = road.points;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [x0, z0] = pts[i];
+        const [x1, z1] = pts[i + 1];
+        const len = Math.hypot(x1 - x0, z1 - z0);
+        const n = Math.max(1, Math.floor(len / 28));   // one tree ~every 28m
+        for (let k = 0; k < n; k++) {
+          const t = ((k + 0.5) / n + (hashString(road.points.length * 31 + i * 7 + side * 13 + k) % 100) / 1000) % 1;
+          const x = x0 + (x1 - x0) * t, z = z0 + (z1 - z0) * t;
+          // perpendicular offset to the side
+          let dx = x1 - x0, dz = z1 - z0;
+          const dl = Math.hypot(dx, dz) || 1;
+          dx /= dl; dz /= dl;
+          const nx = -dz * side, nz = dx * side;
+          addTree(x + nx * off, z + nz * off, 0.9 + ((hashString(i * 5 + k * 3) % 10) / 10) * 0.5);
+        }
+      }
+    }
+  }
+}
+
+// ─── Champion + camera + input ────────────────────────────────────────────
+function findSpawn() {
+  const central = layout.buildings.find((b) => b.type === 'city_central');
+  if (central) return { x: central.pos[0], z: central.pos[1] };
+  return { x: 1000, z: 1000 };
+}
+
+async function spawnChampion() {
+  const spawn = findSpawn();
+  city.spawnWorld = new THREE.Vector3(spawn.x, 0, spawn.z);
+  champion = await createChampion(ASSET_BASE, city);
+  // Grow the champion with the densified buildings so proportions stay right.
+  if (growScale && growScale !== 1) champion.group.scale.multiplyScalar(growScale);
+  scene.add(champion.group);
+  orbit.target.copy(city.spawnWorld);
+  sim = {
+    walkSpeed: 2,
+    nearQuest: null,
+    walkTo(building) {
+      if (!champion || !building || (taxi && taxi.isActive())) return;
+      walkNav = { x: building.pos[0], z: building.pos[1] };
+      showToast(`🚶 Walking to ${buildingName(building)}…`);
+    },
+    flyTo(building) {
+      if (!champion || !building || !taxi) return;
+      if (!taxi.isActive()) taxi.board(champion);
+      const h = building.height || 30;
+      taxiNav = { x: building.pos[0], z: building.pos[1], y: h + 14 };
+      taxi.setAutoNav(true);
+      updateFlyButtons();
+      showToast(`🚀 Flying to ${buildingName(building)}…`);
+    },
+  };
+  setupAirTraffic();
+}
+
+function buildingName(b) {
+  const spec = catalogType(b.type);
+  return spec ? spec.name : b.type;
+}
+
+function setupAirTraffic() {
+  // Landing zones = student parks (open areas) + the city centre plaza.
+  const landingZones = (layout.parks || []).map((p) => ({ x: p.cx, z: p.cz, radius: Math.max(p.radius, 40) }));
+  landingZones.push({ x: 1000, z: 1000, radius: 60 });
+
+  taxi = createFlyingTaxi(scene, { walkSpeed: 18, runSpeed: 70, landingZones });
+
+  // Decorative skyline traffic + sentinels over the densified city footprint.
+  const bounds = cityBounds || { minX: 0, maxX: 2000, minZ: 0, maxZ: 2000 };
+  decoTaxis = createDecoTaxis(scene, 16, { bounds });
+  skySentinels = createSkySentinels(scene, 10, { bounds });
+
+  // Patrol drones visit the student's major buildings AND generic facilities.
+  const stops = layout.buildings.map((b) => {
+    const h = b.height || catalogType(b.type)?.height || 30;
+    return { x: b.pos[0], z: b.pos[1], y: h + 8, home: b.type === 'atc' };
+  });
+  drones = stops.length ? createDrones(scene, 'central', { stops, mobile: IS_MOBILE }) : null;
+
+  // Road traffic — cars & buses cruising along the student's roads.
+  try { traffic = createTraffic(scene, layout.roads, { carCount: IS_MOBILE ? 12 : 24, busCount: IS_MOBILE ? 2 : 4 }); }
+  catch (e) { console.warn('[city-builder] traffic init failed', e); traffic = null; }
+
+  // Pedestrians — people milling around the city. They roam freely (crossing
+  // roads is fine) but never walk through buildings.
+  try { pedestrians = createPedestrians(scene, layout, { count: IS_MOBILE ? 30 : 56 }); }
+  catch (e) { console.warn('[city-builder] pedestrians init failed', e); pedestrians = null; }
+  city.pedestrians = pedestrians;
+
+  // Expose for the minimap + buddy (read-only consumers)
+  city.layout = layout;
+  city.drones = drones;
+
+  minimap = createMinimap(city, champion, taxi, { bounds });
+}
+
+function updateFlyButtons() {
+  const ride = taxi && taxi.isActive();
+  const up = document.getElementById('btn-flyup');
+  const down = document.getElementById('btn-flydown');
+  if (up) up.classList.toggle('hidden', !ride);
+  if (down) down.classList.toggle('hidden', !ride);
+}
+
+function toggleTaxi() {
+  if (!taxi || !champion) return;
+  if (taxi.isActive()) {
+    taxiNav = null;
+    taxi.setAutoNav(false);
+    taxi.exit();
+  } else {
+    taxi.board(champion);
+    showToast('🚕 Flying! Use ⬆️ ⬇️ to climb, exit with 🚕 again.');
+  }
+  updateFlyButtons();
+}
+
+function updateCamera(dt, taxiActive) {
+  const focus = taxiActive ? taxi.getPos() : (champion ? champion.state.pos : orbit.target);
+  // Ease the zoom toward the mode's distance: overview → walk → taxi (closest).
+  const wantDist = taxiActive ? orbit.distTaxi : (champion ? orbit.distWalk : 62);
+  orbit.dist += (wantDist - orbit.dist) * Math.min(1, dt * 2.5);
+  if (!champion || orbit.locked) {
+    // gentle auto-orbit when no champion yet / locked view
+    orbit.theta += dt * 0.05;
+  }
+  const cosP = Math.cos(orbit.phi);
+  const pos = new THREE.Vector3(
+    focus.x + orbit.dist * Math.sin(orbit.theta) * Math.sin(orbit.phi),
+    focus.y + orbit.dist * cosP,
+    focus.z + orbit.dist * Math.cos(orbit.theta) * Math.sin(orbit.phi)
+  );
+  camera.position.lerp(pos, Math.min(1, dt * 6));
+  camera.lookAt(focus.x, focus.y + 2, focus.z);
+  orbit.target.lerp(focus, Math.min(1, dt * 3));
+}
+
+// ─── Building entry (tap to open minigame) ────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const dragState = { on: false, sx: 0, sy: 0, moved: 0 };
+
+// Must be called AFTER setupScene() (renderer/camera exist then).
+function wireRendererInteraction() {
+  renderer.domElement.addEventListener('pointerdown', (e) => {
+    dragState.on = true;
+    dragState.sx = e.clientX; dragState.sy = e.clientY;
+    dragState.moved = 0;
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!dragState.on) return;
+    const dx = e.clientX - dragState.sx, dy = e.clientY - dragState.sy;
+    dragState.sx = e.clientX; dragState.sy = e.clientY;
+    dragState.moved += Math.abs(dx) + Math.abs(dy);
+    if (dragState.moved > 6) {
+      orbit.theta -= dx * 0.006;
+      orbit.phi = Math.max(0.25, Math.min(1.45, orbit.phi - dy * 0.006));
+    }
+  });
+  window.addEventListener('pointerup', (e) => {
+    if (!dragState.on) return;
+    dragState.on = false;
+    if (dragState.moved <= 6) tapAt(e.clientX, e.clientY);
+  });
+}
+
+function tapAt(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(interactMeshes, false);
+  if (hits.length && hits[0].object.userData.kind === 'quest') {
+    const data = hits[0].object.userData;
+    openMinigame(data);
+  }
+}
+
+function openMinigame(data) {
+  const overlay = document.getElementById('game-overlay');
+  const frame = document.getElementById('game-frame');
+  document.getElementById('game-overlay-title').textContent = data.name;
+  frame.src = data.gameUrl;
+  overlay.classList.remove('hidden');
+  // mark quest as unlocked/complete-ish flow (keep simple: toast on Done)
+  document.getElementById('game-overlay-done').onclick = () => {
+    frame.src = '';
+    overlay.classList.add('hidden');
+    const st = loadQuestState();
+    if (!st.completed.includes(data.questId)) {
+      st.completed.push(data.questId);
+      try { localStorage.setItem('hk_ai_city_quests_v1', JSON.stringify(st)); } catch (err) { /* ignore */ }
+    }
+    showToast(`✅ ${data.name} complete!`);
+  };
+  document.getElementById('game-overlay-close').onclick = () => {
+    frame.src = '';
+    overlay.classList.add('hidden');
+  };
+}
+
+// ─── Buddy + skins ────────────────────────────────────────────────────────
+function mountChat() {
+  mountCityBuddy(city, champion, sim, layout);
+}
+
+function mountSkins() {
+  mountSkinSidebar(ASSET_BASE, champion, (skin) => showToast(`👑 ${skin.name} equipped!`));
+}
+
+// ─── Main loop ────────────────────────────────────────────────────────────
+let lastT = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  const tNow = now / 1000;
+
+  // Road traffic
+  if (traffic) traffic.update(dt);
+  // Pedestrians
+  if (pedestrians) pedestrians.update(dt, tNow);
+
+  // Air traffic
+  if (decoTaxis) decoTaxis.update(dt, tNow);
+  if (skySentinels) skySentinels.update(dt, tNow);
+  if (drones) drones.update(dt, tNow);
+
+  const taxiActive = taxi && taxi.isActive();
+  if (taxiActive) {
+    // Auto-fly to a building (buddy "fly to X") overrides manual steering.
+    let tx = input.x, tz = input.z, ascend = input.ascend, descend = input.descend;
+    if (taxiNav) {
+      const tp = taxi.getPos();
+      const dx = taxiNav.x - tp.x, dz = taxiNav.z - tp.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 16) {
+        taxiNav = null;
+        taxi.setAutoNav(false);
+        showToast('📍 Arrived! Tap 🚕 to land.');
+      } else {
+        const len = dist || 1;
+        tx = dx / len; tz = dz / len;
+        const dy = taxiNav.y - tp.y;
+        if (dy > 2) ascend = true; else if (dy < -2) descend = true;
+      }
+    }
+    taxi.update(dt, { x: tx, z: tz, running: true, ascend, descend }, tNow);
+  } else if (champion) {
+    // Walk navigation (buddy "walk to X") steers toward the target.
+    let mx = input.x, mz = input.z, mvRunning = input.running, mvJump = input.jump;
+    if (walkNav) {
+      const p = champion.state.pos;
+      const dx = walkNav.x - p.x, dz = walkNav.z - p.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 4) {
+        walkNav = null;
+      } else {
+        const len = dist || 1;
+        mx = dx / len; mz = dz / len; mvRunning = false;
+      }
+    }
+    champion.update(dt, {
+      x: mx, z: mz, running: mvRunning, jump: mvJump,
+      speedScale: (sim.walkSpeed || 2) / WALK_SPEED,
+    });
+    input.jump = false;
+    if (input.wave) { input.wave = false; champion.wave(); }
+    if (input.dance) { input.dance = false; champion.dance(); }
+    sim.nearQuest = nearestQuest();
+  }
+
+  updateCamera(dt, taxiActive);
+  if (specialSystem) updateBeacons(now);
+  if (skyscraperSparkles.length) updateSkyscraperSparkles(tNow);
+  if (labelRenderer) labelRenderer.render(scene, camera);
+  if (minimap) minimap.update();
+  updateDebugHud();
+  composer.render();
+}
+
+// ─── Debug HUD (people / vehicles / drones live counts) ────────────────────
+// A small readout in the corner so we can see at a glance whether the living
+// city systems are actually running. Auto-shows after boot; 'd' toggles it.
+let _debugHud = null;
+let _debugShow = true;
+function updateDebugHud() {
+  if (!_debugShow) return;
+  if (!_debugHud) {
+    _debugHud = document.createElement('div');
+    _debugHud.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:9999;background:rgba(0,0,0,0.75);color:#7dffb0;font:12px ui-monospace,monospace;padding:6px 10px;border-radius:8px;pointer-events:none;white-space:pre;';
+    document.body.appendChild(_debugHud);
+  }
+  _debugHud.textContent =
+    `people: ${pedestrians ? pedestrians.getCount() : 'null'}\n` +
+    `cars/buses: ${traffic ? traffic.vehicles.length : 'null'}\n` +
+    `drones: ${drones ? (drones.getCount ? drones.getCount() : '?') : 'null'}\n` +
+    `loading: ${document.getElementById('loading').classList.contains('done') ? 'done' : '…'}`;
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'd' || e.key === 'D') _debugShow = !_debugShow;
+});
+
+function nearestQuest() {
+  if (!champion || !specialSystem) return null;
+  const p = champion.state.pos;
+  let best = null, bestD = 80;
+  for (const ref of specialSystem.questRefs) {
+    const d = Math.hypot(ref.cx - p.x, ref.cz - p.z);
+    if (d < bestD) { bestD = d; best = ref; }
+  }
+  return best ? QUESTS.find((q) => q.id === best.q.id) : null;
+}
+
+const _bc = new THREE.Color();
+function updateBeacons(t) {
+  if (!specialSystem.beacon) return;
+  const state = loadQuestState();
+  specialSystem.beaconPositions.forEach((bp, i) => {
+    const st = questStatus(specialSystem.questRefs[i].q, state);
+    if (st === 'locked') { _bc.setHex(0x3a3f46); }
+    else if (st === 'coming_soon') { _bc.setHex(0x8a6420); }
+    else {
+      const pulse = 0.55 + 0.45 * Math.sin(t * 0.003 + i);
+      _bc.setHex(st === 'completed' ? 0x00ff9d : 0x00f2fe).multiplyScalar(pulse);
+    }
+    specialSystem.beacon.setColorAt(i, _bc);
+  });
+  specialSystem.beacon.instanceColor.needsUpdate = true;
+}
+
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast show';
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+// ─── Input wiring ─────────────────────────────────────────────────────────
+function wireInput() {
+  const isTyping = () => {
+    const ae = document.activeElement;
+    return ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
+  };
+
+  window.addEventListener('keydown', (e) => {
+    // Don't hijack typing in the buddy chat input (or any text field).
+    if (isTyping()) return;
+    keys[e.key.toLowerCase()] = true;
+    const k = e.key.toLowerCase();
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) || ['w', 'a', 's', 'd'].includes(k)) e.preventDefault();
+    if (k === ' ') input.jump = true;
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+  document.querySelectorAll('.dpad-btn').forEach((btn) => {
+    const dir = btn.dataset.dir;
+    const on = (e) => { e.preventDefault(); keys['dir:' + dir] = true; };
+    const off = (e) => { e.preventDefault(); keys['dir:' + dir] = false; };
+    btn.addEventListener('pointerdown', on);
+    btn.addEventListener('pointerup', off);
+    btn.addEventListener('pointerleave', off);
+  });
+  document.getElementById('btn-run').addEventListener('pointerdown', (e) => { e.preventDefault(); input.running = true; });
+  document.getElementById('btn-run').addEventListener('pointerup', () => { input.running = false; });
+  document.getElementById('btn-jump').addEventListener('pointerdown', (e) => { e.preventDefault(); input.jump = true; });
+  document.getElementById('btn-wave').addEventListener('pointerdown', (e) => { e.preventDefault(); input.wave = true; });
+  document.getElementById('btn-dance').addEventListener('pointerdown', (e) => { e.preventDefault(); input.dance = true; });
+  document.getElementById('orbit-toggle').addEventListener('click', () => { orbit.locked = !orbit.locked; });
+
+  // Flying taxi controls
+  const taxiBtn = document.getElementById('btn-taxi');
+  const flyUp = document.getElementById('btn-flyup');
+  const flyDown = document.getElementById('btn-flydown');
+  taxiBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleTaxi(); });
+  const hold = (el, key) => {
+    const on = (e) => { e.preventDefault(); input[key] = true; };
+    const off = (e) => { e.preventDefault(); input[key] = false; };
+    el.addEventListener('pointerdown', on);
+    el.addEventListener('pointerup', off);
+    el.addEventListener('pointerleave', off);
+  };
+  if (flyUp) hold(flyUp, 'ascend');
+  if (flyDown) hold(flyDown, 'descend');
+
+  // sample city / controls sound
+  document.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { try { playTap(); } catch (e) { /* no audio */ } }));
+}
+
+function readInput() {
+  const k = keys;
+  let x = 0, z = 0;
+  if (k['arrowup'] || k['w'] || k['dir:up']) z += 1;
+  if (k['arrowdown'] || k['s'] || k['dir:down']) z -= 1;
+  if (k['arrowleft'] || k['a'] || k['dir:left']) x -= 1;
+  if (k['arrowright'] || k['d'] || k['dir:right']) x += 1;
+  input.x = x; input.z = z;
+}
+
+// ─── Layout entry (localStorage / file / paste / sample) ──────────────────
+function loadLayout(raw) {
+  const v = validateLayout(raw);
+  if (!v.ok) {
+    showEntryError(v.errors[0]);
+    return false;
+  }
+  layout = sanitizeLayout(raw);
+  // Densify: grow buildings/roads/parks + pull positions closer (no overlap).
+  const dense = densifyLayout(layout);
+  layout = dense.layout;
+  growScale = dense.grow;
+  cityBounds = dense.bounds;
+  return true;
+}
+
+function showEntryError(msg) {
+  const sub = document.querySelector('.entry-card p');
+  if (sub) sub.textContent = '⚠️ ' + msg;
+}
+
+function startEntryFlow() {
+  const overlay = document.getElementById('entry-overlay');
+  const localBtn = document.getElementById('entry-local');
+  const fileBtn = document.getElementById('entry-file');
+  const pasteBtn = document.getElementById('entry-paste');
+  const sampleBtn = document.getElementById('entry-sample');
+  const fileInput = document.getElementById('file-input');
+  const pasteWrap = document.getElementById('paste-wrap');
+  const pasteBox = document.getElementById('paste-box');
+  const pasteGo = document.getElementById('paste-go');
+
+  let saved = null;
+  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+  if (!saved) localBtn.textContent = '▶ Start with an empty sample';
+
+  const begin = (raw) => {
+    if (loadLayout(raw)) {
+      overlay.classList.add('hidden');
+      boot();
+    }
+  };
+
+  localBtn.addEventListener('click', () => {
+    if (saved) { try { begin(JSON.parse(saved)); } catch (e) { begin(sampleLayout()); } }
+    else begin(sampleLayout());
+  });
+  // Native <label for="file-input"> already opens the picker on every browser
+  // (including tablets/iOS where programmatic .click() on a hidden input is
+  // unreliable). This JS handler is a fallback for browsers that block label
+  // activation; the change event itself is what actually loads the file.
+  fileBtn.addEventListener('click', (e) => {
+    if (e.defaultPrevented) return;   // label already handled it
+    e.preventDefault();
+    fileInput.click();
+  });
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => { try { begin(JSON.parse(reader.result)); } catch (e) { showEntryError('That file is not valid JSON.'); } };
+    reader.readAsText(f);
+  });
+  pasteBtn.addEventListener('click', () => { pasteWrap.style.display = pasteWrap.style.display === 'none' ? 'block' : 'none'; });
+  pasteGo.addEventListener('click', () => {
+    try { begin(JSON.parse(pasteBox.value)); } catch (e) { showEntryError('That JSON did not parse.'); }
+  });
+  // "Try a sample city" → the existing Hong Kong topography 3D simulation.
+  sampleBtn.addEventListener('click', () => {
+    window.location.href = '/hong-kong-real/';
+  });
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────
+async function boot() {
+  setupScene();
+  labelRenderer = createLabelRenderer(stage);
+
+  const fill = document.getElementById('loading-fill');
+  fill.style.width = '25%';
+  await loadTreeModels();
+  await loadTreePacks();
+  await loadParkModel();
+  fill.style.width = '60%';
+
+  carveParks();
+  carveRoads();
+  buildQuestLandmarks();
+  buildGenericFacilities();
+  fill.style.width = '80%';
+  // Street furniture (streetlights along roads, benches around parks).
+  streetProps = await createStreetProps(scene, layout);
+  city.streetProps = streetProps;
+  // Async — replace procedural GLB-backed buildings (office towers, housing) when ready.
+  for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) loadBuildingModel(type, url);
+
+  await spawnChampion();
+  wireRendererInteraction();
+  mountChat();
+  mountSkins();
+  wireInput();
+
+  document.getElementById('loading').classList.add('done');
+  fill.style.width = '100%';
+  window.addEventListener('resize', () => city.resize());
+  window.__scene = scene;   // debug hook (harmless)
+  window.__layout = layout; // debug hook
+  window.__city = city;     // debug hook (champion/taxi/pedestrians handles)
+  requestAnimationFrame(loop);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+startEntryFlow();
+window.addEventListener('resize', () => {
+  if (renderer && camera) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); if (composer) composer.setSize(window.innerWidth, window.innerHeight); }
+});
+
+// Update input each animation frame (cheap)
+setInterval(readInput, 50);
