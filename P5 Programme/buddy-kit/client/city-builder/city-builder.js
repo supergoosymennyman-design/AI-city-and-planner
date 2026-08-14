@@ -33,6 +33,7 @@ import { createFlyingTaxi } from '../champion-city/taxi.js';
 import { createTraffic } from './traffic.js';
 import { createPedestrians } from './pedestrians.js';
 import { createStreetProps } from './street-props.js';
+import { scatterStreetDeco } from './street-deco.js';
 import { createMinimap } from './minimap.js';
 import { mountCityBuddy } from './buddy.js';
 import { createLabelRenderer } from '../champion-city/labels.js';
@@ -1637,6 +1638,8 @@ async function bootInner() {
   // Street furniture (streetlights along roads, benches around parks).
   streetProps = await createStreetProps(scene, layout);
   city.streetProps = streetProps;
+  // Playground + street deco (async, non-blocking).
+  scatterStreetDeco(scene, layout);
   // Async — replace procedural GLB-backed buildings (office towers, housing) when ready.
   for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) loadBuildingModel(type, url);
   loadHousingVariants();
