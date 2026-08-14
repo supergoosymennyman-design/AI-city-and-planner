@@ -577,6 +577,71 @@ function clearAll() {
   toast('🗑️ City cleared');
 }
 
+// ─── Road templates ────────────────────────────────────
+// Premade road networks for students who don't want to draw roads freeform
+// (it can look messy). Picking one clears the city and loads ONLY the roads
+// (plus maybe a central park) so the student fills in the buildings.
+const ROAD_TEMPLATES = {
+  grid: {
+    name: 'City Grid',
+    roads: [
+      // 3 horizontal + 3 vertical primary roads forming a classic grid
+      { points: [[150, 500], [1850, 500]], width: 14, class: 'primary' },
+      { points: [[150, 1000], [1850, 1000]], width: 14, class: 'primary' },
+      { points: [[150, 1500], [1850, 1500]], width: 14, class: 'primary' },
+      { points: [[500, 150], [500, 1850]], width: 14, class: 'primary' },
+      { points: [[1000, 150], [1000, 1850]], width: 14, class: 'primary' },
+      { points: [[1500, 150], [1500, 1850]], width: 14, class: 'primary' },
+      // a couple of quieter secondary roads for variety
+      { points: [[150, 750], [1850, 750]], width: 10, class: 'secondary' },
+      { points: [[150, 1250], [1850, 1250]], width: 10, class: 'secondary' },
+    ],
+    parks: [{ cx: 1000, cz: 1000, radius: 70 }],
+  },
+  radial: {
+    name: 'Radial Ring',
+    roads: [
+      // a central ring
+      (() => {
+        const ring = [];
+        const cx = 1000, cz = 1000, r = 380, n = 24;
+        for (let i = 0; i <= n; i++) {
+          const a = (i / n) * Math.PI * 2;
+          ring.push([Math.round(cx + Math.cos(a) * r), Math.round(cz + Math.sin(a) * r)]);
+        }
+        return { points: ring, width: 12, class: 'primary' };
+      })(),
+      // 6 spokes from the centre out to the ring
+      { points: [[1000, 1000], [1000, 160]], width: 10, class: 'secondary' },
+      { points: [[1000, 1000], [1000, 1840]], width: 10, class: 'secondary' },
+      { points: [[1000, 1000], [160, 1000]], width: 10, class: 'secondary' },
+      { points: [[1000, 1000], [1840, 1000]], width: 10, class: 'secondary' },
+      { points: [[1000, 1000], [406, 406]], width: 10, class: 'secondary' },
+      { points: [[1000, 1000], [1594, 1594]], width: 10, class: 'secondary' },
+      { points: [[1000, 1000], [406, 1594]], width: 10, class: 'secondary' },
+      { points: [[1000, 1000], [1594, 406]], width: 10, class: 'secondary' },
+    ],
+    parks: [{ cx: 1000, cz: 1000, radius: 55 }],
+  },
+};
+
+function loadRoadTemplate(key) {
+  const tpl = ROAD_TEMPLATES[key];
+  if (!tpl) return;
+  pushUndo();
+  state.layout = defaultLayout();
+  state.layout.roads = tpl.roads.map((r) => ({
+    points: r.points.map(([x, z]) => [Math.round(x), Math.round(z)]),
+    width: r.width,
+    class: r.class,
+  }));
+  state.layout.parks = (tpl.parks || []).map((p) => ({ cx: p.cx, cz: p.cz, radius: p.radius }));
+  state.selectedIdx = -1;
+  updateMetrics();
+  render();
+  toast(`🛤️ Loaded the ${tpl.name} roads — now place your buildings!`);
+}
+
 // ─── Metrics panel ──────────────────────────────────────
 function updateMetrics() {
   const m = computeMetrics(state.layout);
@@ -841,6 +906,23 @@ document.getElementById('btn-ai').addEventListener('click', askAdvisor);
 document.getElementById('btn-export').addEventListener('click', exportCity);
 document.querySelectorAll('.tool-btn').forEach((btn) => {
   btn.addEventListener('click', () => setTool(btn.dataset.tool));
+});
+
+// Road template menu
+const templateBtn = document.getElementById('btn-template');
+const templateMenu = document.getElementById('template-menu');
+templateBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  templateMenu.classList.toggle('hidden');
+});
+document.querySelectorAll('.template-item').forEach((item) => {
+  item.addEventListener('click', () => {
+    loadRoadTemplate(item.dataset.template);
+    templateMenu.classList.add('hidden');
+  });
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.template-wrap')) templateMenu.classList.add('hidden');
 });
 
 function toast(msg) {

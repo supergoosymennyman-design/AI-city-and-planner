@@ -21,6 +21,15 @@
   <div class="actions">
     <button id="btn-undo" class="action-btn" title="Undo last change">↩️</button>
     <button id="btn-clear" class="action-btn" title="Clear the city">🗑️</button>
+    <div class="template-wrap">
+      <button id="btn-template" class="action-btn" title="Start from a road template">🛤️ Roads</button>
+      <div id="template-menu" class="template-menu hidden">
+        <div class="template-menu-title">Start from a road layout</div>
+        <button class="template-item" data-template="grid">🏙️ City Grid</button>
+        <button class="template-item" data-template="radial">🌐 Radial Ring</button>
+        <div class="template-note">Replaces the current city with a ready-made road network — you add the buildings!</div>
+      </div>
+    </div>
     <button id="btn-ai" class="action-btn ai">🤖 Optimize</button>
     <button id="btn-export" class="action-btn primary">💾 Generate my city</button>
   </div>
