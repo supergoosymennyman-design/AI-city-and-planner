@@ -135,6 +135,64 @@ test('road-poor city: accessibility and score materially improve (not 1-tweak)',
   assert.ok(validateLayout(out).ok);
 });
 
+test('noisy-near-homes city: zoning materially improves (noisy building moved)', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
+      { type: 'housing', pos: [400, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [600, 1000], footprint: [20, 20], height: 24 },
+      { type: 'power', pos: [410, 1000], footprint: [24, 24], height: 44 },   // noisy next to homes
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const before = computeMetrics(layout);
+  const { layout: out, diff } = optimizeLayout(layout, {}, 7);
+  const m = computeMetrics(out);
+  assert.ok(before.zoning < 0.8, 'fixture should have a zoning conflict');
+  assert.ok(m.zoning > before.zoning + 0.1, `zoning should improve (${(before.zoning * 100).toFixed(0)} -> ${(m.zoning * 100).toFixed(0)}%)`);
+  assert.ok(diff.some((d) => d.action === 'move' && NOISY.has(d.what)), 'the noisy building should be moved');
+  assert.ok(validateLayout(out).ok);
+});
+
+test('clustered-specials city: spread improves (specials moved apart, none removed)', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [
+      { points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' },
+      { points: [[1000, 100], [1000, 1900]], width: 14, class: 'primary' },
+    ],
+    parks: [{ cx: 600, cz: 600, radius: 70 }],
+    buildings: [
+      { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
+      { type: 'finance_tower', pos: [1000, 1030], footprint: [24, 24], height: 80 },
+      { type: 'treasury', pos: [1000, 1060], footprint: [22, 22], height: 50 },
+      { type: 'sentiment_lab', pos: [1000, 1090], footprint: [22, 22], height: 45 },
+      { type: 'health', pos: [1000, 1120], footprint: [24, 20], height: 42 },
+      { type: 'housing', pos: [700, 700], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1300, 700], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [700, 900], footprint: [26, 24], height: 20 },
+      { type: 'hospital', pos: [1300, 900], footprint: [30, 26], height: 34 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const before = computeMetrics(layout);
+  const { layout: out, diff } = optimizeLayout(layout, {}, 5);
+  const m = computeMetrics(out);
+  assert.ok(before.spread < 0.2, 'fixture should have clustered specials');
+  assert.ok(m.spread > before.spread + 0.2, `spread should improve (${(before.spread * 100).toFixed(0)} -> ${(m.spread * 100).toFixed(0)}%)`);
+  assert.ok(m.score > before.score, `score should improve (${before.score} -> ${m.score})`);
+  // Specials never removed — count of each type preserved.
+  for (const b of layout.buildings.filter((x) => SPECIAL_SET.has(x.type))) {
+    const inC = layout.buildings.filter((x) => x.type === b.type).length;
+    const outC = out.buildings.filter((x) => x.type === b.type).length;
+    assert.equal(outC, inC, `special ${b.type} count changed`);
+  }
+  assert.ok(validateLayout(out).ok);
+});
+
 // ── Property tests over random layouts ─────────────────────────────────
 const SEEDS = [3, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103];
 
@@ -159,7 +217,7 @@ test('random layouts: roads are byte-identical', () => {
   }
 });
 
-test('random layouts: specials are never removed and non-noisy specials never move', () => {
+test('random layouts: specials are never removed', () => {
   for (const seed of SEEDS) {
     const layout = sanitizeLayout(randomLayout(seed * 7919));
     const { layout: out } = optimizeLayout(layout, {}, seed * 104729);
@@ -169,12 +227,6 @@ test('random layouts: specials are never removed and non-noisy specials never mo
       const inCount = inS.filter((x) => x.type === b.type).length;
       const outCount = outS.filter((x) => x.type === b.type).length;
       assert.ok(outCount >= inCount, `seed ${seed}: special ${b.type} removed`);
-      if (!NOISY.has(b.type)) {
-        assert.ok(
-          outS.some((x) => x.type === b.type && Math.hypot(x.pos[0] - b.pos[0], x.pos[1] - b.pos[1]) < 0.1),
-          `seed ${seed}: non-noisy special ${b.type} moved`
-        );
-      }
     }
   }
 });

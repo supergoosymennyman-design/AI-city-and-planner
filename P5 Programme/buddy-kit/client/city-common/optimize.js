@@ -191,7 +191,41 @@ function candidateSpots(layout, type, rng, segs) {
 function metricTuple(m) {
   return [m.accessibility, m.coverage, m.spread, m.zoning];
 }
-function metricDeltas(before, after) {
+
+/**
+ * Candidate spots for spreading a clustered special: sample the whole map on a
+ * coarse grid, but STRONGLY prefer positions that are road-adjacent (so the
+ * move doesn't strand the building) and far from every other special. This is
+ * a dedicated search for the spread metric — candidateSpots() is too biased
+ * toward the current cluster area.
+ */
+function spreadCandidates(layout, b, rng, segs) {
+  const SCALE = layout.scaleMeters || 2000;
+  const fp = b.footprint || footprintFor(b.type);
+  const candidates = [];
+  for (let gx = 120; gx < SCALE; gx += 150) for (let gz = 120; gz < SCALE; gz += 150) {
+    candidates.push([gx + rng() * 40 - 20, gz + rng() * 40 - 20]);
+  }
+  shuffle(candidates, rng);
+  const scored = [];
+  for (const [x, z] of candidates) {
+    if (overlapsAny(layout, x, z, fp)) continue;
+    let score = 0;
+    const dRoad = distToRoad(x, z, segs);
+    if (dRoad <= 60) score += 3.0; else if (dRoad <= 140) score += 1.0;
+    // Far from other specials is the whole point.
+    let minSpecial = Infinity;
+    for (const o of layout.buildings || []) {
+      if (o === b || !isSpecial(o) || isNoisyType(o.type)) continue;
+      const d = Math.hypot(o.pos[0] - x, o.pos[1] - z);
+      if (d < minSpecial) minSpecial = d;
+    }
+    score += Math.min(3, minSpecial / 200);
+    scored.push({ x, z, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, MAX_CANDIDATES).map((s) => [s.x, s.z]);
+}function metricDeltas(before, after) {
   const names = ['accessibility', 'coverage', 'spread', 'zoning'];
   const improved = [];
   const tb = metricTuple(before), ta = metricTuple(after);
@@ -321,12 +355,22 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       );
       for (const b of farList) {
         const spots = candidateSpots(out, b.type, rng, segs);
+        const fp = b.footprint || footprintFor(b.type);
         for (const [sx, sz] of spots) {
           // The new spot must be near a road (that's the whole point).
           if (distToRoad(sx, sz, segs) > METRIC_PARAMS.accessibleDist) continue;
           const trial = JSON.parse(JSON.stringify(out));
           const tb = findBuildingAt(trial, b);
           if (!tb) continue;
+          // The spot must not overlap ANY building in the trial (including
+          // pre-existing ones and buildings moved earlier in this pass).
+          const overlaps = trial.buildings.some((o) => {
+            if (o === tb) return false;
+            const ofp = o.footprint || footprintFor(o.type);
+            return Math.abs(o.pos[0] - sx) < (ofp[0] + fp[0]) / 2 + MARGIN &&
+                   Math.abs(o.pos[1] - sz) < (ofp[1] + fp[1]) / 2 + MARGIN;
+          });
+          if (overlaps) continue;
           const from = tb.pos.slice();
           tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
           const m = computeMetrics(trial);
@@ -351,21 +395,35 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     }
 
     // 2c. Move a noisy building away from homes (zoning). Only the noisy/
-    //     generic member; specials stay put.
+    //     generic member. Acceptance is by ZONING improvement (not strict
+    //     composite score): moving a noisy building away from homes usually
+    //     moves it off the road, which drops accessibility (40%) and nets the
+    //     composite score to ~zero — so a strict `score >` gate rejects the
+    //     fix almost every time. We accept when zoning clearly improves and
+    //     the composite doesn't meaningfully drop.
     if (!didImprove) {
       const noisyList = buildings().filter((b) => isNoisyType(b.type));
       for (const b of noisyList) {
         const tooClose = buildings().some((h) => h.type === HOUSING && Math.hypot(b.pos[0] - h.pos[0], b.pos[1] - h.pos[1]) < 100);
         if (!tooClose) continue;
         const spots = candidateSpots(out, b.type, rng, segs);
+        const fp = b.footprint || footprintFor(b.type);
         for (const [sx, sz] of spots) {
           const trial = JSON.parse(JSON.stringify(out));
           const tb = findBuildingAt(trial, b);
           if (!tb) continue;
+          // The spot must not overlap ANY building in the trial.
+          const overlaps = trial.buildings.some((o) => {
+            if (o === tb) return false;
+            const ofp = o.footprint || footprintFor(o.type);
+            return Math.abs(o.pos[0] - sx) < (ofp[0] + fp[0]) / 2 + MARGIN &&
+                   Math.abs(o.pos[1] - sz) < (ofp[1] + fp[1]) / 2 + MARGIN;
+          });
+          if (overlaps) continue;
           const from = tb.pos.slice();
           tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
           const m = computeMetrics(trial);
-          if (m.score > after.score) {
+          if (m.zoning > after.zoning + 1e-9 && m.score >= after.score - 2) {
             const improved = metricDeltas(after, m);
             const name = catalogType(b.type)?.name || b.type;
             diff.push({
@@ -380,6 +438,73 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           }
         }
         if (didImprove) break;
+      }
+    }
+
+    // 2c2. Spread clustered specials (mission buildings). The spread metric
+    //     (15%) only ticks up when several cluster-pairs are broken, which a
+    //     single one-at-a-time move can rarely do — so this step BATCHES the
+    //     fix: relocate up to 3 clustered non-noisy specials apart in one
+    //     trial, and keep the whole batch only if the COMPOSITE score
+    //     strictly improves (protecting accessibility). Specials are never
+    //     REMOVED; the student reviews via Apply/Keep.
+    if (!didImprove) {
+      const clustered = buildings().filter((b) =>
+        isSpecial(b) && !isNoisyType(b.type) &&
+        buildings().some((o) => o !== b && isSpecial(o) && !isNoisyType(o.type) &&
+          Math.hypot(b.pos[0] - o.pos[0], b.pos[1] - o.pos[1]) < METRIC_PARAMS.clusterDist)
+      );
+      if (clustered.length >= 2) {
+        // Pick a few to move (bounded) and find a de-clustered road-adjacent
+        // spot for each. Keep the batch only if composite score rises.
+        const movers = clustered.slice(0, 3);
+        const trial = JSON.parse(JSON.stringify(out));
+        const plan = [];   // {from, to, what}
+        let ok = true;
+        for (const b of movers) {
+          const spots = spreadCandidates(out, b, rng, segs);
+          const fp = b.footprint || footprintFor(b.type);
+          let placed = false;
+          for (const [sx, sz] of spots) {
+            // Must not overlap ANY building in the trial (including the other
+            // movers' new positions) and must de-cluster from other specials.
+            const tooNearOther = trial.buildings.some((o) => o !== b && isSpecial(o) &&
+              Math.hypot(o.pos[0] - sx, o.pos[1] - sz) < METRIC_PARAMS.clusterDist);
+            if (tooNearOther) continue;
+            const overlaps = trial.buildings.some((o) => {
+              if (o === b) return false;
+              const ofp = o.footprint || footprintFor(o.type);
+              return Math.abs(o.pos[0] - sx) < (ofp[0] + fp[0]) / 2 + MARGIN &&
+                     Math.abs(o.pos[1] - sz) < (ofp[1] + fp[1]) / 2 + MARGIN;
+            });
+            if (overlaps) continue;
+            const tb = findBuildingAt(trial, b);
+            if (!tb) continue;
+            const from = tb.pos.slice();
+            tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
+            plan.push({ what: b.type, from, to: tb.pos.slice() });
+            placed = true;
+            break;
+          }
+          if (!placed) { ok = false; break; }
+        }
+        if (ok && plan.length >= 2) {
+          const m = computeMetrics(trial);
+          if (m.spread > after.spread + 1e-9 && m.score > after.score + 1e-9) {
+            const improved = metricDeltas(after, m);
+            for (const p of plan) {
+              const name = catalogType(p.what)?.name || p.what;
+              diff.push({
+                action: 'move', what: p.what, count: 1, from: p.from, to: p.to,
+                reason: `Moved the ${name} away from the other mission buildings — a spread-out city is a smarter city.`,
+                improved, fromScore: after.score, toScore: m.score,
+              });
+            }
+            out.buildings = trial.buildings;
+            after = m;
+            didImprove = true;
+          }
+        }
       }
     }
 
