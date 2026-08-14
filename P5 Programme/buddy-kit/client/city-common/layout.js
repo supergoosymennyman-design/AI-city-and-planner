@@ -162,33 +162,56 @@ export function sanitizeLayout(raw) {
   base.version = LAYOUT_VERSION;
 
   if (Array.isArray(raw?.buildings)) {
+    const clamp = (v) => Math.max(0, Math.min(scale, v));
     base.buildings = raw.buildings
       .filter((b) => b && typeof b.type === 'string' && catalogType(b.type))
-      .map((b) => ({
-        type: b.type,
-        pos: (Array.isArray(b.pos) && b.pos.length === 2) ? [+b.pos[0], +b.pos[1]] : [scale / 2, scale / 2],
-        ...(Array.isArray(b.footprint) && b.footprint.length === 2 ? { footprint: [+b.footprint[0], +b.footprint[1]] } : {}),
-        ...(Number.isFinite(b.height) ? { height: +b.height } : {}),
-      }));
+      .map((b) => {
+        // Coordinates must be finite numbers — a NaN/Infinity/string coord would
+        // poison metrics, densify and the 3D renderer. Drop invalid buildings
+        // rather than let a broken value through.
+        const px = Array.isArray(b.pos) && b.pos.length === 2 ? +b.pos[0] : NaN;
+        const pz = Array.isArray(b.pos) && b.pos.length === 2 ? +b.pos[1] : NaN;
+        if (!Number.isFinite(px) || !Number.isFinite(pz)) return null;
+        const fp =
+          Array.isArray(b.footprint) && b.footprint.length === 2 &&
+          Number.isFinite(+b.footprint[0]) && Number.isFinite(+b.footprint[1]) &&
+          +b.footprint[0] > 0 && +b.footprint[1] > 0
+            ? [+b.footprint[0], +b.footprint[1]]
+            : undefined;
+        return {
+          type: b.type,
+          pos: [clamp(px), clamp(pz)],
+          ...(fp ? { footprint: fp } : {}),
+          ...(Number.isFinite(b.height) ? { height: +b.height } : {}),
+        };
+      })
+      .filter((b) => b !== null);
   }
 
   if (Array.isArray(raw?.roads)) {
     base.roads = raw.roads
       .filter((r) => r && Array.isArray(r.points) && r.points.length >= 2)
-      .map((r) => ({
-        points: r.points
+      .map((r) => {
+        const clamp = (v) => Math.max(0, Math.min(scale, v));
+        const points = r.points
           .filter((p) => Array.isArray(p) && p.length === 2 && Number.isFinite(+p[0]) && Number.isFinite(+p[1]))
-          .map((p) => [+p[0], +p[1]]),
-        width: ROAD_WIDTH[r.class] || Number(r.width) || ROAD_WIDTH.residential,
-        class: ROAD_WIDTH[r.class] ? r.class : 'residential',
-      }))
+          .map((p) => [clamp(+p[0]), clamp(+p[1])]);
+        return {
+          points,
+          width: ROAD_WIDTH[r.class] || (Number.isFinite(+r.width) && +r.width > 0 ? +r.width : ROAD_WIDTH.residential),
+          class: ROAD_WIDTH[r.class] ? r.class : 'residential',
+        };
+      })
       .filter((r) => r.points.length >= 2);
   }
 
   if (Array.isArray(raw?.parks)) {
     base.parks = raw.parks
       .filter((p) => p && Number.isFinite(+p.cx) && Number.isFinite(+p.cz) && Number(+p.radius) > 0)
-      .map((p) => ({ cx: +p.cx, cz: +p.cz, radius: +p.radius }));
+      .map((p) => {
+        const clamp = (v) => Math.max(0, Math.min(scale, v));
+        return { cx: clamp(+p.cx), cz: clamp(+p.cz), radius: Math.min(+p.radius, scale) };
+      });
   }
 
   return base;

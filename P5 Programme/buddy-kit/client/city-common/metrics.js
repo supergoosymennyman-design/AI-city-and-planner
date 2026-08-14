@@ -187,8 +187,14 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
     const nearPark = parkCenters.some((pc) => dist(h.pos, pc) <= params.coverageDist);
     if (nearPark) greenSum++;
   }
-  const coverage = housing.length ? serviceSum / housing.length : 1;
-  const green = housing.length ? greenSum / housing.length : 1;
+  // A city with buildings but NO homes is incomplete — the home-centric
+  // metrics must not default to "perfect". Score them 0 and tell the student
+  // to add housing; the optimizer bootstraps with a housing move.
+  if (housing.length === 0 && buildings.length > 0) {
+    problems.push('A city needs homes — place some 🏠 Housing so people can live there!');
+  }
+  const coverage = housing.length ? serviceSum / housing.length : (buildings.length ? 0 : 1);
+  const green = housing.length ? greenSum / housing.length : (buildings.length ? 0 : 1);
   if (housing.length && coverage < 0.8) {
     const lines = [];
     for (const t of params.serviceTypes) {
@@ -209,7 +215,7 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
       if (!near.includes(t)) missingUtil[t]++;
     }
   }
-  const utilities = housing.length ? utilSum / housing.length : 1;
+  const utilities = housing.length ? utilSum / housing.length : (buildings.length ? 0 : 1);
   if (housing.length && utilities < 0.8) {
     const lines = [];
     for (const t of params.utilityTypes) {
@@ -243,7 +249,7 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
       if (b.type === 'power' && d < params.powerSetbackDist) { conflicts += 0.5; }
     }
   }
-  const zoning = housing.length ? Math.max(0, 1 - conflicts / Math.max(1, housing.length)) : 1;
+  const zoning = housing.length ? Math.max(0, 1 - conflicts / Math.max(1, housing.length)) : (buildings.length ? 0 : 1);
   if (conflicts > 0) {
     problems.push(`${Math.round(conflicts)} home(s) are next to noisy facilities (traffic/delivery/recycling) or right beside the power grid.`);
   }

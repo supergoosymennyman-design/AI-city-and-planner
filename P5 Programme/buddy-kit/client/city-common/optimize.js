@@ -307,6 +307,37 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     const prevScore = after.score;
     let didImprove = false;
 
+    // 2a0. Bootstrapping: a city with buildings but NO homes can't score its
+    //      services/utilities (they're home-centric). Add housing near a road
+    //      so the rest of the model has someone to serve. Acceptance is by
+    //      road-adjacency + not making anything worse — coverage won't move
+    //      yet because there are no services, but the next iteration can add
+    //      them once a resident exists.
+    if (!didImprove && countType(HOUSING) === 0 && addedTotal < maxAdd) {
+      const spots = candidateSpots(out, HOUSING, rng, segs);
+      for (const [sx, sz] of spots) {
+        if (distToRoad(sx, sz, segs) > METRIC_PARAMS.accessibleDist) continue;   // near a road
+        const trial = JSON.parse(JSON.stringify(out));
+        pushBuilding(trial, HOUSING, [sx, sz], catalogType(HOUSING)?.height);
+        const m = computeMetrics(trial);
+        // Adding the FIRST home is always the right bootstrap — coverage stays
+        // 0 until services exist, but a resident now exists for later moves.
+        if (m.score >= after.score - 1e-9) {
+          const improved = metricDeltas(after, m);
+          diff.push({
+            action: 'add', what: HOUSING, count: 1, from: null, to: [sx, sz],
+            reason: 'Added a home — a city needs somewhere for people to live!',
+            improved, fromScore: after.score, toScore: m.score,
+          });
+          out.buildings = trial.buildings;
+          after = m;
+          addedTotal++;
+          didImprove = true;
+          break;
+        }
+      }
+    }
+
     // 2a. Add missing SERVICES near homes that lack them (school, shop,
     //     hospital, fire, police). Each service is required independently —
     //     a park can't substitute. Also add missing UTILITIES (water, power,
@@ -708,11 +739,12 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     }
   }
 
-  // ── 3. Hard safety: if anything went wrong or the result is worse, return
-  //    the input layout untouched (never make the city worse).
+  // ── 3. Hard safety: if anything went wrong, a score is non-finite, or the
+  //    result is worse, return the input layout untouched (never make the city
+  //    worse, never let NaN through).
   try {
     const final = computeMetrics(out);
-    if (final.score < before.score) {
+    if (!Number.isFinite(final.score) || final.score < before.score) {
       return { layout: JSON.parse(JSON.stringify(layout)), diff: [], before, after: before };
     }
     after = final;

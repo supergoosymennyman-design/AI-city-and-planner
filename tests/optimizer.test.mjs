@@ -389,3 +389,92 @@ test('ratioTargets is sane for a range of housing counts', () => {
     assert.ok(Number.isInteger(t.police) && t.police >= 1);
   }
 });
+
+// ── Adversarial / robustness fixtures ──────────────────────────────────
+test('zero homes + buildings: low score, "add homes" hint, optimizer adds housing', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'finance_tower', pos: [500, 1000], footprint: [24, 24], height: 80 },
+      { type: 'treasury', pos: [700, 1000], footprint: [22, 22], height: 50 },
+      { type: 'sentiment_lab', pos: [900, 1000], footprint: [22, 22], height: 45 },
+      { type: 'city_central', pos: [1100, 1000], footprint: [28, 28], height: 100 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const m = computeMetrics(layout);
+  assert.ok(m.score < 60, `zero-home city should score low (got ${m.score})`);
+  assert.ok(m.problems.some((p) => /homes/i.test(p)), 'should hint to add homes');
+  const { layout: out, diff } = optimizeLayout(layout, {}, 1);
+  assert.ok(diff.some((d) => d.action === 'add' && d.what === 'housing'), 'optimizer should add housing');
+  assert.ok(out.buildings.some((b) => b.type === 'housing'), 'output should contain housing');
+  assert.ok(validateLayout(out).ok);
+});
+
+test('sanitizeLayout drops NaN/Infinity coords instead of poisoning', () => {
+  const layout = sanitizeLayout({
+    version: 2, scaleMeters: 2000, roads: [], parks: [],
+    buildings: [
+      { type: 'housing', pos: ['abc', 50], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [Infinity, 50], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 1000], footprint: [26, 24], height: 20 },
+    ],
+  });
+  assert.equal(layout.buildings.length, 1, 'NaN/Infinity buildings should be dropped');
+  assert.ok(Number.isFinite(layout.buildings[0].pos[0]) && Number.isFinite(layout.buildings[0].pos[1]));
+  const m = computeMetrics(layout);
+  assert.ok(Number.isFinite(m.score), 'score must be finite after sanitize');
+});
+
+test('sanitizeLayout clamps out-of-bounds + huge park radius + negative footprint', () => {
+  const layout = sanitizeLayout({
+    version: 2, scaleMeters: 2000, roads: [], parks: [{ cx: 1000, cz: 1000, radius: 1e9 }],
+    buildings: [
+      { type: 'housing', pos: [-5000, 99999], footprint: [-20, 0], height: 24 },
+    ],
+  });
+  const b = layout.buildings[0];
+  assert.ok(b.pos[0] >= 0 && b.pos[0] <= 2000 && b.pos[1] >= 0 && b.pos[1] <= 2000, 'pos clamped to bounds');
+  // negative/zero footprint is dropped -> catalog default applies downstream
+  assert.ok(b.footprint === undefined || (b.footprint[0] > 0 && b.footprint[1] > 0), 'footprint repaired or defaulted');
+  assert.ok(layout.parks[0].radius <= 2000, 'park radius clamped');
+  assert.ok(validateLayout(layout).ok);
+});
+
+test('zero roads: accessibility is 0, not NaN', () => {
+  const layout = sanitizeLayout({
+    version: 2, scaleMeters: 2000, roads: [], parks: [],
+    buildings: [
+      { type: 'housing', pos: [1000, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 1050], footprint: [26, 24], height: 20 },
+    ],
+  });
+  const m = computeMetrics(layout);
+  assert.equal(m.accessibility, 0);
+  assert.ok(Number.isFinite(m.score));
+  const { layout: out } = optimizeLayout(layout, {}, 1);
+  assert.ok(validateLayout(out).ok);
+});
+
+test('stacked duplicate buildings: no crash, deterministic, all preserved', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [400, 1000], footprint: [20, 20], height: 24 },
+      { type: 'delivery', pos: [410, 1000], footprint: [26, 22], height: 44 },
+      { type: 'delivery', pos: [410, 1000], footprint: [26, 22], height: 44 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const a = optimizeLayout(layout, {}, 3);
+  const b = optimizeLayout(layout, {}, 3);
+  assert.equal(JSON.stringify(a.layout), JSON.stringify(b.layout), 'deterministic');
+  const inDel = layout.buildings.filter((x) => x.type === 'delivery').length;
+  const outDel = a.layout.buildings.filter((x) => x.type === 'delivery').length;
+  assert.ok(outDel >= inDel, 'no delivery removed');
+  assert.ok(validateLayout(a.layout).ok);
+});
