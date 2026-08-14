@@ -41,10 +41,6 @@ const ctx = canvas.getContext('2d');
 const catalogList = document.getElementById('catalog-list');
 const hintBar = document.getElementById('hint-bar');
 const scoreEl = document.getElementById('score');
-const mAccess = document.getElementById('m-access');
-const mCoverage = document.getElementById('m-coverage');
-const mSpread = document.getElementById('m-spread');
-const mZoning = document.getElementById('m-zoning');
 const problemsEl = document.getElementById('problems');
 const aiOutput = document.getElementById('ai-output');
 const toastEl = document.getElementById('toast');
@@ -645,13 +641,8 @@ function loadRoadTemplate(key) {
 // ─── Metrics panel ──────────────────────────────────────
 function updateMetrics() {
   const m = computeMetrics(state.layout);
-  const pct = (v) => Math.round(v * 100);
   scoreEl.textContent = m.score;
   scoreEl.style.setProperty('--pct', String(m.score));
-  mAccess.style.width = pct(m.accessibility) + '%';
-  mCoverage.style.width = pct(m.coverage) + '%';
-  mSpread.style.width = pct(m.spread) + '%';
-  mZoning.style.width = pct(m.zoning) + '%';
 
   problemsEl.innerHTML = '';
   for (const p of m.problems) {
@@ -716,12 +707,16 @@ const THEME_LABEL = {
   add_park: '🌳 Parks',
 };
 const METRIC_LABEL = {
-  accessibility: 'road access',
-  coverage: 'home coverage',
-  spread: 'spread',
-  zoning: 'quiet zones',
+  accessibility: 'closer to a road',
+  coverage: 'nearer schools/shops/help',
+  utilities: 'water, power & buses',
+  spread: 'mission buildings spread out',
+  zoning: 'quieter for homes',
+  balance: 'better building mix',
 };
-const METRIC_ICON = { accessibility: '🛣️', coverage: '🏘️', spread: '🧩', zoning: '🤫' };
+const METRIC_ICON = {
+  accessibility: '🛣️', coverage: '🏘️', utilities: '💧', spread: '🧩', zoning: '🤫', balance: '⚖️',
+};
 
 function metricBadges(improved) {
   if (!improved || !improved.length) return '';
