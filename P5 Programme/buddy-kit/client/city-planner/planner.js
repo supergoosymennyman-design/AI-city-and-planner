@@ -200,10 +200,11 @@ function drawBuildings(w, h) {
   const minP = screenToPlan(0, h), maxP = screenToPlan(w, 0);
   const x0 = Math.min(minP.x, maxP.x) - 40, x1 = Math.max(minP.x, maxP.x) + 40;
   const z0 = Math.min(minP.y, maxP.y) - 40, z1 = Math.max(minP.y, maxP.y) + 40;
-  // LOD: below ~26px a building's emoji + label are unreadable noise; draw
-  // just the footprint rect. Below ~8px even that is a sliver — skip entirely.
-  const showDetail = state.view.px > 1.0;   // ~26px for a 20m building
-  const showRect = state.view.px > 0.3;
+  // LOD: the footprint rect is cheap (fillRect) so it ALWAYS draws — even at
+  // the default zoom (px≈0.18 a 20m building is only ~3.6px, but it must be
+  // visible). Only the emoji + label (expensive text) are dropped when too
+  // small to read.
+  const showDetail = state.view.px > 0.8;   // ~16px for a 20m building
   for (let i = 0; i < layout.buildings.length; i++) {
     const b = layout.buildings[i];
     const spec = catalogType(b.type);
@@ -212,18 +213,18 @@ function drawBuildings(w, h) {
     const c = planToScreen(b.pos[0], b.pos[1]);
     const bw = fp[0] * state.view.px;
     const bh = fp[1] * state.view.px;
+    // Skip truly sub-pixel slivers (still countable, invisible anyway).
+    if (bw < 1 && bh < 1) continue;
     const x = c.x - bw / 2;
     const y = c.y - bh / 2;
 
-    if (showRect) {
-      ctx.fillStyle = spec?.color || '#8caaba';
-      ctx.globalAlpha = 0.85;
-      ctx.fillRect(x, y, bw, bh);
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = i === state.selectedIdx ? '#ffffff' : 'rgba(0,0,0,0.4)';
-      ctx.lineWidth = i === state.selectedIdx ? 3 : 1;
-      ctx.strokeRect(x, y, bw, bh);
-    }
+    ctx.fillStyle = spec?.color || '#8caaba';
+    ctx.globalAlpha = 0.85;
+    ctx.fillRect(x, y, bw, bh);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = i === state.selectedIdx ? '#ffffff' : 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = i === state.selectedIdx ? 3 : 1;
+    ctx.strokeRect(x, y, bw, bh);
 
     // emoji + short label (only when they'd actually be legible)
     if (showDetail) {
