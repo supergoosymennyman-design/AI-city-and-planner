@@ -307,33 +307,38 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     const prevScore = after.score;
     let didImprove = false;
 
-    // 2a0. Bootstrapping: a city with buildings but NO homes can't score its
-    //      services/utilities (they're home-centric). Add housing near a road
-    //      so the rest of the model has someone to serve. Acceptance is by
-    //      road-adjacency + not making anything worse — coverage won't move
-    //      yet because there are no services, but the next iteration can add
-    //      them once a resident exists.
-    if (!didImprove && countType(HOUSING) === 0 && addedTotal < maxAdd) {
-      const spots = candidateSpots(out, HOUSING, rng, segs);
-      for (const [sx, sz] of spots) {
-        if (distToRoad(sx, sz, segs) > METRIC_PARAMS.accessibleDist) continue;   // near a road
-        const trial = JSON.parse(JSON.stringify(out));
-        pushBuilding(trial, HOUSING, [sx, sz], catalogType(HOUSING)?.height);
-        const m = computeMetrics(trial);
-        // Adding the FIRST home is always the right bootstrap — coverage stays
-        // 0 until services exist, but a resident now exists for later moves.
-        if (m.score >= after.score - 1e-9) {
-          const improved = metricDeltas(after, m);
-          diff.push({
-            action: 'add', what: HOUSING, count: 1, from: null, to: [sx, sz],
-            reason: 'Added a home — a city needs somewhere for people to live!',
-            improved, fromScore: after.score, toScore: m.score,
-          });
-          out.buildings = trial.buildings;
-          after = m;
-          addedTotal++;
-          didImprove = true;
-          break;
+    // 2a0. Housing: a city needs residents. Bootstrap from zero homes, then
+    //      keep growing housing toward a healthy share of the civic facilities
+    //      (a real town isn't one home + one of everything). Acceptance is by
+    //      composite score — a home that would tank coverage or zoning is
+    //      rejected even though it helps the homes-share balance.
+    if (!didImprove && addedTotal < maxAdd) {
+      const H = countType(HOUSING);
+      const civicCount = CIVIC.reduce((n, t) => n + countType(t), 0);
+      const targetHomes = Math.max(1, Math.ceil(civicCount / 3));
+      if (H === 0 || H < targetHomes) {
+        const bootstrap = H === 0;
+        const spots = candidateSpots(out, HOUSING, rng, segs);
+        for (const [sx, sz] of spots) {
+          if (distToRoad(sx, sz, segs) > METRIC_PARAMS.accessibleDist) continue;   // near a road
+          const trial = JSON.parse(JSON.stringify(out));
+          pushBuilding(trial, HOUSING, [sx, sz], catalogType(HOUSING)?.height);
+          const m = computeMetrics(trial);
+          if (m.score >= after.score - 1e-9) {
+            const improved = metricDeltas(after, m);
+            diff.push({
+              action: 'add', what: HOUSING, count: 1, from: null, to: [sx, sz],
+              reason: bootstrap
+                ? 'Added a home — a city needs somewhere for people to live!'
+                : `Added a home — ${civicCount} facilities need more residents to feel like a real town!`,
+              improved, fromScore: after.score, toScore: m.score,
+            });
+            out.buildings = trial.buildings;
+            after = m;
+            addedTotal++;
+            didImprove = true;
+            break;
+          }
         }
       }
     }

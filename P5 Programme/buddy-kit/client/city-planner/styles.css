@@ -102,6 +102,69 @@ button { font-family: var(--font); touch-action: manipulation; }
 .template-item:hover { border-color: var(--cyan); }
 .template-note { font-size: 11.5px; color: var(--muted); margin: 6px 4px 2px; line-height: 1.4; }
 
+/* ── Open / import menu (mirrors the template menu) ─────────── */
+.import-wrap { position: relative; }
+.import-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 260px;
+  background: var(--deep2);
+  border: 1px solid rgba(0,242,254,0.35);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  z-index: 60;
+}
+.import-menu.hidden { display: none; }
+.import-menu-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 2px 4px 6px;
+}
+.import-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.import-item:hover { border-color: var(--cyan); }
+.import-note { font-size: 11.5px; color: var(--muted); margin: 6px 4px 2px; line-height: 1.4; }
+.import-paste-wrap { padding: 4px 2px; }
+.import-paste-wrap textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--deep);
+  border: 1px solid rgba(0,242,254,0.25);
+  border-radius: 8px;
+  color: var(--text);
+  font: 12px/1.4 ui-monospace, monospace;
+  padding: 8px;
+  margin-bottom: 4px;
+  resize: vertical;
+}
+.import-paste-wrap.hidden { display: none; }
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 #hint-bar {
   padding: 6px 14px;
   font-size: 14px;

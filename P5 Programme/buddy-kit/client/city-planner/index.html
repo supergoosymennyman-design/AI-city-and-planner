@@ -31,6 +31,20 @@
       </div>
     </div>
     <button id="btn-ai" class="action-btn ai">🤖 Optimize</button>
+    <div class="import-wrap">
+      <button id="btn-import" class="action-btn" title="Open a saved city from a JSON file">📂 Open</button>
+      <div id="import-menu" class="import-menu hidden">
+        <div class="import-menu-title">Open a saved city</div>
+        <button id="import-file-btn" class="import-item">📁 Choose my-ai-city.json</button>
+        <input type="file" id="import-file" accept=".json,application/json" class="visually-hidden">
+        <button id="import-paste-toggle" class="import-item">📋 Paste JSON</button>
+        <div id="import-paste-wrap" class="import-paste-wrap hidden">
+          <textarea id="import-paste" rows="5" placeholder='{"version":2,"scaleMeters":2000,…}'></textarea>
+          <button id="import-paste-go" class="import-item">⬆️ Load pasted city</button>
+        </div>
+        <div class="import-note">Replaces the current city (undoable). Download a city with 💾 Generate my city, then open it here to keep editing.</div>
+      </div>
+    </div>
     <button id="btn-export" class="action-btn primary">💾 Generate my city</button>
   </div>
 </header>

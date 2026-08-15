@@ -135,6 +135,14 @@ function balanceScore(layout, params = METRIC_PARAMS) {
   const total = buildings.length;
   if (maxGeneric > total * 0.5 && total > 4) over += maxGeneric - total * 0.5;
 
+  // Homes-share: a town shouldn't be all facilities and ONE home. If the civic
+  // facilities outnumber homes by more than 3:1, penalize the surplus — a real
+  // town needs residents, not just buildings. (The 3:1 threshold deliberately
+  // leaves the well-served small town of 2 homes + 6 facilities alone.)
+  const civic = Object.keys(targets);
+  const civicCount = civic.reduce((n, t) => n + buildings.filter((b) => b.type === t).length, 0);
+  if (civicCount > H * 3) over += (civicCount - H * 3) * 0.5;
+
   const imbalance = over;
   return Math.max(0, 1 - imbalance / Math.max(1, H));
 }
@@ -255,6 +263,17 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
   }
 
   const balance = balanceScore(layout, params);
+
+  // Homes-share problem: too many facilities per home looks like a town with
+  // no residents. Only surfaces at the extreme (civic > homes * 3) so a
+  // well-served small town isn't nagged.
+  if (housing.length) {
+    const civicTypes = Object.keys(ratioTargets(1));
+    const civicCount = civicTypes.reduce((n, t) => n + buildings.filter((b) => b.type === t).length, 0);
+    if (civicCount > housing.length * 3) {
+      problems.push(`Only ${housing.length} home${housing.length === 1 ? '' : 's'} for ${civicCount} facilities — a real town needs more homes. Add some 🏠 Housing!`);
+    }
+  }
 
   const score = Math.round(100 * (
     0.30 * accessibility +

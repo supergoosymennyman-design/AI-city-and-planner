@@ -696,6 +696,36 @@ function exportCity() {
     : '⚠️ Could not save to this browser (storage full) — use the downloaded my-ai-city.json instead.');
 }
 
+/**
+ * Open a saved city from JSON and drop it into the editor, REPLACING the
+ * current city. The previous city is pushed onto the undo stack, so ↩️ Undo
+ * restores it. Validation + sanitize happen before anything is replaced.
+ */
+function importCity(raw) {
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    toast('⚠️ That file is not valid JSON.');
+    return false;
+  }
+  const v = validateLayout(parsed);
+  if (!v.ok) {
+    toast('⚠️ ' + v.errors[0]);
+    return false;
+  }
+  const next = sanitizeLayout(parsed);
+  pushUndo();
+  state.layout = next;
+  state.selectedIdx = -1;
+  updateMetrics();
+  render();
+  // Close the open menu so the student sees the city, not the menu.
+  if (importMenu) importMenu.classList.add('hidden');
+  toast(`📂 Opened your saved city — ${next.buildings.length} buildings, ${next.roads.length} roads, ${next.parks.length} parks.`);
+  return true;
+}
+
 // Pending plan (optimise → review → Apply / Keep). Stored so Apply/Keep
 // buttons can commit or discard without re-running the optimizer.
 let _pendingPlan = null;
@@ -918,6 +948,50 @@ document.querySelectorAll('.template-item').forEach((item) => {
 });
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.template-wrap')) templateMenu.classList.add('hidden');
+});
+
+// Open / import menu
+const importWrap = document.getElementById('import-wrap');
+const importMenu = document.getElementById('import-menu');
+const importFileInput = document.getElementById('import-file');
+const importFileBtn = document.getElementById('import-file-btn');
+const importPasteToggle = document.getElementById('import-paste-toggle');
+const importPasteWrap = document.getElementById('import-paste-wrap');
+const importPasteGo = document.getElementById('import-paste-go');
+const importPasteBox = document.getElementById('import-paste');
+
+document.getElementById('btn-import').addEventListener('click', (e) => {
+  e.stopPropagation();
+  importMenu.classList.toggle('hidden');
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.import-wrap')) importMenu.classList.add('hidden');
+});
+// File open — label-for pattern: the <button> click falls through to the
+// hidden <input type="file">, which opens the picker reliably on tablets.
+importFileBtn.addEventListener('click', (e) => {
+  if (e.defaultPrevented) return;   // a native label already handled it
+  e.preventDefault();
+  importFileInput.click();
+});
+importFileInput.addEventListener('change', () => {
+  const f = importFileInput.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    importCity(reader.result);
+    importFileInput.value = '';   // allow re-selecting the same file later
+  };
+  reader.readAsText(f);
+});
+importPasteToggle.addEventListener('click', () => {
+  importPasteWrap.classList.toggle('hidden');
+});
+importPasteGo.addEventListener('click', () => {
+  if (importCity(importPasteBox.value)) {
+    importMenu.classList.add('hidden');
+    importPasteWrap.classList.add('hidden');
+  }
 });
 
 function toast(msg) {
