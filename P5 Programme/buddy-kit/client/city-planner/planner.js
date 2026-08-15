@@ -343,14 +343,14 @@ function hint(msg) {
 function rectOf(canvas) { return canvas.getBoundingClientRect(); }
 
 /**
- * Pointer position in CANVAS-LOCAL CSS pixels. Prefers offsetX/offsetY (already
- * canvas-relative, immune to viewport zoom / iPad dynamic-toolbar offsets) and
- * falls back to clientX−rect.left for browsers where offset is 0/absent.
+ * Pointer position in CANVAS-LOCAL CSS pixels. Uses clientX−rect.left — the
+ * proven approach for iOS WebKit (Safari/Chrome on iPad): offsetX/offsetY are
+ * unreliable there (offsetY can come back undefined), which placed buildings
+ * at NaN and made them invisible. The rightward-tap drift the offsetX branch
+ * was meant to defend against is actually fixed by the ResizeObserver keeping
+ * the canvas buffer in sync with its CSS size.
  */
 function pointerPos(e) {
-  if (e && Number.isFinite(e.offsetX) && e.offsetX !== 0) {
-    return { sx: e.offsetX, sy: e.offsetY };
-  }
   const r = rectOf(canvas);
   return { sx: e.clientX - r.left, sy: e.clientY - r.top };
 }
