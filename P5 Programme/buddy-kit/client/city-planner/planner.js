@@ -55,6 +55,18 @@ function resize() {
   render();
 }
 window.addEventListener('resize', resize);
+// Keep the drawing buffer locked to the CSS size. The old window.resize-only
+// path let the buffer drift (e.g. the iPad dynamic URL bar, or the drawer
+// settling after fonts load), so the browser stretched the canvas bitmap and
+// taps landed offset from the drawn content.
+if (typeof ResizeObserver !== 'undefined') {
+  try {
+    new ResizeObserver(() => resize()).observe(canvas);
+  } catch (e) { /* ResizeObserver unavailable — window.resize still covers most */ }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resize);
+}
 
 // ─── Coordinate transforms ──────────────────────────────
 function planToScreen(x, y) {
@@ -330,11 +342,22 @@ function hint(msg) {
 // ─── Pointer interaction ────────────────────────────────
 function rectOf(canvas) { return canvas.getBoundingClientRect(); }
 
+/**
+ * Pointer position in CANVAS-LOCAL CSS pixels. Prefers offsetX/offsetY (already
+ * canvas-relative, immune to viewport zoom / iPad dynamic-toolbar offsets) and
+ * falls back to clientX−rect.left for browsers where offset is 0/absent.
+ */
+function pointerPos(e) {
+  if (e && Number.isFinite(e.offsetX) && e.offsetX !== 0) {
+    return { sx: e.offsetX, sy: e.offsetY };
+  }
+  const r = rectOf(canvas);
+  return { sx: e.clientX - r.left, sy: e.clientY - r.top };
+}
+
 canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
-  const r = rectOf(canvas);
-  const sx = e.clientX - r.left;
-  const sy = e.clientY - r.top;
+  const { sx, sy } = pointerPos(e);
   const p = clampPlan(screenToPlan(sx, sy));
   if (!state.gesture) {
     state.gesture = { pointers: new Map(), mode: null, moved: 0, roadPts: [], parkStart: null, parkCur: null, movingIdx: -1, startX: sx, startY: sy };
@@ -381,9 +404,7 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('pointermove', (e) => {
   const g = state.gesture;
   if (!g) return;
-  const r = rectOf(canvas);
-  const sx = e.clientX - r.left;
-  const sy = e.clientY - r.top;
+  const { sx, sy } = pointerPos(e);
 
   const existing = g.pointers.get(e.pointerId);
   const dx = existing ? sx - existing.sx : 0;
@@ -434,9 +455,7 @@ canvas.addEventListener('pointermove', (e) => {
 function endPointer(e) {
   const g = state.gesture;
   if (!g) return;
-  const r = rectOf(canvas);
-  const sx = e.clientX - r.left;
-  const sy = e.clientY - r.top;
+  const { sx, sy } = pointerPos(e);
   g.pointers.delete(e.pointerId);
 
   if (g.pointers.size > 0) {
@@ -496,8 +515,8 @@ canvas.addEventListener('pointerleave', () => { /* keep drawing on pointerleave 
 
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  const r = rectOf(canvas);
-  zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0016));
+  const { sx, sy } = pointerPos(e);
+  zoomAt(sx, sy, Math.exp(-e.deltaY * 0.0016));
 }, { passive: false });
 
 function updatePinch() {

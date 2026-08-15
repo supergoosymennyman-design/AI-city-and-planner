@@ -125,15 +125,19 @@ function balanceScore(layout, params = METRIC_PARAMS) {
     // Only penalize clear over-supply (more than 2x the sensible target).
     if (have > want * 2) over += have - want * 2;
   }
-  // Also penalize gross domination: a single generic type being the majority
-  // of all buildings (e.g. 30 offices, 3 homes) is clearly wrong.
-  let maxGeneric = 0;
-  for (const t of generic) {
-    const have = buildings.filter((b) => b.type === t).length;
-    if (have > maxGeneric) maxGeneric = have;
+  // Also penalize gross domination: a single building type being the majority
+  // of all buildings (e.g. 30 offices next to 3 homes, or 12 Traffic Labs in a
+  // 14-building city) is clearly wrong. Includes MISSION buildings (specials) —
+  // a city isn't "balanced" because its ten identical labs all happen to be
+  // specials the optimizer is forbidden to remove.
+  const maxType = {};
+  for (const b of buildings) maxType[b.type] = (maxType[b.type] || 0) + 1;
+  let maxTypeCount = 0;
+  for (const t of Object.keys(maxType)) {
+    if (maxType[t] > maxTypeCount) maxTypeCount = maxType[t];
   }
   const total = buildings.length;
-  if (maxGeneric > total * 0.5 && total > 4) over += maxGeneric - total * 0.5;
+  if (maxTypeCount > total * 0.5 && total > 4) over += maxTypeCount - total * 0.5;
 
   // Homes-share: a town shouldn't be all facilities and ONE home. If the civic
   // facilities outnumber homes by more than 3:1, penalize the surplus — a real
@@ -272,6 +276,18 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
     const civicCount = civicTypes.reduce((n, t) => n + buildings.filter((b) => b.type === t).length, 0);
     if (civicCount > housing.length * 3) {
       problems.push(`Only ${housing.length} home${housing.length === 1 ? '' : 's'} for ${civicCount} facilities — a real town needs more homes. Add some 🏠 Housing!`);
+    }
+  }
+
+  // Over-supply of ONE type (mission or generic): 10+ Traffic Labs in a small
+  // city is clearly wrong, and the optimizer can't delete the child's mission
+  // buildings — so say it plainly instead of pretending the city is optimal.
+  const typeCounts = {};
+  for (const b of buildings) typeCounts[b.type] = (typeCounts[b.type] || 0) + 1;
+  for (const t of Object.keys(typeCounts)) {
+    if (typeCounts[t] >= 6 && typeCounts[t] > buildings.length * 0.5) {
+      const name = catalogType(t)?.name || t;
+      problems.push(`You have ${typeCounts[t]} ${name}s — that's a lot of one building. A real city spreads different buildings around.`);
     }
   }
 

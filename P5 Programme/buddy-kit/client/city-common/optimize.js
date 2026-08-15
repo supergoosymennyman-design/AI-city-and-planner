@@ -220,6 +220,18 @@ function spreadCandidates(layout, b, rng, segs) {
     let score = 0;
     const dRoad = distToRoad(x, z, segs);
     if (dRoad <= 60) score += 3.0; else if (dRoad <= 140) score += 1.0;
+    // Noisy movers must stay away from homes — score candidates that are far
+    // from every home higher so the search itself prefers a zoning-safe spot.
+    if (isNoisyType(b.type)) {
+      let minHome = Infinity;
+      for (const o of layout.buildings || []) {
+        if (o.type !== HOUSING) continue;
+        const d = Math.hypot(o.pos[0] - x, o.pos[1] - z);
+        if (d < minHome) minHome = d;
+      }
+      if (minHome < METRIC_PARAMS.zoningDist) score -= 5.0;
+      else score += Math.min(2, (minHome - METRIC_PARAMS.zoningDist) / 100);
+    }
     // Far from other specials is the whole point.
     let minSpecial = Infinity;
     for (const o of layout.buildings || []) {
@@ -524,16 +536,19 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     }
 
     // 2c2. Spread clustered specials (mission buildings). The spread metric
-    //     (15%) only ticks up when several cluster-pairs are broken, which a
+    //     (10%) only ticks up when several cluster-pairs are broken, which a
     //     single one-at-a-time move can rarely do — so this step BATCHES the
-    //     fix: relocate up to 3 clustered non-noisy specials apart in one
-    //     trial, and keep the whole batch only if the COMPOSITE score
-    //     strictly improves (protecting accessibility). Specials are never
-    //     REMOVED; the student reviews via Apply/Keep.
+    //     fix: relocate up to 3 clustered specials apart in one trial, and keep
+    //     the whole batch only if the COMPOSITE score strictly improves
+    //     (protecting accessibility). Noisy specials (traffic_lab, delivery,
+    //     recycling, traffic_emergency) are included too — 12 stacked Traffic
+    //     Labs is exactly the "clustered" case — but their new spot must ALSO
+    //     stay away from homes (a guard the non-noisy spread never needed).
+    //     Specials are never REMOVED; the student reviews via Apply/Keep.
     if (!didImprove) {
       const clustered = buildings().filter((b) =>
-        isSpecial(b) && !isNoisyType(b.type) &&
-        buildings().some((o) => o !== b && isSpecial(o) && !isNoisyType(o.type) &&
+        isSpecial(b) &&
+        buildings().some((o) => o !== b && isSpecial(o) &&
           Math.hypot(b.pos[0] - o.pos[0], b.pos[1] - o.pos[1]) < METRIC_PARAMS.clusterDist)
       );
       if (clustered.length >= 2) {
@@ -553,6 +568,12 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
             const tooNearOther = trial.buildings.some((o) => o !== b && isSpecial(o) &&
               Math.hypot(o.pos[0] - sx, o.pos[1] - sz) < METRIC_PARAMS.clusterDist);
             if (tooNearOther) continue;
+            // Noisy movers must not land next to a home (zoning guard).
+            if (isNoisyType(b.type)) {
+              const tooNearHome = trial.buildings.some((o) => o.type === HOUSING &&
+                Math.hypot(o.pos[0] - sx, o.pos[1] - sz) < METRIC_PARAMS.zoningDist);
+              if (tooNearHome) continue;
+            }
             const overlaps = trial.buildings.some((o) => {
               if (o === b) return false;
               const ofp = o.footprint || footprintFor(o.type);

@@ -187,7 +187,7 @@ function setupScene() {
   scene.background = new THREE.Color(0x16224a);
   scene.fog = new THREE.FogExp2(0x16224a, 0.0007);
 
-  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.5, 30000);
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1.0, 8000);
   camera.position.set(1000, 220, 1350);
   camera.lookAt(1000, 10, 1000);
 
@@ -234,9 +234,13 @@ function setupScene() {
   rim.position.set(-1400, 900, -1200);
   scene.add(rim);
 
-  // Ground
+  // Ground — sized to the ~2000-unit city plus margin. The old 20000-unit plane
+  // (with far=30000) collapsed depth-buffer precision on mobile GPUs, making
+  // ground-level geometry silently fail the depth test on iPads. The fog already
+  // hides anything past ~2000 units, so a 6000-unit plane is invisible loss on
+  // desktop and a huge precision win on mobile.
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(20000, 20000),
+    new THREE.PlaneGeometry(6000, 6000),
     new THREE.MeshStandardMaterial({ color: 0x141a2e, roughness: 0.9 })
   );
   ground.rotation.x = -Math.PI / 2;
