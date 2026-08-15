@@ -19,6 +19,18 @@ import { catalogType } from './catalog.js';
 
 export const LAYOUT_VERSION = 2;
 export const DEFAULT_SCALE = 2000;
+// Sanity bounds on the plan size: a student city is ~2000m. A pasted JSON with
+// scaleMeters=1e12 would pass a naive >0 check but make the optimizer's grid
+// search iterate billions of cells (hang). Clamp to a sane range.
+export const MIN_SCALE = 200;
+export const MAX_SCALE = 20000;
+
+/** Clamp a raw scale value to [MIN_SCALE, MAX_SCALE] (default when invalid). */
+function clampScale(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_SCALE;
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, n));
+}
 
 /** Road width by class (matches fabric generator roadWidth). */
 export const ROAD_WIDTH = {
@@ -59,7 +71,7 @@ export function validateLayout(raw) {
     return { ok: false, errors, warnings: [] };
   }
 
-  const scale = Number(raw.scaleMeters) > 0 ? Number(raw.scaleMeters) : DEFAULT_SCALE;
+  const scale = clampScale(raw.scaleMeters);
   const inBounds = (v) => Number.isFinite(v) && v >= 0 && v <= scale + 0.5;
 
   // Pathological-layout caps: a student city is bounded; a pasted JSON with
@@ -157,7 +169,7 @@ export function validateLayout(raw) {
 /** Coerce a validated (or partially valid) layout into a safe, clean shape. */
 export function sanitizeLayout(raw) {
   const base = defaultLayout();
-  const scale = Number(raw?.scaleMeters) > 0 ? Number(raw.scaleMeters) : DEFAULT_SCALE;
+  const scale = clampScale(raw?.scaleMeters);
   base.scaleMeters = scale;
   base.version = LAYOUT_VERSION;
 

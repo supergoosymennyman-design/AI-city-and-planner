@@ -96,10 +96,11 @@ export function mountCityBuddy(city, champion, sim, layout) {
     if (!match) return;
     const name = buildingName(match);
 
-    // Mission buildings (the child's own quest buildings, e.g. ♻️ Recycling
-    // Lab) can be ENTERED — offer a button right in the chat bubble.
-    const spec = catalogType(match.type);
-    if (spec && spec.category === 'special') {
+    // Mission buildings with a playable game (e.g. ♻️ Recycling Lab) can be
+    // ENTERED — offer a button right in the chat bubble. Game-less specials
+    // (water/power/traffic labs) get no Enter button.
+    const canEnter = typeof sim.questHasGame === 'function' && sim.questHasGame(match.type);
+    if (canEnter) {
       const enterBtn = document.createElement('button');
       enterBtn.type = 'button';
       enterBtn.className = 'sheet-primary';
@@ -109,7 +110,7 @@ export function mountCityBuddy(city, champion, sim, layout) {
         enterBtn.disabled = true;
         const res = apply({ op: 'enterNearQuest' });
         if (res && res.ok) enterBtn.textContent = '✅ Opening!';
-        else { enterBtn.textContent = '❌ Walk closer first'; enterBtn.disabled = false; }
+        else { enterBtn.textContent = res && res.note ? res.note : '❌ Cannot enter'; enterBtn.disabled = false; }
       };
       bubbleEl.appendChild(enterBtn);
     }

@@ -52,6 +52,21 @@ const QUEST_GAME_URL_OVERRIDES = {
   14: 'https://p5-project-01.ai-education.workers.dev/', // Recycling Lab → P5 Lesson 1 example game
 };
 
+// Resolve the playable game URL for a quest id (override wins, else the
+// quest's own gameUrl). Returns null when there is no game yet.
+function questGameUrl(questId) {
+  if (QUEST_GAME_URL_OVERRIDES[questId]) return QUEST_GAME_URL_OVERRIDES[questId];
+  const q = QUESTS.find((qq) => qq.id === questId);
+  return q && q.gameUrl ? q.gameUrl : null;
+}
+
+// Does this building type have a playable game to enter?
+function questHasGameForType(type) {
+  const spec = catalogType(type);
+  if (!spec || !spec.questId) return false;
+  return !!questGameUrl(spec.questId);
+}
+
 const IS_MOBILE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || window.innerWidth <= 768;
 
 // ─── osm-city facade palette (kept in sync — single aesthetic source) ─────
@@ -1217,6 +1232,9 @@ async function spawnChampion() {
   sim = {
     walkSpeed: 2,
     nearQuest: null,
+    // Does a building type have a playable game to enter? (Chat uses this to
+    // decide whether to offer an Enter button.)
+    questHasGame(type) { return questHasGameForType(type); },
     walkTo(building) {
       if (!champion || !building || (taxi && taxi.isActive())) return;
       walkNav = { x: building.pos[0], z: building.pos[1] };
@@ -1237,11 +1255,9 @@ async function spawnChampion() {
     enterNearQuest() {
       const quest = this.nearQuest;
       if (!quest) return { ok: false, note: 'Walk up to a mission building first, then I can open it!' };
-      openMinigame({
-        questId: quest.id,
-        name: quest.labelEn,
-        gameUrl: QUEST_GAME_URL_OVERRIDES[quest.id] || quest.gameUrl,
-      });
+      const url = questGameUrl(quest.id);
+      if (!url) return { ok: false, note: `The ${quest.labelEn} doesn't have a game yet — try a mission building like the ♻️ Recycling Lab!` };
+      openMinigame({ questId: quest.id, name: quest.labelEn, gameUrl: url });
       return { ok: true, note: `🎮 Opening the ${quest.labelEn}…` };
     },
   };
@@ -1379,6 +1395,12 @@ function tapAt(clientX, clientY) {
 }
 
 function openMinigame(data) {
+  // Guard: a quest with no deployed game (traffic_lab, monitoring, water,
+  // power…) must never open a blank overlay. Show a friendly toast instead.
+  if (!data || !data.gameUrl) {
+    showToast(`⏳ ${data?.name || 'This building'} doesn't have a game yet — try a mission building!`);
+    return;
+  }
   const overlay = document.getElementById('game-overlay');
   const frame = document.getElementById('game-frame');
   document.getElementById('game-overlay-title').textContent = data.name;
@@ -1556,11 +1578,9 @@ function wireQuestPrompt() {
   _questPromptBtn.addEventListener('pointerdown', () => {
     const quest = sim && sim.nearQuest;
     if (!quest) return;
-    openMinigame({
-      questId: quest.id,
-      name: quest.labelEn,
-      gameUrl: QUEST_GAME_URL_OVERRIDES[quest.id] || quest.gameUrl,
-    });
+    const url = questGameUrl(quest.id);
+    if (!url) return;
+    openMinigame({ questId: quest.id, name: quest.labelEn, gameUrl: url });
   });
 }
 

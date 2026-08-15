@@ -580,6 +580,26 @@ function clearAll() {
   toast('🗑️ City cleared');
 }
 
+// Delete the currently SELECTED building (or the whole city when none is
+// selected). The 👆 Move tool selects; 🗑️ then removes just that building —
+// the hint says "🗑️ removes it", so it must actually remove the selection,
+// not nuke the whole city.
+function deleteSelectedOrClear() {
+  const idx = state.selectedIdx;
+  if (idx >= 0 && idx < state.layout.buildings.length) {
+    const b = state.layout.buildings[idx];
+    pushUndo();
+    state.layout.buildings.splice(idx, 1);
+    state.selectedIdx = -1;
+    updateMetrics();
+    render();
+    const name = catalogType(b.type)?.name || b.type;
+    toast(`🗑️ Removed the ${name}`);
+    return;
+  }
+  clearAll();
+}
+
 // ─── Road templates ────────────────────────────────────
 // Premade road networks for students who don't want to draw roads freeform
 // (it can look messy). Picking one clears the city and loads ONLY the roads
@@ -933,7 +953,16 @@ function flashChanges(oldLayout, diff) {
 }
 // ─── Wire up UI ─────────────────────────────────────────
 document.getElementById('btn-undo').addEventListener('click', undo);
-document.getElementById('btn-clear').addEventListener('click', clearAll);
+document.getElementById('btn-clear').addEventListener('click', deleteSelectedOrClear);
+// Delete/Backspace removes the selected building (or clears when none), but
+// never while the child is typing in a text field.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+  e.preventDefault();
+  deleteSelectedOrClear();
+});
 document.getElementById('btn-ai').addEventListener('click', askAdvisor);
 document.getElementById('btn-export').addEventListener('click', exportCity);
 document.querySelectorAll('.tool-btn').forEach((btn) => {
