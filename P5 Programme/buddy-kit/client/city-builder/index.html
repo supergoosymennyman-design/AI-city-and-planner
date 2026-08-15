@@ -62,10 +62,12 @@
       background: #0b132b; color: #eaf2f8;
       font-family: ui-monospace, monospace; font-size: 12px; padding: 8px;
     }
-    /* The quest "Enter" prompt sits at the TOP-CENTER here, clear of the
-       buddy chat panel (which occupies the right/bottom on tablets). */
+    /* The quest "Enter" prompt sits at the TOP-LEFT here, clear of the buddy
+       chat panel (which occupies the right/bottom on tablets). A centered
+       position collided with the panel on narrow screens. */
     #quest-prompt {
       top: 64px; bottom: auto;
+      left: 16px; transform: none;
       z-index: 130;
     }
   </style>
