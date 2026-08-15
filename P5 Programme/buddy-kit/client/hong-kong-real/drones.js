@@ -61,9 +61,25 @@ export function createDrones(group, districtId, opts = {}) {
 
   // Mobile keeps a lighter swarm so tablets hold 60 FPS; desktop gets a dense
   // futuristic drone traffic layer. Both stay fully instanced (3 draw calls).
-  const N = opts.mobile
-    ? Math.min(40, Math.max(14, stops.length * 2))
-    : Math.min(80, Math.max(24, stops.length * 4));
+  // COUNT IS FIXED — independent of how many buildings/stops exist, so a city
+  // with few buildings still gets a busy skyline (the user's ask: density
+  // should not shrink with the number of relevant buildings).
+  const N = opts.mobile ? 28 : 48;
+
+  // Patrol waypoints = building rooftops PLUS an even sky grid over the city
+  // bounds, so drones are spread across the whole city regardless of how many
+  // buildings there are (a 1-building city still gets a uniform swarm).
+  const bounds = opts.bounds || { minX: 0, maxX: 2000, minZ: 0, maxZ: 2000 };
+  const gridStops = [];
+  const gStep = 320;
+  for (let gx = bounds.minX + 120; gx <= bounds.maxX - 80; gx += gStep) {
+    for (let gz = bounds.minZ + 120; gz <= bounds.maxZ - 80; gz += gStep) {
+      gridStops.push({ x: gx + (Math.random() - 0.5) * 80, z: gz + (Math.random() - 0.5) * 80, y: 70 + Math.random() * 60, home: false });
+    }
+  }
+  stops = stops.concat(gridStops);
+  if (!stops.length) return null;
+
   const bodyGeo = buildDroneBody();
   const rotorGeo = buildRotorDisc();
   const bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.4 });

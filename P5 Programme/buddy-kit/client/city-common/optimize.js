@@ -159,6 +159,23 @@ function candidateSpots(layout, type, rng, segs) {
     candidates.push([gx + rng() * 60 - 30, gz + rng() * 60 - 30]);
   }
   for (let i = 0; i < 16; i++) candidates.push([rng() * SCALE, rng() * SCALE]);
+  // Dense rings AROUND each home so services/utilities can always find a spot
+  // within coverage range of a needy home. The coarse 180m grid alone can miss
+  // a home whose nearest non-overlapping grid point is >150m away (coverage
+  // radius), leaving homes permanently unserved in spread-out cities.
+  if (!housing) {
+    const homes = buildings.filter((b) => b.type === HOUSING);
+    for (const h of homes) {
+      for (let k = 0; k < 8; k++) {
+        const rad = 55 + rng() * 85;          // 55-140m from the home
+        const ang = rng() * Math.PI * 2;
+        const x = h.pos[0] + Math.cos(ang) * rad;
+        const z = h.pos[1] + Math.sin(ang) * rad;
+        if (x < 10 || z < 10 || x > SCALE - 10 || z > SCALE - 10) continue;  // stay in bounds
+        candidates.push([x, z]);
+      }
+    }
+  }
   shuffle(candidates, rng);
 
   const scored = [];
@@ -273,7 +290,10 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
   let after = before;
 
   const maxIter = Math.min(MAX_ITERATIONS, Math.max(4, opts.maxIter ?? MAX_ITERATIONS));
-  const maxAdd = Math.max(1, opts.maxAdd ?? 14);   // safety cap on additions per run
+  // Additions are now coverage-driven (no ratio cap), so a city with homes
+  // spread far apart may need many services/utilities. Size the safety cap
+  // with the home count so spread-out cities aren't starved of budget.
+  const maxAdd = Math.max(14, opts.maxAdd ?? (6 * countType(HOUSING) + 10));
 
   // ── 1. Resolve overlaps first (a hard constraint: no overlaps ever left).
   //    Nudge only the noisy/generic member; never a non-noisy special.
@@ -320,14 +340,16 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     let didImprove = false;
 
     // 2a0. Housing: a city needs residents. Bootstrap from zero homes, then
-    //      keep growing housing toward a healthy share of the civic facilities
-    //      (a real town isn't one home + one of everything). Acceptance is by
-    //      composite score — a home that would tank coverage or zoning is
-    //      rejected even though it helps the homes-share balance.
+    //      grow to a small healthy minimum so a city isn't all facilities and
+    //      one home. CAPPED at 3 — this is a minimum, not a moving target:
+    //      letting it scale with civicCount would spiral (each added service
+    //      raises the target, each added home needs more services, coverage
+    //      never catches up). Acceptance is by composite score — a home that
+    //      would tank coverage or zoning is rejected.
     if (!didImprove && addedTotal < maxAdd) {
       const H = countType(HOUSING);
       const civicCount = CIVIC.reduce((n, t) => n + countType(t), 0);
-      const targetHomes = Math.max(1, Math.ceil(civicCount / 3));
+      const targetHomes = Math.min(3, Math.max(1, Math.ceil(civicCount / 3)));
       if (H === 0 || H < targetHomes) {
         const bootstrap = H === 0;
         const spots = candidateSpots(out, HOUSING, rng, segs);
@@ -358,8 +380,10 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     // 2a. Add missing SERVICES near homes that lack them (school, shop,
     //     hospital, fire, police). Each service is required independently —
     //     a park can't substitute. Also add missing UTILITIES (water, power,
-    //     bus) at district range. Accessibility-only gains do NOT drive adds;
-    //     the student's scale is respected (ratioTargets caps the count).
+    //     bus) at district range. Accessibility-only gains do NOT drive adds.
+    //     NO ratio cap: coverage is spatial (150m/400m), so homes spread far
+    //     apart each need their own service/utility — the ratio target is for
+    //     the balance score, not a hard ceiling on what coverage requires.
     const H = countType(HOUSING);
     const want = ratioTargets(H);
     if (addedTotal < maxAdd) {
@@ -373,7 +397,6 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       }
       for (const t of METRIC_PARAMS.serviceTypes) {
         if (addedTotal >= maxAdd) break;
-        if (countType(t) >= want[t]) continue;          // already at ratio
         const needy = missingByType[t];
         if (!needy.length) continue;
         const spots = candidateSpots(out, t, rng, segs);
@@ -409,7 +432,6 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       }
       for (const t of METRIC_PARAMS.utilityTypes) {
         if (addedTotal >= maxAdd) break;
-        if (countType(t) >= want[t] || countType(t) >= 1) continue;   // one of each is enough
         const needy = missingUtilByType[t];
         if (!needy.length) continue;
         const spots = candidateSpots(out, t, rng, segs);
@@ -438,14 +460,16 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       }
     }
 
-    // 2b. Relocate-for-accessibility: generic/housing/noisy buildings too far
-    //     from any road (> accessibleDist) get trial-moved to a road-adjacent
-    //     spot. Accessibility is 40% of the score and is otherwise frozen
-    //     (roads are never added), so this is the move that fixes "my whole
-    //     city is far from the road". Specials stay put.
+    // 2b. Relocate-for-accessibility: any building (mission or generic) too
+    //     far from any road (> accessibleDist) gets trial-moved to a
+    //     road-adjacent spot. Accessibility is 30% of the score and is
+    //     otherwise frozen (roads are never added), so this is the move that
+    //     fixes "my whole city is far from the road". Specials ARE moved too
+    //     (the child reviews via Apply/Keep) — a mission building stranded in
+    //     a field shouldn't keep the whole city's score down.
     if (!didImprove) {
       const farList = buildings().filter((b) =>
-        !isSpecial(b) && distToRoad(b.pos[0], b.pos[1], segs) > METRIC_PARAMS.accessibleDist * 2.5
+        distToRoad(b.pos[0], b.pos[1], segs) > METRIC_PARAMS.accessibleDist * 2.5
       );
       for (const b of farList) {
         const spots = candidateSpots(out, b.type, rng, segs);
@@ -719,41 +743,65 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       }
     }
 
-    // 2e. Remove an excess duplicate when it doesn't hurt (leaner city).
-    //     HARD RULE: special/mission buildings (incl. city_central) are NEVER
-    //     removed — only generic duplicates can be trimmed.
+    // 2e. Remove excess duplicates when it doesn't hurt (leaner city).
+    //     Generic civic types keep the ratio floor (max(1, want)); mission
+    //     specials + utilities are UNIQUE (one of each) so anything above 1 is
+    //     redundant. Housing is never removed. Everything is score-gated and
+    //     reviewable (Apply/Keep), so a needed service can never be deleted.
+    //     Removes ALL excess in one pass (bounded): a stack of 12 traffic labs
+    //     needs 11 removals — one-per-iteration would never converge.
     if (!didImprove) {
-      const excess = [];
-      for (const t of CIVIC) {
-        const have = countType(t);
-        const target = want[t];
-        if (have > Math.max(1, target)) {
-          const list = buildings().filter((b) => b.type === t);
-          // Remove the most-clustered one.
-          const victim = list.slice().sort((x, y) => clusterScore(out, y, t) - clusterScore(out, x, t))[0];
-          excess.push({ t, victim });
+      const keepFloor = (t) => {
+        if (t === HOUSING) return Infinity;
+        if (catalogType(t)?.category === 'special') return 1;
+        return Math.max(1, want[t] ?? 1);
+      };
+      for (let guard = 0; guard < 24; guard++) {
+        // Find the first over-floor type; pick its most-clustered victim.
+        const allTypes = new Set(buildings().map((b) => b.type));
+        let t = null, victim = null;
+        for (const tt of allTypes) {
+          if (countType(tt) > keepFloor(tt)) {
+            const list = buildings().filter((b) => b.type === tt);
+            victim = list.slice().sort((x, y) => clusterScore(out, y, tt) - clusterScore(out, x, tt))[0];
+            t = tt;
+            break;
+          }
         }
-      }
-      for (const { t, victim } of excess) {
+        if (!t || !victim) break;
         const trial = JSON.parse(JSON.stringify(out));
         const real = findBuildingAt(trial, victim);
-        if (!real) continue;
+        if (!real) break;
         const from = real.pos.slice();
         trial.buildings.splice(trial.buildings.indexOf(real), 1);
         const m = computeMetrics(trial);
-        if (m.score >= after.score && trial.buildings.length < out.buildings.length) {
-          const improved = metricDeltas(after, m);
-          const name = catalogType(t)?.name || t;
-          diff.push({
-            action: 'remove', what: t, count: 1, from, to: null,
-            reason: `Removed an extra ${name} — one is enough; the city stayed just as good with less clutter.`,
-            improved, fromScore: after.score, toScore: m.score,
-          });
-          out.buildings = trial.buildings;
-          after = m;
-          didImprove = true;
-          break;
-        }
+        // NEVER remove a service/utility that any home depends on — the score
+        // gate alone is too permissive (removing a stranded school can leave
+        // coverage equal if other metrics offset it). A needed facility must
+        // not vanish just because the composite score held.
+        const isService = METRIC_PARAMS.serviceTypes.includes(t);
+        const isUtility = METRIC_PARAMS.utilityTypes.includes(t);
+        if (isService && m.coverage < after.coverage - 1e-9) break;
+        if (isUtility && m.utilities < after.utilities - 1e-9) break;
+        // Allow a small score dip: trimming an absurd duplicate (e.g. 12
+        // traffic labs) is clearly right even if accessibility nudges down a
+        // point by removing one road-adjacent building. The final safety net
+        // still reverts if the WHOLE optimization ends worse than the input.
+        if (!(m.score >= after.score - 2 && trial.buildings.length < out.buildings.length)) break;
+        const improved = metricDeltas(after, m);
+        const name = catalogType(t)?.name || t;
+        const isSpecialDup = catalogType(t)?.category === 'special';
+        diff.push({
+          action: 'remove', what: t, count: 1, from, to: null,
+          reason: isSpecialDup
+            ? `Removed an extra ${name} — this city only needs one; the rest were clutter.`
+            : `Removed an extra ${name} — one is enough; the city stayed just as good with less clutter.`,
+          improved, fromScore: after.score, toScore: m.score,
+        });
+        out.buildings = trial.buildings;
+        after = m;
+        didImprove = true;
+        // Continue — there may be more excess of the same type.
       }
     }
 

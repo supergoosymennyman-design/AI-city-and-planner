@@ -112,9 +112,13 @@ function centerBiasedTarget(grid, bounds, rng, spread) {
  * array holds state (pos, target, heading) and writes the instance matrix.
  */
 export function createPedestrians(scene, layout, opts = {}) {
-  const count = opts.count ?? DEFAULT_COUNT;
-  const grid = buildRectGrid(buildingRects(layout.buildings || []));
   const bounds = opts.bounds || { minX: 0, maxX: 2000, minZ: 0, maxZ: 2000 };
+  // Area-based density when the caller doesn't pass a count: people scale with
+  // the city's footprint so a small cluster and a big metropolis look equally
+  // busy. ~2x the previous fixed 56 for a bustling feel, capped for tablets.
+  const area = Math.max(1, (bounds.maxX - bounds.minX) * (bounds.maxZ - bounds.minZ));
+  const count = opts.count ?? Math.max(20, Math.min(160, Math.round(area / (9000 * (opts.density ?? 1)))));
+  const grid = buildRectGrid(buildingRects(layout.buildings || []));
   const rng = (opts.seed != null) ? mulberry32(opts.seed) : Math.random;
 
   // One InstancedMesh per colour variant; capacity spread evenly.

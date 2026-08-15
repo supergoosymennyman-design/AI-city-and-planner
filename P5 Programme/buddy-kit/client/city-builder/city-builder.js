@@ -1251,23 +1251,27 @@ function setupAirTraffic() {
   // Tablets get a lighter swarm — these are pure decoration and each one is a
   // per-frame update + instance write.
   const bounds = cityBounds || { minX: 0, maxX: 2000, minZ: 0, maxZ: 2000 };
-  decoTaxis = createDecoTaxis(scene, IS_MOBILE ? 8 : 16, { bounds });
-  skySentinels = createSkySentinels(scene, IS_MOBILE ? 5 : 10, { bounds });
+  decoTaxis = createDecoTaxis(scene, IS_MOBILE ? 12 : 24, { bounds });
+  skySentinels = createSkySentinels(scene, IS_MOBILE ? 8 : 14, { bounds });
 
   // Patrol drones visit the student's major buildings AND generic facilities.
+  // The drone COUNT is fixed (density independent of building count); the
+  // bounds seed an even sky grid so the swarm covers the whole city.
   const stops = layout.buildings.map((b) => {
     const h = b.height || catalogType(b.type)?.height || 30;
     return { x: b.pos[0], z: b.pos[1], y: h + 8, home: b.type === 'atc' };
   });
-  drones = stops.length ? createDrones(scene, 'central', { stops, mobile: IS_MOBILE }) : null;
+  drones = stops.length ? createDrones(scene, 'central', { stops, bounds, mobile: IS_MOBILE }) : null;
 
-  // Road traffic — cars & buses cruising along the student's roads.
-  try { traffic = createTraffic(scene, layout.roads, { carCount: IS_MOBILE ? 12 : 24, busCount: IS_MOBILE ? 2 : 4 }); }
+  // Road traffic — cars & buses cruising along the student's roads. Counts are
+  // density-based (proportional to total road length) so every design looks
+  // equally busy; tablets just get a lighter multiplier.
+  try { traffic = createTraffic(scene, layout.roads, { density: IS_MOBILE ? 0.55 : 1 }); }
   catch (e) { console.warn('[city-builder] traffic init failed', e); traffic = null; }
 
-  // Pedestrians — people milling around the city. They roam freely (crossing
-  // roads is fine) but never walk through buildings.
-  try { pedestrians = createPedestrians(scene, layout, { count: IS_MOBILE ? 30 : 56 }); }
+  // Pedestrians — people milling around the city. Density is area-based so a
+  // big footprint gets proportionally more people; tablets use a lighter scale.
+  try { pedestrians = createPedestrians(scene, layout, { bounds, density: IS_MOBILE ? 0.55 : 1 }); }
   catch (e) { console.warn('[city-builder] pedestrians init failed', e); pedestrians = null; }
   city.pedestrians = pedestrians;
 

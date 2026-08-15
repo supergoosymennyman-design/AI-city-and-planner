@@ -76,8 +76,15 @@ export function createTraffic(group, roads, opts = {}) {
   }
   if (!paths.length) return null;
 
-  const carCount = opts.carCount ?? 24;
-  const busCount = opts.busCount ?? 4;
+  // Density-based counts when the caller doesn't pass explicit numbers: cars
+  // scale with total road length so ANY road network — a 2-road stub or a
+  // 20-road grid — looks equally busy (the user's ask: same density regardless
+  // of buildings or bus stops). Buses are rarer but also proportional.
+  // `opts.density` scales the result (tablets pass ~0.55 for the frame budget).
+  const density = opts.density ?? 1;
+  const totalLen = paths.reduce((s, p) => s + p._len, 0);
+  const carCount = opts.carCount ?? Math.max(8, Math.min(64, Math.round(totalLen / 45 * density)));
+  const busCount = opts.busCount ?? Math.max(1, Math.min(8, Math.round(totalLen / 600 * density)));
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.4 });
 
   const perVariant = Math.ceil(carCount / CAR_COLORS.length);

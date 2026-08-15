@@ -311,7 +311,11 @@ test('random layouts: roads are byte-identical', () => {
   }
 });
 
-test('random layouts: specials are never removed', () => {
+test('random layouts: specials only removed when duplicated beyond 1 (never the last)', () => {
+  // Utilities (water/power/bus) legitimately GROW — the optimizer adds them to
+  // serve homes, so they're excluded from the count-grew check. Mission
+  // specials are unique: duplicates may be trimmed, but the last copy stays.
+  const UTILITIES = new Set(['water', 'power', 'bus']);
   for (const seed of SEEDS) {
     const layout = sanitizeLayout(randomLayout(seed * 7919));
     const { layout: out } = optimizeLayout(layout, {}, seed * 104729);
@@ -320,7 +324,13 @@ test('random layouts: specials are never removed', () => {
     for (const b of inS) {
       const inCount = inS.filter((x) => x.type === b.type).length;
       const outCount = outS.filter((x) => x.type === b.type).length;
-      assert.ok(outCount >= inCount, `seed ${seed}: special ${b.type} removed`);
+      // Every special keeps at least one copy.
+      assert.ok(outCount >= 1, `seed ${seed}: special ${b.type} vanished entirely`);
+      // Mission specials never grow; utilities may (coverage-driven adds).
+      if (!UTILITIES.has(b.type)) {
+        assert.ok(outCount <= inCount, `seed ${seed}: special ${b.type} count grew`);
+        if (inCount === 1) assert.equal(outCount, 1, `seed ${seed}: unique special ${b.type} removed`);
+      }
     }
   }
 });
@@ -458,7 +468,7 @@ test('zero roads: accessibility is 0, not NaN', () => {
   assert.ok(validateLayout(out).ok);
 });
 
-test('stacked duplicate buildings: no crash, deterministic, all preserved', () => {
+test('stacked duplicate buildings: no crash, deterministic, duplicates trimmed to 1', () => {
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
@@ -473,8 +483,61 @@ test('stacked duplicate buildings: no crash, deterministic, all preserved', () =
   const a = optimizeLayout(layout, {}, 3);
   const b = optimizeLayout(layout, {}, 3);
   assert.equal(JSON.stringify(a.layout), JSON.stringify(b.layout), 'deterministic');
-  const inDel = layout.buildings.filter((x) => x.type === 'delivery').length;
+  // Delivery is a unique mission building — duplicates are trimmed to 1, but
+  // never below 1 (the last copy stays).
   const outDel = a.layout.buildings.filter((x) => x.type === 'delivery').length;
-  assert.ok(outDel >= inDel, 'no delivery removed');
+  assert.equal(outDel, 1, 'duplicate delivery trimmed to 1');
   assert.ok(validateLayout(a.layout).ok);
+});
+
+test('spread-out homes: each cluster gets its own services/utilities (no ratio cap)', () => {
+  // Two homes ~2000m apart, on a grid road, no services. The old ratio cap
+  // ("1 school per 10 homes") left one home permanently unserved because
+  // coverage is spatial (150m). Now the optimizer adds per-cluster services.
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [
+      { points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' },
+      { points: [[1000, 100], [1000, 1900]], width: 14, class: 'primary' },
+    ],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [300, 300], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1700, 1700], footprint: [20, 20], height: 22 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const { layout: out } = optimizeLayout(layout, {}, 1);
+  const m = computeMetrics(out);
+  assert.ok(m.coverage > 0.9, `coverage should reach ~1.0 for spread homes (got ${(m.coverage * 100).toFixed(0)}%)`);
+  assert.ok(m.utilities > 0.9, `utilities should reach ~1.0 for spread homes (got ${(m.utilities * 100).toFixed(0)}%)`);
+  assert.ok(out.buildings.filter((b) => b.type === 'school').length >= 2, 'should add a school per home cluster');
+  assert.ok(validateLayout(out).ok);
+});
+
+test('12 traffic labs: trimmed to 1 (aggressive removal of duplicate mission buildings)', () => {
+  const buildings = [];
+  for (let i = 0; i < 12; i++) {
+    buildings.push({ type: 'traffic_lab', pos: [500 + (i % 4) * 40, 500 + Math.floor(i / 4) * 40], footprint: [22, 20], height: 40 });
+  }
+  buildings.push({ type: 'housing', pos: [1400, 1400], footprint: [20, 20], height: 24 });
+  buildings.push({ type: 'housing', pos: [1440, 1440], footprint: [20, 20], height: 22 });
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [
+      { points: [[150, 1000], [1850, 1000]], width: 14, class: 'primary' },
+      { points: [[1000, 150], [1000, 1850]], width: 14, class: 'primary' },
+    ],
+    parks: [],
+    buildings,
+  };
+  const layout = sanitizeLayout(raw);
+  const before = computeMetrics(layout);
+  const { layout: out, diff } = optimizeLayout(layout, {}, 1);
+  const labs = out.buildings.filter((b) => b.type === 'traffic_lab').length;
+  const m = computeMetrics(out);
+  assert.equal(labs, 1, '12 traffic labs should be trimmed to 1');
+  assert.ok(diff.some((d) => d.action === 'remove' && d.what === 'traffic_lab'), 'should remove excess labs');
+  assert.ok(m.score > before.score, `score should improve (${before.score} -> ${m.score})`);
+  assert.ok(validateLayout(out).ok);
 });
