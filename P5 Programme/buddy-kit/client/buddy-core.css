@@ -283,7 +283,12 @@
   bottom: 104px; /* 24px bubble inset + 64px bubble + 16px gap */
   z-index: 2147483000;
   width: min(420px, calc(100vw - 32px));
-  height: min(640px, calc(100vh - 120px));
+  /* Reserve a TOP safe-area (96px) so the header + minimise button never sit
+     behind the browser's top tab/URL bar on short/landscape viewports. The
+     old calc(100vh - 120px) let the 640px panel start at y≈24 on a ~768px
+     viewport, hiding the ✕ above the visible area. Tall viewports are
+     unchanged (top stays ~280px). */
+  height: min(640px, calc(100vh - 200px));
   display: flex;
   flex-direction: column;
   border-radius: 22px;
