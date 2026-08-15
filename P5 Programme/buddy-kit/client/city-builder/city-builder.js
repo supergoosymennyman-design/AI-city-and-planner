@@ -1241,7 +1241,7 @@ function setupAirTraffic() {
   const landingZones = (layout.parks || []).map((p) => ({ x: p.cx, z: p.cz, radius: Math.max(p.radius, 40) }));
   landingZones.push({ x: 1000, z: 1000, radius: 60 });
 
-  taxi = createFlyingTaxi(scene, { walkSpeed: 18, runSpeed: 70, landingZones });
+  taxi = createFlyingTaxi(scene, { walkSpeed: 18, runSpeed: 70, landingZones, autoNavFloor: 260 });
 
   // Decorative skyline traffic + sentinels over the densified city footprint.
   // Tablets get a lighter swarm — these are pure decoration and each one is a
@@ -1428,6 +1428,7 @@ function loop(now) {
       }
     }
     taxi.update(dt, { x: tx, z: tz, running: true, ascend, descend }, tNow);
+    sim.nearQuest = null;   // flying — no building is "near" for entering
   } else if (champion) {
     // Walk navigation (buddy "walk to X") steers toward the target.
     let mx = input.x, mz = input.z, mvRunning = input.running, mvJump = input.jump;
@@ -1441,8 +1442,7 @@ function loop(now) {
         const len = dist || 1;
         mx = dx / len; mz = dz / len; mvRunning = false;
       }
-    }
-    champion.update(dt, {
+    }    champion.update(dt, {
       x: mx, z: mz, running: mvRunning, jump: mvJump,
       speedScale: (sim.walkSpeed || 2) / WALK_SPEED,
     });
@@ -1452,6 +1452,7 @@ function loop(now) {
     sim.nearQuest = nearestQuest();
   }
 
+  updateQuestPrompt();
   updateCamera(dt, taxiActive);
   if (specialSystem) updateBeacons(now);
   if (skyscraperSparkles.length) updateSkyscraperSparkles(tNow);
@@ -1499,6 +1500,47 @@ function nearestQuest() {
     if (d < bestD) { bestD = d; best = ref; }
   }
   return best ? QUESTS.find((q) => q.id === best.q.id) : null;
+}
+
+// ─── Quest enter prompt ──────────────────────────────────────────────────
+// When the champion stands near a mission building that has a playable
+// mini-game, show a visible "🎮 Enter" button (the invisible tap-target alone
+// wasn't discoverable for children). Locked / coming-soon buildings show the
+// label without the button, matching the HK topography flow.
+const _questPromptEl = document.getElementById('quest-prompt');
+const _questPromptLabel = document.getElementById('quest-prompt-label');
+const _questPromptBtn = document.getElementById('quest-prompt-btn');
+
+function updateQuestPrompt() {
+  if (!_questPromptEl) return;
+  const quest = sim && sim.nearQuest;
+  if (!quest) { _questPromptEl.classList.add('hidden'); return; }
+  const st = questStatus(quest, loadQuestState());
+  if (st === 'locked') {
+    _questPromptLabel.textContent = `🔒 ${quest.labelZh} ${quest.labelEn}`;
+    _questPromptBtn.classList.add('hidden');
+  } else if (!quest.gameUrl) {
+    // No game deployed for this department yet — show the label but no Enter.
+    _questPromptLabel.textContent = `⏳ ${quest.labelZh} ${quest.labelEn}`;
+    _questPromptBtn.classList.add('hidden');
+  } else {
+    _questPromptLabel.textContent = `🏛️ ${quest.labelZh} ${quest.labelEn}`;
+    _questPromptBtn.classList.remove('hidden');
+  }
+  _questPromptEl.classList.remove('hidden');
+}
+
+function wireQuestPrompt() {
+  if (!_questPromptBtn) return;
+  _questPromptBtn.addEventListener('pointerdown', () => {
+    const quest = sim && sim.nearQuest;
+    if (!quest) return;
+    openMinigame({
+      questId: quest.id,
+      name: quest.labelEn,
+      gameUrl: QUEST_GAME_URL_OVERRIDES[quest.id] || quest.gameUrl,
+    });
+  });
 }
 
 const _bc = new THREE.Color();
@@ -1735,6 +1777,7 @@ async function bootInner() {
   mountChat();
   mountSkins();
   wireInput();
+  wireQuestPrompt();
 
   document.getElementById('loading').classList.add('done');
   fill.style.width = '100%';
