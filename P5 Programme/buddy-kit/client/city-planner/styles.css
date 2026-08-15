@@ -174,9 +174,23 @@ button { font-family: var(--font); touch-action: manipulation; }
 }
 
 /* ── Main layout ─────────────────────────── */
+/* Body is a column flex so #map-wrap fills exactly the space BELOW the
+   (possibly wrapped) topbar — the old hardcoded calc(100% - 104px) assumed a
+   104px topbar, but on tablets the toolbar wraps to ~130px, pushing the
+   bottom of the map (and the catalog drawer's last buttons like Police) below
+   the visible area where overflow:hidden clips them. */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#topbar { flex-shrink: 0; }
 #map-wrap {
   display: flex;
-  height: calc(100% - 104px);
+  flex: 1;
+  min-height: 0;   /* allow this flex child to shrink so the drawer scrolls */
+  height: auto;
 }
 #drawer {
   width: 150px;
@@ -382,7 +396,13 @@ button { font-family: var(--font); touch-action: manipulation; }
 
 /* ── Small screens: stack panels ────────── */
 @media (max-width: 720px) {
-  #map-wrap { flex-direction: column; height: auto; }
+  #map-wrap {
+    flex-direction: column;
+    flex: none;          /* natural stacked height, not force-filled */
+    height: auto;
+    overflow-y: auto;    /* allow the stacked panels to scroll if tall */
+    min-height: 0;
+  }
   #drawer {
     width: 100%;
     height: 92px;
