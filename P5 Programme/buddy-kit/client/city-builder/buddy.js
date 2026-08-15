@@ -139,7 +139,7 @@ export function mountCityBuddy(city, champion, sim, layout) {
       title: 'My AI City',
       kidJob: 'help the child explore and be proud of the AI city they designed',
       params: [
-        { name: 'walkSpeed', label: 'Walk speed', min: 1, max: 6, step: 0.5 },
+        { name: 'walkSpeed', label: 'Walk speed', min: 1, max: 8, step: 0.5 },
         { name: 'walkTo', label: 'Walk to a building (use its name)', min: 1, max: 99, step: 1 },
         { name: 'flyTo', label: 'Fly by taxi to a building (use its name)', min: 1, max: 99, step: 1 },
       ],

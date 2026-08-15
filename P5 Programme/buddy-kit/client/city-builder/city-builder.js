@@ -1230,7 +1230,7 @@ async function spawnChampion() {
   scene.add(champion.group);
   orbit.target.copy(city.spawnWorld);
   sim = {
-    walkSpeed: 2,
+    walkSpeed: 5,   // m/s — the champion walks ~5 m/s (was 2: too slow to cross a 2000m city)
     nearQuest: null,
     // Does a building type have a playable game to enter? (Chat uses this to
     // decide whether to offer an Enter button.)
