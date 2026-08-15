@@ -1,0 +1,19 @@
+# Generated deploy bundles — rebuilt by scripts/deploy-city-apps.sh from the
+# live buddy-kit/client + buddy-kit/server sources. Never commit the copies.
+city-sim/champion-city/
+city-sim/city-builder/
+city-sim/city-common/
+city-sim/hong-kong-real/
+city-sim/vendor/
+city-sim/logic/
+city-sim/buddy/
+city-sim/buddy-boot.js
+city-sim/buddy-core.css
+city-sim/buddy-theme.css
+city-sim/buddy-widget.css
+city-sim/buddy-widget.js
+city-sim/buddy.js
+planner/city-common/
+planner/planner.js
+planner/styles.css
+planner/index.html

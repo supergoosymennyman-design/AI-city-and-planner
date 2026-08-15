@@ -1,0 +1,9 @@
+{
+  "name": "p5-planner",
+  "compatibility_date": "2026-08-15",
+  "main": "./worker.mjs",
+  "assets": {
+    "directory": "..",
+    "binding": "ASSETS"
+  }
+}

@@ -1,0 +1,8 @@
+# Not static assets: the Worker BUNDLES this code; server internals, env files,
+# and build artifacts must never be publicly served.
+cloudflare
+buddy/server
+buddy/worker
+buddy/node_modules
+**/node_modules
+**/.env

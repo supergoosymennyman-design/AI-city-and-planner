@@ -1,0 +1,15 @@
+{
+  "name": "p5-city-sim",
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "main": "../buddy/worker/index.mjs",
+  "assets": {
+    "directory": "..",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  }
+}
