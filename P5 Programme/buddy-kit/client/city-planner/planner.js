@@ -55,18 +55,6 @@ function resize() {
   render();
 }
 window.addEventListener('resize', resize);
-// Keep the drawing buffer locked to the CSS size. The old window.resize-only
-// path let the buffer drift (e.g. the iPad dynamic URL bar, or the drawer
-// settling after fonts load), so the browser stretched the canvas bitmap and
-// taps landed offset from the drawn content.
-if (typeof ResizeObserver !== 'undefined') {
-  try {
-    new ResizeObserver(() => resize()).observe(canvas);
-  } catch (e) { /* ResizeObserver unavailable — window.resize still covers most */ }
-}
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', resize);
-}
 
 // ─── Coordinate transforms ──────────────────────────────
 function planToScreen(x, y) {

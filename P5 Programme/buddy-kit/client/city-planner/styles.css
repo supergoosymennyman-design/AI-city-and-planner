@@ -217,6 +217,12 @@ button { font-family: var(--font); touch-action: manipulation; }
 
 #map {
   flex: 1;
+  /* min-width/min-height 0 lets the canvas shrink to the flex column instead of
+     inflating to its intrinsic size (canvas.width/height attributes). Without
+     this, on narrow tablets the canvas grew ~2x wide, the browser stretched the
+     bitmap, and taps landed offset to the right. */
+  min-width: 0;
+  min-height: 0;
   touch-action: none;
   cursor: crosshair;
   background: #0d1526;
