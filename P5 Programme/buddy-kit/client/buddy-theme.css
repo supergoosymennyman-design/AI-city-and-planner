@@ -268,5 +268,4 @@
 .bw-name { font-weight: 800; font-size: 15px; color: var(--buddy-head-ink); letter-spacing: .01em; }
 .bw-min { background: var(--buddy-chip-bg); }
 .bw-min:hover { background: var(--buddy-chip-bg-hover); }
-.bw-min-x { color: var(--buddy-head-ink); }
 .bw-panel { background: var(--buddy-surface); box-shadow: var(--buddy-shadow); }

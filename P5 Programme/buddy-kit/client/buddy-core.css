@@ -255,13 +255,26 @@
    discoverable). The header is laid out around 44px now; verified against the
    city-builder and HK sim panels. */
 .bw-min {
-  flex: 0 0 auto; width: 44px; height: 44px; border: 0; border-radius: 10px; cursor: pointer;
-  display: grid; place-items: center; transition: background .15s ease;
-  /* Now the PRIMARY way a child closes the chat — a clear ✕, not the old subtle
-     dash (a 16×3px bar read as nothing on tablets). Sized to the 44px tap floor. */
+  flex: 0 0 auto; width: 44px; height: 44px;
+  border: 2px solid rgba(255,255,255,.35);   /* clearly a tappable button */
+  border-radius: 12px; cursor: pointer;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,.14);
+  transition: background .15s ease;
 }
+.bw-min:hover { background: rgba(255,255,255,.24); }
 .bw-min:focus-visible { outline: 3px solid var(--buddy-focus, currentColor); outline-offset: 2px; }
-.bw-min-x { font-size: 18px; line-height: 1; font-weight: 800; }
+/* The close glyph is drawn with CSS (two crossed bars), never a Unicode ✕ —
+   a font/glyph that can render blank on some iOS stacks. Sized bold and thick
+   enough to read as "close" even at a glance. */
+.bw-min-x { position: relative; width: 18px; height: 18px; display: block; }
+.bw-min-x i {
+  position: absolute; left: 0; top: 50%; width: 100%; height: 3px;
+  margin-top: -1.5px; border-radius: 2px;
+  background: #fff;
+}
+.bw-min-x i:first-child { transform: rotate(45deg); }
+.bw-min-x i:last-child { transform: rotate(-45deg); }
 
 /* ============================ the slide-up panel ============================ */
 .bw-panel {

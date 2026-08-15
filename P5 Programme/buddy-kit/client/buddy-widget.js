@@ -51,7 +51,9 @@
     min.type = 'button';
     min.className = 'bw-min';
     min.setAttribute('aria-label', 'Minimise buddy');
-    min.innerHTML = '<span class="bw-min-x" aria-hidden="true">✕</span>';
+    // CSS-drawn close glyph (two crossed bars) — immune to any iOS font/glyph
+    // rendering quirk that could show a Unicode ✕ as blank/tofu. Always paints.
+    min.innerHTML = '<span class="bw-min-x" aria-hidden="true"><i></i><i></i></span>';
     head.append(id, min);
 
     const body = document.createElement('div');
