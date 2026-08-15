@@ -465,7 +465,14 @@ function endPointer(e) {
           pushUndo();
           state.layout.roads.push({ points: pts, width: ROAD_WIDTH.residential, class: 'residential' });
           updateMetrics();
+        } else {
+          // Non-blocking feedback: a road that's too short is dropped silently
+          // otherwise, and a child may think it saved (leading to roadless
+          // cities in the 3D view). Warn, never block.
+          toast('⚠️ Road too short — drag a longer line to draw a road.');
         }
+      } else {
+        toast('⚠️ Drag on the map to draw a road — a tap doesn\'t make one.');
       }
       break;
     }
@@ -718,8 +725,12 @@ function exportCity() {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   // copy (non-fatal — swallow the rejection so we don't get noisy unhandled errors)
   try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(json).catch(() => {}); } catch (e) { /* ignore */ }
+  const roadsCount = state.layout.roads.length;
+  const noRoadsNote = roadsCount === 0
+    ? ' ⚠️ No roads — the 3D city won\'t have streets or lights.'
+    : '';
   toast(savedToStorage
-    ? `💾 Saved! ${state.layout.buildings.length} buildings, ${state.layout.roads.length} roads, ${state.layout.parks.length} parks.`
+    ? `💾 Saved! ${state.layout.buildings.length} buildings, ${roadsCount} roads, ${state.layout.parks.length} parks.${noRoadsNote}`
     : '⚠️ Could not save to this browser (storage full) — use the downloaded my-ai-city.json instead.');
 }
 

@@ -1822,6 +1822,14 @@ async function bootInner() {
 
   document.getElementById('loading').classList.add('done');
   fill.style.width = '100%';
+  // Non-blocking warning: a city with no roads renders as a bare ground (no
+  // streets, streetlights, cars or road trees). Let the child know WHY instead
+  // of leaving them confused — pure toast, never blocks or traps.
+  if (!(layout.roads || []).length) {
+    setTimeout(() => {
+      showToast('⚠️ This city has no roads — streets, lights and cars won\'t appear. Open the planner, draw roads (or use 🛤️ Roads), then Generate again.');
+    }, 1200);
+  }
   window.addEventListener('resize', () => city.resize());
   window.__scene = scene;   // debug hook (harmless)
   window.__layout = layout; // debug hook
