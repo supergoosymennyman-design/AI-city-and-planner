@@ -26,6 +26,22 @@ Source: https://kenney.nl · License: Creative Commons CC0 (no attribution requi
 
 ## Poly Pizza / Google Poly archive
 
+### Facility buildings
+- `hospital.glb` — **"Hospital" by Poly by Google**, CC-BY 3.0 (embedded texture)
+  https://poly.pizza/m/asNvyjkcSG1
+- `stadium.glb` — **"Ballpark" by Poly by Google**, CC-BY 3.0 (embedded texture)
+  https://poly.pizza/m/45Ez39JSdz6
+
+### Fire station
+- `fire-station.glb` — **"Fire Station with Fire Trucks" by Ivan Klus**, CC0 1.0
+  https://poly.pizza/m/akzBrALzbei
+
+### Parked vehicles (from the P3 AI City capstone, originals below)
+- `vehicles/ambulance.glb` — **"Ambulance"**, Quaternius/Poly Pizza style, CC0 (ported from `p3-18-3d-city/assets/models/vehicles/`)
+- `vehicles/firetruck.glb` — **"Fire Truck"**, CC0 (ported from `p3-18-3d-city/assets/models/vehicles/`)
+- `vehicles/police.glb` — **"Police Car"**, CC0 (ported from `p3-18-3d-city/assets/models/police.glb`)
+- `vehicles/bus.glb` — **"Bus"**, CC0 (ported from `p3-18-3d-city/assets/models/bus.glb`)
+
 ### Playground (`assets/models/playground/`)
 - `swing-set.glb` — **"Swing set" by Poly by Google**, CC-BY 3.0
   https://poly.pizza/m/e-IJdcqZH4p
@@ -42,10 +58,10 @@ Source: https://kenney.nl · License: Creative Commons CC0 (no attribution requi
 
 ## CC-BY credits (required)
 
-Playground and some street models are by **Poly by Google** and licensed
+Playground, facility and some street models are by **Poly by Google** and licensed
 [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). Attribution:
 
-> "Swing set", "Slide", "Fountain", "Stop sign" — Poly by Google
+> "Swing set", "Slide", "Fountain", "Stop sign", "Hospital", "Ballpark" — Poly by Google
 > (via Poly Pizza), CC-BY 3.0. https://poly.pizza
 
 ## Reuse rules

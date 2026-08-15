@@ -811,6 +811,9 @@ const GLB_BUILDING_TYPES = {
   generic: 'assets/models/generic.glb',
   industrial: 'assets/models/industrial.glb',
   skyscraper: 'assets/models/skyscraper.glb',
+  hospital: 'assets/models/hospital.glb',
+  fire: 'assets/models/fire-station.glb',
+  stadium: 'assets/models/stadium.glb',
 };
 // Residential variations (Kenney City Kit Suburban, CC0): each housing spot
 // renders as a 2×2 block of units; each unit picks a RANDOM variant so a
@@ -824,7 +827,9 @@ const HOUSING_VARIANTS = [
   'assets/models/housing-variants/housing-u.glb',
 ];
 // Facilities that share the generic model until they get their own GLB.
-const GENERIC_FACILITY_TYPES = ['school', 'hospital', 'library', 'stadium', 'fire', 'police'];
+// Plain facilities without a dedicated GLB — these fall back to the shared
+// generic model. (hospital/fire/stadium have their own models now.)
+const GENERIC_FACILITY_TYPES = ['school', 'library', 'police'];
 // Mission buildings that use the industrial GLB instead of a procedural design.
 const INDUSTRIAL_SPECIALS = ['water', 'power', 'recycling', 'delivery', 'traffic_lab', 'traffic_emergency', 'subsurface', 'monitoring'];
 const glbState = {};   // type → { model, size, spots:[], fallbacks:[], loading }
@@ -866,7 +871,19 @@ function loadBuildingModel(type, url) {
       const box = new THREE.Box3().setFromObject(m);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
-      m.position.sub(center);        // centre the model on its origin
+      // Centre the model horizontally, then BAKE the base onto y=0 by moving
+      // every mesh's geometry (not the root position — applyBuildingModel later
+      // sets clone.position to the spot and would clobber a root offset). Some
+      // source GLBs are centred, some base-anchored; baking normalises all of
+      // them so every building sits on the ground.
+      m.position.x -= center.x;
+      m.position.z -= center.z;
+      const lift = -box.min.y;
+      m.traverse((o) => {
+        if (o.isMesh && o.geometry) {
+          o.geometry.translate(0, lift, 0);
+        }
+      });
       st.model = m; st.size = size;
       applyBuildingModel(type);
     })
@@ -1046,6 +1063,93 @@ function buildGenericFacilities() {
       const label = new CSS2DObject(el);
       label.position.set(cx, h + 6, cz);
       scene.add(label);
+    }
+  }
+}
+
+// ─── Parked vehicles (static, beside department buildings) ───────────────
+// A few vehicles sit outside the facilities they belong to, so the city reads
+// as alive even at a glance: ambulance → hospital, firetruck → fire station,
+// police car → police station, bus → bus scheduler. Purely decorative; they
+// never drive or block anything.
+const PARKED_VEHICLES = {
+  hospital: { file: 'assets/models/vehicles/ambulance.glb',   count: 2, size: [1.5, 1.8, 3.25], rotY: 0 },
+  fire:     { file: 'assets/models/vehicles/firetruck.glb',   count: 1, size: [1.5, 1.7, 3.4],  rotY: 0 },
+  police:   { file: 'assets/models/vehicles/police.glb',      count: 2, size: [1.78, 1.24, 3.73], rotY: 0 },
+  bus:      { file: 'assets/models/vehicles/bus.glb',         count: 1, size: [4.09, 1.68, 1.74], rotY: Math.PI / 2 },
+};
+
+const _parkedVehicleState = { models: {}, applied: [], loading: new Set() };
+
+function loadParkedVehicleModel(key) {
+  const cfg = PARKED_VEHICLES[key];
+  if (!cfg || _parkedVehicleState.models[key] || _parkedVehicleState.loading.has(key)) return;
+  _parkedVehicleState.loading.add(key);
+  new GLTFLoader().loadAsync(cfg.file)
+    .then((gltf) => {
+      _parkedVehicleState.models[key] = gltf.scene;
+      placeParkedVehicles();
+    })
+    .catch((e) => {
+      console.warn(`[parked:${key}] GLB load failed — skipping parked vehicles`, e);
+      _parkedVehicleState.loading.delete(key);
+    });
+}
+
+/** Find the road segment nearest to (x,z) — for parking orientation. */
+function nearestRoadDir(x, z) {
+  let best = Infinity, dir = { dx: 1, dz: 0 };
+  for (const r of layout.roads || []) {
+    const pts = r.points || [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const t = ((x - a[0]) * (b[0] - a[0]) + (z - a[1]) * (b[1] - a[1])) /
+        (Math.hypot(b[0] - a[0], b[1] - a[1]) ** 2 || 1);
+      const tc = Math.max(0, Math.min(1, t));
+      const px = a[0] + tc * (b[0] - a[0]), pz = a[1] + tc * (b[1] - a[1]);
+      const d = Math.hypot(x - px, z - pz);
+      if (d < best) { best = d; dir = { dx: b[0] - a[0], dz: b[1] - a[1] }; }
+    }
+  }
+  const len = Math.hypot(dir.dx, dir.dz) || 1;
+  return { dx: dir.dx / len, dz: dir.dz / len };
+}
+
+function placeParkedVehicles() {
+  // Clear any clones from an earlier pass (models load async).
+  for (const o of _parkedVehicleState.applied) { scene.remove(o); }
+  _parkedVehicleState.applied = [];
+  for (const b of layout.buildings) {
+    // Parked vehicles are configured per building type; for facilities AND
+    // mission buildings (e.g. the AI Bus Scheduler) alike, as long as a
+    // vehicle is configured for that type.
+    const cfg = PARKED_VEHICLES[b.type];
+    if (!cfg || !_parkedVehicleState.models[b.type]) continue;
+    const model = _parkedVehicleState.models[b.type];
+    const fp = b.footprint || [20, 20];
+    const spec = catalogType(b.type);
+    const h = b.height || spec?.height || 20;
+    // Park along the side of the building that faces the road. Vehicles sit on
+    // y=0, offset a little past the footprint edge so they read as "out front".
+    const { dx, dz } = nearestRoadDir(b.pos[0], b.pos[1]);
+    const perpX = -dz, perpZ = dx;   // perpendicular toward the road side
+    for (let i = 0; i < cfg.count; i++) {
+      const clone = model.clone(true);
+      const [sx, sy, sz] = cfg.size;
+      const targetLen = 4.4;   // ~car length in plan metres
+      const s = targetLen / Math.max(sx, sz);
+      clone.scale.setScalar(s);
+      // Offset perpendicular from the building edge; nudge along the road for
+      // multiple vehicles so they don't stack exactly on top of each other.
+      const edge = Math.max(fp[0], fp[1]) / 2 + 2.2;
+      const along = (i - (cfg.count - 1) / 2) * 4.6;
+      const px = b.pos[0] + perpX * edge + dx * along;
+      const pz = b.pos[1] + perpZ * edge + dz * along;
+      clone.position.set(px, sy * s / 2, pz);   // base on y=0
+      clone.rotation.y = Math.atan2(dx, dz) + (cfg.rotY || 0);   // face along the road
+      clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      scene.add(clone);
+      _parkedVehicleState.applied.push(clone);
     }
   }
 }
@@ -1623,6 +1727,8 @@ async function bootInner() {
   // Async — replace procedural GLB-backed buildings (office towers, housing) when ready.
   for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) loadBuildingModel(type, url);
   loadHousingVariants();
+  // Parked vehicles (ambulance/firetruck/police/bus) — async, decorative.
+  for (const key of Object.keys(PARKED_VEHICLES)) loadParkedVehicleModel(key);
 
   await spawnChampion();
   wireRendererInteraction();
