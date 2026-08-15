@@ -1231,6 +1231,19 @@ async function spawnChampion() {
       updateFlyButtons();
       showToast(`🚀 Flying to ${buildingName(building)}…`);
     },
+    // Enter the quest building the champion is standing near (used by the
+    // buddy chat's /enter command + Enter buttons — same path as the floating
+    // 🎮 Enter prompt).
+    enterNearQuest() {
+      const quest = this.nearQuest;
+      if (!quest) return { ok: false, note: 'Walk up to a mission building first, then I can open it!' };
+      openMinigame({
+        questId: quest.id,
+        name: quest.labelEn,
+        gameUrl: QUEST_GAME_URL_OVERRIDES[quest.id] || quest.gameUrl,
+      });
+      return { ok: true, note: `🎮 Opening the ${quest.labelEn}…` };
+    },
   };
   setupAirTraffic();
 }

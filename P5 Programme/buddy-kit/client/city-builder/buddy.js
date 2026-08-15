@@ -72,7 +72,19 @@ export function mountCityBuddy(city, champion, sim, layout) {
       if (sim.flyTo) { sim.flyTo(target); return { ok: true, note: `✈️ Flying by taxi to the ${buildingName(target)}!` }; }
       return { ok: false, note: 'The flying taxi is not available on this page.' };
     }
+    if (action.op === 'enterNearQuest') {
+      if (!sim.enterNearQuest) return { ok: false, note: 'Entering a building is not available here.' };
+      return sim.enterNearQuest();
+    }
     return { ok: false, note: 'That action is not supported here yet.' };
+  };
+
+  // Host command: /enter opens the mission building the champion is standing
+  // near (e.g. the ♻️ Recycling Lab). Appears in /help and the slash palette.
+  const enterCommand = {
+    cmd: 'enter',
+    desc: 'open the building you are near',   // <= DESC_MAX(40)
+    run: () => apply({ op: 'enterNearQuest' }),
   };
 
   // Chips: "✈️ Fly" + "🚶 Walk" to a building, matched against the child's own.
@@ -83,6 +95,24 @@ export function mountCityBuddy(city, champion, sim, layout) {
     const match = buildings.find((b) => lower.includes(buildingName(b).toLowerCase()));
     if (!match) return;
     const name = buildingName(match);
+
+    // Mission buildings (the child's own quest buildings, e.g. ♻️ Recycling
+    // Lab) can be ENTERED — offer a button right in the chat bubble.
+    const spec = catalogType(match.type);
+    if (spec && spec.category === 'special') {
+      const enterBtn = document.createElement('button');
+      enterBtn.type = 'button';
+      enterBtn.className = 'sheet-primary';
+      enterBtn.textContent = `🎮 Enter ${name}`;
+      enterBtn.style.marginTop = '.5rem';
+      enterBtn.onclick = () => {
+        enterBtn.disabled = true;
+        const res = apply({ op: 'enterNearQuest' });
+        if (res && res.ok) enterBtn.textContent = '✅ Opening!';
+        else { enterBtn.textContent = '❌ Walk closer first'; enterBtn.disabled = false; }
+      };
+      bubbleEl.appendChild(enterBtn);
+    }
 
     const flyBtn = document.createElement('button');
     flyBtn.type = 'button';
@@ -141,6 +171,7 @@ export function mountCityBuddy(city, champion, sim, layout) {
     getState,
     apply,
     onReply,
+    commands: [enterCommand],
     buddyName: 'Buddy',
     greeting,
     persona: 'You are the child\'s coding buddy (the P5 AI Coding Buddy), living inside their OWN city that they designed '
@@ -148,11 +179,13 @@ export function mountCityBuddy(city, champion, sim, layout) {
       + 'pride. You can see where they are and which of their buildings is nearby. Help them explore: suggest flying or '
       + 'walking to one of their buildings, tell them what they placed, and encourage them to try the mission buildings\' '
       + 'mini-games. The child\'s FIRST suggested stop is always the ♻️ Recycling Lab (the recycling centre) — if the city '
-      + 'has one, offer to FLY there first by taxi and encourage them to enter it to play the recycling-sorting game. '
+      + 'has one, offer to FLY there first by taxi and encourage them to ENTER it to play the recycling-sorting game. '
+      + 'When the child is standing next to a mission building (like the Recycling Lab), offer to enter it — you can open '
+      + 'it for them (type /enter or say "enter the Recycling Lab"), which starts its mini-game. '
       + 'You have a flying taxi: for buildings far away, offer to FLY there by taxi (set the flyTo param to the '
       + 'building\'s name); for buildings close by, offer to WALK (walkTo param). '
-      + 'There are NO quest buildings, NO city departments and NO "Recycling Lab" missions here — talk only about the '
-      + 'buildings in their own city (the buildingList readout). '
+      + 'The mission buildings here are the child\'s OWN special buildings (e.g. ♻️ Recycling Lab, 🏙️ AI City Central) — '
+      + 'each can be entered to play its mini-game; the Recycling Lab\'s game is about sorting recycling. '
       + 'Be honest about yourself: if asked, say you are a computer helper program (an AI) that lives in this app, and '
       + 'that you are not sure which exact AI brain you run on — the grown-ups who built this app pick that part. '
       + 'Keep replies to 2-3 short sentences. Use simple words a 10-year-old understands. End by inviting one small next '
