@@ -37,11 +37,12 @@ export async function createChampion(assetBase, city) {
   const _dirV = new THREE.Vector3();   // scratch — avoid per-frame allocations
   const FACING_OFFSET = 0;
   const clips = {};
-  // The idle animation (Mixamo 'Idle' on the bunny skin) sits slightly above
-  // the ground — the skin is normalized to the static bind pose, but the idle
-  // pose lifts the feet a little. Lower the resting idle pose by this many
-  // world metres; walking/running/dancing/jumping/waving are untouched.
-  const IDLE_DROP = 0.3;
+  // The idle animation (Mixamo 'Idle' on the bunny skin) sits well above the
+  // ground — the skin is normalized to the static bind pose, but the idle pose
+  // lifts the feet a lot. Lower the resting idle pose by ~2/3 of a typical
+  // street tree's height (trees render ~4m tall; 2/3 ≈ 2.5m). Walking/running/
+  // dancing/jumping/waving are untouched.
+  const IDLE_DROP = 2.5;
   // Clips the champion needs on day one (loop + jump/wave are one-shot but
   // common); everything else (turns, dances) lazy-loads on first use so boot
   // only waits on the essential few, fetched in parallel.
