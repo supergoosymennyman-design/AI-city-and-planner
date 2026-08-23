@@ -1,0 +1,20 @@
+{
+  "name": "Game.Runtime",
+  "rootNamespace": "AI2School.Game",
+  "references": [
+    "Core.Capability",
+    "Core.Determinism",
+    "Districts.Runtime",
+    "Save",
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,25 @@
+{
+  "districtId": "city_base",
+  "version": 1,
+  "displayNameKey": "district.city_base.name",
+  "footprint": { "origin": [0, 0], "sizeMeters": [240, 240] },
+  "interiorSceneId": "",
+  "capabilitySlots": [
+    { "slotId": "coverage_optimizer", "acceptedTypes": ["optimizer_v1"], "requiredForReveal": false }
+  ],
+  "palette": [
+    { "pieceId": "home",   "prefab": "", "cost": 20, "footprintMeters": [8, 8],   "category": "home",    "displayNameKey": "piece.home.name" },
+    { "pieceId": "school", "prefab": "", "cost": 60, "footprintMeters": [12, 12], "category": "service", "displayNameKey": "piece.school.name" },
+    { "pieceId": "shop",   "prefab": "", "cost": 40, "footprintMeters": [8, 8],   "category": "service", "displayNameKey": "piece.shop.name" },
+    { "pieceId": "park",   "prefab": "", "cost": 15, "footprintMeters": [16, 16], "category": "park",    "displayNameKey": "piece.park.name" }
+  ],
+  "objectives": [
+    { "metricId": "coverage", "goal": "maximize", "targetBand": [0.8, 1.0] }
+  ],
+  "constraints": [ { "constraintId": "budget", "max": 500 } ],
+  "overlays": ["coverage_heat"],
+  "difficultyTier": {
+    "core": { "agentCount": 30, "paletteSubset": "full", "constraintSlack": 1.0 }
+  },
+  "unlock": { "requires": [] }
+}

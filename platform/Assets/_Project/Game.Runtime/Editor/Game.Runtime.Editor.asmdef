@@ -1,0 +1,14 @@
+{
+  "name": "Game.Runtime.Editor",
+  "rootNamespace": "AI2School.Game.Editor",
+  "references": ["Game.Runtime"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

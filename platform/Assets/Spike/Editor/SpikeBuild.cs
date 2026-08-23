@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
@@ -10,11 +11,22 @@ using UnityEngine;
 ///   Unity -batchmode -quit -projectPath <proj> -executeMethod SpikeBuild.BuildWindows
 ///   Unity -batchmode -quit -projectPath <proj> -executeMethod SpikeBuild.BuildAndroid
 ///
-/// Outputs go to Builds/<target>/.
+/// Outputs go to Builds/<target>/. Scenes come from EditorBuildSettings.
 /// </summary>
 public static class SpikeBuild
 {
-    static readonly string[] Scenes = { "Assets/Scenes/Main.unity" };
+    static readonly string[] Scenes = BuildSceneList();
+
+    static string[] BuildSceneList()
+    {
+        var scenes = EditorBuildSettings.scenes;
+        var list = new List<string>();
+        if (scenes != null)
+            foreach (var s in scenes)
+                if (s.enabled && !string.IsNullOrEmpty(s.path)) list.Add(s.path);
+        if (list.Count == 0) list.Add("Assets/Scenes/Main.unity");
+        return list.ToArray();
+    }
 
     public static void BuildMac()    => Build(BuildTargetGroup.Standalone, BuildTarget.StandaloneOSX,    "Builds/mac/AIPlatform.app");
     public static void BuildWindows()=> Build(BuildTargetGroup.Standalone, BuildTarget.StandaloneWindows64, "Builds/win/AIPlatform.exe");

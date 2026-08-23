@@ -64,16 +64,20 @@ public static class SpikeSetup
         var gs = GraphicsSettings.GetGraphicsSettings();
         var so = new SerializedObject(gs);
         var always = so.FindProperty("m_AlwaysIncludedShaders");
-        var lit = Shader.Find("Universal Render Pipeline/Lit");
-        bool present = false;
-        for (int i = 0; i < always.arraySize; i++)
-            if (always.GetArrayElementAtIndex(i).objectReferenceValue == lit) { present = true; break; }
-        if (!present)
+        foreach (var shaderName in new[] { "Universal Render Pipeline/Lit", "Universal Render Pipeline/Unlit", "Unlit/Color" })
         {
-            always.arraySize += 1;
-            always.GetArrayElementAtIndex(always.arraySize - 1).objectReferenceValue = lit;
-            so.ApplyModifiedProperties();
-            Debug.Log("[SPIKE] Added URP/Lit to alwaysIncludedShaders");
+            var shader = Shader.Find(shaderName);
+            if (shader == null) continue;
+            bool present = false;
+            for (int i = 0; i < always.arraySize; i++)
+                if (always.GetArrayElementAtIndex(i).objectReferenceValue == shader) { present = true; break; }
+            if (!present)
+            {
+                always.arraySize += 1;
+                always.GetArrayElementAtIndex(always.arraySize - 1).objectReferenceValue = shader;
+                so.ApplyModifiedProperties();
+                Debug.Log("[SPIKE] Added " + shaderName + " to alwaysIncludedShaders");
+            }
         }
 
         // ── 2. Benchmark scene ────────────────────────────────────────────────

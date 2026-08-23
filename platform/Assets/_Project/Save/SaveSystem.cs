@@ -33,7 +33,6 @@ namespace AI2School.Save
                 if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
 
                 string mainPath = Path.Combine(directory, slotName + ".json");
-                string backupPath = Path.Combine(directory, slotName + ".bak" + (SaveSlotCount - 1) + ".json");
                 string tmpPath = Path.Combine(directory, slotName + ".tmp.json");
 
                 var env = new Envelope
@@ -44,13 +43,11 @@ namespace AI2School.Save
                 string envJson = JsonUtility.ToJson(env);
                 File.WriteAllText(tmpPath, envJson);
 
-                // Rotate backups: main -> bak1 (only if bak1 already exists, shift).
-                if (SaveSlotCount > 1 && File.Exists(mainPath))
-                {
-                    string prevBackup = Path.Combine(directory, slotName + ".bak1.json");
-                    if (File.Exists(prevBackup)) File.Copy(prevBackup, backupPath, overwrite: true);
-                    File.Copy(mainPath, prevBackup, overwrite: true);
-                }
+                // Rotate backups: bak1 -> bak2, main -> bak1, then tmp -> main.
+                string bak1 = Path.Combine(directory, slotName + ".bak1.json");
+                string bak2 = Path.Combine(directory, slotName + ".bak2.json");
+                if (SaveSlotCount > 1 && File.Exists(bak1)) File.Copy(bak1, bak2, overwrite: true);
+                if (File.Exists(mainPath)) File.Copy(mainPath, bak1, overwrite: true);
 
                 // Atomic replace of main.
                 if (File.Exists(mainPath)) File.Delete(mainPath);
