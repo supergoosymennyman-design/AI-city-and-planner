@@ -1,0 +1,19 @@
+{
+  "name": "Core.Capability.Tests",
+  "rootNamespace": "AI2School.Core.Capability.Tests",
+  "references": [
+    "Core.Capability",
+    "Core.Determinism",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

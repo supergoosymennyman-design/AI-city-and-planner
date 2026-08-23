@@ -1,0 +1,14 @@
+{
+  "name": "Core.Capability",
+  "rootNamespace": "AI2School.Core.Capability",
+  "references": ["Core.Determinism"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}
