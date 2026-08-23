@@ -22,6 +22,17 @@ public static class SpikeBuild
 
     static void Build(BuildTargetGroup group, BuildTarget target, string outPath)
     {
+        // Guarantee platform settings are set in THIS process (they may not
+        // have been loaded/persisted from a prior headless run).
+        if (target == BuildTarget.Android)
+        {
+            // Switch the active build target first — headless builds can skip
+            // platform switching, leaving Android settings in a stale state.
+            EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
+            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            Debug.Log($"[BUILD] Android targetArchitectures={PlayerSettings.Android.targetArchitectures}");
+        }
+
         Debug.Log($"[BUILD] target={target} -> {outPath}");
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {

@@ -91,10 +91,14 @@ public static class SpikeSetup
         PlayerSettings.companyName = "AI2School";
         PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Standalone, "ai2school.platform");
 
-        // Spike: Mono backend for fast iteration on standalone + Android.
-        // IL2CPP remains for iOS (Apple requirement) and final release builds.
+        // Spike: Mono backend for fast standalone iteration.
+        // Android + iOS use IL2CPP (Unity 6 dropped Android Mono; IL2CPP is
+        // the standard mobile backend and required by Apple anyway).
         PlayerSettings.SetScriptingBackend(BuildTargetGroup.Standalone, ScriptingImplementation.Mono2x);
-        PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.Mono2x);
+        PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
+
+        // Android build fails with "Target architecture not specified" otherwise.
+        PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
 
         AssetDatabase.SaveAssets();
         EditorApplication.Exit(0);

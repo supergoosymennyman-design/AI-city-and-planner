@@ -9,6 +9,7 @@
 [Mm]emoryCaptures/
 [Rr]ecordings/
 [Ee]xports/
+.utmp/
 
 # IDE / OS
 .idea/
