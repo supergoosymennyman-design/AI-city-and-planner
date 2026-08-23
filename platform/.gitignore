@@ -1,0 +1,38 @@
+# Unity generated
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+[Ee]xports/
+
+# IDE / OS
+.idea/
+.vs/
+.vscode/
+.DS_Store
+*.csproj
+*.sln
+*.user
+*.pidb
+*.booproj
+*.svd
+*.opendb
+*.VC.db
+sysinfo.txt
+
+# Gradle / Android (generated inside Library or at build time)
+android/
+.gradle/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Crash reports
+crashlytics-build.properties
