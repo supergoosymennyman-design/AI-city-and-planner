@@ -1,0 +1,14 @@
+{
+  "name": "Agents.Runtime",
+  "rootNamespace": "AI2School.Agents",
+  "references": ["Core.Determinism"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

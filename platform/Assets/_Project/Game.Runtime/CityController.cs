@@ -19,6 +19,9 @@ namespace AI2School.Game
         public const float CellSize = 4f;
         public const string SaveSlot = "city";
         public const float CoverageRadius = 150f;
+        const float PanSpeed = 0.5f;
+        const float MinZoom = 40f;
+        const float MaxZoom = 260f;
 
         public DistrictManifestData Manifest { get; private set; }
         public List<PlacedPieceData> Pieces { get; } = new List<PlacedPieceData>();
@@ -90,7 +93,11 @@ namespace AI2School.Game
         // ── Planning input ────────────────────────────────────────────────────
         void Update()
         {
-            if (Mode == CityMode.Planning) HandlePlanningInput();
+            if (Mode == CityMode.Planning)
+            {
+                HandlePlanningInput();
+                HandlePlanningCamera();
+            }
         }
 
         void HandlePlanningInput()
@@ -107,6 +114,56 @@ namespace AI2School.Game
                 if (Physics.Raycast(ray, out var hit, 1000f) && hit.collider != null)
                     RemoveAt(hit.point);
             }
+        }
+
+        /// <summary>Pan (right-drag / two-finger drag) + zoom (scroll / pinch) in planning mode.</summary>
+        void HandlePlanningCamera()
+        {
+            // Pan with right mouse drag.
+            if (Input.GetMouseButton(1))
+            {
+                float px = -Input.GetAxis("Mouse X") * PanSpeed * _cam.orthographicSize / 400f;
+                float py = -Input.GetAxis("Mouse Y") * PanSpeed * _cam.orthographicSize / 400f;
+                _cam.transform.Translate(px, 0f, py, Space.World);
+            }
+
+            // Pan with two-finger touch drag.
+            if (Input.touchCount == 2)
+            {
+                var t0 = Input.GetTouch(0);
+                var t1 = Input.GetTouch(1);
+                var prev0 = t0.position - t0.deltaPosition;
+                var prev1 = t1.position - t1.deltaPosition;
+                Vector2 mid = (t0.position + t1.position) / 2f;
+                Vector2 prevMid = (prev0 + prev1) / 2f;
+                Vector2 delta = (mid - prevMid);
+                float scale = _cam.orthographicSize / 400f;
+                _cam.transform.Translate(-delta.x * scale, 0f, -delta.y * scale, Space.World);
+            }
+
+            // Zoom: mouse wheel.
+            float scroll = Input.mouseScrollDelta.y;
+            if (Mathf.Abs(scroll) > 0.001f)
+                _cam.orthographicSize = Mathf.Clamp(_cam.orthographicSize * (1f - scroll * 0.1f), MinZoom, MaxZoom);
+
+            // Zoom: pinch.
+            if (Input.touchCount == 2)
+            {
+                var t0 = Input.GetTouch(0);
+                var t1 = Input.GetTouch(1);
+                float dist = (t0.position - t1.position).magnitude;
+                float prevDist = ((t0.position - t0.deltaPosition) - (t1.position - t1.deltaPosition)).magnitude;
+                if (prevDist > 1f)
+                    _cam.orthographicSize = Mathf.Clamp(_cam.orthographicSize * (prevDist / dist), MinZoom, MaxZoom);
+            }
+
+            // Keep the camera over the district (no panning off into the void).
+            var s = Manifest.footprint.sizeMeters;
+            var p = _cam.transform.position;
+            float halfView = _cam.orthographicSize;
+            p.x = Mathf.Clamp(p.x, -halfView * 0.5f, s[0] + halfView * 0.5f);
+            p.z = Mathf.Clamp(p.z, -halfView * 0.5f, s[1] + halfView * 0.5f);
+            _cam.transform.position = p;
         }
 
         void PlaceAt(Vector3 world)

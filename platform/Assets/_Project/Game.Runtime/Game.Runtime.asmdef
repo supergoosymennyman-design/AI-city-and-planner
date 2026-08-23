@@ -2,6 +2,7 @@
   "name": "Game.Runtime",
   "rootNamespace": "AI2School.Game",
   "references": [
+    "Agents.Runtime",
     "Core.Capability",
     "Core.Determinism",
     "Districts.Runtime",
