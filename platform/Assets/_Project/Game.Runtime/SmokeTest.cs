@@ -39,5 +39,22 @@ namespace AI2School.Game
 
             Application.Quit(saveOk ? 0 : 1);
         }
+
+        /// <summary>Place a demo city, wait for render, capture a PNG, quit. For visual verification.</summary>
+        public static IEnumerator Screenshot(CityController city, string path)
+        {
+            yield return null;
+            city.TryPlace("home", 40, 40);
+            city.TryPlace("home", 40, 120);
+            city.TryPlace("home", 120, 40);
+            city.TryPlace("school", 200, 200);
+            city.TryPlace("shop", 80, 200);
+            city.TryPlace("park", 160, 60);
+            yield return new WaitForSeconds(2f);   // let it render + settle
+            ScreenCapture.CaptureScreenshot(path);
+            Debug.Log("[P1SHOT] captured " + path);
+            yield return new WaitForSeconds(1f);
+            Application.Quit(0);
+        }
     }
 }

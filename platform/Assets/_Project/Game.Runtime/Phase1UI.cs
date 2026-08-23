@@ -1,80 +1,117 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace AI2School.Game
 {
-    /// <summary>Minimal Phase 1 HUD built in code: palette, budget, mode, metric chip, save/load, summary.</summary>
+    /// <summary>
+    /// Phase 1 HUD — TextMeshPro + LayoutGroups (no hand-rolled anchors).
+    /// Top bar: mode / budget / coverage. Left: palette. Right: Run/Save/Load.
+    /// </summary>
     public class Phase1UI
     {
         readonly CityController _city;
-        readonly Canvas _canvas;
-        readonly Text _budgetText;
-        readonly Text _modeText;
-        readonly Text _coverageText;
-        readonly Text _statusText;
-        readonly Text _summaryText;
-        Button _runButton;
+        readonly TextMeshProUGUI _budgetText;
+        readonly TextMeshProUGUI _modeText;
+        readonly TextMeshProUGUI _coverageText;
+        readonly TextMeshProUGUI _statusText;
+        readonly TextMeshProUGUI _summaryText;
 
         public Phase1UI(CityController city)
         {
             _city = city;
+            Debug.Log("[UI] ctor step 1");
+            var tmpSettings = TMP_Settings.instance;
+            var tmpFont = TMP_Settings.defaultFontAsset;
+            Debug.Log("[UI] TMP_Settings.instance=" + (tmpSettings != null ? "ok" : "NULL") +
+                      " defaultFont=" + (tmpFont != null ? tmpFont.name : "NULL"));
 
             var canvasGo = new GameObject("Phase1UI");
-            _canvas = canvasGo.AddComponent<Canvas>();
-            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasGo.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            canvasGo.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1280, 800);
+            var canvas = canvasGo.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            var scaler = canvasGo.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1280, 800);
+            scaler.matchWidthOrHeight = 0.5f;
             canvasGo.AddComponent<GraphicRaycaster>();
+            EnsureEventSystem();
+            var root = canvasGo.GetComponent<RectTransform>();
 
-            if (Object.FindObjectOfType<EventSystem>() == null)
-            {
-                var es = new GameObject("EventSystem");
-                es.AddComponent<EventSystem>();
-                es.AddComponent<StandaloneInputModule>();
-            }
+            // ── Top bar (full width, anchored to top) ─────────────────────────
+            var top = Panel(root, "TopBar", new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(0, 56));
+            Image(top, new Color(0.07f, 0.09f, 0.13f, 0.96f));
+            var topLayout = top.gameObject.AddComponent<HorizontalLayoutGroup>();
+            topLayout.padding = new RectOffset(20, 20, 0, 0);
+            topLayout.spacing = 24;
+            topLayout.childAlignment = TextAnchor.MiddleLeft;
+            topLayout.childControlWidth = false;
+            topLayout.childControlHeight = true;
+            topLayout.childForceExpandWidth = true;
+            topLayout.childForceExpandHeight = true;
 
-            // Top bar
-            var top = NewPanel("TopBar", new Vector2(0, 1), new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(1280, 48));
-            AddImage(top, new Color(0.10f, 0.12f, 0.16f, 0.92f));
-            _modeText = AddText(top, "PLANNING", 16, FontStyle.Bold, new Vector2(0f, 0f), new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(220, 40), TextAnchor.MiddleLeft);
-            _budgetText = AddText(top, "Budget", 16, FontStyle.Bold, new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(300, 40), TextAnchor.MiddleCenter);
-            _coverageText = AddText(top, "Coverage —", 16, FontStyle.Bold, new Vector2(1f, 0f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(260, 40), TextAnchor.MiddleRight);
+            _modeText = Tmp(top, "PLANNING", 18, FontStyles.Bold, new Color(0.35f, 0.75f, 1f), TextAlignmentOptions.Left, true);
+            _budgetText = Tmp(top, "Budget", 17, FontStyles.Bold, new Color(0.95f, 0.96f, 0.98f), TextAlignmentOptions.Center, true);
+            _coverageText = Tmp(top, "Coverage —", 17, FontStyles.Bold, new Color(0.45f, 0.92f, 0.65f), TextAlignmentOptions.Right, true);
 
-            // Left palette
-            var palette = NewPanel("Palette", new Vector2(0, 1), new Vector2(0, 1), new Vector2(0.5f, 0.5f), new Vector2(16, -64), new Vector2(150, 300));
-            AddImage(palette, new Color(0.12f, 0.14f, 0.19f, 0.9f));
-            AddText(palette, "Build", 14, FontStyle.Bold, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0, -8), new Vector2(140, 24), TextAnchor.MiddleCenter);
-            float y = -36;
+            // ── Palette (top-left) ────────────────────────────────────────────
+            var pal = Panel(root, "Palette", new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(16, -72), new Vector2(176, 0));
+            pal.sizeDelta = new Vector2(176, 0);
+            Image(pal, new Color(0.10f, 0.12f, 0.17f, 0.92f));
+            var palLayout = pal.gameObject.AddComponent<VerticalLayoutGroup>();
+            palLayout.padding = new RectOffset(12, 12, 12, 12);
+            palLayout.spacing = 8;
+            palLayout.childAlignment = TextAnchor.UpperCenter;
+            palLayout.childControlWidth = true;
+            palLayout.childControlHeight = false;
+            palLayout.childForceExpandWidth = true;
+            palLayout.childForceExpandHeight = false;
+
+            var palTitle = Tmp(pal, "Build", 15, FontStyles.Bold, new Color(0.85f, 0.87f, 0.92f), TextAlignmentOptions.Center, false);
+            palTitle.gameObject.AddComponent<LayoutElement>().minHeight = 30;
             foreach (var p in _city.Manifest.palette)
             {
                 string id = p.pieceId;
-                var btn = MakeButton(palette, p.pieceId + "  $" + p.cost, new Vector2(10, y), new Vector2(130, 44),
-                    () => { _city.SelectedPaletteId = id; });
-                var img = btn.GetComponent<Image>();
-                img.color = ColorFor(p.category);
-                y -= 52;
+                var btn = MakeButton(pal, $"{p.pieceId}   ${p.cost}", 48, ColorFor(p.category),
+                    () => { _city.SelectedPaletteId = id; Toast("Building: " + id); });
+                btn.GetComponent<Image>().color = ColorFor(p.category);
             }
 
-            // Right actions
-            var actions = NewPanel("Actions", new Vector2(1, 1), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(-16, -64), new Vector2(150, 260));
-            AddImage(actions, new Color(0.12f, 0.14f, 0.19f, 0.9f));
-            _runButton = MakeButton(actions, "▶ Run", new Vector2(10, -10), new Vector2(130, 52), () => _city.StartSimulation());
-            MakeButton(actions, "💾 Save", new Vector2(10, -70), new Vector2(130, 44), () => _city.AutoSave());
-            MakeButton(actions, "📂 Load", new Vector2(10, -122), new Vector2(130, 44), () => { _city.LoadSave(); _city.ApplyVisuals(); Refresh(); });
+            // ── Actions (top-right) ───────────────────────────────────────────
+            var actions = Panel(root, "Actions", new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-16, -72), new Vector2(160, 0));
+            Image(actions, new Color(0.10f, 0.12f, 0.17f, 0.92f));
+            var actLayout = actions.gameObject.AddComponent<VerticalLayoutGroup>();
+            actLayout.padding = new RectOffset(12, 12, 12, 12);
+            actLayout.spacing = 8;
+            actLayout.childAlignment = TextAnchor.UpperCenter;
+            actLayout.childControlWidth = true;
+            actLayout.childControlHeight = false;
+            actLayout.childForceExpandWidth = true;
+            actLayout.childForceExpandHeight = false;
 
-            // Bottom status + summary
-            _statusText = AddText(canvasGo.transform as RectTransform, "", 15, FontStyle.Normal,
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0, 8), new Vector2(1000, 30), TextAnchor.MiddleCenter);
-            _summaryText = AddText(canvasGo.transform as RectTransform, "", 18, FontStyle.Bold,
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 80), new Vector2(900, 60), TextAnchor.MiddleCenter);
+            MakeButton(actions, "Run", 56, new Color(0.20f, 0.45f, 0.75f), () => _city.StartSimulation());
+            MakeButton(actions, "Save", 48, new Color(0.16f, 0.24f, 0.36f), () => { _city.AutoSave(); Toast("Saved"); });
+            MakeButton(actions, "Load", 48, new Color(0.16f, 0.24f, 0.36f), () => { _city.LoadSave(); _city.ApplyVisuals(); Refresh(); Toast("Loaded"); });
+
+            // ── Bottom status + summary ───────────────────────────────────────
+            _statusText = Tmp(root, "", 16, FontStyles.Normal, new Color(0.85f, 0.87f, 0.92f), TextAlignmentOptions.Center, false);
+            var stRt = _statusText.rectTransform;
+            stRt.anchorMin = new Vector2(0.5f, 0); stRt.anchorMax = new Vector2(0.5f, 0);
+            stRt.pivot = new Vector2(0.5f, 0); stRt.anchoredPosition = new Vector2(0, 10);
+            stRt.sizeDelta = new Vector2(1100, 34);
+
+            _summaryText = Tmp(root, "", 20, FontStyles.Bold, new Color(0.95f, 0.96f, 0.98f), TextAlignmentOptions.Center, false);
+            var smRt = _summaryText.rectTransform;
+            smRt.anchorMin = new Vector2(0.5f, 0.5f); smRt.anchorMax = new Vector2(0.5f, 0.5f);
+            smRt.pivot = new Vector2(0.5f, 0.5f); smRt.anchoredPosition = new Vector2(0, 90);
+            smRt.sizeDelta = new Vector2(900, 70);
 
             Refresh();
         }
 
         public void Refresh()
         {
-            _budgetText.text = $"Budget: {_city.BudgetUsed} / {_city.BudgetMax}";
+            _budgetText.text = $"Budget  {_city.BudgetUsed} / {_city.BudgetMax}";
             _coverageText.text = "Coverage —";
         }
 
@@ -87,26 +124,28 @@ namespace AI2School.Game
             _summaryText.text = $"Run complete — coverage {coverage:P0}\n(homes with a service within walking distance)";
         }
 
-        // ── UI builders ───────────────────────────────────────────────────────
-        static Color ColorFor(string category) => category switch
+        // ── Builders ──────────────────────────────────────────────────────────
+        static void EnsureEventSystem()
         {
-            "home" => new Color(0.85f, 0.65f, 0.30f),
-            "service" => new Color(0.30f, 0.55f, 0.85f),
-            "park" => new Color(0.35f, 0.75f, 0.40f),
-            _ => new Color(0.6f, 0.6f, 0.6f),
-        };
+            if (Object.FindAnyObjectByType<EventSystem>() == null)
+            {
+                var go = new GameObject("EventSystem");
+                go.AddComponent<EventSystem>();
+                go.AddComponent<StandaloneInputModule>();
+            }
+        }
 
-        static RectTransform NewPanel(string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 pos, Vector2 size)
+        static RectTransform Panel(RectTransform parent, string name, Vector2 aMin, Vector2 aMax, Vector2 pivot, Vector2 pos, Vector2 size)
         {
             var go = new GameObject(name, typeof(RectTransform));
             var rt = go.GetComponent<RectTransform>();
-            rt.SetParent(GameObject.Find("Phase1UI").transform, false);
-            rt.anchorMin = anchorMin; rt.anchorMax = anchorMax; rt.pivot = pivot;
+            rt.SetParent(parent, false);
+            rt.anchorMin = aMin; rt.anchorMax = aMax; rt.pivot = pivot;
             rt.anchoredPosition = pos; rt.sizeDelta = size;
             return rt;
         }
 
-        static void AddImage(RectTransform parent, Color c)
+        static void Image(RectTransform parent, Color c)
         {
             var go = new GameObject("bg", typeof(RectTransform), typeof(Image));
             go.GetComponent<RectTransform>().SetParent(parent, false);
@@ -117,36 +156,67 @@ namespace AI2School.Game
             rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
         }
 
-        static Text AddText(RectTransform parent, string text, int size, FontStyle style,
-            Vector2 aMin, Vector2 aMax, Vector2 pivot, Vector2 pos, Vector2 sizeDelta, TextAnchor anchor)
+        static TextMeshProUGUI Tmp(RectTransform parent, string text, int size, FontStyles style, Color color,
+            TextAlignmentOptions align, bool flexible)
         {
-            var go = new GameObject("txt", typeof(RectTransform), typeof(Text));
+            var go = new GameObject("txt", typeof(RectTransform), typeof(TextMeshProUGUI));
             var rt = go.GetComponent<RectTransform>();
             rt.SetParent(parent, false);
-            rt.anchorMin = aMin; rt.anchorMax = aMax; rt.pivot = pivot;
-            rt.anchoredPosition = pos; rt.sizeDelta = sizeDelta;
-            var t = go.GetComponent<Text>();
-            t.text = text; t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            t.fontSize = size; t.fontStyle = style; t.alignment = anchor;
-            t.color = new Color(0.95f, 0.96f, 0.98f);
-            return t;
+            var tmp = go.GetComponent<TextMeshProUGUI>();
+            tmp.text = text;
+            tmp.fontSize = size;
+            tmp.fontStyle = style;
+            tmp.color = color;
+            tmp.alignment = align;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            if (flexible)
+            {
+                var le = go.AddComponent<LayoutElement>();
+                le.flexibleWidth = 1f;
+            }
+            else
+            {
+                rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+                rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+            }
+            return tmp;
         }
 
-        static Button MakeButton(RectTransform parent, string label, Vector2 pos, Vector2 size, UnityEngine.Events.UnityAction onClick)
+        static Button MakeButton(RectTransform parent, string label, float minHeight, Color color, UnityEngine.Events.UnityAction onClick)
         {
             var go = new GameObject("btn", typeof(RectTransform), typeof(Image), typeof(Button));
             var rt = go.GetComponent<RectTransform>();
             rt.SetParent(parent, false);
-            rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(0, 1); rt.pivot = new Vector2(0, 1);
-            rt.anchoredPosition = pos; rt.sizeDelta = size;
+            var le = go.AddComponent<LayoutElement>();
+            le.minHeight = minHeight;
+            le.preferredHeight = minHeight;
             var img = go.GetComponent<Image>();
-            img.color = new Color(0.22f, 0.30f, 0.42f);
+            img.color = color;
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             btn.onClick.AddListener(onClick);
-            var txt = AddText(rt, label, 15, FontStyle.Bold, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter);
-            txt.raycastTarget = false;
+
+            var tmpGo = new GameObject("label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            tmpGo.transform.SetParent(go.transform, false);
+            var tmpRt = tmpGo.GetComponent<RectTransform>();
+            tmpRt.anchorMin = Vector2.zero; tmpRt.anchorMax = Vector2.one;
+            tmpRt.offsetMin = Vector2.zero; tmpRt.offsetMax = Vector2.zero;
+            var tmp = tmpGo.GetComponent<TextMeshProUGUI>();
+            tmp.text = label;
+            tmp.fontSize = 17;
+            tmp.fontStyle = FontStyles.Bold;
+            tmp.color = new Color(1f, 1f, 1f, 0.95f);
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.raycastTarget = false;
             return btn;
         }
+
+        static Color ColorFor(string category) => category switch
+        {
+            "home" => new Color(0.75f, 0.55f, 0.25f),
+            "service" => new Color(0.25f, 0.45f, 0.75f),
+            "park" => new Color(0.30f, 0.65f, 0.35f),
+            _ => new Color(0.45f, 0.47f, 0.52f),
+        };
     }
 }

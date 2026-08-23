@@ -44,6 +44,10 @@ namespace AI2School.Game
         public void Init(Camera cam)
         {
             _cam = cam;
+            // Tight clips: avoids depth-precision flicker between the overlay
+            // plane and the ground in the ortho planning view.
+            _cam.nearClipPlane = 0.5f;
+            _cam.farClipPlane = 500f;
 
             // Load manifest (Resources copy of the exported district JSON).
             var asset = Resources.Load<TextAsset>("CityBase.manifest");
@@ -66,14 +70,15 @@ namespace AI2School.Game
         // ── Ground + visuals ──────────────────────────────────────────────────
         void BuildGround()
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            // Real plane (not a box) — avoids coplanar-face z-fighting.
+            var go = GameObject.CreatePrimitive(PrimitiveType.Plane);
             go.name = "Ground";
             var s = Manifest.footprint.sizeMeters;
-            go.transform.localScale = new Vector3(s[0], 1f, s[1]);
-            go.transform.position = new Vector3(s[0] / 2f, -0.5f, s[1] / 2f);
-            go.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.78f, 0.80f, 0.72f) };
+            go.transform.localScale = new Vector3(s[0] / 10f, 1f, s[1] / 10f);   // plane is 10x10 units
+            go.transform.position = new Vector3(s[0] / 2f, 0f, s[1] / 2f);
+            go.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.72f, 0.75f, 0.68f) };
             _ground = go.transform;
-            // Keep the cube's collider: the ground is the pick surface for placement.
+            // Keep the plane's collider: the ground is the pick surface for placement.
         }
 
         public void ApplyVisuals()

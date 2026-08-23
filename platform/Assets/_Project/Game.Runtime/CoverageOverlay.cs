@@ -12,7 +12,7 @@ namespace AI2School.Game
     public class CoverageOverlay : MonoBehaviour
     {
         const int Grid = 32;
-        const float PlaneY = 0.35f;
+        const float PlaneY = 3f;   // clear of geometry — avoids z-fighting with ground/buildings
 
         Material _mat;
         Texture2D _tex;

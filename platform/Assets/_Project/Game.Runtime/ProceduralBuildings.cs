@@ -35,7 +35,9 @@ namespace AI2School.Game
             roof.name = "roof";
             roof.transform.SetParent(root.transform, false);
             roof.transform.localScale = new Vector3(w + 0.4f, 0.5f, d + 0.4f);
-            roof.transform.localPosition = new Vector3(0f, h + 0.25f, 0f);
+            // 0.2m gap above the body top — the old y=h+0.25 made the roof's
+            // bottom face exactly coplanar with the body's top face (z-fight).
+            roof.transform.localPosition = new Vector3(0f, h + 0.45f, 0f);
             roof.GetComponent<MeshRenderer>().material = NewMat(RoofColor);
 
             // Ground collider for picking (reuse the cube's collider: expand to footprint)

@@ -25,7 +25,7 @@ namespace AI2School.Game
             var light = sun.AddComponent<Light>();
             light.type = LightType.Directional;
             light.intensity = 1.1f;
-            light.shadows = LightShadows.Soft;
+            light.shadows = LightShadows.None;   // shadows off for the baseline (no shadow acne)
             sun.transform.rotation = Quaternion.Euler(55f, -30f, 0f);
 
             City = gameObject.AddComponent<CityController>();
@@ -33,6 +33,8 @@ namespace AI2School.Game
 
             if (HasArg("-smoke"))
                 StartCoroutine(SmokeTest.Run(City));
+            else if (HasArg("-screenshot"))
+                StartCoroutine(SmokeTest.Screenshot(City, ArgValue("-screenshot") ?? "/tmp/aiplatform-shot.png"));
         }
 
         public static bool HasArg(string arg)
@@ -40,6 +42,14 @@ namespace AI2School.Game
             foreach (var a in System.Environment.GetCommandLineArgs())
                 if (a == arg) return true;
             return false;
+        }
+
+        public static string ArgValue(string arg)
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == arg) return args[i + 1];
+            return null;
         }
     }
 }

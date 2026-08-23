@@ -108,6 +108,15 @@ public static class SpikeSetup
         EditorApplication.Exit(0);
     }
 
+    /// <summary>Imports TMP Essential Resources (TMP Settings + default SDF font) into Assets/.</summary>
+    public static void ImportTmpEssentials()
+    {
+        TMPro.TMP_PackageUtilities.ImportProjectResourcesMenu();
+        AssetDatabase.SaveAssets();
+        Debug.Log("[SPIKE] TMP essentials imported");
+        EditorApplication.Exit(0);
+    }
+
     static void EnsureFolder(string path)
     {
         if (AssetDatabase.IsValidFolder(path)) return;

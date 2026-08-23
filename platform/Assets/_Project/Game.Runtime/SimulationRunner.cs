@@ -25,11 +25,13 @@ namespace AI2School.Game
         const float MaxSimSeconds = 25f;
         const float ArriveDistance = 2f;
         const float GridCell = 4f;
+        const float AgentScale = 1.5f;
 
         Mesh _cube;
         Material _mat;
         Matrix4x4[] _matrices;
         AgentState[] _agents;
+        GameObject[] _agentGos;      // optional real citizen prefab instances
         FlowField _flow;
         float _elapsed;
         int _arrived;
@@ -48,9 +50,13 @@ namespace AI2School.Game
         ICapability _capability;
         ICapabilityRuntime _runtime;
 
+        /// <summary>If set, citizens are real prefab instances (Resources/Prefabs) instead of instanced cubes.</summary>
+        public string CitizenPrefabName { get; set; } = "man-casual";
+
         public void Run(List<PlacedPieceData> pieces, Func<string, PalettePieceData> findPalette,
             float coverageRadius, ulong masterSeed, Action onComplete)
         {
+            _agentGos = null;
             _onComplete = onComplete;
             _elapsed = 0;
             _arrived = 0;
@@ -103,7 +109,7 @@ namespace AI2School.Game
                 var target = to.HasValue ? new Vector3(to.Value.x, 0.5f, to.Value.y) : spawn;
 
                 _agents[i] = new AgentState { Pos = spawn, Target = target, Served = served };
-                _matrices[i] = Matrix4x4.TRS(spawn, Quaternion.identity, Vector3.one * 0.8f);
+                _matrices[i] = Matrix4x4.TRS(spawn, Quaternion.identity, Vector3.one * AgentScale);
             }
 
             _cube = BuildCubeMesh();
@@ -111,7 +117,28 @@ namespace AI2School.Game
             _mat.color = new Color(0.2f, 0.75f, 0.95f);
             _mat.enableInstancing = true;
 
-            Debug.Log($"[P1SIM] start homes={homes.Count} services={services.Count} served={_served} flow={gw}x{gh}");
+            // Real citizen prefabs (fall back to instanced cubes if unavailable).
+            var citizenPrefab = Resources.Load<GameObject>("Prefabs/" + CitizenPrefabName);
+            if (citizenPrefab != null && _agents.Length > 0)
+            {
+                _agentGos = new GameObject[_agents.Length];
+                for (int i = 0; i < _agents.Length; i++)
+                {
+                    var go = UnityEngine.Object.Instantiate(citizenPrefab);
+                    go.transform.position = Vector3.zero;
+                    var b = MinimalCity.FitBounds(go);
+                    if (b.size.y > 0.01f)
+                    {
+                        float s = 1.7f / b.size.y;   // citizens ~1.7m tall
+                        go.transform.localScale = Vector3.one * s;
+                        b = MinimalCity.FitBounds(go);
+                    }
+                    go.transform.position = _agents[i].Pos - new Vector3(0f, b.min.y, 0f);
+                    _agentGos[i] = go;
+                }
+            }
+
+            Debug.Log($"[P1SIM] start homes={homes.Count} services={services.Count} served={_served} flow={gw}x{gh} prefabs={_agentGos != null}");
         }
 
         // ── Grid / spawn helpers ─────────────────────────────────────────────
@@ -208,11 +235,18 @@ namespace AI2School.Game
             for (int i = 0; i < _agents.Length; i++)
             {
                 var a = _agents[i];
-                _matrices[i] = Matrix4x4.TRS(a.Pos, Quaternion.identity, Vector3.one * 0.8f);
+                _matrices[i] = Matrix4x4.TRS(a.Pos, Quaternion.identity, Vector3.one * AgentScale);
             }
 
-            if (_mat != null && _cube != null)
+            if (_agentGos != null)
+            {
+                for (int i = 0; i < _agents.Length; i++)
+                    _agentGos[i].transform.position = new Vector3(_matrices[i].m03, _matrices[i].m13, _matrices[i].m23);
+            }
+            else if (_mat != null && _cube != null)
+            {
                 Graphics.DrawMeshInstanced(_cube, 0, _mat, _matrices, _agents.Length, null, ShadowCastingMode.Off, true);
+            }
 
             LastCoverage = _agents.Length == 0 ? 1f : (float)_served / _agents.Length;
 
