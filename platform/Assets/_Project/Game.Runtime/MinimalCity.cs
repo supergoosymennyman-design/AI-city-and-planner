@@ -165,7 +165,7 @@ namespace AI2School.Game
                 var piece = FindPalette(p.pieceId);
                 if (piece == null) continue;
                 GameObject go = null;
-                string prefabName = PrefabFor(p.pieceId);
+                string prefabName = PickPrefab(piece, p);
                 if (prefabName != null)
                     go = SpawnModel(prefabName, new Vector3(p.x, 0f, p.z),
                         piece.footprintMeters[0], piece.footprintMeters[1]);
@@ -176,15 +176,22 @@ namespace AI2School.Game
             BuildHeatmap();
         }
 
-        /// <summary>pieceId → GLB prefab name (Resources/Prefabs).</summary>
-        static string PrefabFor(string pieceId) => pieceId switch
+        /// <summary>
+        /// Resolve the prefab to instantiate for a piece. Uses the manifest's
+        /// `prefab` field (data-driven — replaces the old PrefabFor switch), and
+        /// picks a random variant deterministically from the piece position, so
+        /// the same layout always rebuilds identically.
+        /// </summary>
+        static string PickPrefab(PalettePieceData piece, PlacedPieceData placed)
         {
-            "home" => "housing-a",
-            "school" => "office-tower",
-            "shop" => "mall",
-            "park" => "park",
-            _ => null,
-        };
+            if (piece == null) return null;
+            if (piece.variants != null && piece.variants.Length > 0)
+            {
+                uint h = (uint)(Mathf.RoundToInt(placed.x) * 73856093 ^ Mathf.RoundToInt(placed.z) * 19349663);
+                return piece.variants[h % (uint)piece.variants.Length];
+            }
+            return piece.prefab;
+        }
 
         /// <summary>Instantiate a prefab and scale it to fit a footprint (w × d metres), sitting on the ground.</summary>
         static GameObject SpawnModel(string prefabName, Vector3 pos, float targetW, float targetD)
@@ -367,7 +374,10 @@ namespace AI2School.Game
 
         IEnumerator SimFlow()
         {
-            yield return TiltTo(SimPose());
+            // Start the sim immediately — never gate it on the camera tilt. The
+            // tilt is cosmetic (background-safe: if the app isn't rendering
+            // frames, Time.deltaTime stalls and a gated sim would hang forever).
+            StartCoroutine(TiltTo(SimPose()));
             bool done = false;
             _sim.Run(Pieces, FindPalette, CoverageRadius, MasterSeed, () => done = true);
             while (!done) yield return null;
@@ -472,7 +482,17 @@ namespace AI2School.Game
             if (data == null || data.districts == null || data.districts.Length == 0) return;
             Pieces.Clear();
             foreach (var p in data.districts[0].placedPieces ?? System.Array.Empty<PlacedPieceData>())
-                Pieces.Add(p);
+            {
+                // Migrate legacy Phase-1 pieceIds to the new catalog (old saves
+                // used home/school/shop/park; new manifest uses housing_pod/tech_hub/market/park).
+                string id = p.pieceId;
+                if (FindPalette(id) == null)
+                {
+                    id = LegacyPieceMap(id);
+                    if (id == null) continue;   // unknown piece — drop silently
+                }
+                Pieces.Add(new PlacedPieceData { pieceId = id, x = p.x, z = p.z });
+            }
             MasterSeed = data.masterSeed;
             BudgetUsed = 0;
             foreach (var p in Pieces)
@@ -482,6 +502,15 @@ namespace AI2School.Game
             }
             Debug.Log($"[MINLOAD] loaded pieces={Pieces.Count} budgetUsed={BudgetUsed}");
         }
+
+        /// <summary>Map legacy Phase-1 pieceIds to current catalog pieceIds.</summary>
+        static string LegacyPieceMap(string oldId) => oldId switch
+        {
+            "home" => "housing_pod",
+            "school" => "tech_hub",
+            "shop" => "market",
+            _ => null,
+        };
 
         // ── Helpers ───────────────────────────────────────────────────────────
         PalettePieceData FindPalette(string id)

@@ -41,11 +41,13 @@ namespace AI2School.Districts
     public class PalettePieceData
     {
         public string pieceId;
-        public string prefab;          // address / Resources path; null for procedural phase-1
+        public string prefab;          // Resources/Prefabs/<name> (no extension); null for procedural phase-1
+        public string[] variants;      // prefab names to pick among (random variant per placement, seeded)
         public float cost;
         public float[] footprintMeters; // [w, h]
-        public string category;        // "home" | "service" | "utility" | "park" | ...
+        public string category;        // "home" | "service" | "utility" | "park" | "deco" | "road" | ...
         public string displayNameKey;
+        public bool scatter;           // tiny deco: no footprint collision (nature filler)
     }
 
     [Serializable]

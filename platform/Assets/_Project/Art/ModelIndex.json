@@ -1,0 +1,1012 @@
+{
+    "models": [
+        {
+            "prefabName": "animated-human",
+            "triangles": 1578,
+            "materialCount": 1,
+            "boundsSizeX": 4.385509014129639,
+            "boundsSizeY": 5.955239295959473,
+            "boundsSizeZ": 4.378518581390381,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/animated-human.prefab"
+        },
+        {
+            "prefabName": "animated-robot",
+            "triangles": 3237,
+            "materialCount": 19,
+            "boundsSizeX": 3.460604429244995,
+            "boundsSizeY": 4.6343488693237309,
+            "boundsSizeZ": 2.9337472915649416,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/animated-robot.prefab"
+        },
+        {
+            "prefabName": "antenna",
+            "triangles": 412,
+            "materialCount": 3,
+            "boundsSizeX": 0.6173954606056213,
+            "boundsSizeY": 0.7306134700775147,
+            "boundsSizeZ": 0.6566697955131531,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/antenna.prefab"
+        },
+        {
+            "prefabName": "antenna-roof",
+            "triangles": 492,
+            "materialCount": 1,
+            "boundsSizeX": 1.4117201566696168,
+            "boundsSizeY": 3.542802095413208,
+            "boundsSizeZ": 1.4334983825683594,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/antenna-roof.prefab"
+        },
+        {
+            "prefabName": "bench",
+            "triangles": 180,
+            "materialCount": 2,
+            "boundsSizeX": 2.5108370780944826,
+            "boundsSizeY": 1.6206297874450684,
+            "boundsSizeZ": 1.2253942489624024,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bench.prefab"
+        },
+        {
+            "prefabName": "bldg-dome",
+            "triangles": 1432,
+            "materialCount": 1,
+            "boundsSizeX": 8.529871940612793,
+            "boundsSizeY": 5.280834674835205,
+            "boundsSizeZ": 8.529871940612793,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bldg-dome.prefab"
+        },
+        {
+            "prefabName": "bldg-large",
+            "triangles": 2364,
+            "materialCount": 4,
+            "boundsSizeX": 2.0399999618530275,
+            "boundsSizeY": 1.6799999475479127,
+            "boundsSizeZ": 1.2400000095367432,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bldg-large.prefab"
+        },
+        {
+            "prefabName": "bldg-low",
+            "triangles": 268,
+            "materialCount": 2,
+            "boundsSizeX": 0.5,
+            "boundsSizeY": 2.0999999046325685,
+            "boundsSizeZ": 0.5,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bldg-low.prefab"
+        },
+        {
+            "prefabName": "bldg-simple",
+            "triangles": 1389,
+            "materialCount": 1,
+            "boundsSizeX": 2.006739616394043,
+            "boundsSizeY": 2.3500001430511476,
+            "boundsSizeZ": 2.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bldg-simple.prefab"
+        },
+        {
+            "prefabName": "bldg-skyscraper",
+            "triangles": 456,
+            "materialCount": 4,
+            "boundsSizeX": 1.2400000095367432,
+            "boundsSizeY": 4.079999923706055,
+            "boundsSizeZ": 1.2400000095367432,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bldg-skyscraper.prefab"
+        },
+        {
+            "prefabName": "bus",
+            "triangles": 2226,
+            "materialCount": 1,
+            "boundsSizeX": 50.06064224243164,
+            "boundsSizeY": 48.80706024169922,
+            "boundsSizeZ": 157.4611358642578,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bus.prefab"
+        },
+        {
+            "prefabName": "bus-stop",
+            "triangles": 456,
+            "materialCount": 2,
+            "boundsSizeX": 38.30568313598633,
+            "boundsSizeY": 27.199241638183595,
+            "boundsSizeZ": 24.764636993408204,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bus-stop.prefab"
+        },
+        {
+            "prefabName": "bus-stop-sign",
+            "triangles": 1450,
+            "materialCount": 5,
+            "boundsSizeX": 4.0029449462890629,
+            "boundsSizeY": 24.232078552246095,
+            "boundsSizeZ": 0.9328303933143616,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bus-stop-sign.prefab"
+        },
+        {
+            "prefabName": "bushes",
+            "triangles": 1298,
+            "materialCount": 4,
+            "boundsSizeX": 6.568000793457031,
+            "boundsSizeY": 1.4717917442321778,
+            "boundsSizeZ": 1.7782330513000489,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/bushes.prefab"
+        },
+        {
+            "prefabName": "car",
+            "triangles": 2954,
+            "materialCount": 12,
+            "boundsSizeX": 1.807360053062439,
+            "boundsSizeY": 1.1765789985656739,
+            "boundsSizeZ": 4.220716953277588,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/car.prefab"
+        },
+        {
+            "prefabName": "car-convertible",
+            "triangles": 1671,
+            "materialCount": 1,
+            "boundsSizeX": 4.3162641525268559,
+            "boundsSizeY": 3.0555360317230226,
+            "boundsSizeZ": 10.141613006591797,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/car-convertible.prefab"
+        },
+        {
+            "prefabName": "car-mini",
+            "triangles": 0,
+            "materialCount": 175,
+            "boundsSizeX": 0.0,
+            "boundsSizeY": 0.0,
+            "boundsSizeZ": 0.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/car-mini.prefab"
+        },
+        {
+            "prefabName": "car-sports",
+            "triangles": 3066,
+            "materialCount": 12,
+            "boundsSizeX": 1.8045189380645753,
+            "boundsSizeY": 1.155403971672058,
+            "boundsSizeZ": 3.9687070846557619,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/car-sports.prefab"
+        },
+        {
+            "prefabName": "construction-barrier",
+            "triangles": 60,
+            "materialCount": 1,
+            "boundsSizeX": 0.1354999989271164,
+            "boundsSizeY": 0.12999999523162843,
+            "boundsSizeZ": 0.22499999403953553,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/construction-barrier.prefab"
+        },
+        {
+            "prefabName": "construction-cone",
+            "triangles": 66,
+            "materialCount": 1,
+            "boundsSizeX": 0.07500000298023224,
+            "boundsSizeY": 0.09375,
+            "boundsSizeZ": 0.07500000298023224,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/construction-cone.prefab"
+        },
+        {
+            "prefabName": "dumpster",
+            "triangles": 234,
+            "materialCount": 3,
+            "boundsSizeX": 0.27500003576278689,
+            "boundsSizeY": 0.20944178104400636,
+            "boundsSizeZ": 0.37000012397766116,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/dumpster.prefab"
+        },
+        {
+            "prefabName": "electricity-pole",
+            "triangles": 416,
+            "materialCount": 1,
+            "boundsSizeX": 0.5790849924087524,
+            "boundsSizeY": 0.5249999761581421,
+            "boundsSizeZ": 0.21422497928142548,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/electricity-pole.prefab"
+        },
+        {
+            "prefabName": "electricity-pole-single",
+            "triangles": 176,
+            "materialCount": 1,
+            "boundsSizeX": 0.07908499240875244,
+            "boundsSizeY": 0.5249999761581421,
+            "boundsSizeZ": 0.21422497928142548,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/electricity-pole-single.prefab"
+        },
+        {
+            "prefabName": "electricity-pole-wide",
+            "triangles": 544,
+            "materialCount": 1,
+            "boundsSizeX": 1.0790849924087525,
+            "boundsSizeY": 0.5249999761581421,
+            "boundsSizeZ": 0.21422497928142548,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/electricity-pole-wide.prefab"
+        },
+        {
+            "prefabName": "fire-station",
+            "triangles": 8532,
+            "materialCount": 214,
+            "boundsSizeX": 2.160000801086426,
+            "boundsSizeY": 1.1999999284744263,
+            "boundsSizeZ": 1.4800002574920655,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/fire-station.prefab"
+        },
+        {
+            "prefabName": "flower_yellowA",
+            "triangles": 76,
+            "materialCount": 2,
+            "boundsSizeX": 0.15909752249717713,
+            "boundsSizeY": 0.19249999523162843,
+            "boundsSizeZ": 0.1810590624809265,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/flower_yellowA.prefab"
+        },
+        {
+            "prefabName": "fountain",
+            "triangles": 0,
+            "materialCount": 18,
+            "boundsSizeX": 0.0,
+            "boundsSizeY": 0.0,
+            "boundsSizeZ": 0.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/fountain.prefab"
+        },
+        {
+            "prefabName": "fountain-opt",
+            "triangles": 1132,
+            "materialCount": 1,
+            "boundsSizeX": 1.987739086151123,
+            "boundsSizeY": 1.5332369804382325,
+            "boundsSizeZ": 1.9877400398254395,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/fountain-opt.prefab"
+        },
+        {
+            "prefabName": "guy",
+            "triangles": 1500,
+            "materialCount": 4,
+            "boundsSizeX": 8.006230354309082,
+            "boundsSizeY": 21.669620513916017,
+            "boundsSizeZ": 3.727530002593994,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/guy.prefab"
+        },
+        {
+            "prefabName": "hospital",
+            "triangles": 12576,
+            "materialCount": 1,
+            "boundsSizeX": 334.4830017089844,
+            "boundsSizeY": 329.20501708984377,
+            "boundsSizeZ": 625.1290283203125,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/hospital.prefab"
+        },
+        {
+            "prefabName": "houseplant",
+            "triangles": 449,
+            "materialCount": 3,
+            "boundsSizeX": 1.1662461757659913,
+            "boundsSizeY": 0.8818565607070923,
+            "boundsSizeZ": 1.2200591564178467,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/houseplant.prefab"
+        },
+        {
+            "prefabName": "housing",
+            "triangles": 48186,
+            "materialCount": 1,
+            "boundsSizeX": 0.7888460159301758,
+            "boundsSizeY": 0.45601746439933779,
+            "boundsSizeZ": 0.7865349054336548,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/housing.prefab"
+        },
+        {
+            "prefabName": "housing-a",
+            "triangles": 1174,
+            "materialCount": 1,
+            "boundsSizeX": 1.2999999523162842,
+            "boundsSizeY": 0.8335409760475159,
+            "boundsSizeZ": 1.0281378030776978,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/housing-a.prefab"
+        },
+        {
+            "prefabName": "housing-c",
+            "triangles": 1196,
+            "materialCount": 1,
+            "boundsSizeX": 1.2863802909851075,
+            "boundsSizeY": 1.033540964126587,
+            "boundsSizeZ": 1.0281378030776978,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/housing-c.prefab"
+        },
+        {
+            "prefabName": "housing-h",
+            "triangles": 770,
+            "materialCount": 1,
+            "boundsSizeX": 1.2999999523162842,
+            "boundsSizeY": 0.7374999523162842,
+            "boundsSizeZ": 0.9160000085830689,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/housing-h.prefab"
+        },
+        {
+            "prefabName": "housing-j",
+            "triangles": 1210,
+            "materialCount": 1,
+            "boundsSizeX": 1.3700000047683716,
+            "boundsSizeY": 1.037500023841858,
+            "boundsSizeZ": 0.9160000085830689,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/housing-j.prefab"
+        },
+        {
+            "prefabName": "housing-n",
+            "triangles": 1612,
+            "materialCount": 1,
+            "boundsSizeX": 1.784271478652954,
+            "boundsSizeY": 1.1375000476837159,
+            "boundsSizeZ": 1.377891182899475,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/housing-n.prefab"
+        },
+        {
+            "prefabName": "housing-u",
+            "triangles": 1332,
+            "materialCount": 1,
+            "boundsSizeX": 1.4280002117156983,
+            "boundsSizeY": 1.1375000476837159,
+            "boundsSizeZ": 1.086935043334961,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/housing-u.prefab"
+        },
+        {
+            "prefabName": "human-dude",
+            "triangles": 1332,
+            "materialCount": 4,
+            "boundsSizeX": 14.839179992675782,
+            "boundsSizeY": 14.315496444702149,
+            "boundsSizeZ": 3.249270439147949,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/human-dude.prefab"
+        },
+        {
+            "prefabName": "industrial",
+            "triangles": 32746,
+            "materialCount": 1,
+            "boundsSizeX": 0.9255670309066773,
+            "boundsSizeY": 0.302157461643219,
+            "boundsSizeZ": 0.7241100668907166,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/industrial.prefab"
+        },
+        {
+            "prefabName": "lamp-post",
+            "triangles": 2476,
+            "materialCount": 3,
+            "boundsSizeX": 2.071432113647461,
+            "boundsSizeY": 19.72008514404297,
+            "boundsSizeZ": 2.071432113647461,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/lamp-post.prefab"
+        },
+        {
+            "prefabName": "lamp-street-objects",
+            "triangles": 236,
+            "materialCount": 2,
+            "boundsSizeX": 0.2900004982948303,
+            "boundsSizeY": 3.2400009632110597,
+            "boundsSizeZ": 0.7000014781951904,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/lamp-street-objects.prefab"
+        },
+        {
+            "prefabName": "light-square",
+            "triangles": 60,
+            "materialCount": 1,
+            "boundsSizeX": 0.04999999701976776,
+            "boundsSizeY": 0.6000000238418579,
+            "boundsSizeZ": 0.23750001192092896,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/light-square.prefab"
+        },
+        {
+            "prefabName": "light-square-cross",
+            "triangles": 134,
+            "materialCount": 1,
+            "boundsSizeX": 0.42499998211860659,
+            "boundsSizeY": 0.6000000238418579,
+            "boundsSizeZ": 0.42499998211860659,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/light-square-cross.prefab"
+        },
+        {
+            "prefabName": "mainframe",
+            "triangles": 760,
+            "materialCount": 8,
+            "boundsSizeX": 1.163123369216919,
+            "boundsSizeY": 1.75400710105896,
+            "boundsSizeZ": 0.620396614074707,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/mainframe.prefab"
+        },
+        {
+            "prefabName": "mall",
+            "triangles": 13494,
+            "materialCount": 1,
+            "boundsSizeX": 0.99363112449646,
+            "boundsSizeY": 0.3684569299221039,
+            "boundsSizeZ": 1.1286550760269166,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/mall.prefab"
+        },
+        {
+            "prefabName": "man",
+            "triangles": 1852,
+            "materialCount": 6,
+            "boundsSizeX": 1.931497573852539,
+            "boundsSizeY": 4.930103302001953,
+            "boundsSizeZ": 0.9007304310798645,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/man.prefab"
+        },
+        {
+            "prefabName": "man-astronaut",
+            "triangles": 10558,
+            "materialCount": 13,
+            "boundsSizeX": 0.7738567590713501,
+            "boundsSizeY": 1.9025979042053223,
+            "boundsSizeZ": 0.6718510985374451,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/man-astronaut.prefab"
+        },
+        {
+            "prefabName": "man-business",
+            "triangles": 6633,
+            "materialCount": 10,
+            "boundsSizeX": 0.7593261003494263,
+            "boundsSizeY": 1.8681951761245728,
+            "boundsSizeZ": 0.6856892108917236,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/man-business.prefab"
+        },
+        {
+            "prefabName": "man-casual",
+            "triangles": 5776,
+            "materialCount": 10,
+            "boundsSizeX": 0.742857813835144,
+            "boundsSizeY": 1.872171401977539,
+            "boundsSizeZ": 0.6857149600982666,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/man-casual.prefab"
+        },
+        {
+            "prefabName": "man-hoodie",
+            "triangles": 6206,
+            "materialCount": 10,
+            "boundsSizeX": 0.8301117420196533,
+            "boundsSizeY": 1.8763474225997925,
+            "boundsSizeZ": 0.6857216954231262,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/man-hoodie.prefab"
+        },
+        {
+            "prefabName": "man-punk",
+            "triangles": 5498,
+            "materialCount": 13,
+            "boundsSizeX": 0.724753201007843,
+            "boundsSizeY": 1.9875158071517945,
+            "boundsSizeZ": 0.6856844425201416,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/man-punk.prefab"
+        },
+        {
+            "prefabName": "man-worker",
+            "triangles": 5236,
+            "materialCount": 13,
+            "boundsSizeX": 0.6727676391601563,
+            "boundsSizeY": 1.874916434288025,
+            "boundsSizeZ": 0.6818271279335022,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/man-worker.prefab"
+        },
+        {
+            "prefabName": "mech",
+            "triangles": 4008,
+            "materialCount": 1,
+            "boundsSizeX": 2.8158512115478517,
+            "boundsSizeY": 3.690732479095459,
+            "boundsSizeZ": 3.0878376960754396,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/mech.prefab"
+        },
+        {
+            "prefabName": "mushroom",
+            "triangles": 350,
+            "materialCount": 3,
+            "boundsSizeX": 9.586923599243164,
+            "boundsSizeY": 9.975265502929688,
+            "boundsSizeZ": 9.546687126159668,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/mushroom.prefab"
+        },
+        {
+            "prefabName": "office-tower",
+            "triangles": 30000,
+            "materialCount": 1,
+            "boundsSizeX": 0.2381180375814438,
+            "boundsSizeY": 1.1521580219268799,
+            "boundsSizeZ": 0.24500997364521027,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/office-tower.prefab"
+        },
+        {
+            "prefabName": "park",
+            "triangles": 23608,
+            "materialCount": 1,
+            "boundsSizeX": 0.9839459657669067,
+            "boundsSizeY": 0.1556682139635086,
+            "boundsSizeZ": 0.9461100697517395,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/park.prefab"
+        },
+        {
+            "prefabName": "pine-trees",
+            "triangles": 3666,
+            "materialCount": 2,
+            "boundsSizeX": 1.7797268629074097,
+            "boundsSizeY": 0.7882283926010132,
+            "boundsSizeZ": 1.725738525390625,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/pine-trees.prefab"
+        },
+        {
+            "prefabName": "plant_bush",
+            "triangles": 32,
+            "materialCount": 1,
+            "boundsSizeX": 0.3959999978542328,
+            "boundsSizeY": 0.24444358050823213,
+            "boundsSizeZ": 0.3959999978542328,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/plant_bush.prefab"
+        },
+        {
+            "prefabName": "plant_bushDetailed",
+            "triangles": 104,
+            "materialCount": 1,
+            "boundsSizeX": 0.6025437116622925,
+            "boundsSizeY": 0.3604109287261963,
+            "boundsSizeZ": 0.6025437116622925,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/plant_bushDetailed.prefab"
+        },
+        {
+            "prefabName": "post-lantern",
+            "triangles": 568,
+            "materialCount": 2,
+            "boundsSizeX": 0.6400200724601746,
+            "boundsSizeY": 3.3000001907348635,
+            "boundsSizeZ": 1.5664033889770508,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/post-lantern.prefab"
+        },
+        {
+            "prefabName": "road-bend",
+            "triangles": 260,
+            "materialCount": 1,
+            "boundsSizeX": 1.0,
+            "boundsSizeY": 0.019999999552965165,
+            "boundsSizeZ": 1.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-bend.prefab"
+        },
+        {
+            "prefabName": "road-bridge",
+            "triangles": 240,
+            "materialCount": 1,
+            "boundsSizeX": 1.0000004768371583,
+            "boundsSizeY": 0.5199999809265137,
+            "boundsSizeZ": 1.0000004768371583,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-bridge.prefab"
+        },
+        {
+            "prefabName": "road-crossing",
+            "triangles": 104,
+            "materialCount": 1,
+            "boundsSizeX": 1.0,
+            "boundsSizeY": 0.019999999552965165,
+            "boundsSizeZ": 1.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-crossing.prefab"
+        },
+        {
+            "prefabName": "road-crossroad",
+            "triangles": 116,
+            "materialCount": 1,
+            "boundsSizeX": 1.0,
+            "boundsSizeY": 0.019999999552965165,
+            "boundsSizeZ": 1.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-crossroad.prefab"
+        },
+        {
+            "prefabName": "road-curve",
+            "triangles": 308,
+            "materialCount": 1,
+            "boundsSizeX": 2.0,
+            "boundsSizeY": 0.019999999552965165,
+            "boundsSizeZ": 2.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-curve.prefab"
+        },
+        {
+            "prefabName": "road-driveway-double",
+            "triangles": 72,
+            "materialCount": 1,
+            "boundsSizeX": 1.0,
+            "boundsSizeY": 0.019999999552965165,
+            "boundsSizeZ": 1.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-driveway-double.prefab"
+        },
+        {
+            "prefabName": "road-driveway-single",
+            "triangles": 60,
+            "materialCount": 1,
+            "boundsSizeX": 1.0,
+            "boundsSizeY": 0.019999999552965165,
+            "boundsSizeZ": 1.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-driveway-single.prefab"
+        },
+        {
+            "prefabName": "road-end",
+            "triangles": 42,
+            "materialCount": 1,
+            "boundsSizeX": 1.0,
+            "boundsSizeY": 0.019999999552965165,
+            "boundsSizeZ": 1.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-end.prefab"
+        },
+        {
+            "prefabName": "road-intersection",
+            "triangles": 84,
+            "materialCount": 1,
+            "boundsSizeX": 1.0,
+            "boundsSizeY": 0.019999999552965165,
+            "boundsSizeZ": 1.0000001192092896,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-intersection.prefab"
+        },
+        {
+            "prefabName": "road-straight",
+            "triangles": 44,
+            "materialCount": 1,
+            "boundsSizeX": 1.0,
+            "boundsSizeY": 0.019999999552965165,
+            "boundsSizeZ": 1.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/road-straight.prefab"
+        },
+        {
+            "prefabName": "robo-dude",
+            "triangles": 0,
+            "materialCount": 58,
+            "boundsSizeX": 0.0,
+            "boundsSizeY": 0.0,
+            "boundsSizeZ": 0.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/robo-dude.prefab"
+        },
+        {
+            "prefabName": "robot",
+            "triangles": 2005,
+            "materialCount": 1,
+            "boundsSizeX": 1.1123416423797608,
+            "boundsSizeY": 3.5463454723358156,
+            "boundsSizeZ": 3.1128997802734377,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/robot.prefab"
+        },
+        {
+            "prefabName": "rock_smallA",
+            "triangles": 16,
+            "materialCount": 2,
+            "boundsSizeX": 0.36079999804496767,
+            "boundsSizeY": 0.19122400879859925,
+            "boundsSizeZ": 0.36079999804496767,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/rock_smallA.prefab"
+        },
+        {
+            "prefabName": "satellite-dish",
+            "triangles": 2232,
+            "materialCount": 1,
+            "boundsSizeX": 16.37438201904297,
+            "boundsSizeY": 17.34514617919922,
+            "boundsSizeZ": 13.357772827148438,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/satellite-dish.prefab"
+        },
+        {
+            "prefabName": "server-rack",
+            "triangles": 1104,
+            "materialCount": 17,
+            "boundsSizeX": 3.3781628608703615,
+            "boundsSizeY": 5.151820182800293,
+            "boundsSizeZ": 1.7244393825531006,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/server-rack.prefab"
+        },
+        {
+            "prefabName": "service-b",
+            "triangles": 1082,
+            "materialCount": 1,
+            "boundsSizeX": 2.0,
+            "boundsSizeY": 1.6500003337860108,
+            "boundsSizeZ": 2.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/service-b.prefab"
+        },
+        {
+            "prefabName": "service-bakery",
+            "triangles": 1624,
+            "materialCount": 1,
+            "boundsSizeX": 19.260948181152345,
+            "boundsSizeY": 11.104757308959961,
+            "boundsSizeZ": 12.260957717895508,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/service-bakery.prefab"
+        },
+        {
+            "prefabName": "service-large",
+            "triangles": 2364,
+            "materialCount": 4,
+            "boundsSizeX": 2.0399999618530275,
+            "boundsSizeY": 1.6799999475479127,
+            "boundsSizeZ": 1.2400000095367432,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/service-large.prefab"
+        },
+        {
+            "prefabName": "service-market",
+            "triangles": 2254,
+            "materialCount": 9,
+            "boundsSizeX": 2.4700002670288088,
+            "boundsSizeY": 1.5649996995925904,
+            "boundsSizeZ": 2.3300020694732668,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/service-market.prefab"
+        },
+        {
+            "prefabName": "service-shop",
+            "triangles": 1389,
+            "materialCount": 1,
+            "boundsSizeX": 2.006739616394043,
+            "boundsSizeY": 2.3500001430511476,
+            "boundsSizeZ": 2.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/service-shop.prefab"
+        },
+        {
+            "prefabName": "service-small",
+            "triangles": 694,
+            "materialCount": 5,
+            "boundsSizeX": 1.6400002241134644,
+            "boundsSizeY": 0.8799998760223389,
+            "boundsSizeZ": 0.967891275882721,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/service-small.prefab"
+        },
+        {
+            "prefabName": "skyscraper",
+            "triangles": 414,
+            "materialCount": 1,
+            "boundsSizeX": 6.71592378616333,
+            "boundsSizeY": 32.07881546020508,
+            "boundsSizeZ": 10.264790534973145,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/skyscraper.prefab"
+        },
+        {
+            "prefabName": "slide-opt",
+            "triangles": 695,
+            "materialCount": 1,
+            "boundsSizeX": 1.1052800416946412,
+            "boundsSizeY": 4.716689586639404,
+            "boundsSizeZ": 6.689015865325928,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/slide-opt.prefab"
+        },
+        {
+            "prefabName": "solar-battery",
+            "triangles": 262,
+            "materialCount": 1,
+            "boundsSizeX": 597.1309814453125,
+            "boundsSizeY": 640.1427001953125,
+            "boundsSizeZ": 540.0,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/solar-battery.prefab"
+        },
+        {
+            "prefabName": "solar-panel",
+            "triangles": 812,
+            "materialCount": 1,
+            "boundsSizeX": 2.7270257472991945,
+            "boundsSizeY": 1.7006365060806275,
+            "boundsSizeZ": 1.733398199081421,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/solar-panel.prefab"
+        },
+        {
+            "prefabName": "solar-panel-flat",
+            "triangles": 496,
+            "materialCount": 2,
+            "boundsSizeX": 2.0,
+            "boundsSizeY": 0.15000000596046449,
+            "boundsSizeZ": 1.2000000476837159,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/solar-panel-flat.prefab"
+        },
+        {
+            "prefabName": "spaceship",
+            "triangles": 2814,
+            "materialCount": 1,
+            "boundsSizeX": 11.139095306396485,
+            "boundsSizeY": 2.5272531509399416,
+            "boundsSizeZ": 8.656633377075196,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/spaceship.prefab"
+        },
+        {
+            "prefabName": "steve",
+            "triangles": 2632,
+            "materialCount": 1,
+            "boundsSizeX": 2.775555372238159,
+            "boundsSizeY": 2.73507022857666,
+            "boundsSizeZ": 1.3278335332870484,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/steve.prefab"
+        },
+        {
+            "prefabName": "stop-sign",
+            "triangles": 236,
+            "materialCount": 1,
+            "boundsSizeX": 8.007414817810059,
+            "boundsSizeY": 230.86331176757813,
+            "boundsSizeZ": 75.2281723022461,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/stop-sign.prefab"
+        },
+        {
+            "prefabName": "street-light",
+            "triangles": 324,
+            "materialCount": 2,
+            "boundsSizeX": 0.41824206709861758,
+            "boundsSizeY": 5.645797252655029,
+            "boundsSizeZ": 2.0860939025878908,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/street-light.prefab"
+        },
+        {
+            "prefabName": "streetlight",
+            "triangles": 526,
+            "materialCount": 3,
+            "boundsSizeX": 0.17570935189723969,
+            "boundsSizeY": 2.866220474243164,
+            "boundsSizeZ": 0.6721013784408569,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/streetlight.prefab"
+        },
+        {
+            "prefabName": "suv",
+            "triangles": 3294,
+            "materialCount": 12,
+            "boundsSizeX": 2.1111021041870119,
+            "boundsSizeY": 1.5278511047363282,
+            "boundsSizeZ": 4.209349155426025,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/suv.prefab"
+        },
+        {
+            "prefabName": "swing-set",
+            "triangles": 588,
+            "materialCount": 1,
+            "boundsSizeX": 86.11434936523438,
+            "boundsSizeY": 114.49200439453125,
+            "boundsSizeZ": 151.5,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/swing-set.prefab"
+        },
+        {
+            "prefabName": "town-center",
+            "triangles": 3334,
+            "materialCount": 4,
+            "boundsSizeX": 1.2637734413146973,
+            "boundsSizeY": 1.0876555442810059,
+            "boundsSizeZ": 1.2405986785888672,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/town-center.prefab"
+        },
+        {
+            "prefabName": "traffic-light",
+            "triangles": 1369,
+            "materialCount": 1,
+            "boundsSizeX": 5.337730884552002,
+            "boundsSizeY": 4.663855075836182,
+            "boundsSizeZ": 1.9225990772247315,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/traffic-light.prefab"
+        },
+        {
+            "prefabName": "tree",
+            "triangles": 932,
+            "materialCount": 2,
+            "boundsSizeX": 1.6500489711761475,
+            "boundsSizeY": 1.741548776626587,
+            "boundsSizeZ": 1.5202618837356568,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/tree.prefab"
+        },
+        {
+            "prefabName": "tree-2",
+            "triangles": 694,
+            "materialCount": 2,
+            "boundsSizeX": 2.186159133911133,
+            "boundsSizeY": 2.4591031074523927,
+            "boundsSizeZ": 2.0273711681365969,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/tree-2.prefab"
+        },
+        {
+            "prefabName": "tree-birch",
+            "triangles": 24978,
+            "materialCount": 10,
+            "boundsSizeX": 18.56103515625,
+            "boundsSizeY": 7.57047176361084,
+            "boundsSizeZ": 3.514639377593994,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/tree-birch.prefab"
+        },
+        {
+            "prefabName": "tree-dead",
+            "triangles": 18524,
+            "materialCount": 5,
+            "boundsSizeX": 19.545135498046876,
+            "boundsSizeY": 6.195769309997559,
+            "boundsSizeZ": 1.7187707424163819,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/tree-dead.prefab"
+        },
+        {
+            "prefabName": "tree-maple",
+            "triangles": 19350,
+            "materialCount": 10,
+            "boundsSizeX": 34.211822509765628,
+            "boundsSizeY": 7.285994529724121,
+            "boundsSizeZ": 6.6848249435424809,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/tree-maple.prefab"
+        },
+        {
+            "prefabName": "tree-normal",
+            "triangles": 30774,
+            "materialCount": 10,
+            "boundsSizeX": 24.934326171875,
+            "boundsSizeY": 6.866761207580566,
+            "boundsSizeZ": 2.997864246368408,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/tree-normal.prefab"
+        },
+        {
+            "prefabName": "tree-pine",
+            "triangles": 8700,
+            "materialCount": 10,
+            "boundsSizeX": 18.6878662109375,
+            "boundsSizeY": 6.922943115234375,
+            "boundsSizeZ": 3.740525245666504,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/tree-pine.prefab"
+        },
+        {
+            "prefabName": "truck",
+            "triangles": 3084,
+            "materialCount": 28,
+            "boundsSizeX": 0.5069529414176941,
+            "boundsSizeY": 0.20070599019527436,
+            "boundsSizeZ": 0.29365280270576479,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/truck.prefab"
+        },
+        {
+            "prefabName": "tv",
+            "triangles": 312,
+            "materialCount": 4,
+            "boundsSizeX": 1.2034523487091065,
+            "boundsSizeY": 1.3750272989273072,
+            "boundsSizeZ": 0.40955549478530886,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/tv.prefab"
+        },
+        {
+            "prefabName": "tv-tower",
+            "triangles": 554,
+            "materialCount": 4,
+            "boundsSizeX": 0.7336452603340149,
+            "boundsSizeY": 2.3780014514923097,
+            "boundsSizeZ": 0.6314501166343689,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/tv-tower.prefab"
+        },
+        {
+            "prefabName": "water-fountain",
+            "triangles": 620,
+            "materialCount": 1,
+            "boundsSizeX": 1.822392225265503,
+            "boundsSizeY": 2.430335521697998,
+            "boundsSizeZ": 1.8223918676376343,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/water-fountain.prefab"
+        },
+        {
+            "prefabName": "woman-casual",
+            "triangles": 2776,
+            "materialCount": 8,
+            "boundsSizeX": 1.721737265586853,
+            "boundsSizeY": 4.732834815979004,
+            "boundsSizeZ": 1.0239181518554688,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/woman-casual.prefab"
+        },
+        {
+            "prefabName": "woman-formal",
+            "triangles": 6108,
+            "materialCount": 10,
+            "boundsSizeX": 0.6834940910339356,
+            "boundsSizeY": 1.8423326015472413,
+            "boundsSizeZ": 0.6321858167648315,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/woman-formal.prefab"
+        },
+        {
+            "prefabName": "woman-punk",
+            "triangles": 5954,
+            "materialCount": 12,
+            "boundsSizeX": 0.7193609476089478,
+            "boundsSizeY": 1.9941000938415528,
+            "boundsSizeZ": 0.6707439422607422,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/woman-punk.prefab"
+        },
+        {
+            "prefabName": "woman-scifi",
+            "triangles": 8035,
+            "materialCount": 16,
+            "boundsSizeX": 0.6533135175704956,
+            "boundsSizeY": 1.8542200326919556,
+            "boundsSizeZ": 0.645255446434021,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/woman-scifi.prefab"
+        },
+        {
+            "prefabName": "woman-worker",
+            "triangles": 6112,
+            "materialCount": 12,
+            "boundsSizeX": 0.6926722526550293,
+            "boundsSizeY": 1.8623820543289185,
+            "boundsSizeZ": 0.6592051386833191,
+            "sourcePath": "Assets/_Project/Art/Resources/Prefabs/woman-worker.prefab"
+        }
+    ]
+}

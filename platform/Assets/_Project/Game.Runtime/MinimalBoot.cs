@@ -53,11 +53,11 @@ namespace AI2School.Game
         {
             yield return null; // let Init finish
 
-            _city.TryPlace("home", 40, 40);
-            _city.TryPlace("home", 40, 120);
-            _city.TryPlace("home", 120, 40);
-            _city.TryPlace("school", 200, 200);
-            _city.TryPlace("shop", 80, 200);
+            _city.TryPlace("housing_pod", 40, 40);
+            _city.TryPlace("housing_dome", 40, 120);
+            _city.TryPlace("housing_tower", 120, 40);
+            _city.TryPlace("tech_hub", 200, 200);
+            _city.TryPlace("market", 80, 200);
             _city.TryPlace("park", 160, 60);
 
             Debug.Log($"[MINSMOKE] placed pieces={_city.Pieces.Count} budgetUsed={_city.BudgetUsed}/{_city.BudgetMax}");

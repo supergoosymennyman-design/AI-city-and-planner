@@ -2,24 +2,723 @@
   "districtId": "city_base",
   "version": 1,
   "displayNameKey": "district.city_base.name",
-  "footprint": { "origin": [0, 0], "sizeMeters": [240, 240] },
+  "footprint": {
+    "origin": [
+      0,
+      0
+    ],
+    "sizeMeters": [
+      240,
+      240
+    ]
+  },
   "interiorSceneId": "",
   "capabilitySlots": [
-    { "slotId": "coverage_optimizer", "acceptedTypes": ["optimizer_v1"], "requiredForReveal": false }
+    {
+      "slotId": "coverage_optimizer",
+      "acceptedTypes": [
+        "optimizer_v1"
+      ],
+      "requiredForReveal": false
+    }
   ],
   "palette": [
-    { "pieceId": "home",   "prefab": "", "cost": 20, "footprintMeters": [8, 8],   "category": "home",    "displayNameKey": "piece.home.name" },
-    { "pieceId": "school", "prefab": "", "cost": 60, "footprintMeters": [12, 12], "category": "service", "displayNameKey": "piece.school.name" },
-    { "pieceId": "shop",   "prefab": "", "cost": 40, "footprintMeters": [8, 8],   "category": "service", "displayNameKey": "piece.shop.name" },
-    { "pieceId": "park",   "prefab": "", "cost": 15, "footprintMeters": [16, 16], "category": "park",    "displayNameKey": "piece.park.name" }
+    {
+      "pieceId": "housing_pod",
+      "prefab": "bldg-simple",
+      "variants": [
+        "bldg-simple",
+        "bldg-low",
+        "bldg-large"
+      ],
+      "cost": 20,
+      "footprintMeters": [
+        10,
+        10
+      ],
+      "category": "home",
+      "displayNameKey": "piece.housing_pod.name"
+    },
+    {
+      "pieceId": "housing_dome",
+      "prefab": "bldg-dome",
+      "cost": 25,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "home",
+      "displayNameKey": "piece.housing_dome.name"
+    },
+    {
+      "pieceId": "housing_tower",
+      "prefab": "bldg-skyscraper",
+      "cost": 30,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "home",
+      "displayNameKey": "piece.housing_tower.name"
+    },
+    {
+      "pieceId": "tech_hub",
+      "prefab": "service-shop",
+      "variants": [
+        "service-shop",
+        "service-b",
+        "service-small"
+      ],
+      "cost": 60,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "service",
+      "displayNameKey": "piece.tech_hub.name"
+    },
+    {
+      "pieceId": "data_center",
+      "prefab": "server-rack",
+      "cost": 70,
+      "footprintMeters": [
+        10,
+        10
+      ],
+      "category": "service",
+      "displayNameKey": "piece.data_center.name"
+    },
+    {
+      "pieceId": "mainframe_tower",
+      "prefab": "mainframe",
+      "cost": 55,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "service",
+      "displayNameKey": "piece.mainframe_tower.name"
+    },
+    {
+      "pieceId": "market",
+      "prefab": "service-market",
+      "cost": 50,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "service",
+      "displayNameKey": "piece.market.name"
+    },
+    {
+      "pieceId": "bakery",
+      "prefab": "service-bakery",
+      "cost": 45,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "service",
+      "displayNameKey": "piece.bakery.name"
+    },
+    {
+      "pieceId": "solar_farm",
+      "prefab": "solar-panel",
+      "variants": [
+        "solar-panel",
+        "solar-panel-flat"
+      ],
+      "cost": 35,
+      "footprintMeters": [
+        10,
+        10
+      ],
+      "category": "utility",
+      "displayNameKey": "piece.solar_farm.name"
+    },
+    {
+      "pieceId": "power_cell",
+      "prefab": "solar-panel-flat",
+      "cost": 28,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "utility",
+      "displayNameKey": "piece.power_cell.name"
+    },
+    {
+      "pieceId": "satellite",
+      "prefab": "satellite-dish",
+      "cost": 40,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "utility",
+      "displayNameKey": "piece.satellite.name"
+    },
+    {
+      "pieceId": "comms_antenna",
+      "prefab": "antenna",
+      "variants": [
+        "antenna",
+        "antenna-roof"
+      ],
+      "cost": 25,
+      "footprintMeters": [
+        6,
+        6
+      ],
+      "category": "utility",
+      "displayNameKey": "piece.comms_antenna.name"
+    },
+    {
+      "pieceId": "broadcast_tower",
+      "prefab": "tv-tower",
+      "cost": 45,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "utility",
+      "displayNameKey": "piece.broadcast_tower.name"
+    },
+    {
+      "pieceId": "hover_car",
+      "prefab": "car",
+      "variants": [
+        "car",
+        "car-sports",
+        "car-convertible"
+      ],
+      "cost": 15,
+      "footprintMeters": [
+        6,
+        6
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.hover_car.name"
+    },
+    {
+      "pieceId": "shuttle_bus",
+      "prefab": "car-convertible",
+      "cost": 18,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.shuttle_bus.name"
+    },
+    {
+      "pieceId": "cargo_truck",
+      "prefab": "suv",
+      "cost": 16,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.cargo_truck.name"
+    },
+    {
+      "pieceId": "suv_rover",
+      "prefab": "suv",
+      "cost": 16,
+      "footprintMeters": [
+        6,
+        6
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.suv_rover.name"
+    },
+    {
+      "pieceId": "sky_shuttle",
+      "prefab": "spaceship",
+      "cost": 25,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.sky_shuttle.name"
+    },
+    {
+      "pieceId": "bus_stop",
+      "prefab": "bus-stop",
+      "variants": [
+        "bus-stop",
+        "bus-stop-sign"
+      ],
+      "cost": 10,
+      "footprintMeters": [
+        6,
+        6
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.bus_stop.name"
+    },
+    {
+      "pieceId": "park",
+      "prefab": "tree",
+      "variants": [
+        "tree",
+        "tree-2",
+        "pine-trees"
+      ],
+      "cost": 15,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "park",
+      "displayNameKey": "piece.park.name"
+    },
+    {
+      "pieceId": "greenery",
+      "prefab": "bushes",
+      "variants": [
+        "bushes",
+        "houseplant"
+      ],
+      "cost": 8,
+      "footprintMeters": [
+        6,
+        6
+      ],
+      "category": "park",
+      "displayNameKey": "piece.greenery.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "mushroom_garden",
+      "prefab": "mushroom",
+      "cost": 5,
+      "footprintMeters": [
+        4,
+        4
+      ],
+      "category": "park",
+      "displayNameKey": "piece.mushroom_garden.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "water_feature",
+      "prefab": "water-fountain",
+      "cost": 12,
+      "footprintMeters": [
+        6,
+        6
+      ],
+      "category": "park",
+      "displayNameKey": "piece.water_feature.name"
+    },
+    {
+      "pieceId": "plaza",
+      "prefab": "town-center",
+      "cost": 20,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "park",
+      "displayNameKey": "piece.plaza.name"
+    },
+    {
+      "pieceId": "streetlight",
+      "prefab": "streetlight",
+      "variants": [
+        "streetlight",
+        "street-light",
+        "lamp-post",
+        "post-lantern"
+      ],
+      "cost": 5,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.streetlight.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "bench",
+      "prefab": "bench",
+      "cost": 4,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.bench.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "server_block",
+      "prefab": "server-rack",
+      "cost": 6,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.server_block.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "housing_low",
+      "prefab": "bldg-low",
+      "cost": 18,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "home",
+      "displayNameKey": "piece.housing_low.name"
+    },
+    {
+      "pieceId": "housing_high",
+      "prefab": "bldg-large",
+      "cost": 28,
+      "footprintMeters": [
+        10,
+        10
+      ],
+      "category": "home",
+      "displayNameKey": "piece.housing_high.name"
+    },
+    {
+      "pieceId": "clinic",
+      "prefab": "service-large",
+      "cost": 65,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "service",
+      "displayNameKey": "piece.clinic.name"
+    },
+    {
+      "pieceId": "service_center",
+      "prefab": "service-b",
+      "cost": 55,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "service",
+      "displayNameKey": "piece.service_center.name"
+    },
+    {
+      "pieceId": "convenience",
+      "prefab": "service-small",
+      "cost": 40,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "service",
+      "displayNameKey": "piece.convenience.name"
+    },
+    {
+      "pieceId": "road_straight",
+      "prefab": "road-straight",
+      "cost": 10,
+      "footprintMeters": [
+        12,
+        6
+      ],
+      "category": "road",
+      "displayNameKey": "piece.road_straight.name"
+    },
+    {
+      "pieceId": "road_curve",
+      "prefab": "road-curve",
+      "cost": 10,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "road",
+      "displayNameKey": "piece.road_curve.name"
+    },
+    {
+      "pieceId": "road_cross",
+      "prefab": "road-crossroad",
+      "cost": 12,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "road",
+      "displayNameKey": "piece.road_cross.name"
+    },
+    {
+      "pieceId": "road_junction",
+      "prefab": "road-intersection",
+      "cost": 12,
+      "footprintMeters": [
+        12,
+        12
+      ],
+      "category": "road",
+      "displayNameKey": "piece.road_junction.name"
+    },
+    {
+      "pieceId": "road_end",
+      "prefab": "road-end",
+      "cost": 8,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "road",
+      "displayNameKey": "piece.road_end.name"
+    },
+    {
+      "pieceId": "road_crossing",
+      "prefab": "road-crossing",
+      "cost": 9,
+      "footprintMeters": [
+        12,
+        6
+      ],
+      "category": "road",
+      "displayNameKey": "piece.road_crossing.name"
+    },
+    {
+      "pieceId": "tree_pine",
+      "prefab": "pine-trees",
+      "cost": 10,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "park",
+      "displayNameKey": "piece.tree_pine.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "tree_single",
+      "prefab": "tree-2",
+      "cost": 9,
+      "footprintMeters": [
+        6,
+        6
+      ],
+      "category": "park",
+      "displayNameKey": "piece.tree_single.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "lamp_double",
+      "prefab": "lamp-post",
+      "cost": 6,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.lamp_double.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "monitor",
+      "prefab": "tv",
+      "cost": 7,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.monitor.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "hologram_post",
+      "prefab": "lamp-street-objects",
+      "cost": 5,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.hologram_post.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "power_bank",
+      "prefab": "mainframe",
+      "cost": 32,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "utility",
+      "displayNameKey": "piece.power_bank.name"
+    },
+    {
+      "pieceId": "comm_tower",
+      "prefab": "antenna-roof",
+      "cost": 28,
+      "footprintMeters": [
+        6,
+        6
+      ],
+      "category": "utility",
+      "displayNameKey": "piece.comm_tower.name"
+    },
+    {
+      "pieceId": "road_bridge",
+      "prefab": "road-bridge",
+      "cost": 14,
+      "footprintMeters": [
+        12,
+        8
+      ],
+      "category": "road",
+      "displayNameKey": "piece.road_bridge.name"
+    },
+    {
+      "pieceId": "road_driveway",
+      "prefab": "road-driveway-single",
+      "variants": [
+        "road-driveway-single",
+        "road-driveway-double"
+      ],
+      "cost": 9,
+      "footprintMeters": [
+        8,
+        6
+      ],
+      "category": "road",
+      "displayNameKey": "piece.road_driveway.name"
+    },
+    {
+      "pieceId": "traffic_signal",
+      "prefab": "light-square",
+      "variants": [
+        "light-square",
+        "light-square-cross"
+      ],
+      "cost": 7,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "road",
+      "displayNameKey": "piece.traffic_signal.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "power_pylon",
+      "prefab": "electricity-pole",
+      "variants": [
+        "electricity-pole",
+        "electricity-pole-single",
+        "electricity-pole-wide"
+      ],
+      "cost": 8,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "utility",
+      "displayNameKey": "piece.power_pylon.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "barrier",
+      "prefab": "construction-barrier",
+      "variants": [
+        "construction-barrier",
+        "construction-cone"
+      ],
+      "cost": 4,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "road",
+      "displayNameKey": "piece.barrier.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "waste_unit",
+      "prefab": "dumpster",
+      "cost": 5,
+      "footprintMeters": [
+        3,
+        3
+      ],
+      "category": "deco",
+      "displayNameKey": "piece.waste_unit.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "bio_dome",
+      "prefab": "bldg-dome",
+      "cost": 22,
+      "footprintMeters": [
+        10,
+        10
+      ],
+      "category": "park",
+      "displayNameKey": "piece.bio_dome.name"
+    },
+    {
+      "pieceId": "garden_pod",
+      "prefab": "houseplant",
+      "cost": 6,
+      "footprintMeters": [
+        4,
+        4
+      ],
+      "category": "park",
+      "displayNameKey": "piece.garden_pod.name",
+      "scatter": true
+    },
+    {
+      "pieceId": "sky_tower",
+      "prefab": "bldg-skyscraper",
+      "cost": 35,
+      "footprintMeters": [
+        8,
+        8
+      ],
+      "category": "home",
+      "displayNameKey": "piece.sky_tower.name"
+    }
   ],
   "objectives": [
-    { "metricId": "coverage", "goal": "maximize", "targetBand": [0.8, 1.0] }
+    {
+      "metricId": "coverage",
+      "goal": "maximize",
+      "targetBand": [
+        0.8,
+        1.0
+      ]
+    }
   ],
-  "constraints": [ { "constraintId": "budget", "max": 500 } ],
-  "overlays": ["coverage_heat"],
+  "constraints": [
+    {
+      "constraintId": "budget",
+      "max": 1000
+    }
+  ],
+  "overlays": [
+    "coverage_heat"
+  ],
   "difficultyTier": {
-    "core": { "agentCount": 30, "paletteSubset": "full", "constraintSlack": 1.0 }
+    "core": {
+      "agentCount": 30,
+      "paletteSubset": "full",
+      "constraintSlack": 1.0
+    }
   },
-  "unlock": { "requires": [] }
+  "unlock": {
+    "requires": []
+  }
 }

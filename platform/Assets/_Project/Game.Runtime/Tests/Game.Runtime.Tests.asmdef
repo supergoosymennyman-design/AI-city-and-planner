@@ -1,0 +1,21 @@
+{
+  "name": "Game.Runtime.Tests",
+  "rootNamespace": "AI2School.Game.Tests",
+  "references": [
+    "Game.Runtime",
+    "Districts.Runtime",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner",
+    "UnityEngine.UI",
+    "Unity.TextMeshPro"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

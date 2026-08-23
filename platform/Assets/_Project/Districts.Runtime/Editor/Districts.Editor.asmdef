@@ -1,0 +1,18 @@
+{
+  "name": "Districts.Editor",
+  "rootNamespace": "AI2School.Districts.Editor",
+  "references": [
+    "Districts.Runtime",
+    "Game.Runtime",
+    "Unity.TextMeshPro"
+  ],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
