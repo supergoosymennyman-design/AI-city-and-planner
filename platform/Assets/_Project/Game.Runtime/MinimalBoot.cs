@@ -34,7 +34,9 @@ namespace AI2School.Game
             _city = gameObject.AddComponent<MinimalCity>();
             _city.Init(cam);
 
-            if (Boot.HasArg("-smoke"))
+            if (Boot.HasArg("-demo"))
+                StartCoroutine(DemoFlow());
+            else if (Boot.HasArg("-smoke"))
                 StartCoroutine(SmokeFlow());
             else if (Boot.HasArg("-screenshot"))
                 StartCoroutine(ScreenshotFlow(Boot.ArgValue("-screenshot") ?? "/tmp/aiplatform-min.png"));
@@ -43,9 +45,42 @@ namespace AI2School.Game
 
         void Update()
         {
-            if (Boot.HasArg("-smoke") || Boot.HasArg("-screenshot")) return;
-            if (Input.GetKeyDown(KeyCode.R) && _city.Mode == CityMode.Planning)
+            if (Boot.HasArg("-smoke") || Boot.HasArg("-screenshot") || Boot.HasArg("-demo")) return;
+            if (_city.Mode != CityMode.Planning) return;
+
+            // D = build the demo city (walking people + driving cars) for preview.
+            if (Input.GetKeyDown(KeyCode.D))
+                BuildDemoCity();
+            else if (Input.GetKeyDown(KeyCode.V))
+                _city.ToggleOrbitView();
+            else if (Input.GetKeyDown(KeyCode.R))
                 _city.StartSimulation();
+        }
+
+        /// <summary>Build the curated demo city idempotently (replaces any existing demo/life).</summary>
+        void BuildDemoCity()
+        {
+            // Remove any existing demo/life so rebuilding is clean.
+            foreach (var d in GetComponents<DemoCity>()) Destroy(d);
+            foreach (var l in GetComponents<DemoLife>()) Destroy(l);
+            DemoCity.Build(_city, autoRunSim: true);
+            _hudToast("Demo city built — D rebuild · V orbit · R run");
+        }
+
+        /// <summary>Show a status toast via the HUD if present.</summary>
+        void _hudToast(string msg)
+        {
+            var city = GetComponent<MinimalCity>();
+            city?.HudToast(msg);
+        }
+
+        /// <summary>Build the curated demo city (all asset kinds) and run the sim.</summary>
+        IEnumerator DemoFlow()
+        {
+            yield return null; // let Init finish
+            // DemoCity.Start() self-runs on AddComponent — just attach it.
+            DemoCity.Build(_city, autoRunSim: true);
+            yield break;
         }
 
         /// <summary>Unattended end-to-end pass for CI / verification on the Minimal path.</summary>

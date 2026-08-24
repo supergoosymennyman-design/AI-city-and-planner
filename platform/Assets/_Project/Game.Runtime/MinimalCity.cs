@@ -47,6 +47,15 @@ namespace AI2School.Game
         readonly List<GameObject> _visuals = new List<GameObject>();
         Coroutine _tiltRoutine;
 
+        // Orbit (inspect) camera state — easy free-look around the city.
+        bool _orbitActive;
+        float _orbitYaw = 45f;
+        float _orbitPitch = 45f;
+        float _orbitDist = 200f;
+        Vector3 _orbitTarget;
+        readonly Vector3 _orbitMin = new Vector3(-40f, 0f, -40f);
+        readonly Vector3 _orbitMax = new Vector3(280f, 0f, 280f);
+
         static readonly Color GroundColor = new Color(0.72f, 0.75f, 0.68f);
 
         // ── Init ──────────────────────────────────────────────────────────────
@@ -223,11 +232,93 @@ namespace AI2School.Game
         // ── Planning input ────────────────────────────────────────────────────
         void Update()
         {
-            if (Mode == CityMode.Planning)
+            if (Mode != CityMode.Planning) return;
+
+            if (Input.GetKeyDown(KeyCode.V))
+                ToggleOrbitView();
+
+            if (_orbitActive)
+                HandleOrbitCamera();
+            else
             {
                 HandlePlanningInput();
                 HandlePlanningCamera();
             }
+        }
+
+        /// <summary>Switch between top-down planning camera and free orbit view.</summary>
+        public void ToggleOrbitView()
+        {
+            _orbitActive = !_orbitActive;
+            _hud?.Toast(_orbitActive ? "Orbit view — drag to rotate, scroll to zoom" : "Planning view");
+            if (_orbitActive)
+            {
+                var s = Manifest.footprint.sizeMeters;
+                _orbitTarget = new Vector3(s[0] / 2f, 0f, s[1] / 2f);
+                _orbitYaw = 45f;
+                _orbitPitch = 40f;
+                _orbitDist = s[1] / 2f + 60f;
+                ApplyOrbitCamera();
+            }
+            else
+            {
+                EnterPlanningMode();
+            }
+        }
+
+        /// <summary>Orbit the camera around the city center: LMB drag rotate, scroll zoom, RMB pan.</summary>
+        void HandleOrbitCamera()
+        {
+            // Rotate (left drag).
+            if (Input.GetMouseButton(0))
+            {
+                float dx = Input.GetAxis("Mouse X");
+                float dy = Input.GetAxis("Mouse Y");
+                _orbitYaw = (_orbitYaw + dx * 0.6f) % 360f;
+                _orbitPitch = Mathf.Clamp(_orbitPitch + dy * 0.6f, 5f, 85f);
+            }
+
+            // Pan (right drag) — move the orbit target in the camera's right/up plane.
+            if (Input.GetMouseButton(1))
+            {
+                float panSpeed = _orbitDist * 0.0012f;
+                var right = _cam.transform.right;
+                var up = Vector3.Cross(right, _cam.transform.forward).normalized;
+                _orbitTarget -= right * (Input.GetAxis("Mouse X") * panSpeed);
+                _orbitTarget += up * (Input.GetAxis("Mouse Y") * panSpeed);
+                _orbitTarget.x = Mathf.Clamp(_orbitTarget.x, _orbitMin.x, _orbitMax.x);
+                _orbitTarget.z = Mathf.Clamp(_orbitTarget.z, _orbitMin.z, _orbitMax.z);
+            }
+
+            // Zoom (scroll + pinch).
+            float scroll = Input.mouseScrollDelta.y;
+            if (Mathf.Abs(scroll) > 0.001f)
+                _orbitDist = Mathf.Clamp(_orbitDist * (1f - scroll * 0.1f), 30f, 500f);
+            if (Input.touchCount == 2)
+            {
+                var t0 = Input.GetTouch(0);
+                var t1 = Input.GetTouch(1);
+                float dist = (t0.position - t1.position).magnitude;
+                float prevDist = ((t0.position - t0.deltaPosition) - (t1.position - t1.deltaPosition)).magnitude;
+                if (prevDist > 1f)
+                    _orbitDist = Mathf.Clamp(_orbitDist * (prevDist / dist), 30f, 500f);
+            }
+
+            ApplyOrbitCamera();
+        }
+
+        void ApplyOrbitCamera()
+        {
+            float yaw = _orbitYaw * Mathf.Deg2Rad;
+            float pitch = _orbitPitch * Mathf.Deg2Rad;
+            var offset = new Vector3(
+                Mathf.Sin(yaw) * Mathf.Cos(pitch),
+                Mathf.Sin(pitch),
+                Mathf.Cos(yaw) * Mathf.Cos(pitch)) * _orbitDist;
+            _cam.orthographic = false;
+            _cam.fieldOfView = 42f;
+            _cam.transform.position = _orbitTarget + offset;
+            _cam.transform.LookAt(_orbitTarget);
         }
 
         void HandlePlanningInput()
@@ -303,6 +394,17 @@ namespace AI2School.Game
             float cz = Mathf.Round(world.z / CellSize) * CellSize;
             TryPlace(SelectedPaletteId, cx, cz);
         }
+
+        /// <summary>Clear all placed pieces and reset the budget. Public for demo/test builders.</summary>
+        public void ResetCity()
+        {
+            Pieces.Clear();
+            BudgetUsed = 0;
+            ApplyVisuals();
+        }
+
+        /// <summary>Show a transient status message via the HUD.</summary>
+        public void HudToast(string msg) => _hud?.Toast(msg);
 
         /// <summary>Place a palette piece at world (x,z), snapped to the grid. Public for smoke/UI tests.</summary>
         public bool TryPlace(string pieceId, float x, float z)

@@ -1074,6 +1074,7 @@ GameObject:
   m_Component:
   - component: {fileID: -3717114202187975224}
   - component: {fileID: -7923764110535651215}
+  - component: {fileID: -1766957480621564254}
   m_Layer: 0
   m_Name: animated-human
   m_TagString: Untagged
@@ -1119,6 +1120,22 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!111 &-1766957480621564254
+Animation:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2242888416370347441}
+  m_Enabled: 1
+  serializedVersion: 4
+  m_Animation: {fileID: 9165126705016892833, guid: dfd935f501ebf408fb1aa29ce9746a4c, type: 3}
+  m_Animations: []
+  m_WrapMode: 0
+  m_PlayAutomatically: 1
+  m_AnimatePhysics: 0
+  m_UpdateMode: 0
+  m_CullingType: 0
 --- !u!1 &2252326713397831932
 GameObject:
   m_ObjectHideFlags: 0

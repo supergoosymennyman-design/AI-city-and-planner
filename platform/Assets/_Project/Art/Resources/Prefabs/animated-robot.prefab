@@ -2432,6 +2432,7 @@ GameObject:
   m_Component:
   - component: {fileID: -3717114202187975224}
   - component: {fileID: -7923764110535651215}
+  - component: {fileID: 6857980944600883762}
   m_Layer: 0
   m_Name: animated-robot
   m_TagString: Untagged
@@ -2477,6 +2478,22 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!111 &6857980944600883762
+Animation:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2242888416370347441}
+  m_Enabled: 1
+  serializedVersion: 4
+  m_Animation: {fileID: -5461650136894869690, guid: ffa2b91a3200e41abb46fcfbc7802db3, type: 3}
+  m_Animations: []
+  m_WrapMode: 0
+  m_PlayAutomatically: 1
+  m_AnimatePhysics: 0
+  m_UpdateMode: 0
+  m_CullingType: 0
 --- !u!1 &2465707028495532670
 GameObject:
   m_ObjectHideFlags: 0
