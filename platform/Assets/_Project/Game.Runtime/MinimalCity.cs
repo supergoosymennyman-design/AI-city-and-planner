@@ -232,25 +232,30 @@ namespace AI2School.Game
         // ── Planning input ────────────────────────────────────────────────────
         void Update()
         {
-            if (Mode != CityMode.Planning) return;
-
-            if (Input.GetKeyDown(KeyCode.V))
-                ToggleOrbitView();
-
+            // Orbit camera works in ANY mode (planning OR simulating) so you can
+            // look around the demo while the sim runs. The V key itself is owned
+            // by MinimalBoot (single handling point) — this Update only drives
+            // the camera.
             if (_orbitActive)
+            {
                 HandleOrbitCamera();
-            else
+                return;
+            }
+
+            if (Mode == CityMode.Planning)
             {
                 HandlePlanningInput();
                 HandlePlanningCamera();
             }
         }
 
-        /// <summary>Switch between top-down planning camera and free orbit view.</summary>
+        /// <summary>Switch between the mode camera and free orbit view.</summary>
         public void ToggleOrbitView()
         {
             _orbitActive = !_orbitActive;
-            _hud?.Toast(_orbitActive ? "Orbit view — drag to rotate, scroll to zoom" : "Planning view");
+            _hud?.Toast(_orbitActive
+                ? "Orbit view — drag to rotate, scroll to zoom (V to exit)"
+                : Mode == CityMode.Simulating ? "Back to simulation view" : "Planning view");
             if (_orbitActive)
             {
                 var s = Manifest.footprint.sizeMeters;
@@ -262,7 +267,10 @@ namespace AI2School.Game
             }
             else
             {
-                EnterPlanningMode();
+                // Restore the camera for the CURRENT mode — never change Mode here
+                // (exiting orbit must not corrupt a running simulation).
+                if (_tiltRoutine != null) StopCoroutine(_tiltRoutine);
+                _tiltRoutine = StartCoroutine(TiltTo(Mode == CityMode.Simulating ? SimPose() : PlanningPose()));
             }
         }
 

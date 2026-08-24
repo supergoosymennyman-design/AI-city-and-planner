@@ -46,13 +46,20 @@ namespace AI2School.Game
         void Update()
         {
             if (Boot.HasArg("-smoke") || Boot.HasArg("-screenshot") || Boot.HasArg("-demo")) return;
-            if (_city.Mode != CityMode.Planning) return;
 
-            // D = build the demo city (walking people + driving cars) for preview.
+            // V toggles the orbit camera in ANY mode (planning or simulating) so
+            // you can look around the running demo. Single ownership here — the
+            // duplicate V handler in MinimalCity.Update was removed.
+            if (Input.GetKeyDown(KeyCode.V))
+            {
+                _city.ToggleOrbitView();
+                return;
+            }
+
+            // D / R only make sense in planning mode.
+            if (_city.Mode != CityMode.Planning) return;
             if (Input.GetKeyDown(KeyCode.D))
                 BuildDemoCity();
-            else if (Input.GetKeyDown(KeyCode.V))
-                _city.ToggleOrbitView();
             else if (Input.GetKeyDown(KeyCode.R))
                 _city.StartSimulation();
         }
