@@ -68,7 +68,7 @@ const WORDS = ('tiger bamboo river umbrella cloud robot rocket star sun moon app
   + 'north south east west summer autumn winter spring holiday morning noon evening night '
   + 'friend buddy helper captain pilot sailor farmer baker builder painter dancer singer '
   + 'hero legend champion warden keeper scout hunter ranger knight wizard ninja samurai '
-  + 'kite lantern pearl').split(/\s+/);
+  + 'kite lantern pearl').split(/\s+/).filter((w, i, a) => a.indexOf(w) === i);
 
 function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
 
