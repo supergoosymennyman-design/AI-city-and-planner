@@ -1,0 +1,6 @@
+{
+  "name": "buddy-kit",
+  "private": true,
+  "type": "commonjs",
+  "description": "P5 AI Coding Buddy integration kit. `type:commonjs` lets server/gateway.js (ESM, its own package.json) import named exports from logic/*.js, which use the dual window-global + module.exports guard and have no package.json of their own."
+}

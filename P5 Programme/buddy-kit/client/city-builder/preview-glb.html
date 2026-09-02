@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLB Preview</title>
+  <style>
+    body { margin: 0; background: #0b1220; overflow: hidden; font-family: system-ui, sans-serif; }
+    canvas { display: block; }
+    #info {
+      position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      color: #9fb0c7; font-size: 13px; background: rgba(0,0,0,0.55); padding: 6px 12px; border-radius: 8px;
+      max-width: 92vw; text-align: center;
+    }
+    #hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); color: #5b6b84; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="hint">drag to orbit · scroll to zoom</div>
+  <div id="info">loading…</div>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/three.module.js", "three/addons/": "/vendor/three/addons/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const params = new URLSearchParams(location.search);
+const model = params.get('model') || 'assets/models/office-tower.glb';
+const info = document.getElementById('info');
+info.textContent = 'Loading ' + model + '…';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x16224a);
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 5000);
+camera.position.set(60, 40, 80);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 1.0));
+const sun = new THREE.DirectionalLight(0xffd9b3, 1.4); sun.position.set(40, 80, 50); scene.add(sun);
+const rim = new THREE.DirectionalLight(0x00f2fe, 0.4); rim.position.set(-40, 30, -40); scene.add(rim);
+const grid = new THREE.GridHelper(300, 30, 0x33406e, 0x222b44);
+grid.position.y = 0.01;
+scene.add(grid);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 25, 0);
+controls.update();
+
+new GLTFLoader().load(model, (gltf) => {
+  const m = gltf.scene;
+  const box = new THREE.Box3().setFromObject(m);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  m.position.sub(center);
+  m.position.y += size.y / 2;          // sit the base on the grid
+  scene.add(m);
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  camera.position.set(maxDim * 1.2, maxDim * 0.8, maxDim * 1.4);
+  controls.target.set(0, size.y / 2, 0);
+  controls.update();
+  info.textContent = model + ' — ' + size.x.toFixed(1) + ' × ' + size.y.toFixed(1) + ' × ' + size.z.toFixed(1) + ' m';
+}, undefined, (e) => {
+  info.textContent = 'Failed: ' + e.message;
+});
+
+function loop() { requestAnimationFrame(loop); renderer.render(scene, camera); }
+loop();
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

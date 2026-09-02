@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Model Review — AI City</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --card:#1c2330; --line:#2d333b; --txt:#e6edf3; --dim:#8b949e; --acc:#ff6a3d; --danger:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,sans-serif; }
+  header { position:sticky; top:0; z-index:20; background:rgba(13,17,23,.95); border-bottom:1px solid var(--line); padding:10px 16px; }
+  h1 { font-size:18px; margin:0 0 8px; }
+  h1 small { color:var(--dim); font-weight:normal; margin-left:8px; }
+  .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  #search { flex:1; min-width:200px; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--txt); font-size:14px; }
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .tab { padding:5px 12px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--dim); cursor:pointer; font-size:12.5px; }
+  .tab:hover { color:var(--txt); }
+  .tab.on { background:var(--acc); border-color:var(--acc); color:#fff; font-weight:600; }
+  .selbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; padding:6px 10px; background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+  .selbar .cnt { font-size:12.5px; color:var(--txt); font-weight:600; }
+  .selbar button { padding:5px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--txt); cursor:pointer; font-size:12px; }
+  .selbar button:hover:not(:disabled) { border-color:var(--acc); }
+  .selbar button:disabled { opacity:.45; cursor:default; }
+  .selbar button.danger { background:var(--danger); border-color:var(--danger); color:#fff; font-weight:600; }
+  #status { margin-top:8px; font-size:12.5px; color:var(--dim); white-space:pre-wrap; }
+  #status.err { color:var(--danger); }
+  #status.ok { color:#3fb950; }
+  .sec { padding:12px 16px 4px; color:var(--dim); font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; padding:12px 16px 60px; }
+  .card { position:relative; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; cursor:pointer; transition:transform .12s, border-color .12s, box-shadow .12s; }
+  .card:hover { transform:translateY(-2px); border-color:var(--acc); }
+  .card.sel { border-color:var(--danger); box-shadow:0 0 0 2px var(--danger) inset; }
+  .card img { width:100%; aspect-ratio:1; object-fit:cover; background:#10141f; display:block; }
+  .card .meta { padding:6px 8px; }
+  .card .nm { font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card .id { font-size:10.5px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card .sz { font-size:10.5px; color:var(--dim); }
+  .badge { display:inline-block; font-size:9.5px; padding:1px 6px; border-radius:999px; background:#2d333b; color:var(--dim); margin-top:2px; }
+  .card .info { position:absolute; top:4px; right:4px; z-index:5; width:22px; height:22px; border-radius:6px; border:1px solid var(--line); background:rgba(13,17,23,.72); color:var(--dim); font-size:11px; line-height:1; cursor:pointer; }
+  .card .info:hover { color:var(--txt); border-color:var(--acc); }
+  .card .sel-badge { position:absolute; top:4px; left:4px; z-index:5; width:20px; height:20px; border-radius:50%; background:var(--danger); color:#fff; font-size:12px; font-weight:700; display:none; align-items:center; justify-content:center; }
+  .card.sel .sel-badge { display:flex; }
+  /* modal */
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.72); display:none; align-items:center; justify-content:center; z-index:50; }
+  #modal.open { display:flex; }
+  #modal .box { background:var(--panel); border:1px solid var(--line); border-radius:12px; max-width:560px; width:92%; padding:16px; }
+  #modal img { width:100%; border-radius:8px; background:#10141f; }
+  #modal .row { font-size:13px; margin:6px 0; color:var(--txt); }
+  #modal .row b { color:var(--dim); font-weight:600; }
+  #modal .close { float:right; cursor:pointer; color:var(--dim); font-size:18px; }
+  /* confirm modal */
+  #confirm { position:fixed; inset:0; background:rgba(0,0,0,.72); display:none; align-items:center; justify-content:center; z-index:60; }
+  #confirm.open { display:flex; }
+  #confirm .box { background:var(--panel); border:1px solid var(--line); border-radius:12px; max-width:640px; width:94%; max-height:80vh; padding:16px; display:flex; flex-direction:column; }
+  #confirm h3 { margin:0 0 10px; font-size:16px; }
+  #confirm h3 small { color:var(--dim); font-weight:normal; }
+  #confirm .list { overflow:auto; flex:1; border:1px solid var(--line); border-radius:8px; background:var(--bg); padding:6px; }
+  #confirm .li { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:6px; font-size:12.5px; }
+  #confirm .li:nth-child(odd) { background:rgba(255,255,255,.02); }
+  #confirm .li input { width:15px; height:15px; accent-color:var(--danger); cursor:pointer; }
+  #confirm .li .kn { color:var(--dim); font-size:10.5px; margin-left:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:45%; }
+  #confirm .li.off { opacity:.45; text-decoration:line-through; }
+  #confirm .btns { display:flex; gap:10px; justify-content:flex-end; margin-top:12px; }
+  #confirm .btns button { padding:8px 16px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--txt); cursor:pointer; font-size:13px; }
+  #confirm .btns button.danger { background:var(--danger); border-color:var(--danger); color:#fff; font-weight:600; }
+  #confirm .btns button:disabled { opacity:.45; cursor:default; }
+  #count { color:var(--dim); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧊 3D Model Review <small id="count"></small></h1>
+  <div class="bar">
+    <input id="search" placeholder="Search name or id…">
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="selbar">
+    <span class="cnt" id="selCount">0 selected</span>
+    <button id="selAll">Select all in view</button>
+    <button id="selClear">Clear</button>
+    <button id="selRemove" class="danger" disabled>Remove selected…</button>
+  </div>
+  <div id="status"></div>
+</header>
+<div id="grid"></div>
+<div id="modal"><div class="box"><span class="close" id="mclose">✕</span><img id="mimg" alt=""><div class="row"><b>Name:</b> <span id="mname"></span></div><div class="row"><b>ID:</b> <span id="mid"></span></div><div class="row"><b>Path:</b> <span id="mpath"></span></div><div class="row"><b>Size:</b> <span id="msize"></span></div></div></div>
+<div id="confirm"><div class="box">
+  <h3>Remove <span id="confirmN">0</span> model(s)? <small>Files move to a recoverable trash folder — not permanently deleted.</small></h3>
+  <div class="list" id="confirmList"></div>
+  <div class="btns">
+    <button id="confirmCancel">Cancel</button>
+    <button id="confirmGo" class="danger" disabled>Confirm remove</button>
+  </div>
+</div></div>
+
+<script type="module">
+import { LIBRARY } from '../city-common/library.js';
+
+let libSizes = {};
+try { libSizes = Object.fromEntries((await (await fetch('review-library.json')).json()).map((x) => [x.id, x.size])); } catch {}
+let cityManifest = [];
+try { cityManifest = await (await fetch('review-manifest.json')).json(); } catch {}
+
+const fmt = (b) => b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : b > 1024 ? Math.round(b / 1024) + ' KB' : b + ' B';
+
+// Build the flat review list: library (with category) + city-only (with group)
+const libCards = LIBRARY.map((i) => ({
+  kind: 'lib', group: 'lib:' + i.category, category: i.category, name: i.name, id: i.id,
+  glb: i.glb, thumb: `../library/thumbnails/${i.id}.png`, path: i.glb, size: libSizes[i.id] || 0,
+}));
+const cityCards = cityManifest.map((m) => ({
+  kind: 'city', group: 'city:' + m.group, name: m.name, id: m.path, path: m.path,
+  thumb: m.thumb, size: m.size,
+}));
+const all = [...libCards, ...cityCards];
+
+// Tab model: 'all' + library categories (lib:…) + city groups (city:…)
+const libGroups = [...new Set(libCards.map((c) => c.group))];
+const cityGroups = [...new Set(cityCards.map((c) => c.group))].sort();
+const tabs = ['all', ...libGroups, ...cityGroups];
+const label = (g) => {
+  if (g === 'all') return 'All';
+  if (g.startsWith('lib:')) return g.slice(4)[0].toUpperCase() + g.slice(5);
+  return 'City · ' + g.slice(5);
+};
+
+const tabsEl = document.getElementById('tabs');
+const gridEl = document.getElementById('grid');
+const countEl = document.getElementById('count');
+const statusEl = document.getElementById('status');
+const selCountEl = document.getElementById('selCount');
+const selRemoveBtn = document.getElementById('selRemove');
+let active = 'all', q = '';
+
+const key = (c) => (c.kind === 'lib' ? 'lib:' + c.id : 'city:' + c.path);
+const selected = new Set();
+
+function setStatus(msg, cls) { statusEl.textContent = msg; statusEl.className = cls || ''; }
+
+function renderTabs() {
+  tabsEl.innerHTML = '';
+  for (const g of tabs) {
+    const b = document.createElement('button');
+    b.className = 'tab' + (g === active ? ' on' : '');
+    b.textContent = label(g);
+    b.onclick = () => { active = g; renderTabs(); renderGrid(); };
+    tabsEl.appendChild(b);
+  }
+}
+
+function matches(c) {
+  if (active !== 'all' && c.group !== active) return false;
+  if (!q) return true;
+  return (c.name + ' ' + c.id).toLowerCase().includes(q);
+}
+
+function renderSelectionBar() {
+  selCountEl.textContent = `${selected.size} selected`;
+  selRemoveBtn.disabled = selected.size === 0;
+}
+
+function renderGrid() {
+  const list = all.filter(matches);
+  countEl.textContent = `${list.length} models`;
+  gridEl.innerHTML = '';
+  for (const c of list) {
+    const k = key(c);
+    const card = document.createElement('div');
+    card.className = 'card' + (selected.has(k) ? ' sel' : '');
+    card.dataset.key = k;
+    card.innerHTML = `<button class="info" title="Inspect">ⓘ</button><div class="sel-badge">✓</div>
+      <img loading="lazy" src="${c.thumb}" alt="${c.name}">
+      <div class="meta"><div class="nm">${c.name}</div>
+      <div class="id">${c.kind === 'lib' ? c.id : c.path.split('/').slice(-2).join('/')}</div>
+      <div class="sz">${c.size ? fmt(c.size) : ''} <span class="badge">${c.group}</span></div></div>`;
+    card.onclick = () => { toggleSelect(c); };
+    card.querySelector('.info').onclick = (e) => { e.stopPropagation(); openModal(c); };
+    gridEl.appendChild(card);
+  }
+}
+
+function toggleSelect(c) {
+  const k = key(c);
+  if (selected.has(k)) selected.delete(k); else selected.add(k);
+  renderSelectionBar();
+  const el = gridEl.querySelector(`.card[data-key="${k}"]`);
+  if (el) el.classList.toggle('sel', selected.has(k));
+}
+
+function openModal(c) {
+  document.getElementById('mimg').src = c.thumb;
+  document.getElementById('mname').textContent = c.name;
+  document.getElementById('mid').textContent = c.id;
+  document.getElementById('mpath').textContent = c.path;
+  document.getElementById('msize').textContent = c.size ? fmt(c.size) : '—';
+  document.getElementById('modal').classList.add('open');
+}
+document.getElementById('mclose').onclick = () => document.getElementById('modal').classList.remove('open');
+document.getElementById('modal').onclick = (e) => { if (e.target.id === 'modal') document.getElementById('modal').classList.remove('open'); };
+
+document.getElementById('search').addEventListener('input', (e) => { q = e.target.value.trim().toLowerCase(); renderGrid(); });
+
+document.getElementById('selAll').onclick = () => {
+  for (const c of all.filter(matches)) selected.add(key(c));
+  renderSelectionBar(); renderGrid();
+};
+document.getElementById('selClear').onclick = () => {
+  selected.clear();
+  renderSelectionBar(); renderGrid();
+};
+
+// ── Confirm dialog: list every selected item, allow unchecking, then remove ──
+const confirmEl = document.getElementById('confirm');
+const confirmListEl = document.getElementById('confirmList');
+const confirmNEl = document.getElementById('confirmN');
+const confirmGoBtn = document.getElementById('confirmGo');
+
+function renderConfirm() {
+  const items = all.filter((c) => selected.has(key(c)));
+  confirmNEl.textContent = items.length;
+  confirmGoBtn.disabled = items.length === 0;
+  confirmListEl.innerHTML = '';
+  for (const c of items) {
+    const row = document.createElement('label');
+    row.className = 'li';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.onchange = () => {
+      if (cb.checked) selected.add(key(c)); else selected.delete(key(c));
+      row.classList.toggle('off', !cb.checked);
+      renderConfirm(); renderSelectionBar(); renderGrid();
+    };
+    const nm = document.createElement('span');
+    nm.textContent = c.name;
+    const kn = document.createElement('span');
+    kn.className = 'kn';
+    kn.textContent = c.kind === 'lib' ? c.id : c.path;
+    row.append(cb, nm, kn);
+    confirmListEl.appendChild(row);
+  }
+}
+
+selRemoveBtn.onclick = () => {
+  if (!selected.size) return;
+  setStatus('');
+  renderConfirm();
+  confirmEl.classList.add('open');
+};
+document.getElementById('confirmCancel').onclick = () => confirmEl.classList.remove('open');
+confirmEl.onclick = (e) => { if (e.target.id === 'confirm') confirmEl.classList.remove('open'); };
+
+confirmGoBtn.onclick = async () => {
+  const items = all.filter((c) => selected.has(key(c)));
+  if (!items.length) return;
+  confirmGoBtn.disabled = true;
+  confirmGoBtn.textContent = 'Removing…';
+  try {
+    const res = await fetch('http://localhost:8390/api/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    confirmEl.classList.remove('open');
+    setStatus(
+      `Removed ${data.removed.length}.` +
+      (data.errors && data.errors.length ? `\nErrors (skipped): ${data.errors.join('\n')}` : '') +
+      (data.warnings && data.warnings.length ? `\nReferenced elsewhere — check:\n${data.warnings.join('\n')}` : ''),
+      data.errors && data.errors.length ? 'err' : 'ok'
+    );
+    selected.clear();
+    renderSelectionBar();
+    setTimeout(() => location.reload(), 2200);
+  } catch (e) {
+    confirmGoBtn.disabled = false;
+    confirmGoBtn.textContent = 'Confirm remove';
+    setStatus('Could not reach the removal server. Start it with:  node scripts/review-removal-server.mjs   (listening on :8390)\n' + e.message, 'err');
+  }
+};
+
+// "start with buildings": default the active tab to the library Buildings group.
+if (tabs.includes('lib:buildings')) active = 'lib:buildings';
+
+renderTabs();
+renderGrid();
+renderSelectionBar();
+</script>
+</body>
+</html>

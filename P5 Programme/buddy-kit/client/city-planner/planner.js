@@ -14,14 +14,37 @@
  * template (city-builder) consumes this exact schema.
  */
 
-import { CATALOG, CATALOG_ORDER, catalogType, isSpecial } from '../city-common/catalog.js';
-import { defaultLayout, sanitizeLayout, validateLayout, ROAD_WIDTH } from '../city-common/layout.js';
-import { computeMetrics } from '../city-common/metrics.js';
-import { optimizeLayout } from '../city-common/optimize.js';
+import { CATALOG, CATALOG_ORDER, isSpecial } from '../city-common/catalog.js';
+import { defaultLayout, sanitizeLayout, validateLayout, ROAD_WIDTH, typeSpec } from '../city-common/layout.js';
+import { LIBRARY_CATEGORIES, libraryItem, libraryByCategory } from '../city-common/library.js';
+import { computeMetrics, METRIC_PARAMS, GOAL_KEYS, stars, normalizeWeights, defaultMetricWeights } from '../city-common/metrics.js';
+import { optimizeLayout, proposeMoves, applyMove } from '../city-common/optimize.js';
+import { computeWalkReach, walkPath, WALK_BUDGET } from '../city-common/walkability.js';
+import { ROAD_TEMPLATES, getRoadTemplate } from '../city-common/road-templates.js';
+import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt } from '../city-common/champion-file.js';
 
 const SCALE = 2000;                  // plan meters per side
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
 const MAX_UNDO = 60;
+// Planner's License gate: shared with the City Planning Academy pregame.
+const LICENSE_KEY = 'CITYSMART-P5-2026';
+const UNLOCK_STORAGE_KEY = 'p5_planner_unlocked';
+
+// ─── Goal model (display) ─────────────────────────────
+const GOAL_META = {
+  happy: { name: 'Happy Homes', emoji: '🏘️' },
+  walkable: { name: 'Easy to get around', emoji: '🚶' },
+  peaceful: { name: 'Peaceful', emoji: '🤫' },
+  spread: { name: 'Balanced & spread out', emoji: '🧩' },
+};
+
+// Mayor personas: each is a fixed set of goal weights + a one-line brief.
+const MAYORS = {
+  green: { name: 'Green Mayor', emoji: '🌳', brief: 'Parks, walking, fresh air', weights: { happy: 0.45, walkable: 0.30, peaceful: 0.15, spread: 0.10 } },
+  healthy: { name: 'Healthy Mayor', emoji: '🚑', brief: 'Hospitals, fire, quiet homes', weights: { happy: 0.50, peaceful: 0.25, walkable: 0.15, spread: 0.10 } },
+  busy: { name: 'Busy Mayor', emoji: '🛍️', brief: 'Shops, offices, everywhere reachable', weights: { happy: 0.30, walkable: 0.30, spread: 0.25, peaceful: 0.15 } },
+  quiet: { name: 'Quiet Mayor', emoji: '🤫', brief: 'Peace and calm, spread out', weights: { peaceful: 0.40, spread: 0.30, happy: 0.15, walkable: 0.15 } },
+};
 
 // ─── State ──────────────────────────────────────────────
 const state = {
@@ -33,6 +56,18 @@ const state = {
   undoStack: [],
   gesture: null,
   aiBusy: false,
+  // Goals: null weights = Balanced (default fixed blend).
+  goalWeights: null,      // {happy, walkable, peaceful, spread} | null
+  goalMode: 'mayor',      // 'mayor' | 'custom'
+  mayorId: null,          // null = balanced, else MAYORS key
+  sliderVals: { happy: 30, walkable: 30, peaceful: 20, spread: 20 },
+  viewMode: 'normal',     // 'normal' | 'happy' | 'walk' | 'ranges'
+  farmMode: 'off',        // 'auto' | 'off' | 'manual' — rural farm ring
+  walkCache: null,
+  homeHappy: [],          // per-building index: 0..1 served share (null = not housing)
+  homeWalk: [],           // per-building index: walk reach 0..1 (null = not housing)
+  lastMetrics: null,      // most recent computeMetrics result (for receipt + deltas)
+  mymove: null,           // active "My move" state (moves + student picks)
 };
 
 // ─── DOM ────────────────────────────────────────────────
@@ -44,6 +79,13 @@ const scoreEl = document.getElementById('score');
 const problemsEl = document.getElementById('problems');
 const aiOutput = document.getElementById('ai-output');
 const toastEl = document.getElementById('toast');
+const goalList = document.getElementById('goal-list');
+const selectedInfo = document.getElementById('selected-info');
+const goalsModal = document.getElementById('goals-modal');
+const mayorGrid = document.getElementById('mayor-grid');
+const sliderList = document.getElementById('slider-list');
+const templateMenu = document.getElementById('template-menu');
+const farmMenu = document.getElementById('farm-menu');
 
 let dpr = 1;
 function resize() {
@@ -90,12 +132,17 @@ function render() {
   const w = canvas.getBoundingClientRect().width;
   const h = canvas.getBoundingClientRect().height;
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#0d1526';
+  // Soft radial wash instead of a flat fill (visual only).
+  const bg = ctx.createRadialGradient(w * 0.4, h * 0.25, 40, w * 0.5, h * 0.5, Math.max(w, h));
+  bg.addColorStop(0, '#111b38');
+  bg.addColorStop(1, '#0a1124');
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
 
   drawGrid(w, h);
   drawParks(w, h);
   drawRoads(w, h);
+  if (state.viewMode === 'ranges') drawRanges(w, h);
   drawBuildings(w, h);
   drawGesture(w, h);
 }
@@ -187,7 +234,51 @@ function drawRoads(w, h) {
 }
 
 function buildingFootprint(b) {
-  return b.footprint || catalogType(b.type)?.footprint || [20, 20];
+  return b.footprint || typeSpec(b.type)?.footprint || [20, 20];
+}
+
+function drawRanges(w, h) {
+  const layout = state.layout;
+  const serviceSet = new Set([...METRIC_PARAMS.serviceTypes, ...METRIC_PARAMS.utilityTypes]);
+  const isUtility = new Set(METRIC_PARAMS.utilityTypes);
+  const minP = screenToPlan(0, h), maxP = screenToPlan(w, 0);
+  const x0 = Math.min(minP.x, maxP.x), x1 = Math.max(minP.x, maxP.x);
+  const z0 = Math.min(minP.y, maxP.y), z1 = Math.max(minP.y, maxP.y);
+  const R = METRIC_PARAMS.coverageDist;          // 150m services/park
+  const RU = METRIC_PARAMS.utilityDist;          // 400m utilities
+
+  const drawCircle = (px, pz, r, color, label) => {
+    const c = planToScreen(px, pz);
+    const cr = r * state.view.px;
+    // Cull circles fully off-screen.
+    if (c.x + cr < 0 || c.x - cr > w || c.y + cr < 0 || c.y - cr > h) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.arc(c.x, c.y, cr, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    if (label) {
+      ctx.fillStyle = color;
+      ctx.font = '700 11px Nunito, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(label, c.x, c.y - cr - 14);
+    }
+  };
+
+  for (const b of layout.buildings) {
+    if (!serviceSet.has(b.type)) continue;
+    const r = isUtility.has(b.type) ? RU : R;
+    drawCircle(b.pos[0], b.pos[1], r, isUtility.has(b.type) ? 'rgba(0,183,255,0.8)' : 'rgba(0,255,157,0.8)', typeSpec(b.type)?.emoji || '');
+  }
+  for (const p of layout.parks) {
+    drawCircle(p.cx, p.cz, R, 'rgba(0,255,157,0.8)', '🌳');
+  }
+
+  // Legend hint (top-left of the canvas).
+  ctx.font = '700 12px Nunito, sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#9fe8b0';
+  ctx.fillText('⭕ 150m = services & parks   |   400m = water / power / bus', 14, 14);
 }
 
 function drawBuildings(w, h) {
@@ -198,7 +289,7 @@ function drawBuildings(w, h) {
   const z0 = Math.min(minP.y, maxP.y) - 40, z1 = Math.max(minP.y, maxP.y) + 40;
   for (let i = 0; i < layout.buildings.length; i++) {
     const b = layout.buildings[i];
-    const spec = catalogType(b.type);
+    const spec = typeSpec(b.type);
     const fp = buildingFootprint(b);
     if (b.pos[0] < x0 || b.pos[0] > x1 || b.pos[1] < z0 || b.pos[1] > z1) continue;
     const c = planToScreen(b.pos[0], b.pos[1]);
@@ -213,9 +304,13 @@ function drawBuildings(w, h) {
     ctx.globalAlpha = 0.85;
     ctx.fillRect(x, y, bw, bh);
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = i === state.selectedIdx ? '#ffffff' : 'rgba(0,0,0,0.4)';
-    ctx.lineWidth = i === state.selectedIdx ? 3 : 1;
+    // Selection ring: cyan glow so the active building reads clearly.
+    const selected = i === state.selectedIdx;
+    ctx.strokeStyle = selected ? '#00f2fe' : 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = selected ? 3 : 1;
+    if (selected) { ctx.shadowColor = '#00f2fe'; ctx.shadowBlur = 10; }
     ctx.strokeRect(x, y, bw, bh);
+    ctx.shadowBlur = 0;
 
     // Icon: ALWAYS draw the building's emoji (same icon as its catalog
     // button) so the student can identify what's what at any zoom. Sized from
@@ -225,6 +320,24 @@ function drawBuildings(w, h) {
     ctx.font = `${emojiSize}px sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(spec?.emoji || '🏢', c.x, c.y - emojiSize * 0.28);
+
+    // Lock badge — a small 🔒 in the corner so pinned buildings read clearly.
+    if (b.locked) {
+      ctx.font = `${Math.max(10, Math.min(16, emojiSize * 0.7))}px sans-serif`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText('🔒', x + 2, y + 2);
+    }
+
+    // Happiness / walk overlays — colour every home by how well it's served.
+    if (state.viewMode !== 'normal' && b.type === 'housing') {
+      const val = state.viewMode === 'happy' ? state.homeHappy[i] : state.homeWalk[i];
+      if (typeof val === 'number') {
+        const col = val >= 0.7 ? 'rgba(0,255,157,0.35)' : val >= 0.45 ? 'rgba(255,184,76,0.4)' : 'rgba(255,92,122,0.45)';
+        ctx.strokeStyle = col;
+        ctx.lineWidth = Math.max(3, Math.min(8, Math.min(bw, bh) * 0.22));
+        ctx.strokeRect(x + 2, y + 2, Math.max(1, bw - 4), Math.max(1, bh - 4));
+      }
+    }
 
     // Short label — only when the building is big enough to hold it (zoomed in).
     if (bw > 34) {
@@ -267,6 +380,36 @@ function drawGesture(w, h) {
 }
 
 // ─── Catalog drawer ─────────────────────────────────────
+const LIB_DRAWER_CATEGORIES = ['nature', 'props', 'vehicles', 'scenarios'];
+const LIB_CATEGORY_LABEL = { nature: 'Nature', props: 'Props', vehicles: 'Vehicles', scenarios: 'Themed' };
+
+// Farm palette — a curated rural set from the shared library so students can
+// build a farm ring/outskirts by hand (Manual mode) or let the planner add an
+// auto ring (Auto mode). Each id maps to a LIBRARY entry; placement reuses the
+// 'lib:<id>' path (layout + 3D builder both understand it).
+const FARM_ITEMS = [
+  { id: 'bld_farm_barn', name: 'Barn' },
+  { id: 'bld_farm_barn_big', name: 'Big Barn' },
+  { id: 'bld_farm_barn_open', name: 'Open Barn' },
+  { id: 'bld_farm_barn_small', name: 'Small Barn' },
+  { id: 'bld_farm_chicken_coop', name: 'Chicken Coop' },
+  { id: 'bld_farm_silo', name: 'Silo' },
+  { id: 'bld_farm_silo_house', name: 'Silo House' },
+  { id: 'bld_farm_windmill', name: 'Windmill' },
+  { id: 'bld_farm_windmill_tower', name: 'Windmill Tower' },
+  { id: 'bld_farm_water_tower', name: 'Water Tower' },
+  { id: 'nat_crop_wheat', name: 'Wheat Field' },
+  { id: 'nat_crop_corn', name: 'Corn Field' },
+  { id: 'nat_crop_pumpkin', name: 'Pumpkin Patch' },
+  { id: 'nat_crop_watermelon', name: 'Watermelon Field' },
+  { id: 'nat_crop_tomato', name: 'Tomato Field' },
+  { id: 'nat_crop_rice', name: 'Rice Field' },
+  { id: 'nat_crop_berries', name: 'Berry Bush' },
+  { id: 'prop_farm_well', name: 'Well' },
+  { id: 'prop_farm_fence', name: 'Fence' },
+  { id: 'prop_farm_fence_2', name: 'Fence B' },
+];
+
 function buildDrawer() {
   catalogList.innerHTML = '';
   const groups = [
@@ -294,6 +437,53 @@ function buildDrawer() {
       catalogList.appendChild(btn);
     }
   }
+  // Shared library items (nature / props / vehicles / themed) — placed as
+  // 'lib:<id>' types so the layout + 3D builder know they're library models.
+  for (const cat of LIB_DRAWER_CATEGORIES) {
+    const items = libraryByCategory(cat);
+    if (!items.length) continue;
+    const label = document.createElement('div');
+    label.className = 'drawer-title';
+    label.textContent = LIB_CATEGORY_LABEL[cat] || cat;
+    catalogList.appendChild(label);
+    for (const item of items) {
+      const btn = document.createElement('button');
+      btn.className = 'cat-btn lib';
+      btn.dataset.type = 'lib:' + item.id;
+      btn.innerHTML = `<span class="emoji">${item.emoji}</span><span class="name">${item.name}</span>`;
+      btn.addEventListener('click', () => {
+        state.selectedType = 'lib:' + item.id;
+        state.selectedIdx = -1;
+        setTool('place');
+        selectCatalogBtn('lib:' + item.id);
+        hint('Tap the map to place the ' + item.name + '.');
+      });
+      catalogList.appendChild(btn);
+    }
+  }
+  // Farm palette — rural set for the farm-ring feature. Uses the same 'lib:'
+  // path as the shared-library drawer so farm buildings/crops/fences render in
+  // the 3D builder with no extra wiring.
+  const farmLabel = document.createElement('div');
+  farmLabel.className = 'drawer-title';
+  farmLabel.textContent = '🚜 Farm';
+  catalogList.appendChild(farmLabel);
+  for (const f of FARM_ITEMS) {
+    const spec = libraryItem(f.id);
+    if (!spec) continue;
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn lib';
+    btn.dataset.type = 'lib:' + f.id;
+    btn.innerHTML = `<span class="emoji">${spec.emoji}</span><span class="name">${f.name}</span>`;
+    btn.addEventListener('click', () => {
+      state.selectedType = 'lib:' + f.id;
+      state.selectedIdx = -1;
+      setTool('place');
+      selectCatalogBtn('lib:' + f.id);
+      hint('Tap the map to place the ' + f.name + '.');
+    });
+    catalogList.appendChild(btn);
+  }
   selectCatalogBtn(state.selectedType);
 }
 
@@ -307,6 +497,7 @@ function selectCatalogBtn(key) {
 function setTool(tool) {
   state.tool = tool;
   state.selectedIdx = -1;
+  renderSelectedInfo();
   document.querySelectorAll('.tool-btn').forEach((b) => {
     const on = b.dataset.tool === tool;
     b.classList.toggle('active', on);
@@ -376,6 +567,7 @@ canvas.addEventListener('pointerdown', (e) => {
         state.gesture.mode = 'move';
         state.gesture.movingIdx = hit;
         state.selectedIdx = hit;
+        renderSelectedInfo();
         render();
       } else {
         state.gesture.mode = 'pan';
@@ -548,7 +740,7 @@ function hitBuilding(sx, sy) {
 }
 
 function placeBuilding(x, y) {
-  const spec = catalogType(state.selectedType);
+  const spec = typeSpec(state.selectedType);
   if (!spec) return;
   pushUndo();
   state.layout.buildings.push({
@@ -565,6 +757,7 @@ function placeBuilding(x, y) {
 function pushUndo() {
   state.undoStack.push(JSON.stringify(state.layout));
   if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
+  _walkDirty = true;   // the layout changed — recompute walk on next metrics pass
 }
 function undo() {
   const snap = state.undoStack.pop();
@@ -600,7 +793,7 @@ function deleteSelectedOrClear() {
     state.selectedIdx = -1;
     updateMetrics();
     render();
-    const name = catalogType(b.type)?.name || b.type;
+    const name = typeSpec(b.type)?.name || b.type;
     toast(`🗑️ Removed the ${name}`);
     return;
   }
@@ -609,54 +802,28 @@ function deleteSelectedOrClear() {
 
 // ─── Road templates ────────────────────────────────────
 // Premade road networks for students who don't want to draw roads freeform
-// (it can look messy). Picking one clears the city and loads ONLY the roads
-// (plus maybe a central park) so the student fills in the buildings.
-const ROAD_TEMPLATES = {
-  grid: {
-    name: 'City Grid',
-    roads: [
-      // 3 horizontal + 3 vertical primary roads forming a classic grid
-      { points: [[150, 500], [1850, 500]], width: 14, class: 'primary' },
-      { points: [[150, 1000], [1850, 1000]], width: 14, class: 'primary' },
-      { points: [[150, 1500], [1850, 1500]], width: 14, class: 'primary' },
-      { points: [[500, 150], [500, 1850]], width: 14, class: 'primary' },
-      { points: [[1000, 150], [1000, 1850]], width: 14, class: 'primary' },
-      { points: [[1500, 150], [1500, 1850]], width: 14, class: 'primary' },
-      // a couple of quieter secondary roads for variety
-      { points: [[150, 750], [1850, 750]], width: 10, class: 'secondary' },
-      { points: [[150, 1250], [1850, 1250]], width: 10, class: 'secondary' },
-    ],
-    parks: [{ cx: 1000, cz: 1000, radius: 70 }],
-  },
-  radial: {
-    name: 'Radial Ring',
-    roads: [
-      // a central ring
-      (() => {
-        const ring = [];
-        const cx = 1000, cz = 1000, r = 380, n = 24;
-        for (let i = 0; i <= n; i++) {
-          const a = (i / n) * Math.PI * 2;
-          ring.push([Math.round(cx + Math.cos(a) * r), Math.round(cz + Math.sin(a) * r)]);
-        }
-        return { points: ring, width: 12, class: 'primary' };
-      })(),
-      // 6 spokes from the centre out to the ring
-      { points: [[1000, 1000], [1000, 160]], width: 10, class: 'secondary' },
-      { points: [[1000, 1000], [1000, 1840]], width: 10, class: 'secondary' },
-      { points: [[1000, 1000], [160, 1000]], width: 10, class: 'secondary' },
-      { points: [[1000, 1000], [1840, 1000]], width: 10, class: 'secondary' },
-      { points: [[1000, 1000], [406, 406]], width: 10, class: 'secondary' },
-      { points: [[1000, 1000], [1594, 1594]], width: 10, class: 'secondary' },
-      { points: [[1000, 1000], [406, 1594]], width: 10, class: 'secondary' },
-      { points: [[1000, 1000], [1594, 406]], width: 10, class: 'secondary' },
-    ],
-    parks: [{ cx: 1000, cz: 1000, radius: 55 }],
-  },
-};
+// (it can look messy). The 8 templates live in city-common/road-templates.js.
+// Picking one clears the city and loads ONLY the roads (plus maybe a central
+// park) so the student fills in the buildings.
+function renderTemplates() {
+  const list = document.getElementById('template-list');
+  if (!list) return;
+  list.innerHTML = '';
+  for (const t of ROAD_TEMPLATES) {
+    const item = document.createElement('button');
+    item.className = 'template-item';
+    item.dataset.template = t.id;
+    item.innerHTML = `<span class="tpl-emoji">${t.emoji}</span> <span class="tpl-name">${t.name}</span><span class="tpl-good">for the ${t.goodFor}</span>`;
+    item.addEventListener('click', () => {
+      loadRoadTemplate(t.id);
+      templateMenu.classList.add('hidden');
+    });
+    list.appendChild(item);
+  }
+}
 
 function loadRoadTemplate(key) {
-  const tpl = ROAD_TEMPLATES[key];
+  const tpl = getRoadTemplate(key);
   if (!tpl) return;
   pushUndo();
   state.layout = defaultLayout();
@@ -672,18 +839,638 @@ function loadRoadTemplate(key) {
   toast(`🛤️ Loaded the ${tpl.name} roads — now place your buildings!`);
 }
 
+// ─── Farm ring (rural outskirts) ────────────────────────
+// Students can toggle the farmland: Auto (generate a ring of barns, fields and
+// fences at the city edge), Off (nothing), or Manual (farm pieces live in the
+// drawer, placed by hand). Farm entries are 'lib:<id>' buildings so the layout
+// + 3D builder render them with zero extra wiring.
+const FARM_RING = {
+  barns: ['bld_farm_barn', 'bld_farm_barn_big', 'bld_farm_barn_open', 'bld_farm_barn_small', 'bld_farm_chicken_coop', 'bld_farm_silo', 'bld_farm_silo_house', 'bld_farm_windmill', 'bld_farm_windmill_tower', 'bld_farm_water_tower'],
+  fields: ['nat_crop_wheat', 'nat_crop_corn', 'nat_crop_pumpkin', 'nat_crop_watermelon', 'nat_crop_tomato', 'nat_crop_rice', 'nat_crop_berries'],
+  deco: ['prop_farm_well', 'prop_farm_fence', 'prop_farm_fence_2'],
+};
+
+function isFarmLibType(type) {
+  if (!type || !type.startsWith('lib:')) return false;
+  const id = type.slice(4);
+  return FARM_RING.barns.includes(id) || FARM_RING.fields.includes(id) || FARM_RING.deco.includes(id);
+}
+
+function farmSpec(id) {
+  const lib = libraryItem(id);
+  return lib ? { id, name: lib.name, emoji: lib.emoji, footprint: lib.footprint, height: lib.height } : null;
+}
+
+/** Remove any existing farm entries from the layout (auto or manual). */
+function removeFarmEntries() {
+  const before = state.layout.buildings.length;
+  state.layout.buildings = state.layout.buildings.filter((b) => !isFarmLibType(b.type));
+  return state.layout.buildings.length !== before;
+}
+
+/** Generate a rural ring of farm buildings + crop fields at the map edges. */
+function addFarmRing() {
+  removeFarmEntries();
+  const M = SCALE;                    // plan is 0..SCALE (2000m)
+  const edge = 90;                    // distance from the border
+  const ring = [];
+  const pushFarm = (id, x, z, rotY) => {
+    const spec = farmSpec(id);
+    if (!spec) return;
+    ring.push({
+      type: 'lib:' + id,
+      pos: [Math.round(x), Math.round(z)],
+      footprint: spec.footprint,
+      height: spec.height,
+      ...(rotY ? { rotY } : {}),
+    });
+  };
+  const band = (coord, spread) => coord + (Math.random() - 0.5) * spread;
+  const spots = 8;                    // 8 barns/buildings around the ring
+  for (let i = 0; i < spots; i++) {
+    const t = (i / spots) * Math.PI * 2 + Math.random() * 0.5;
+    const cx = M / 2 + Math.cos(t) * (M / 2 - edge);
+    const cz = M / 2 + Math.sin(t) * (M / 2 - edge);
+    const bld = FARM_RING.barns[i % FARM_RING.barns.length];
+    pushFarm(bld, band(cx, 60), band(cz, 60), Math.floor(Math.random() * 4) * 90);
+  }
+  // Fields: scatter a couple of crops near each barn.
+  for (let i = 0; i < spots; i++) {
+    const t = (i / spots) * Math.PI * 2 + Math.random() * 0.5;
+    const cx = M / 2 + Math.cos(t) * (M / 2 - edge - 40);
+    const cz = M / 2 + Math.sin(t) * (M / 2 - edge - 40);
+    const crop = FARM_RING.fields[i % FARM_RING.fields.length];
+    pushFarm(crop, band(cx, 50), band(cz, 50), Math.floor(Math.random() * 4) * 90);
+  }
+  // A few wells + fences as accents.
+  for (let i = 0; i < 4; i++) {
+    const t = (i / 4) * Math.PI * 2 + 0.3;
+    const cx = M / 2 + Math.cos(t) * (M / 2 - edge - 20);
+    const cz = M / 2 + Math.sin(t) * (M / 2 - edge - 20);
+    pushFarm(i % 2 ? 'prop_farm_well' : 'prop_farm_fence', band(cx, 40), band(cz, 40));
+  }
+  state.layout.buildings.push(...ring);
+}
+
+/** Apply the farm mode choice to the current layout. */
+function applyFarmMode(mode) {
+  state.farmMode = mode;
+  if (mode === 'auto') {
+    addFarmRing();
+    toast('🌾 Farm ring added around the city!');
+  } else if (mode === 'off') {
+    if (removeFarmEntries()) toast('🚫 Farm ring removed.');
+    else toast('No farm entries to remove.');
+  } else {
+    // manual — nothing auto-placed; farm pieces are in the drawer.
+    toast('✋ Farm: place pieces yourself from the drawer.');
+  }
+  pushUndo();
+  updateMetrics();
+  render();
+}
+
+function renderFarmMode() {
+  const btn = document.getElementById('btn-farm');
+  const opts = document.querySelectorAll('.farm-opt');
+  if (!btn || !opts.length) return;
+  const labels = { auto: '🌾 Auto', off: '🚜 Farm', manual: '✋ Farm' };
+  btn.textContent = labels[state.farmMode] || labels.off;
+  opts.forEach((o) => o.classList.toggle('active', o.dataset.farm === state.farmMode));
+}
+
+function initFarmMenu() {
+  const btn = document.getElementById('btn-farm');
+  if (!btn || !farmMenu) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    farmMenu.classList.toggle('hidden');
+  });
+  document.querySelectorAll('.farm-opt').forEach((o) => {
+    o.addEventListener('click', () => {
+      applyFarmMode(o.dataset.farm);
+      farmMenu.classList.add('hidden');
+    });
+  });
+  document.addEventListener('click', () => farmMenu.classList.add('hidden'));
+  renderFarmMode();
+}
+
 // ─── Metrics panel ──────────────────────────────────────
+let _walkDirty = true;
+function computeWalkState() {
+  if (!_walkDirty && state.walkCache) return state.walkCache;
+  _walkDirty = false;
+  state.walkCache = computeWalkReach(state.layout);
+  return state.walkCache;
+}
+
+function effectiveWeights() {
+  return state.goalWeights;   // null = Balanced (default fixed blend)
+}
+
 function updateMetrics() {
-  const m = computeMetrics(state.layout);
+  const weights = effectiveWeights();
+  const walk = computeWalkState();
+  const m = computeMetrics(state.layout, undefined, weights, walk);
+  state.lastMetrics = m;
   scoreEl.textContent = m.score;
   scoreEl.style.setProperty('--pct', String(m.score));
 
+  // Per-home happiness (services + utilities + park within straight range).
+  state.homeHappy = state.layout.buildings.map((b) => {
+    if (b.type !== 'housing') return null;
+    let served = 0;
+    for (const o of state.layout.buildings) {
+      if (o === b) continue;
+      const d = Math.hypot(b.pos[0] - o.pos[0], b.pos[1] - o.pos[1]);
+      if (METRIC_PARAMS.serviceTypes.includes(o.type) && d <= METRIC_PARAMS.coverageDist) served++;
+      if (METRIC_PARAMS.utilityTypes.includes(o.type) && d <= METRIC_PARAMS.utilityDist) served++;
+    }
+    const park = state.layout.parks.some((p) =>
+      Math.hypot(b.pos[0] - p.cx, b.pos[1] - p.cz) <= METRIC_PARAMS.coverageDist);
+    if (park) served++;
+    return served / 9;
+  });
+  // Per-home walk reach (indexes align: homes iterate in order).
+  state.homeWalk = state.layout.buildings.map(() => null);
+  let hi = 0;
+  state.layout.buildings.forEach((b, idx) => {
+    if (b.type === 'housing' && walk.homes[hi] != null) {
+      state.homeWalk[idx] = walk.homes[hi].reach;
+      hi++;
+    } else if (b.type === 'housing') {
+      hi++;
+    }
+  });
+
+  renderGoalList(m);
   problemsEl.innerHTML = '';
   for (const p of m.problems) {
     const el = document.createElement('p');
     el.textContent = '⚠️ ' + p;
     problemsEl.appendChild(el);
   }
+  renderSelectedInfo();
+  requestRender();
+}
+
+function starHTML(n) {
+  let out = '';
+  for (let i = 1; i <= 5; i++) out += i <= n ? '★' : '☆';
+  return out;
+}
+
+function renderGoalList(m) {
+  goalList.innerHTML = '';
+  for (const g of GOAL_KEYS) {
+    const meta = GOAL_META[g];
+    const val = m.goals[g] || 0;
+    const s = stars(val);
+    const hint = m.goalHints[g];
+    const row = document.createElement('div');
+    row.className = 'goal-row';
+    row.innerHTML = `
+      <div class="goal-line">
+        <span class="goal-emoji">${meta.emoji}</span>
+        <span class="goal-name">${meta.name}</span>
+        <span class="goal-stars" title="${Math.round(val * 100)}%">${starHTML(s)}</span>
+      </div>
+      ${hint && s < 3 ? `<div class="goal-hint">💡 ${hint}</div>` : ''}
+    `;
+    goalList.appendChild(row);
+  }
+}
+
+// ─── Selected building: lock / remove ───────────────────
+function renderSelectedInfo() {
+  const idx = state.selectedIdx;
+  const b = idx >= 0 ? state.layout.buildings[idx] : null;
+  if (!b) { selectedInfo.innerHTML = ''; return; }
+  const spec = typeSpec(b.type);
+  const name = spec?.name || b.type;
+  const locked = !!b.locked;
+  selectedInfo.innerHTML = `
+    <div class="sel-title">${spec?.emoji || ''} ${name}${locked ? ' 🔒' : ''}</div>
+    <div class="sel-actions">
+      <button id="sel-lock" class="sel-btn ${locked ? 'locked' : ''}">${locked ? '🔓 Unlock' : '🔒 Keep here'}</button>
+      <button id="sel-delete" class="sel-btn">🗑️ Remove</button>
+    </div>`;
+  document.getElementById('sel-lock').addEventListener('click', toggleLock);
+  document.getElementById('sel-delete').addEventListener('click', () => deleteSelectedOrClear());
+}
+
+function toggleLock() {
+  const b = state.layout.buildings[state.selectedIdx];
+  if (!b) return;
+  pushUndo();
+  b.locked = !b.locked;
+  _walkDirty = true;
+  updateMetrics();
+  render();
+  toast(b.locked
+    ? `🔒 ${typeSpec(b.type)?.name || 'This building'} is kept in place — the optimizer won't move it.`
+    : '🔓 Unlocked — the optimizer may move it again.');
+}
+
+// ─── Goals modal (mayor personas + custom sliders) ─────
+function openGoalsModal() {
+  renderMayorCards();
+  renderSliders();
+  updateGoalsTabs();
+  goalsModal.classList.remove('hidden');
+}
+
+function updateGoalsTabs() {
+  document.getElementById('goals-tab-mayor').classList.toggle('active', state.goalMode === 'mayor');
+  document.getElementById('goals-tab-custom').classList.toggle('active', state.goalMode === 'custom');
+  document.getElementById('goals-mayor-pane').classList.toggle('hidden', state.goalMode !== 'mayor');
+  document.getElementById('goals-custom-pane').classList.toggle('hidden', state.goalMode !== 'custom');
+}
+
+function renderMayorCards() {
+  mayorGrid.innerHTML = '';
+  for (const id of Object.keys(MAYORS)) {
+    const m = MAYORS[id];
+    const card = document.createElement('button');
+    card.className = 'mayor-card' + (state.mayorId === id ? ' selected' : '');
+    card.dataset.mayor = id;
+    card.innerHTML = `
+      <div class="mayor-emoji">${m.emoji}</div>
+      <div class="mayor-name">${m.name}</div>
+      <div class="mayor-brief">${m.brief}</div>`;
+    card.addEventListener('click', () => {
+      state.goalMode = 'mayor';
+      state.mayorId = id;
+      state.goalWeights = { ...m.weights };
+      renderMayorCards();
+      updateGoalsTabs();
+      updateMetrics();
+    });
+    mayorGrid.appendChild(card);
+  }
+  const balanced = document.getElementById('btn-mayor-balanced');
+  if (balanced) balanced.classList.toggle('selected', state.mayorId === null);
+}
+
+function renderSliders() {
+  sliderList.innerHTML = '';
+  const base = state.goalWeights || state.sliderVals;
+  const vals = {};
+  for (const g of GOAL_KEYS) {
+    vals[g] = Math.round((base[g] != null ? base[g] : 0.25) * 100);
+  }
+  for (const g of GOAL_KEYS) {
+    const meta = GOAL_META[g];
+    const wrap = document.createElement('div');
+    wrap.className = 'slider-row';
+    wrap.innerHTML = `
+      <div class="slider-label"><span class="slider-emoji">${meta.emoji}</span> ${meta.name}</div>
+      <input type="range" min="0" max="100" value="${vals[g]}" class="goal-slider" data-goal="${g}" aria-label="${meta.name} importance">
+      <span class="slider-val" data-val="${g}">${vals[g]}</span>`;
+    wrap.querySelector('.goal-slider').addEventListener('input', (e) => {
+      const goal = e.target.dataset.goal;
+      state.sliderVals[goal] = Number(e.target.value);
+      wrap.querySelector('.slider-val').textContent = e.target.value;
+      state.goalMode = 'custom';
+      state.goalWeights = { ...state.sliderVals };
+      updateGoalsTabs();
+      updateMetrics();
+    });
+    sliderList.appendChild(wrap);
+  }
+}
+
+function closeGoalsModal() {
+  goalsModal.classList.add('hidden');
+}
+
+// ─── Score receipt (weighted-sum breakdown) ─────────────
+const RECEIPT_META = [
+  { key: 'accessibility', emoji: '🛣️', name: 'Easy to get around', hint: 'Buildings within 60m of a road.' },
+  { key: 'coverage', emoji: '🏘️', name: 'Homes have services', hint: 'Homes within 150m of school/shop/hospital/fire/police.' },
+  { key: 'utilities', emoji: '💧', name: 'Water, power & buses', hint: 'Homes within 400m of water/power/bus.' },
+  { key: 'zoning', emoji: '🤫', name: 'Quiet & safe', hint: 'Noisy buildings kept away from homes.' },
+  { key: 'spread', emoji: '🧩', name: 'Spread out', hint: 'Mission buildings not clustered together.' },
+  { key: 'balance', emoji: '⚖️', name: 'Good mix', hint: 'A sensible mix of different buildings.' },
+];
+
+function openReceipt() {
+  const m = state.lastMetrics || computeMetrics(state.layout, undefined, effectiveWeights(), computeWalkState());
+  const weights = effectiveWeights();
+  // Resolve the metric-level weights actually used (default blend or mayor/custom).
+  const mw = weights ? normalizeWeights(weights) : defaultMetricWeights();
+  const rows = RECEIPT_META.map((r) => {
+    const raw = m[r.key] || 0;
+    const w = mw[r.key] || 0;
+    const points = raw * w * 100;
+    return `<button class="receipt-row" data-metric="${r.key}">
+      <span class="receipt-emoji">${r.emoji}</span>
+      <span class="receipt-name">${r.name}</span>
+      <span class="receipt-math">${Math.round(raw * 100)}% × ${Math.round(w * 100)}%</span>
+      <span class="receipt-points">${points.toFixed(1)}</span>
+    </button>`;
+  }).join('');
+  document.getElementById('receipt-total').textContent = m.score;
+  document.getElementById('receipt-list').innerHTML = rows;
+  const note = weights
+    ? 'These are <strong>your</strong> weights (your mayor or sliders). Changing a goal changes how the city is judged.'
+    : 'These are the default weights — each part of a good city is worth a share. Tap 🎚️ Goals to change what matters most.';
+  document.getElementById('receipt-note').innerHTML = note;
+  const modal = document.getElementById('receipt-modal');
+  modal.classList.remove('hidden');
+  modal.querySelectorAll('[data-receipt-close]').forEach((el) => el.addEventListener('click', closeReceipt));
+  modal.querySelectorAll('.receipt-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const metric = row.dataset.metric;
+      // Jump to the view that visualises this part.
+      if (metric === 'coverage' || metric === 'utilities') setViewMode('ranges');
+      else if (metric === 'accessibility') setViewMode('ranges');
+      else setViewMode('happy');
+      toast(`💡 ${RECEIPT_META.find((r) => r.key === metric)?.hint || ''}`);
+    });
+  });
+}
+
+function closeReceipt() {
+  document.getElementById('receipt-modal').classList.add('hidden');
+}
+
+// ─── First-run coach ────────────────────────────────────
+const COACH_KEY = 'p5_city_planner_coach_v1';
+function maybeShowCoach() {
+  let seen = false;
+  try { seen = localStorage.getItem(COACH_KEY) === '1'; } catch (e) { /* ignore */ }
+  if (seen) return;
+  const modal = document.getElementById('coach-modal');
+  modal.classList.remove('hidden');
+  modal.querySelectorAll('[data-coach-close]').forEach((el) => el.addEventListener('click', dismissCoach));
+  document.getElementById('coach-done').addEventListener('click', dismissCoach);
+}
+function dismissCoach() {
+  document.getElementById('coach-modal').classList.add('hidden');
+  try { localStorage.setItem(COACH_KEY, '1'); } catch (e) { /* ignore */ }
+}
+
+// ─── Optimise flow (full auto) ──────────────────────────
+/**
+ * Run the full optimizer. It proposes a complete plan; the student reviews and
+ * applies. This is the "check my work" assistant — never auto-applies.
+ */
+async function askOptimise() {
+  if (state.aiBusy) return;
+  state.aiBusy = true;
+  const btn = document.getElementById('btn-ai');
+  btn.disabled = true;
+  btn.textContent = '🧮 Checking…';
+  try {
+    await new Promise((r) => setTimeout(r, 0));
+    const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
+    const weights = effectiveWeights();
+    const res = optimizeLayout(state.layout, { weights }, seed);
+    _pendingPlan = { layout: res.layout, diff: res.diff, before: res.before, after: res.after, weights };
+
+    renderPlan(res.before, res.after, res.diff, false);
+
+    if (!res.diff.length) {
+      toast('✅ Your city is already well balanced — nothing to change!');
+    } else {
+      const addN = res.diff.filter((d) => d.action === 'add').length;
+      const moveN = res.diff.filter((d) => d.action === 'move').length;
+      const remN = res.diff.filter((d) => d.action === 'remove').length;
+      const parkN = res.diff.filter((d) => d.action === 'add_park').length;
+      const parts = [];
+      if (addN) parts.push(`${addN} added`);
+      if (moveN) parts.push(`${moveN} moved`);
+      if (remN) parts.push(`${remN} removed`);
+      if (parkN) parts.push(`${parkN} park${parkN > 1 ? 's' : ''}`);
+      toast(`🧮 I found ${parts.length ? parts.join(', ') : 'a few small tweaks'} — review and apply!`);
+    }
+  } catch (e) {
+    console.error('[planner] optimise failed:', e);
+    aiOutput.innerHTML = '<span class="ai-buddy">City Optimiser</span> Hmm, I couldn\u2019t check your city right now — try again!';
+    _pendingPlan = null;
+  } finally {
+    state.aiBusy = false;
+    btn.disabled = false;
+    btn.textContent = '🧮 Optimise';
+  }
+}
+
+// ─── My move flow (be the planner) ──────────────────────
+const REASON_CHIPS = [
+  { id: 'coverage', label: 'More homes within 150m of a service' },
+  { id: 'accessibility', label: 'Shorter walk to a road' },
+  { id: 'zoning', label: 'Quieter for homes' },
+  { id: 'spread', label: 'Buildings more spread out' },
+  { id: 'utilities', label: 'Water / power / bus closer' },
+  { id: 'balance', label: 'Better mix of buildings' },
+];
+const REASON_METRIC = { coverage: 'coverage', accessibility: 'accessibility', zoning: 'zoning', spread: 'spread', utilities: 'utilities', balance: 'balance' };
+
+/**
+ * "My move": the planner proposes up to 3 candidate moves. The student must
+ * predict which will raise the score most AND why (reason chip), then Reveal
+ * shows the actual maths and the greedy choice. This is the learning core.
+ */
+async function runMyMove() {
+  if (state.aiBusy) return;
+  state.aiBusy = true;
+  const btn = document.getElementById('btn-step');
+  btn.disabled = true;
+  btn.textContent = '🧠 Thinking…';
+  try {
+    await new Promise((r) => setTimeout(r, 0));
+    const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
+    const weights = effectiveWeights();
+    const moves = proposeMoves(state.layout, { weights }, 3, seed);
+    if (!moves.length) {
+      toast('✅ Nothing more to improve — your city is well balanced! Try 🧮 Optimise to confirm.');
+      return;
+    }
+    state.mymove = { moves, chosenMove: -1, chosenReason: null, revealed: false, weights };
+    renderMyMovePredict();
+  } catch (e) {
+    console.error('[planner] my move failed:', e);
+    toast('Hmm, I couldn\u2019t come up with a move right now — try again!');
+  } finally {
+    state.aiBusy = false;
+    btn.disabled = false;
+    btn.textContent = '🧠 My move';
+  }
+}
+
+function renderMyMovePredict() {
+  const body = document.getElementById('mymove-body');
+  const { moves } = state.mymove;
+  const meta = goalMetaForWeights();
+  body.innerHTML = `
+    <div class="mymove-intro">The planner can make a few different changes. <strong>You're in charge</strong> — first guess which one will help most.</div>
+    <div class="mymove-question">Which move will raise <strong>${meta.name}</strong> the most? Tap one.</div>
+    ${moves.map((m, i) => `
+      <button class="move-card" data-move="${i}">
+        <div>${moveLabel(m)}</div>
+        <div class="move-reason">${m.reason}</div>
+      </button>`).join('')}
+    <div class="reason-label">And why? Pick the best reason.</div>
+    <div class="reason-chips">
+      ${REASON_CHIPS.map((r) => `<button class="reason-chip" data-reason="${r.id}">${r.label}</button>`).join('')}
+    </div>
+    <div class="goals-actions">
+      <button id="mymove-reveal" class="plan-apply" disabled>🔍 Reveal</button>
+      <button id="mymove-cancel" class="plan-keep">🙅 Keep my city</button>
+    </div>`;
+  body.querySelectorAll('.move-card').forEach((el) => {
+    el.addEventListener('click', () => {
+      state.mymove.chosenMove = Number(el.dataset.move);
+      body.querySelectorAll('.move-card').forEach((c) => c.classList.toggle('selected', c === el));
+      updateRevealEnabled();
+    });
+  });
+  body.querySelectorAll('.reason-chip').forEach((el) => {
+    el.addEventListener('click', () => {
+      state.mymove.chosenReason = el.dataset.reason;
+      body.querySelectorAll('.reason-chip').forEach((c) => c.classList.toggle('selected', c === el));
+      updateRevealEnabled();
+    });
+  });
+  document.getElementById('mymove-reveal').addEventListener('click', renderMyMoveReveal);
+  document.getElementById('mymove-cancel').addEventListener('click', () => {
+    state.mymove = null;
+    closeMyMove();
+    toast('👍 Kept your city as-is');
+  });
+  const modal = document.getElementById('mymove-modal');
+  modal.classList.remove('hidden');
+}
+
+function updateRevealEnabled() {
+  const reveal = document.getElementById('mymove-reveal');
+  if (reveal) reveal.disabled = !(state.mymove.chosenMove >= 0 && state.mymove.chosenReason);
+}
+
+function renderMyMoveReveal() {
+  const body = document.getElementById('mymove-body');
+  const { moves, chosenMove, chosenReason } = state.mymove;
+  const chosen = moves[chosenMove];
+  const best = moves[0];   // sorted by deltaScore desc = greedy pick
+  const moveCorrect = chosenMove === 0;
+  const reasonCorrect = chosen.improved.includes(REASON_METRIC[chosenReason]);
+  const meta = goalMetaForWeights();
+
+  body.innerHTML = `
+    <div class="reveal-correct ${moveCorrect && reasonCorrect ? 'good' : 'meh'}">
+      ${moveCorrect && reasonCorrect ? '🎉 Spot on! You picked the best move and the right reason.' :
+        moveCorrect ? '😮 You picked the best move, but the reason was off — look at which part actually changed.' :
+        reasonCorrect ? '👍 Good reason, but not the best move. Compare below.' :
+        '🤔 Not quite — here\u2019s what actually helped. Look at the numbers!'}
+    </div>
+    <div class="mymove-question">How the maths changed for <strong>${moveLabel(chosen)}</strong>:</div>
+    <div class="reveal-receipt">${receiptDeltaHTML(chosen, chosenReason)}</div>
+    ${chosenMove !== 0 ? `<div class="reveal-greedy">
+      <strong>The computer would have picked:</strong> ${moveLabel(best)} (${best.deltaScore > 0 ? '+' : ''}${best.deltaScore} points).
+      It works like a hill-climber — it only looks one step ahead and grabs the biggest gain now.
+    </div>` : ''}
+    <div class="reveal-greedy">
+      <strong>Hill-climbing rule:</strong> try one change, keep it only if the score goes up, then try again. That\u2019s all the planner does — one step at a time.
+    </div>
+    <div class="goals-actions">
+      <button id="mymove-apply" class="plan-apply">✅ Apply my move</button>
+      <button id="mymove-skip" class="plan-keep">🙅 Skip this round</button>
+      <button id="mymove-finish" class="plan-finish">🧮 Let Optimise finish</button>
+    </div>`;
+  document.getElementById('mymove-apply').addEventListener('click', applyMyMove);
+  document.getElementById('mymove-skip').addEventListener('click', () => {
+    state.mymove = null;
+    closeMyMove();
+    toast('👌 Skipped — tap 🧠 My move again for the next round.');
+  });
+  document.getElementById('mymove-finish').addEventListener('click', () => {
+    state.mymove = null;
+    closeMyMove();
+    askOptimise();
+  });
+  // Highlight the selected move on the map.
+  flashOneMove(chosen);
+}
+
+function applyMyMove() {
+  const { moves, chosenMove } = state.mymove;
+  const move = moves[chosenMove];
+  const oldLayout = state.layout;
+  pushUndo();
+  state.layout = applyMove(state.layout, move);
+  state.selectedIdx = -1;
+  updateMetrics();
+  render();
+  flashOneMove(move);
+  closeMyMove();
+  const name = move.what === 'housing' ? 'a home' : typeSpec(move.what)?.name || move.what;
+  toast(`✅ Applied: ${moveLabel(move)} — score ${move.beforeScore} → ${move.afterScore}. Tap 🧠 My move for the next step.`);
+  state.mymove = null;
+}
+
+function flashOneMove(move) {
+  const marks = [];
+  if (move.action === 'remove' && move.from) marks.push({ x: move.from[0], z: move.from[1], color: '#ff5c5c' });
+  else if (move.action === 'add' && move.to) marks.push({ x: move.to[0], z: move.to[1], color: '#3ddc84' });
+  else if (move.action === 'move' && move.to) marks.push({ x: move.to[0], z: move.to[1], color: '#00b7ff' });
+  if (!marks.length) { render(); return; }
+  const end = Date.now() + 1600;
+  function drawFlash() {
+    render();
+    for (const mk of marks) {
+      const c = planToScreen(mk.x, mk.z);
+      const s = 24;
+      ctx.save();
+      ctx.strokeStyle = mk.color;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = mk.color;
+      ctx.shadowBlur = 8;
+      ctx.strokeRect(c.x - s / 2, c.y - s / 2, s, s);
+      ctx.restore();
+    }
+    if (Date.now() < end) requestAnimationFrame(drawFlash);
+  }
+  drawFlash();
+}
+
+function moveLabel(m) {
+  const name = m.what === 'housing' ? 'a Home' : typeSpec(m.what)?.name || m.what;
+  if (m.action === 'add') return `➕ Add ${name}`;
+  if (m.action === 'move') return `↔️ Move ${name}`;
+  if (m.action === 'remove') return `➖ Remove ${name}`;
+  if (m.action === 'add_park') return '🌳 Add a park';
+  return 'Change';
+}
+
+function receiptDeltaHTML(move, chosenReason) {
+  const metricLabel = { accessibility: 'walk to a road', coverage: 'schools/shops/help nearby', utilities: 'water/power/bus', zoning: 'quiet for homes', spread: 'spread out', balance: 'building mix', green: 'parks' };
+  const metricEmoji = { accessibility: '🛣️', coverage: '🏘️', utilities: '💧', zoning: '🤫', spread: '🧩', balance: '⚖️', green: '🌳' };
+  const lines = move.improved.length ? move.improved.map((m) => {
+    return `<div class="rr-line"><span>${metricEmoji[m] || ''} ${metricLabel[m] || m}</span><span class="rr-up">↑ improved</span></div>`;
+  }) : [];
+  const reasonBadge = chosenReason
+    ? `<div class="rr-line"><span>Your reason: ${REASON_CHIPS.find((r) => r.id === chosenReason)?.label || ''}</span><span class="${move.improved.includes(REASON_METRIC[chosenReason]) ? 'rr-up' : 'rr-down'}">${move.improved.includes(REASON_METRIC[chosenReason]) ? '✓ right!' : '✗ not the change'}</span></div>`
+    : '';
+  return `
+    <div class="rr-line"><strong>City Score</strong><strong>${move.beforeScore} → ${move.afterScore} (+${move.deltaScore})</strong></div>
+    ${reasonBadge}
+    ${lines.join('')}`;
+}
+
+function goalMetaForWeights() {
+  // The student's most-weighted goal is the "target" for the prediction question.
+  const w = state.goalWeights || null;
+  if (w) {
+    const top = GOAL_KEYS.slice().sort((a, b) => (w[b] || 0) - (w[a] || 0))[0];
+    return GOAL_META[top] || GOAL_META.happy;
+  }
+  return GOAL_META.happy;
+}
+
+function closeMyMove() {
+  document.getElementById('mymove-modal').classList.add('hidden');
 }
 
 // ─── Export ─────────────────────────────────────────────
@@ -698,6 +1485,7 @@ function serializeLayout() {
       pos: b.pos,
       footprint: b.footprint,
       height: b.height,
+      ...(b.locked ? { locked: true } : {}),
     })),
   };
 }
@@ -710,10 +1498,28 @@ function exportCity() {
     return;
   }
   const json = JSON.stringify(layout, null, 2);
-  // localStorage (for the 3D template in the same browser)
+  // Save to localStorage — the SAME origin now serves the 3D city, so this IS
+  // the handoff (no file download/upload round-trip). Then walk into it.
   let savedToStorage = false;
-  try { localStorage.setItem(STORAGE_KEY, json); savedToStorage = true; } catch (e) { /* quota — warn below */ }
-  // download
+  try { localStorage.setItem(STORAGE_KEY, json); savedToStorage = true; } catch (e) { /* quota — fall back below */ }
+  if (!savedToStorage) {
+    // Storage full / blocked — fall back to a download so the student can still
+    // reach the 3D city by uploading the file there.
+    downloadLayout(json);
+    toast('⚠️ Could not save to this browser (storage full) — downloaded my-ai-city.json instead. Upload it in the 3D city.');
+    return;
+  }
+  const roadsCount = state.layout.roads.length;
+  const noRoadsNote = roadsCount === 0
+    ? ' ⚠️ No roads — the 3D city won\'t have streets or lights.'
+    : '';
+  toast(`💾 Saved! ${state.layout.buildings.length} buildings, ${roadsCount} roads, ${state.layout.parks.length} parks.${noRoadsNote}`);
+  // Primary CTA: the 3D city auto-loads the saved layout (?from=planner).
+  window.location.href = '/city-builder/?from=planner';
+}
+
+/** Optional backup download (separate from the save-and-view flow). */
+function downloadLayout(json) {
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -723,15 +1529,70 @@ function exportCity() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-  // copy (non-fatal — swallow the rejection so we don't get noisy unhandled errors)
-  try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(json).catch(() => {}); } catch (e) { /* ignore */ }
-  const roadsCount = state.layout.roads.length;
-  const noRoadsNote = roadsCount === 0
-    ? ' ⚠️ No roads — the 3D city won\'t have streets or lights.'
-    : '';
-  toast(savedToStorage
-    ? `💾 Saved! ${state.layout.buildings.length} buildings, ${roadsCount} roads, ${state.layout.parks.length} parks.${noRoadsNote}`
-    : '⚠️ Could not save to this browser (storage full) — use the downloaded my-ai-city.json instead.');
+}
+
+// ── Champion File save (named download — the cross-device backup) ───────────
+// "💾 Save my city" bundles EVERYTHING (layout + quests + props + skin + flags)
+// into one file the student names, so they can restore it on any device next
+// lesson. This restores the old forced-download safety net, but named + complete.
+function downloadChampionFile(label) {
+  const file = composeChampionFile(collectState(), label);
+  const json = JSON.stringify(file, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = championFilename(label);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  rememberSavedAt();   // resume surface: "last saved …"
+  toast(`💾 Saved "${label}" — keep this file as your backup!`);
+}
+
+function wireSaveModal() {
+  const modal = document.getElementById('save-modal');
+  const nameInput = document.getElementById('save-name');
+  const saveBtn = document.getElementById('btn-save');
+  const goBtn = document.getElementById('save-go');
+  if (!modal || !nameInput || !saveBtn || !goBtn) return;
+  const open = () => {
+    // Prefill from the last-used name, else a friendly default.
+    try {
+      const last = localStorage.getItem('p5_city_save_name_v1');
+      if (last) nameInput.value = last;
+    } catch { /* ignore */ }
+    modal.classList.remove('hidden');
+    nameInput.focus();
+    nameInput.select();
+  };
+  const close = () => modal.classList.add('hidden');
+  const doSave = () => {
+    const name = nameInput.value.trim() || 'my-ai-city';
+    try { localStorage.setItem('p5_city_save_name_v1', name); } catch { /* ignore */ }
+    downloadChampionFile(name);
+    close();
+  };
+  saveBtn.addEventListener('click', open);
+  goBtn.addEventListener('click', doSave);
+  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSave(); });
+  modal.querySelectorAll('[data-save-close]').forEach((el) => el.addEventListener('click', close));
+}
+
+/** Import a Champion File (restore everything) or a legacy layout JSON. Returns true if handled. */
+function importAny(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return false;
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return false; }
+  const champ = sanitizeChampionFile(parsed);
+  if (champ.ok) {
+    const n = writeState(champ.file.state);
+    toast(`📂 Restored your Champion File${champ.file.label ? ' — ' + champ.file.label : ''} (${n} saved items). Reloading…`);
+    setTimeout(() => window.location.reload(), 600);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -793,53 +1654,6 @@ function metricBadges(improved) {
     '</span>';
 }
 
-/**
- * Optimise the city right now: the buddy proposes a measured plan (score-gated
- * hill-climb). The student reviews the reasons and taps Apply or Keep; the
- * previous layout is pushed onto the undo stack only when Apply is chosen.
- */
-async function askAdvisor() {
-  if (state.aiBusy) return;
-  state.aiBusy = true;
-  const btn = document.getElementById('btn-ai');
-  btn.disabled = true;
-  btn.textContent = '🤖 Checking…';
-  try {
-    // Yield once so the browser can paint the busy state.
-    await new Promise((r) => setTimeout(r, 0));
-    const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
-    const before = computeMetrics(state.layout);
-
-    const { layout: optimized, diff, after } = optimizeLayout(state.layout, {}, seed);
-    _pendingPlan = { layout: optimized, diff, before, after };
-
-    renderPlan(before, after, diff);
-
-    if (!diff.length) {
-      toast('✅ Your city is already well balanced — nothing to change!');
-    } else {
-      const addN = diff.filter((d) => d.action === 'add').length;
-      const moveN = diff.filter((d) => d.action === 'move').length;
-      const remN = diff.filter((d) => d.action === 'remove').length;
-      const parkN = diff.filter((d) => d.action === 'add_park').length;
-      const parts = [];
-      if (addN) parts.push(`${addN} added`);
-      if (moveN) parts.push(`${moveN} moved`);
-      if (remN) parts.push(`${remN} removed`);
-      if (parkN) parts.push(`${parkN} park${parkN > 1 ? 's' : ''}`);
-      toast(`🤖 I found ${parts.length ? parts.join(', ') : 'a few small tweaks'} — review and apply!`);
-    }
-  } catch (e) {
-    console.error('[planner] optimize failed:', e);
-    aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> Hmm, I couldn\u2019t check your city right now — try again!';
-    _pendingPlan = null;
-  } finally {
-    state.aiBusy = false;
-    btn.disabled = false;
-    btn.textContent = '🤖 Optimize';
-  }
-}
-
 function renderPlan(before, after, diff) {
   // Group reasons by theme, preserving order.
   const order = ['add', 'move', 'remove', 'add_park'];
@@ -894,7 +1708,7 @@ function renderPlan(before, after, diff) {
   if (keepBtn) keepBtn.addEventListener('click', () => {
     _pendingPlan = null;
     closePlanModal();
-    aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> No problem — your city stays exactly as you built it! 🌟';
+    aiOutput.innerHTML = '<span class="ai-buddy">City Optimiser</span> No problem — your city stays exactly as you built it! 🌟';
     toast('👍 Kept your city as-is');
   });
 }
@@ -925,7 +1739,7 @@ function applyPlan() {
   if (remN) parts.push(`${remN} removed`);
   if (parkN) parts.push(`${parkN} park${parkN > 1 ? 's' : ''}`);
   toast(`✅ Applied — ${parts.join(', ')}! ↩️ Undo to revert.`);
-  aiOutput.innerHTML = '<span class="ai-buddy">Your coding buddy</span> Done! Your city is smarter now. 🌟';
+  aiOutput.innerHTML = '<span class="ai-buddy">City Optimiser</span> Done! Your city is smarter now. 🌟';
   _pendingPlan = null;
 }
 
@@ -974,24 +1788,68 @@ document.addEventListener('keydown', (e) => {
   e.preventDefault();
   deleteSelectedOrClear();
 });
-document.getElementById('btn-ai').addEventListener('click', askAdvisor);
+document.getElementById('btn-ai').addEventListener('click', askOptimise);
+document.getElementById('btn-step').addEventListener('click', runMyMove);
 document.getElementById('btn-export').addEventListener('click', exportCity);
 document.querySelectorAll('.tool-btn').forEach((btn) => {
   btn.addEventListener('click', () => setTool(btn.dataset.tool));
 });
 
+// Goals modal
+document.getElementById('btn-goals').addEventListener('click', openGoalsModal);
+document.getElementById('goals-done').addEventListener('click', closeGoalsModal);
+goalsModal.querySelectorAll('[data-goals-close]').forEach((el) => {
+  el.addEventListener('click', closeGoalsModal);
+});
+document.getElementById('goals-tab-mayor').addEventListener('click', () => {
+  state.goalMode = 'mayor';
+  updateGoalsTabs();
+});
+document.getElementById('goals-tab-custom').addEventListener('click', () => {
+  state.goalMode = 'custom';
+  updateGoalsTabs();
+});
+document.getElementById('btn-mayor-balanced').addEventListener('click', () => {
+  state.goalMode = 'mayor';
+  state.mayorId = null;
+  state.goalWeights = null;   // Balanced — default fixed blend
+  renderMayorCards();
+  updateGoalsTabs();
+  updateMetrics();
+});
+
+// Happiness / walk / ranges views
+const viewHappy = document.getElementById('btn-view-happy');
+const viewWalk = document.getElementById('btn-view-walk');
+const viewRanges = document.getElementById('btn-view-ranges');
+function setViewMode(mode) {
+  if (state.viewMode === mode) mode = 'normal';   // toggle off
+  state.viewMode = mode;
+  viewHappy.classList.toggle('active', mode === 'happy');
+  viewWalk.classList.toggle('active', mode === 'walk');
+  viewRanges.classList.toggle('active', mode === 'ranges');
+  if (mode === 'happy') {
+    hint('😊 Green homes have everything nearby. Amber homes are missing something — red homes are missing a lot!');
+  } else if (mode === 'walk') {
+    const w = computeWalkState();
+    hint(`🚶 People can walk ${WALK_BUDGET}m to reach what they need. Green homes can reach everything; red ones can't. (${Math.round((w.reach || 0) * 100)}% of needs reachable)`);
+  } else if (mode === 'ranges') {
+    hint('⭕ Green circles = 150m, how far people walk to a school/shop/park. Blue circles = 400m, how far to water/power/bus. Homes outside every circle are the ones to fix!');
+  } else {
+    hint('Tap the map or use the tools — homes are back to normal.');
+  }
+  render();
+}
+viewHappy.addEventListener('click', () => setViewMode('happy'));
+viewWalk.addEventListener('click', () => setViewMode('walk'));
+viewRanges.addEventListener('click', () => setViewMode('ranges'));
+
 // Road template menu
 const templateBtn = document.getElementById('btn-template');
-const templateMenu = document.getElementById('template-menu');
+renderTemplates();
 templateBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   templateMenu.classList.toggle('hidden');
-});
-document.querySelectorAll('.template-item').forEach((item) => {
-  item.addEventListener('click', () => {
-    loadRoadTemplate(item.dataset.template);
-    templateMenu.classList.add('hidden');
-  });
 });
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.template-wrap')) templateMenu.classList.add('hidden');
@@ -1021,24 +1879,107 @@ importFileBtn.addEventListener('click', (e) => {
   e.preventDefault();
   importFileInput.click();
 });
-importFileInput.addEventListener('change', () => {
-  const f = importFileInput.files[0];
-  if (!f) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    importCity(reader.result);
-    importFileInput.value = '';   // allow re-selecting the same file later
-  };
-  reader.readAsText(f);
-});
-importPasteToggle.addEventListener('click', () => {
-  importPasteWrap.classList.toggle('hidden');
-});
-importPasteGo.addEventListener('click', () => {
-  if (importCity(importPasteBox.value)) {
+ importFileInput.addEventListener('change', () => {
+   const f = importFileInput.files[0];
+   if (!f) return;
+   const reader = new FileReader();
+   reader.onload = () => {
+     // Champion File (restore everything) OR legacy layout JSON.
+     if (!importAny(reader.result)) importCity(reader.result);
+     importFileInput.value = '';   // allow re-selecting the same file later
+   };
+   reader.readAsText(f);
+ });
+ importPasteToggle.addEventListener('click', () => {
+   importPasteWrap.classList.toggle('hidden');
+ });
+ importPasteGo.addEventListener('click', () => {
+   if (importAny(importPasteBox.value) || importCity(importPasteBox.value)) {
+     importMenu.classList.add('hidden');
+     importPasteWrap.classList.add('hidden');
+   }
+ });
+// Backup download — an explicit save-to-file for cross-device/copy safety.
+const importBackupBtn = document.getElementById('import-backup');
+if (importBackupBtn) {
+  importBackupBtn.addEventListener('click', () => {
+    const layout = serializeLayout();
+    const v = validateLayout(layout);
+    if (!v.ok) { toast('⚠️ ' + v.errors[0]); return; }
+    downloadLayout(JSON.stringify(layout, null, 2));
     importMenu.classList.add('hidden');
-    importPasteWrap.classList.add('hidden');
+    toast('💾 Downloaded my-ai-city.json');
+  });
+}
+
+// Score receipt — tap the City Score ring.
+document.getElementById('score').addEventListener('click', openReceipt);
+document.getElementById('receipt-done').addEventListener('click', closeReceipt);
+
+// ── Planner's License (unlock gate) ─────────────────────
+function isUnlocked() {
+  try { return localStorage.getItem(UNLOCK_STORAGE_KEY) === '1'; } catch (e) { return false; }
+}
+
+function maybeLock() {
+  const overlay = document.getElementById('lock-overlay');
+  if (isUnlocked() || !overlay) return;
+  overlay.classList.remove('hidden');
+}
+
+function tryUnlock(raw) {
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch (e) {
+    document.getElementById('lock-error').textContent = 'That doesn\u2019t look like a valid file. Try the Algorithm File from the training.';
+    return;
   }
+  if (parsed && parsed.key === LICENSE_KEY) {
+    try { localStorage.setItem(UNLOCK_STORAGE_KEY, '1'); } catch (e) { /* ignore */ }
+    document.getElementById('lock-overlay').classList.add('hidden');
+    toast('🔓 Unlocked! Your city awaits, Junior Planner.');
+    aiOutput.innerHTML = '<span class="ai-buddy">Nova</span> Well done! You earned the Planner\u2019s License. Let\u2019s build your city. 🌟';
+    updateMetrics();
+    render();
+  } else {
+    document.getElementById('lock-error').textContent = 'Hmm — that file doesn\u2019t have the right key. Did you finish the City Planning Academy and download the Algorithm File?';
+  }
+}
+
+(function wireLock() {
+  const overlay = document.getElementById('lock-overlay');
+  if (!overlay) return;
+  document.getElementById('lock-goto-academy').addEventListener('click', () => {
+    // Same-origin now (unified under city-sim) — no cross-worker hop.
+    window.location.href = '/pregame/';
+  });
+  const fileInput = document.getElementById('lock-file');
+  document.getElementById('lock-upload').addEventListener('click', (e) => {
+    if (e.defaultPrevented) return;
+    e.preventDefault();
+    fileInput.click();
+  });
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => { tryUnlock(reader.result); fileInput.value = ''; };
+    reader.readAsText(f);
+  });
+  const pasteToggle = document.getElementById('lock-paste-toggle');
+  const pasteWrap = document.getElementById('lock-paste-wrap');
+  pasteToggle.addEventListener('click', () => pasteWrap.classList.toggle('hidden'));
+  document.getElementById('lock-paste-go').addEventListener('click', () => {
+    tryUnlock(document.getElementById('lock-paste').value);
+  });
+})();
+
+// My move modal close on backdrop / X.
+document.querySelectorAll('#mymove-modal [data-mymove-close]').forEach((el) => {
+  el.addEventListener('click', () => { state.mymove = null; closeMyMove(); });
+});
+// Receipt modal close on backdrop / X.
+document.querySelectorAll('#receipt-modal [data-receipt-close]').forEach((el) => {
+  el.addEventListener('click', closeReceipt);
 });
 
 function toast(msg) {
@@ -1051,6 +1992,8 @@ function toast(msg) {
 // Restore a saved layout if present, else center the view.
 (function init() {
   buildDrawer();
+  initFarmMenu();
+  wireSaveModal();
   let saved = null;
   try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* ignore */ }
   if (saved) {
@@ -1068,4 +2011,10 @@ function toast(msg) {
   setTool('place');
   updateMetrics();
   resize();
+  maybeLock();
+  if (!document.getElementById('lock-overlay').classList.contains('hidden')) {
+    // Locked — don't show the coach over the lock screen.
+  } else {
+    maybeShowCoach();
+  }
 })();

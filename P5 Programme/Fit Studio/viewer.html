@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Champion — Animation Viewer</title>
+<!-- ?v= stamps bust stale browser caches (python -m http.server sends no cache headers). -->
+<link rel="stylesheet" href="./style.css?v=20260826a" />
+<link rel="stylesheet" href="./tune.css?v=20260811d" />
+<!--
+  Buildless ESM import map: maps the bare specifier "three" (used by GLTFLoader.js /
+  OrbitControls.js, which import from 'three') to the vendored single-file build. This is the
+  no-bundler pattern for ES module imports in a plain <script type="module">. Everything below
+  resolves to ./vendor/ — zero CDN, zero network fetch outside this folder.
+
+  This page is the REVIEW side of the pair: the champion autoloads fully dressed — with the Fit
+  Studio's live wardrobe (wardrobe-store.js) when one exists, else the assets/gear/manifest.json
+  demo shelf — attached at rest pose BEFORE any clip fires. HUD is ordered for reviewing: CLIPS
+  first, gear second, debug last. Fitting happens on index.html; the two pages share one wardrobe.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js"
+  }
+}
+</script>
+</head>
+<!-- viewer-page: the champion-load fallback panel shrinks to a corner chip once loaded (style.css) -->
+<body class="viewer-page">
+  <canvas id="viewport" aria-label="3D champion viewer canvas"></canvas>
+
+  <!-- Champion + clip fallbacks — the deployed build autoloads everything; these exist for
+       reviewing a different base or extra clips. Shrinks to a corner chip once loaded. -->
+  <div id="dropZone" class="drop-zone">
+    <div class="drop-zone__inner">
+      <p class="drop-zone__title">Champion Animation Viewer</p>
+      <p class="drop-zone__sub">The champion, its gear and all clips load by themselves. These are fallbacks:</p>
+      <label class="drop-zone__btn">
+        Choose champion GLB
+        <input type="file" id="fileInput" accept=".glb,model/gltf-binary" hidden />
+      </label>
+      <label class="drop-zone__btn">
+        Add clip GLBs
+        <input type="file" id="clipInput" accept=".glb,model/gltf-binary" multiple hidden />
+      </label>
+      <p class="drop-zone__note">Nothing chosen yet? The stand-in robot below is a programmatic placeholder — it is not the real asset.</p>
+    </div>
+  </div>
+
+  <!-- HUD — review order: clips first, gear second, debug last. -->
+  <div id="hud" class="hud">
+    <div class="hud__row hud__row--title">
+      <span class="hud__title">Animation Viewer</span>
+      <a href="./index.html" class="hud__btn" style="text-decoration:none;">Fit studio</a>
+      <span id="fps" class="hud__fps">-- fps</span>
+    </div>
+
+    <!-- LOADING PROGRESS (2026-08-25) — the champion base (24 MB), the shared wardrobe and the
+         clips all autoload; the bar reports where that load actually is. Driven by progress.js. -->
+    <div id="loadProgress" class="load-progress" hidden role="status" aria-live="polite">
+      <div class="load-progress__bar"><div id="loadProgressFill" class="load-progress__fill"></div></div>
+      <span id="loadProgressText" class="load-progress__text"></span>
+    </div>
+
+    <!-- 1 · CLIPS: the reason this page exists. The champion rests on Idle; one-shots return to it. -->
+    <div class="hud__section" id="clipSection" hidden>
+      <span class="hud__label">Clips</span>
+      <div class="hud__row hud__row--wrap" id="clipButtons"></div>
+    </div>
+
+    <!-- 2 · GEAR: everything worn (all manifest pieces + anything loaded below). "off" HIDES
+         rather than detaches, so the baked fits are never lost. Loading mid-dance is safe —
+         attaches happen against the captured rest pose (withRestPose). -->
+    <div class="hud__section">
+      <span class="hud__label">Gear — worn pieces</span>
+      <div class="hud__row">
+        <button type="button" id="btnGearToggle" class="hud__btn hud__btn--wide hud__btn--active">Gear: on</button>
+      </div>
+      <label class="hud__btn hud__btn--wide hud__btn--primary" style="margin-top:6px;">
+        Load gear GLB&hellip;
+        <input type="file" id="gearInput" accept=".glb,model/gltf-binary" hidden />
+      </label>
+      <div class="hud__row" style="margin-top:6px;">
+        <label for="gearBone" class="hud__label" style="margin:0;">Socket (raw gear)</label>
+        <select id="gearBone" class="hud__btn hud__btn--wide">
+          <option value="head">Head</option>
+          <option value="chest">Chest / Back</option>
+          <option value="shoulderL">Shoulder L</option>
+          <option value="shoulderR">Shoulder R</option>
+          <option value="hips">Hips</option>
+          <option value="legL">Leg L</option>
+          <option value="legR">Leg R</option>
+          <option value="handR">Hand R</option>
+        </select>
+      </div>
+      <p class="hud__hint">Whatever is worn in the <strong>Fit studio</strong> is worn here too &mdash; switch pages freely, nothing is lost. Pre-fitted gear ignores the socket picker (its seat is baked into the file). Gear loaded on THIS page is a quick trial only; fit and save pieces in the Fit studio.</p>
+    </div>
+
+    <!-- 3 · MOTION CAPTURE: the champion mirrors the person at the webcam (toolbox/holistic.js,
+         self-hosted MediaPipe). Record a take, replay it as a normal clip button, download it as
+         a clip GLB that binds like the Mixamo files. mocap.js owns the whole feature. -->
+    <div class="hud__section" id="mocapSection">
+      <span class="hud__label">Motion capture — be the animation</span>
+      <div class="hud__row">
+        <button type="button" id="btnMocap" class="hud__btn hud__btn--wide hud__btn--primary">Mirror me (camera)</button>
+      </div>
+      <div class="hud__row" style="margin-top:6px;">
+        <button type="button" id="btnMocapRecord" class="hud__btn hud__btn--wide" hidden>Record a take</button>
+      </div>
+      <!-- Same retarget, offline source: a short video of a person becomes a take automatically. -->
+      <label class="hud__btn hud__btn--wide" style="margin-top:6px;">
+        Animate from a video&hellip;
+        <input type="file" id="mocapClipInput" accept="video/*" hidden />
+      </label>
+      <div class="hud__row" style="margin-top:6px;">
+        <button type="button" id="btnMocapDownload" class="hud__btn hud__btn--wide" hidden>Download clip GLB</button>
+      </div>
+      <p class="hud__hint" id="mocapHint">The champion copies you live (the small preview shows the dots it tracks), or copies a short video you pick &mdash; that records itself start to end. Takes cap at 15&nbsp;s, replay with their clip button, then download &mdash; the file loads here (and in the games) like any clip.</p>
+    </div>
+
+    <!-- 4 · DEBUG -->
+    <div class="hud__section">
+      <button type="button" id="btnBones" class="hud__btn hud__btn--wide">Show bone list</button>
+    </div>
+
+    <div id="bonePanel" class="bone-panel" hidden>
+      <div class="bone-panel__head">
+        <span>Skeleton bone names</span>
+        <button type="button" id="btnBonesClose" class="bone-panel__close" aria-label="Close bone list">x</button>
+      </div>
+      <pre id="boneList" class="bone-panel__list">(no model loaded — showing stand-in joint names)</pre>
+    </div>
+
+    <div id="hudMessage" class="hud__message" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- Capture preview (webcam OR uploaded video) with the landmark overlay on top — the
+       container is CSS-mirrored as one unit so dots stay glued to the body. Hidden until a
+       capture starts. -->
+  <div id="mocapPreview" class="mocap-preview" hidden>
+    <video id="mocapVideo" playsinline muted></video>
+    <canvas id="mocapOverlay"></canvas>
+  </div>
+
+  <!-- Classic script (not a module): holistic.js resolves its model assets relative to its own
+       URL, so it must live at ./toolbox/ with assets/holistic/ beside it. -->
+  <script src="./toolbox/holistic.js?v=20260811d"></script>
+  <script type="module" src="./main.js?v=20260826a"></script>
+</body>
+</html>

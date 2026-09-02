@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Champion Tune Studio — fit gear, download fitted GLB</title>
+<!-- ?v= stamps bust stale browser caches (python -m http.server sends no cache headers; a
+     teammate's browser can otherwise keep old CSS/JS across redeploys). Bump on big changes. -->
+<link rel="stylesheet" href="./style.css?v=20260826a" />
+<link rel="stylesheet" href="./tune.css?v=20260825h" />
+<link rel="stylesheet" href="./tutorial.css?v=20260820b" />
+<!--
+  Buildless ESM import map — identical pattern to viewer.html. This page is the team-facing FIT
+  STUDIO. HUD is ordered by task flow: TRY ON shared gear -> LOAD your own -> WARDROBE ->
+  FIT (slot + gizmo + export) -> ASSETS. Legacy tuning sections stay in the DOM but hidden —
+  tune.js binds them by id and their defaults ARE the approved 2D look.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js"
+  }
+}
+</script>
+</head>
+<!-- studio-page: the champion-load fallback panel hides once the champion autoloads (style.css) -->
+<body class="studio-page">
+  <canvas id="viewport" aria-label="3D champion fit-studio canvas"></canvas>
+
+  <!-- Champion fallback only — gear loading lives in the HUD now. -->
+  <div id="dropZone" class="drop-zone">
+    <div class="drop-zone__inner">
+      <p class="drop-zone__title">Champion Fit Studio</p>
+      <p class="drop-zone__sub">The base champion loads by itself. Everything else happens in the panel on the left.</p>
+      <label class="drop-zone__btn">
+        Choose champion GLB (fallback)
+        <input type="file" id="fileInput" accept=".glb,model/gltf-binary" hidden />
+      </label>
+      <p class="drop-zone__note">Everyone must fit against this same base champion — a fit made against a different model will not transfer.</p>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="hud">
+    <div class="hud__row hud__row--title">
+      <span class="hud__title">Champion Tune Studio</span>
+      <button type="button" id="btnTutorial" class="hud__btn" title="Show the intro tutorial again">Tutorial</button>
+      <a href="./viewer.html" id="viewerLink" class="hud__btn" style="text-decoration:none;">Animation viewer</a>
+      <span id="fps" class="hud__fps">-- fps</span>
+    </div>
+
+    <!-- LOADING PROGRESS (2026-08-25) — multi-megabyte autoloads (champion base, try-on gear)
+         now report real progress instead of a single status line. Driven by progress.js. -->
+    <div id="loadProgress" class="load-progress" hidden role="status" aria-live="polite">
+      <div class="load-progress__bar"><div id="loadProgressFill" class="load-progress__fill"></div></div>
+      <span id="loadProgressText" class="load-progress__text"></span>
+    </div>
+
+    <!-- 1 · TRY ON: shared fitted gear, curated into assets/gear/ + manifest.json by the owner.
+         The section folds to a single header row — and STARTS FOLDED (2026-08-25) so a fresh
+         student sees the fit tools, not the shelf. ONE Auto-fit button lives in that header
+         (2026-08-25): pressed, it asks which gear to fit — unless exactly one piece matches the
+         current filter, then it just fits it. Category chips + a search box narrow the shelf;
+         every row keeps Try on (see it worn) + download. -->
+    <div class="hud__section" id="tryOnSection">
+      <div class="hud__row" style="margin-bottom:6px;">
+        <button type="button" id="tryOnToggle" class="hud__section-head" aria-expanded="false" aria-controls="assetGearBody">
+          <span class="hud__section-title">Try on — shared gear</span>
+          <span id="tryOnCount" class="hud__section-count" title="Pieces in the shared gear folder"></span>
+          <span class="hud__section-caret" aria-hidden="true">▸</span>
+        </button>
+        <button type="button" id="autoFitBtn" class="hud__btn auto-fit-btn" title="Auto-fit a gear piece — if only one matches the current filter, it fits right away">Auto-fit</button>
+      </div>
+      <!-- Starts CLOSED (2026-08-25): the shelf is the biggest block in the HUD, and a fresh
+           student is here to fit, not browse — one tap on the header opens it. -->
+      <div id="assetGearBody" hidden>
+        <div id="assetGearChips" class="shelf__chips" role="group" aria-label="Filter gear by category"></div>
+        <input id="assetGearFilter" class="shelf__search" type="search" placeholder="Find gear…" aria-label="Find gear by name" />
+        <div id="assetGearList" class="wardrobe"></div>
+      </div>
+    </div>
+
+    <!-- AUTO-FIT PICKER (2026-08-25) — the single Auto-fit button's "which gear?" question.
+         Lists the pieces that matched the shelf filter, grouped by category, with its own search
+         so a 26-piece rack stays browsable. Choosing a row fits it; Esc / x / Cancel close. -->
+    <div id="autoFitDialog" class="af-dialog" hidden>
+      <div class="af-dialog__card" role="dialog" aria-modal="true" aria-labelledby="afDialogTitle">
+        <div class="af-dialog__head">
+          <span class="tut__avatar tut__avatar--small" aria-hidden="true"><span class="tut__avatar-head"></span></span>
+          <h2 id="afDialogTitle" class="af-dialog__title">Which gear do you want me to fit?</h2>
+          <button type="button" id="afDialogClose" class="bone-panel__close" aria-label="Close the gear picker">x</button>
+        </div>
+        <input id="afDialogFilter" class="shelf__search" type="search" placeholder="Find gear…" aria-label="Find gear by name" />
+        <div id="afDialogList" class="af-dialog__list"></div>
+        <div class="af-dialog__foot">
+          <button type="button" id="afDialogCancel" class="hud__btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 · LOAD YOUR OWN: multi-select so FBX/OBJ textures ride along. -->
+    <div class="hud__section" id="loadSection">
+      <span class="hud__label">Your gear</span>
+      <label class="hud__btn hud__btn--wide hud__btn--primary">
+        Load gear&hellip; (GLB / FBX / OBJ)
+        <input type="file" id="gearInput" accept=".glb,.gltf,.fbx,.obj,.bin,.png,.jpg,.jpeg,.mtl,model/gltf-binary" multiple hidden />
+      </label>
+      <p class="hud__hint">Separate texture files? Select them together with the model in one pick. Rigged characters are refused &mdash; gear is a prop.</p>
+    </div>
+
+    <!-- 3 · WARDROBE: every piece stays worn (the art plan: all 17 lessons' parts at once).
+         Click a row to select; gizmo, slot and Download act on the selection. The list scrolls
+         ON ITS OWN (2026-08-25) so a long rack can never push the fit tools below the fold. -->
+    <div class="hud__section" id="wardrobeSection">
+      <div class="hud__row" style="margin-bottom:6px;">
+        <span class="hud__label" style="margin:0;">Wardrobe — worn now</span>
+        <!-- RESTORE LAST LOOK (2026-08-25): dresses the studio from the shared wardrobe store —
+             the same IndexedDB the Animation viewer wears. Undoable like any other change. -->
+        <button type="button" id="btnRestoreWardrobe" class="hud__btn" style="margin-left:auto;flex:0 0 auto;"
+                title="Put back the gear saved from your last session (what the Animation viewer wears)">Restore last look</button>
+      </div>
+      <div id="wardrobeList" class="wardrobe"></div>
+      <div class="hud__row" style="margin-top:6px;">
+        <!-- UNDO / REDO (2026-08-25): every wardrobe change (load, remove, slot move, gizmo drag,
+             auto-fit, restore) is one undo step; Ctrl+Z / Ctrl+Y work too. -->
+        <button type="button" id="btnUndo" class="hud__btn" disabled title="Nothing to undo">Undo</button>
+        <button type="button" id="btnRedo" class="hud__btn" disabled title="Nothing to redo">Redo</button>
+        <button type="button" id="btnOutline" class="hud__btn hud__btn--active" hidden>Outline: on</button>
+        <button type="button" id="btnGear" class="hud__btn hud__btn--wide" hidden>Remove selected gear</button>
+      </div>
+      <!-- The wardrobe is LIVE-SHARED with the Animation Viewer (wardrobe-store.js): every
+           change saves itself; the VIEWER wears what the studio fitted. The studio itself opens
+           bare (2026-08-25) — gear appears only when you fit it. -->
+      <p class="hud__hint">Saved as you fit &mdash; the <strong>Animation viewer</strong> (top) wears everything you fitted, then the studio starts bare again next time. A piece leaves only when you remove it here.</p>
+    </div>
+
+    <!-- 4 · FIT: shown while a piece is selected. Slots are the art plan's taxonomy (spec §3);
+         four head slots share the head bone, gizmo placement distinguishes them; Aura has no
+         geometry slot by design. -->
+    <div class="hud__section" id="fitSection" hidden>
+      <span class="hud__label">Fit the selected piece &mdash; G / R / S keys &middot; scale keeps proportions (hold Shift to stretch)</span>
+      <div class="hud__row" style="margin-bottom:6px;">
+        <label for="gearBone" class="hud__label" style="margin:0;">Slot</label>
+        <select id="gearBone" class="hud__btn hud__btn--wide">
+          <optgroup label="Anatomy — Senses">
+            <option value="crown">Crown — L14 antenna</option>
+            <option value="eye" selected>Eye / browline — L1 lens</option>
+            <option value="visor">Visor — L11 (layers over eye)</option>
+            <option value="temples">Temples — L16 audio rings</option>
+          </optgroup>
+          <optgroup label="Anatomy — Body">
+            <option value="chest">Chest — L2 sensor</option>
+            <option value="shoulderL">Shoulder L — L5 drone bay</option>
+            <option value="shoulderR">Shoulder R — L5 drone bay</option>
+            <option value="hips">Hips — L6 cargo rack</option>
+            <option value="legL">Leg L — L3 rover</option>
+            <option value="legR">Leg R — L3 rover</option>
+          </optgroup>
+          <optgroup label="Gear — Planner rig (back)">
+            <option value="backRig">Back — L7-L13 rig module</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option value="handR">Hand R — held tool</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="hud__row">
+        <button type="button" id="fitMove" data-fit-mode="translate" class="hud__btn">Move</button>
+        <button type="button" id="fitRotate" data-fit-mode="rotate" class="hud__btn">Rotate</button>
+        <button type="button" id="fitScale" data-fit-mode="scale" class="hud__btn">Scale</button>
+        <button type="button" id="fitDone" class="hud__btn">Done</button>
+      </div>
+      <div class="hud__row" style="margin-top:6px;">
+        <button type="button" id="fitDownload" class="hud__btn hud__btn--wide">Download fitted GLB</button>
+      </div>
+    </div>
+
+    <div class="hud__section" id="clipSection" hidden>
+      <span class="hud__label">Clips (from loaded GLB)</span>
+      <div class="hud__row hud__row--wrap" id="clipButtons"></div>
+    </div>
+
+    <!-- 5 · ASSETS + DEBUG -->
+    <div class="hud__section" id="assetsSection">
+      <span class="hud__label">Assets</span>
+      <div class="hud__row">
+        <a class="hud__btn hud__btn--wide" href="./assets/champion-base.glb" download style="text-decoration:none;">Download base champion (fit against THIS)</a>
+      </div>
+      <!-- DRESSED CHAMPION (2026-08-27): the whole result — base champion + every worn piece in
+           one GLB (pristine materials, no outline shells, gear baked into the rig). Slow: the
+           24 MB base re-encodes its textures on export. Distinct from "Download fitted GLB",
+           which bakes ONE accessory for the shared shelf. -->
+      <div class="hud__row" style="margin-top:6px;">
+        <button type="button" id="btnDressedDownload" class="hud__btn hud__btn--wide hud__btn--primary">Download dressed champion (base + worn gear)</button>
+      </div>
+      <div class="hud__row" style="margin-top:6px;">
+        <button type="button" id="btnBones" class="hud__btn hud__btn--wide">Show bone list</button>
+      </div>
+    </div>
+
+    <div id="bonePanel" class="bone-panel" hidden>
+      <div class="bone-panel__head">
+        <span>Skeleton bone names</span>
+        <button type="button" id="btnBonesClose" class="bone-panel__close" aria-label="Close bone list">x</button>
+      </div>
+      <pre id="boneList" class="bone-panel__list">(no model loaded — showing stand-in joint names)</pre>
+    </div>
+
+    <!-- Legacy sections — hidden, kept for tune.js id bindings. Pose only drives the pre-load
+         stand-in; the 2D-look defaults ARE the approved look (2026-07-30) and must not drift. -->
+    <div class="hud__section" hidden>
+      <span class="hud__label">Pose</span>
+      <div class="hud__row">
+        <button type="button" id="btnIdle" class="hud__btn hud__btn--active" data-mode="idle">Idle</button>
+        <button type="button" id="btnWalk" class="hud__btn" data-mode="walk">Walk</button>
+      </div>
+    </div>
+
+    <div class="hud__section" hidden>
+      <span class="hud__label">2D Look</span>
+      <div class="hud__control">
+        <div class="hud__control-head">
+          <span>Texture posterize</span>
+          <span id="posterizeVal" class="hud__control-val">off</span>
+        </div>
+        <input type="range" id="posterizeSlider" class="hud__slider" min="0" max="4" step="1" value="0" list="posterizeTicks" />
+        <datalist id="posterizeTicks">
+          <option value="0"></option><option value="1"></option><option value="2"></option>
+          <option value="3"></option><option value="4"></option>
+        </datalist>
+        <div class="hud__control-ticks"><span>off</span><span>8</span><span>6</span><span>4</span><span>3</span></div>
+      </div>
+      <div class="hud__control">
+        <div class="hud__control-head"><span>Camera</span></div>
+        <div class="hud__row">
+          <button type="button" id="btnCamera" class="hud__btn hud__btn--wide">Perspective</button>
+        </div>
+      </div>
+      <div class="hud__control">
+        <div class="hud__control-head"><span>Flat albedo</span></div>
+        <div class="hud__row">
+          <button type="button" id="btnFlatAlbedo" class="hud__btn hud__btn--wide">Texture: on</button>
+        </div>
+      </div>
+      <div class="hud__control">
+        <div class="hud__control-head"><span>Flat light</span></div>
+        <div class="hud__row">
+          <button type="button" id="btnFlatLight" class="hud__btn hud__btn--wide hud__btn--active">Lights: ambient + key</button>
+        </div>
+      </div>
+      <div class="hud__control">
+        <div class="hud__control-head">
+          <span>Band count</span>
+          <span id="bandVal" class="hud__control-val">5</span>
+        </div>
+        <input type="range" id="bandSlider" class="hud__slider" min="2" max="5" step="1" value="5" />
+      </div>
+      <div class="hud__control">
+        <div class="hud__control-head">
+          <span>Ambient / key</span>
+          <span id="ambientVal" class="hud__control-val">1.00</span>
+        </div>
+        <input type="range" id="ambientSlider" class="hud__slider" min="0" max="1" step="0.01" value="1.00" />
+      </div>
+      <div class="hud__control">
+        <div class="hud__control-head">
+          <span>Outline thickness</span>
+          <span id="outlineThicknessVal" class="hud__control-val">30</span>
+        </div>
+        <input type="range" id="outlineThicknessSlider" class="hud__slider" min="1" max="30" step="1" value="30" />
+      </div>
+    </div>
+
+    <div id="hudMessage" class="hud__message" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- AUTO-FIT DONE BUBBLE (2026-08-25) — a brief speech-bubble confirmation after Auto-fit
+       finishes, same avatar language as the tutorial. Purely informational: pointer-events none,
+       role=status, auto-hides. -->
+  <div id="fitDoneBubble" class="fit-done" hidden role="status" aria-live="polite">
+    <span class="tut__avatar tut__avatar--small" aria-hidden="true"><span class="tut__avatar-head"></span></span>
+    <span id="fitDoneBubbleText" class="fit-done__text"></span>
+  </div>
+
+  <!-- INTRO TUTORIAL — RPG-style. Shown on load: the student chooses Yes/No (their choice each
+       session). The HUD's Tutorial button (title row) reopens the tour any time. While a tour is
+       up the blocker dims the page and the spotlight ring follows each HUD section the card
+       explains. Markup is static; the controller lives at the bottom of tune.js. -->
+  <div id="tutorialRoot" class="tut" hidden>
+    <div class="tut__block"></div>
+
+    <!-- The "do you want the tutorial?" choice. -->
+    <div id="tutStart" class="tut__start" role="dialog" aria-modal="true" aria-labelledby="tutStartTitle" hidden>
+      <div class="tut__start-card">
+        <div class="tut__avatar" aria-hidden="true"><div class="tut__avatar-head"></div></div>
+        <h2 id="tutStartTitle" class="tut__title">Welcome, Champion!</h2>
+        <p class="tut__text">This is the Tune Studio — where you fit gear onto the champion.<br />Want a quick tour of the buttons before you start?</p>
+        <div class="tut__row">
+          <button type="button" id="tutYes" class="hud__btn hud__btn--primary tut__btn">Yes — show me around</button>
+          <button type="button" id="tutNo" class="hud__btn tut__btn">No — I&rsquo;ll explore</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- The step card. -->
+    <div id="tutDialog" class="tut__dialog" role="dialog" aria-modal="true" aria-labelledby="tutTitle" hidden>
+      <div class="tut__card">
+        <div class="tut__card-head">
+          <span class="tut__card-speaker">
+            <span class="tut__avatar tut__avatar--small" aria-hidden="true"><span class="tut__avatar-head"></span></span>
+            <span id="tutTitle" class="tut__title-small"></span>
+          </span>
+          <!-- VOICE (2026-08-25): reads the tour cards aloud (speechSynthesis, kid-friendly
+               voice/rate). Auto-reads each step while ON; the toggle speaks/stops immediately. -->
+          <button type="button" id="tutVoice" class="tut__voice" aria-pressed="false">Voice: off</button>
+          <button type="button" id="tutSkip" class="tut__skip" aria-label="Skip the tutorial">Skip</button>
+        </div>
+        <p id="tutText" class="tut__text"></p>
+        <div class="tut__row">
+          <button type="button" id="tutBack" class="hud__btn tut__btn">Back</button>
+          <span id="tutProgress" class="tut__progress"></span>
+          <button type="button" id="tutNext" class="hud__btn hud__btn--primary tut__btn">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- The spotlight ring — positioned by JS over the HUD section being explained. -->
+    <div id="tutSpot" class="tut__spot" hidden></div>
+  </div>
+
+  <!-- SKIP REMINDER — shown briefly when the student declines the tutorial (No / Skip / Esc):
+       tells them where to find the tour again. Clicking the toast itself reopens the tour. -->
+  <button type="button" id="tutToast" class="tut-toast" hidden>
+    <span class="tut-toast__text">Tip: the <strong>Tutorial</strong> button in the top bar brings this tour back anytime.</span>
+    <span class="tut-toast__act">Open tour</span>
+  </button>
+
+  <script type="module" src="./tune.js?v=20260828a"></script>
+</body>
+</html>

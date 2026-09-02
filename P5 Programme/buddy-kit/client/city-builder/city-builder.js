@@ -15,7 +15,7 @@
 
 import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createGLTFLoader } from '../shared/gltf.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -32,24 +32,40 @@ import { createSkySentinels } from '../hong-kong-real/sky-sentinels.js';
 import { createFlyingTaxi } from '../champion-city/taxi.js';
 import { createTraffic } from './traffic.js';
 import { createPedestrians } from './pedestrians.js';
+import { createClouds } from './clouds.js';
 import { createStreetProps } from './street-props.js';
 import { scatterStreetDeco } from './street-deco.js';
 import { createMinimap } from './minimap.js';
 import { mountCityBuddy } from './buddy.js';
 import { createLabelRenderer } from '../champion-city/labels.js';
-import { mountSkinSidebar } from '../champion-city/skins.js';
+import { mountSkinSidebar, equipCustomDefault } from '../champion-city/skins.js';
+import { preloadAccessories } from '../champion-city/accessories.js';
+import { saveCustomSkin, loadCustomSkinBlob, blobToObjectUrl, revokeObjectUrl, looksLikeGlb } from '../champion-city/custom-skin.js';
 import { playTap } from '../champion-city/sound.js';
+import { attachContextLossGuard } from '../champion-city/context-guard.js';
+import { ParticlePool } from '../champion-city/particles.js';
 import { catalogType, isSpecial } from '../city-common/catalog.js';
-import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout } from '../city-common/layout.js';
+import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout, typeSpec } from '../city-common/layout.js';
+import { LIBRARY, libraryUrl, libraryItem } from '../city-common/library.js';
+import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt, lastSavedAt } from '../city-common/champion-file.js';
+import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
+import { parseCapability, capabilityDescriptor, stage1Note, runInference } from '../city-common/cap-runtime.js';
+import { mountPropLibrary } from './prop-library.js';
+import { createGrabSystem } from '../shared/grab.js';
+import { createDrivableCar } from './drive.js';
+import { initI18n, applyStatic, mountLangToggle, t } from './i18n.js';
 
 const ASSET_BASE = '../champion-city/assets/';
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
 
-// The recycling centre opens the P5 Lesson 1 example game (Recycle-Eye —
-// Recycling Dataset Tycoon) instead of the shared P3 waste-sorters demo.
-// Scoped to THIS 3D simulation only; the HK topography sim keeps its own URL.
+// Object URL for the child's uploaded "fitted champion" GLB (Fit Studio), if
+// any. Created at boot from IndexedDB and handed to spawnChampion + skins.
+let _customSkinUrl = null;
+
+// The recycling centre opens the Workshop platform (where the student builds
+// the recycling-sorting AI) instead of the shared P3 waste-sorters demo.
 const QUEST_GAME_URL_OVERRIDES = {
-  14: 'https://p5-project-01.ai-education.workers.dev/', // Recycling Lab → P5 Lesson 1 example game
+  14: 'https://workshop.ai-education.workers.dev/', // Recycling Lab → Workshop platform
 };
 
 // Resolve the playable game URL for a quest id (override wins, else the
@@ -68,6 +84,37 @@ function questHasGameForType(type) {
 }
 
 const IS_MOBILE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || window.innerWidth <= 768;
+
+// Low-end devices (school tablets with limited RAM/cores) drop the expensive
+// post passes so the city stays smooth instead of sputtering.
+const LOW_END = IS_MOBILE && (
+  (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+  (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
+);
+
+// ─── Dynamic resolution governor ──────────────────────────────────────────
+// Cap the absolute backing-store size (bigger than devicePixelRatio alone, a
+// 2048×1536@1.25 framebuffer is huge on tablets) and adaptively step resolution
+// down if sustained FPS drops, back up with hysteresis when it recovers.
+const MAX_PIXELS = LOW_END ? 1.6e6 : (IS_MOBILE ? 2.6e6 : 5e6);   // backing-store px
+let resScale = 1;                    // 0.5..1 adaptive multiplier
+let govAcc = 0, govFrames = 0, govFps = 60;
+
+function applyResolution() {
+  if (!renderer) return;
+  const w = window.innerWidth, h = window.innerHeight;
+  const basePr = Math.min(window.devicePixelRatio, LOW_END ? 1 : (IS_MOBILE ? 1.25 : 2));
+  const scale = Math.min(1, Math.sqrt(MAX_PIXELS / Math.max(1, w * h * basePr * basePr)));
+  const pr = Math.max(0.5, basePr * resScale * scale);
+  renderer.setPixelRatio(pr);
+  renderer.setSize(w, h);
+  if (composer) composer.setSize(w, h);
+}
+
+function adaptQuality(fps) {
+  if (fps < 26 && resScale > 0.5) { resScale = Math.max(0.5, resScale - 0.15); applyResolution(); }
+  else if (fps > 55 && resScale < 1) { resScale = Math.min(1, resScale + 0.15); applyResolution(); }
+}
 
 // ─── osm-city facade palette (kept in sync — single aesthetic source) ─────
 const FACADE_PALETTE = [
@@ -165,9 +212,22 @@ let city = {};            // object passed to champion/buddy (scene/camera/rende
 let champion = null;
 let sim = null;
 let layout = null;
+let _bootGen = 0;         // bumped on every boot; stale loops cancel themselves
+let _rafId = 0;           // active requestAnimationFrame id (cancelled on re-boot)
+let _bootWatchdog = 0;    // boot-hang guard (see bootInner)
+const BOOT_TIMEOUT_MS = 60000; // a hung GLB fetch (flaky Wi-Fi) must never leave the loader frozen
 
 let specialSystem = null; // { beacon, beaconPositions, meshes }
+let championShadow = null;   // low-tier blob shadow under the champion
+let goalRing = null;         // green ring marking the next quest building
+let _goalTarget = null;      // cached next-quest QUESTS entry
+let _lastGoalTs = 0;
 const interactMeshes = []; // raycast targets for building entry
+
+// Grab / select / pick-up / move system for placed library models.
+let grab = null;
+let selectMode = false;
+let runToggled = false;   // R key — toggle run on/off
 
 // Air traffic
 let taxi = null;          // player's flying taxi
@@ -175,9 +235,16 @@ let decoTaxis = null;     // decorative skyline taxis
 let skySentinels = null;  // high-altitude drifting lights
 let drones = null;        // patrol drones
 let traffic = null;       // road vehicles
-let pedestrians = null;   // people walking along the sidewalks
+let pedestrians = null;   // background robot NPCs floating around the city
+let citizens = null;      // human citizens (posed people) near buildings
+let clouds = null;        // drifting clouds in the sky
 let streetProps = null;   // streetlights + benches
 let minimap = null;
+
+// Drivable cars (placed from the model library or the 🚗 Drive chooser).
+let drivingCar = null;    // active createDrivableCar instance (null = walking/flying)
+let driveCars = [];       // parked drivable car instances (bounded: fresh spawn replaces)
+let driveGLBLoader = null; // shared GLTFLoader for spawning cars
 
 // Navigation targets (from the buddy's walk/fly actions)
 let walkNav = null;       // {x, z} — champion auto-walks here
@@ -191,57 +258,87 @@ let cityBounds = null;    // tightened bounds for minimap + sky traffic
 // Distances are context-aware: overview (no champion) / walk / taxi ride.
 const orbit = {
   theta: 0.6, phi: 1.1, dist: 62, target: new THREE.Vector3(1000, 0, 1000), locked: false,
-  distWalk: 26, distTaxi: 15,
+  distWalk: 26, distTaxi: 15, distDrive: 13,
+  lastOrbitTs: 0,          // last manual orbit drag (for idle camera auto-reset)
 };
 const input = { x: 0, z: 0, running: false, jump: false, wave: false, dance: false, ascend: false, descend: false };
 let keys = {};
 
 // ─── Scene setup (osm-city look) ─────────────────────────────────────────
 function setupScene() {
+  // Re-boot after a failure: dispose the previous renderer/composer so a stale
+  // canvas and its GL context don't leak alongside the new one.
+  if (renderer) {
+    try {
+      if (composer) { composer.dispose(); composer = null; }
+      renderer.dispose();
+      if (renderer.domElement && renderer.domElement.parentNode) {
+        renderer.domElement.parentNode.removeChild(renderer.domElement);
+      }
+    } catch (e) { /* best-effort teardown */ }
+  }
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x16224a);
-  scene.fog = new THREE.FogExp2(0x16224a, 0.0007);
+  // Fog slightly lighter/warmer than the background so the horizon softens
+  // instead of clipping harshly at the draw distance (design polish).
+  scene.fog = new THREE.FogExp2(0x1c2b5a, 0.0007);
 
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1.0, 8000);
   camera.position.set(1000, 220, 1350);
   camera.lookAt(1000, 10, 1000);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.25 : 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  applyResolution();
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !LOW_END;      // no realtime shadows on low tier
   renderer.shadowMap.type = IS_MOBILE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   stage.appendChild(renderer.domElement);
 
-  composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), IS_MOBILE ? 0.85 : 1.1, 0.5, 0.35);
-  bloom.threshold = 0.35;
-  bloom.strength = IS_MOBILE ? 0.85 : 1.1;
-  composer.addPass(bloom);
-  const sat = { uniforms: { tDiffuse: { value: null }, amount: { value: IS_MOBILE ? 1.15 : 1.28 } },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-    fragmentShader: 'uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv; const vec3 LUMA=vec3(0.2126,0.7152,0.0722); void main(){ vec4 c=texture2D(tDiffuse,vUv); float luma=dot(c.rgb,LUMA); c.rgb=mix(vec3(luma),c.rgb,amount); gl_FragColor=c; }' };
-  composer.addPass(new ShaderPass(sat));
-  const vig = { uniforms: { tDiffuse: { value: null }, intensity: { value: 0.42 } },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-    fragmentShader: 'uniform sampler2D tDiffuse; uniform float intensity; varying vec2 vUv; void main(){ vec4 c=texture2D(tDiffuse,vUv); float d=distance(vUv,vec2(0.5)); float v=1.0-intensity*smoothstep(0.4,0.9,d); gl_FragColor=vec4(c.rgb*v,c.a); }' };
-  composer.addPass(new ShaderPass(vig));
-  // Mobile: renderer MSAA is already on — skip the extra SMAA pass (double AA).
-  // Desktop: SMAA cleans up edges cheaply at 2x pixel ratio.
-  if (!IS_MOBILE) {
-    composer.addPass(new SMAAPass(window.innerWidth * renderer.getPixelRatio(), window.innerHeight * renderer.getPixelRatio()));
+  // WebGL context loss (driver crash / memory pressure — the classic iPad
+  // failure under a heavy city) → friendly overlay, auto-resume on restore.
+  attachContextLossGuard(renderer, { label: 'The city paused' });
+  window.__contextGuard = true; // diagnostics/test hook
+
+  // Low tier renders straight to the canvas (no EffectComposer at all — the
+  // fullscreen passes + render targets are the biggest fill-rate cost on
+  // tile-based mobile GPUs). A cheap CSS radial vignette stands in for the
+  // shader vignette the composer normally adds.
+  if (LOW_END) {
+    const v = document.createElement('div');
+    v.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;' +
+      'background:radial-gradient(ellipse at center, transparent 62%, rgba(10,15,29,0.35) 100%);';
+    document.body.appendChild(v);
+  } else {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), IS_MOBILE ? 0.85 : 1.1, 0.5, 0.35);
+    bloom.threshold = 0.35;
+    bloom.strength = IS_MOBILE ? 0.85 : 1.1;
+    composer.addPass(bloom);
+    const sat = { uniforms: { tDiffuse: { value: null }, amount: { value: IS_MOBILE ? 1.15 : 1.28 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+      fragmentShader: 'uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv; const vec3 LUMA=vec3(0.2126,0.7152,0.0722); void main(){ vec4 c=texture2D(tDiffuse,vUv); float luma=dot(c.rgb,LUMA); c.rgb=mix(vec3(luma),c.rgb,amount); gl_FragColor=c; }' };
+    composer.addPass(new ShaderPass(sat));
+    const vig = { uniforms: { tDiffuse: { value: null }, intensity: { value: 0.42 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+      fragmentShader: 'uniform sampler2D tDiffuse; uniform float intensity; varying vec2 vUv; void main(){ vec4 c=texture2D(tDiffuse,vUv); float d=distance(vUv,vec2(0.5)); float v=1.0-intensity*smoothstep(0.4,0.9,d); gl_FragColor=vec4(c.rgb*v,c.a); }' };
+    composer.addPass(new ShaderPass(vig));
+    if (!IS_MOBILE) {
+      composer.addPass(new SMAAPass(window.innerWidth * renderer.getPixelRatio(), window.innerHeight * renderer.getPixelRatio()));
+    }
+    composer.addPass(new OutputPass());
   }
-  composer.addPass(new OutputPass());
 
   scene.add(new THREE.HemisphereLight(0x33406e, 0x1a2440, 1.15));
   const sun = new THREE.DirectionalLight(0xffd9b3, 1.5);
   sun.position.set(1000, 1600, 1200);
-  sun.castShadow = true;
+  sun.castShadow = !LOW_END;
   sun.shadow.mapSize.set(IS_MOBILE ? 1024 : 2048, IS_MOBILE ? 1024 : 2048);
+  // City-covering frustum (low tier has shadows off entirely). A tight
+  // champion-following shadow frustum is a Phase-2 refinement, not worth
+  // risking the current working setup for now.
   sun.shadow.camera.left = -1200; sun.shadow.camera.right = 1200;
   sun.shadow.camera.top = 1200; sun.shadow.camera.bottom = -1200;
   scene.add(sun);
@@ -263,14 +360,62 @@ function setupScene() {
   ground.receiveShadow = true;
   scene.add(ground);
 
+  // Ground texture (Polyhaven CC0 "Aerial Asphalt 01", 1k) — dark-tinted so it
+  // reads as night asphalt instead of a flat colour. Loaded async; the flat
+  // colour stays until it arrives.
+  new THREE.TextureLoader().load(
+    'assets/textures/ground-asphalt.jpg',
+    (tex) => {
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(300, 300);            // ~20 m per tile across the 6000 m plane
+      tex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+      ground.material.map = tex;
+      ground.material.color.set(0x3a4650); // night tint over the grey asphalt
+      ground.material.needsUpdate = true;
+    },
+    undefined,
+    () => console.warn('[ground] texture failed — keeping flat colour')
+  );
+
+  // Night sky: a subtle starfield (PointsMaterial ignores fog so it shows
+  // through the atmospheric haze at the horizon).
+  (function addStars() {
+    const N = 320;
+    const pos = new Float32Array(N * 3);
+    const r = 1900;
+    for (let i = 0; i < N; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(1 - Math.random() * 0.55);   // above the horizon band
+      pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      pos[i * 3 + 1] = r * Math.cos(phi);
+      pos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0xcfe4ff, size: 1.8, sizeAttenuation: true,
+      transparent: true, opacity: 0.55, fog: false, depthWrite: false,
+    });
+    const pts = new THREE.Points(geo, mat);
+    pts.position.set(1000, 0, 1000);
+    scene.add(pts);
+  })();
+
+  // Subtle cyan ground grid so the student can gauge distance/movement speed
+  // while driving; the existing fog fades it out with depth (design polish).
+  const grid = new THREE.GridHelper(2000, 20, 0x00f2fe, 0x00f2fe);
+  grid.material.transparent = true;
+  grid.material.opacity = 0.06;
+  grid.position.y = 0.02;
+  scene.add(grid);
+
   city.scene = scene;
   city.camera = camera;
   city.renderer = renderer;
   city.resize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    composer.setSize(window.innerWidth, window.innerHeight);
+    applyResolution();
   };
 }
 
@@ -299,12 +444,23 @@ function buildRoadsInto(group, roads, opts = {}) {
       const edgeY = opts.elevated ? 0.09 : 0.06;
       asphGeos.push(buildQuad(a, b, nx, nz, y));
       edgeGeos.push(linePair(a, b, nx, nz, edgeY));
-      laneGeos.push([a.x, laneY(opts), a.z, b.x, laneY(opts), b.z]);
+      // Dashed centre line: alternate ~4 m dashes with ~4 m gaps so the road
+      // reads as a proper lane-marked road instead of a single thin line.
+      const DASH = 4, GAP = 4;
+      for (let t = 0; t < len; t += DASH + GAP) {
+        const t0 = t / len, t1 = Math.min(t + DASH, len) / len;
+        laneGeos.push([
+          a.x + (b.x - a.x) * t0, laneY(opts), a.z + (b.z - a.z) * t0,
+          a.x + (b.x - a.x) * t1, laneY(opts), a.z + (b.z - a.z) * t1,
+        ]);
+      }
     }
   }
   if (asphGeos.length) {
     const merged = BufferGeometryUtils.mergeGeometries(asphGeos, false);
-    const color = opts.elevated ? 0x2f3b57 : 0x232c44;
+    // Near-black charcoal so the road surface reads clearly against the grey
+    // textured ground (cyberpunk-night asphalt).
+    const color = opts.elevated ? 0x2f3b57 : 0x151c2b;
     const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.2 });
     const mesh = new THREE.Mesh(merged, mat);
     mesh.receiveShadow = true;
@@ -315,13 +471,13 @@ function buildRoadsInto(group, roads, opts = {}) {
     for (const g of edgeGeos) pts.push(...g);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    const mat = new THREE.LineBasicMaterial({ color: opts.elevated ? 0xffffff : 0x00f2fe, transparent: true, opacity: opts.elevated ? 0.85 : 0.7 });
+    const mat = new THREE.LineBasicMaterial({ color: opts.elevated ? 0xffffff : 0x00f2fe, transparent: true, opacity: opts.elevated ? 0.85 : 0.9 });
     group.add(new THREE.LineSegments(geo, mat));
   }
   if (laneGeos.length) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(laneGeos.flat(), 3));
-    const mat = new THREE.LineBasicMaterial({ color: opts.elevated ? 0x00ff9d : 0xffffff, transparent: true, opacity: opts.elevated ? 0.9 : 0.5 });
+    const mat = new THREE.LineBasicMaterial({ color: opts.elevated ? 0x00ff9d : 0xffffff, transparent: true, opacity: opts.elevated ? 0.9 : 0.75 });
     group.add(new THREE.LineSegments(geo, mat));
   }
 }
@@ -346,7 +502,7 @@ function linePair(a, b, nx, nz, y) {
 }
 
 // ─── Fabric: parks (grass + trees) ────────────────────────────────────────
-const _treeLoader = new GLTFLoader();
+const _treeLoader = createGLTFLoader();
 let _treeModels = null;
 let _treePacks = null;    // Quaternius tree packs (each holds 5 named variants)
 let _parkModel = null;   // shared park GLB (trees + benches + fountain)
@@ -562,7 +718,7 @@ let _natureLoaded = false;
 function loadNatureFiller() {
   if (_natureLoaded) return;
   _natureLoaded = true;
-  const loader = new GLTFLoader();
+  const loader = createGLTFLoader();
   Promise.all(NATURE_FILLER_FILES.map((f) =>
     loader.loadAsync('assets/models/nature-filler/' + f).catch((e) => { console.warn('[nature-filler] failed', f, e); return null; })
   )).then((gltfs) => {
@@ -697,38 +853,23 @@ function buildQuestLandmarks() {
     const fp = b.footprint || spec.footprint || [22, 22];
     const h = Math.min(220, Math.max(8, b.height || spec.height || 30));
 
-    // Industrial mission buildings (water, power, recycling…) render the shared
-    // industrial GLB instead of a procedural design — but keep their beacon and
-    // label so they still read as mission buildings.
-    if (INDUSTRIAL_SPECIALS.includes(b.type)) {
-      (glbState.industrial || (glbState.industrial = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType: 'industrial' });
+    // Mission buildings backed by a real CC0 GLB: push a spot (placeholder box
+    // until the GLB loads) but keep the beacon + label so they still read as
+    // quest buildings. Every mission building is mapped today; the procedural
+    // questDesign path below is the fallback for any unmapped type.
+    const missionUrl = SPECIAL_BUILDING_MODELS[b.type];
+    if (missionUrl) {
+      const st = (glbState[b.type] || (glbState[b.type] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false }));
+      st.spots.push({ x: cx, z: cz, fp, h, glbType: b.type });
       // Plain placeholder until the GLB loads (or if it never does).
       const ph = new THREE.Mesh(
         new THREE.BoxGeometry(fp[0], h, fp[1]),
-        new THREE.MeshStandardMaterial({ color: 0x3a4650, roughness: 0.85, metalness: 0.3 })
+        new THREE.MeshStandardMaterial({ color: 0x4a5560, roughness: 0.8, metalness: 0.3 })
       );
       ph.position.set(cx, h / 2, cz);
       ph.castShadow = true;
       scene.add(ph);
-      glbState.industrial.fallbacks.push(ph);
-      beaconPositions.push({ x: cx, y: h + 6, z: cz, anchor: h });
-      questRefs.push({ q, cx, cz, top: h });
-      addBuildingLabel(q.labelZh, q.labelEn, cx, h + 14, cz);
-      continue;
-    }
-
-    // AI Finance Tower uses the skyscraper GLB (with window sparkles).
-    if (b.type === 'finance_tower') {
-      (glbState.skyscraper || (glbState.skyscraper = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType: 'skyscraper' });
-      // Placeholder until the GLB loads.
-      const ph = new THREE.Mesh(
-        new THREE.BoxGeometry(fp[0], h, fp[1]),
-        new THREE.MeshStandardMaterial({ color: 0x2d3640, roughness: 0.7, metalness: 0.4 })
-      );
-      ph.position.set(cx, h / 2, cz);
-      ph.castShadow = true;
-      scene.add(ph);
-      glbState.skyscraper.fallbacks.push(ph);
+      st.fallbacks.push(ph);
       beaconPositions.push({ x: cx, y: h + 6, z: cz, anchor: h });
       questRefs.push({ q, cx, cz, top: h });
       addBuildingLabel(q.labelZh, q.labelEn, cx, h + 14, cz);
@@ -820,37 +961,92 @@ function addBuildingLabel(zh, en, x, y, z) {
 
 // ─── Generic facilities (realistic facades + label) ───────────────────────
 // GLB-backed building types. Each renders as a facade extrusion immediately,
-// then swaps to the GLB clone when it loads. The shared `generic` model is used
-// for the plain facilities (school, hospital, shop, …) that don't have their
-// own dedicated building yet.
+// then swaps to the GLB clone when it loads. Only CC0-licensed GLBs are
+// referenced here (Kenney/Quaternius/custom); everything else stays procedural.
+// `fire` uses the CC0 fire-station model; housing uses the Kenney suburban kit.
+// The facility models below are Kenney City Kit (Commercial) GLBs (CC0):
+//   office → skyscraper-b (tall tower)  shop → wide low-detail (mall)
+//   hospital → building-i (big block)   school → building-c (low block)
+//   library → building-a (mid civic)    police → building-d (mid civic)
+// Stadium deliberately has NO GLB here (procedural facade + label) — the
+// Poly Pizza Colosseum stand-in looked bad and was removed.
 const GLB_BUILDING_TYPES = {
-  office: 'assets/models/office-tower.glb',
-  housing: 'assets/models/housing.glb',
-  shop: 'assets/models/mall.glb',
-  generic: 'assets/models/generic.glb',
-  industrial: 'assets/models/industrial.glb',
-  skyscraper: 'assets/models/skyscraper.glb',
-  hospital: 'assets/models/hospital.glb',
   fire: 'assets/models/fire-station.glb',
-  stadium: 'assets/models/stadium.glb',
+  housing: 'assets/models/housing-variants/housing-a.glb',
+  school: 'assets/models/school.glb',
+  hospital: 'assets/models/hospital.glb',
+  shop: 'assets/models/shop.glb',
+  office: 'assets/models/office.glb',
+  library: 'assets/models/library.glb',
+  police: 'assets/models/police.glb',
 };
-// Residential variations (Kenney City Kit Suburban, CC0): each housing spot
-// renders as a 2×2 block of units; each unit picks a RANDOM variant so a
-// student's neighbourhood looks lived-in instead of cloned.
+// Special/mission buildings — real CC0 GLBs (Kenney City Kit). Each keeps its
+// quest beacon + label; only the building body is swapped in place of the old
+// procedural/dark-box look. finance_tower also gets the twinkling window
+// sparkles (see applyBuildingModel).
+const SPECIAL_BUILDING_MODELS = {
+  finance_tower: 'assets/models/mission/finance-tower.glb',
+  treasury: 'assets/models/mission/treasury.glb',
+  sentiment_lab: 'assets/models/mission/sentiment-lab.glb',
+  city_central: 'assets/models/mission/city-central.glb',
+  traffic_lab: 'assets/models/mission/traffic-lab.glb',
+  traffic_emergency: 'assets/models/mission/traffic-emergency.glb',
+  drone_routing: 'assets/models/mission/drone-routing.glb',
+  health: 'assets/models/mission/health.glb',
+  bus: 'assets/models/mission/bus.glb',
+  delivery: 'assets/models/mission/delivery.glb',
+  monitoring: 'assets/models/mission/monitoring.glb',
+  water: 'assets/models/mission/water.glb',
+  power: 'assets/models/mission/power.glb',
+  recycling: 'assets/models/mission/recycling.glb',
+  subsurface: 'assets/models/mission/subsurface.glb',
+  robot_grid: 'assets/models/mission/robot-grid.glb',
+  swarm: 'assets/models/mission/swarm.glb',
+  atc: 'assets/models/mission/atc.glb',
+};
+// Residential variations — each housing spot renders as a 2×2 block of units;
+// each unit picks a RANDOM variant so a neighbourhood looks lived-in instead of
+// cloned. All CC0: 21 Kenney City Kit (Suburban) houses + 8 extra residential
+// models (Quaternius town houses/houses, CreativeTrio cottage, Kenney 2-storey).
 const HOUSING_VARIANTS = [
   'assets/models/housing-variants/housing-a.glb',
+  'assets/models/housing-variants/housing-b.glb',
   'assets/models/housing-variants/housing-c.glb',
+  'assets/models/housing-variants/housing-d.glb',
+  'assets/models/housing-variants/housing-e.glb',
+  'assets/models/housing-variants/housing-f.glb',
+  'assets/models/housing-variants/housing-g.glb',
   'assets/models/housing-variants/housing-h.glb',
+  'assets/models/housing-variants/housing-i.glb',
   'assets/models/housing-variants/housing-j.glb',
+  'assets/models/housing-variants/housing-k.glb',
+  'assets/models/housing-variants/housing-l.glb',
+  'assets/models/housing-variants/housing-m.glb',
   'assets/models/housing-variants/housing-n.glb',
+  'assets/models/housing-variants/housing-o.glb',
+  'assets/models/housing-variants/housing-p.glb',
+  'assets/models/housing-variants/housing-q.glb',
+  'assets/models/housing-variants/housing-r.glb',
+  'assets/models/housing-variants/housing-s.glb',
+  'assets/models/housing-variants/housing-t.glb',
   'assets/models/housing-variants/housing-u.glb',
+  'assets/models/housing-variants/housing-extra-townhouse-a.glb',
+  'assets/models/housing-variants/housing-extra-townhouse-b.glb',
+  'assets/models/housing-variants/housing-extra-townhouse-c.glb',
+  'assets/models/housing-variants/housing-extra-townhouse-large.glb',
+  'assets/models/housing-variants/housing-extra-house-a.glb',
+  'assets/models/housing-variants/housing-extra-house-b.glb',
+  'assets/models/housing-variants/housing-extra-cottage.glb',
+  'assets/models/housing-variants/housing-extra-2story-a.glb',
 ];
 // Facilities that share the generic model until they get their own GLB.
 // Plain facilities without a dedicated GLB — these fall back to the shared
-// generic model. (hospital/fire/stadium have their own models now.)
-const GENERIC_FACILITY_TYPES = ['school', 'library', 'police'];
+// generic model. Every generic facility has its own CC0 GLB now, so this list
+// is empty.
+const GENERIC_FACILITY_TYPES = [];
 // Mission buildings that use the industrial GLB instead of a procedural design.
-const INDUSTRIAL_SPECIALS = ['water', 'power', 'recycling', 'delivery', 'traffic_lab', 'traffic_emergency', 'subsurface', 'monitoring'];
+// (Legacy — all 18 mission buildings now map via SPECIAL_BUILDING_MODELS.)
+const INDUSTRIAL_SPECIALS = [];
 const glbState = {};   // type → { model, size, spots:[], fallbacks:[], loading }
 
 // Housing variants loader: every residential model shares the same base unit
@@ -863,7 +1059,7 @@ let housingVariantsLoaded = false;
 function loadHousingVariants() {
   if (housingVariantsLoaded) return;
   housingVariantsLoaded = true;
-  const loader = new GLTFLoader();
+  const loader = createGLTFLoader();
   for (const url of HOUSING_VARIANTS) {
     loader.loadAsync(url)
       .then((gltf) => {
@@ -884,7 +1080,7 @@ function loadBuildingModel(type, url) {
   const st = glbState[type] || (glbState[type] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false });
   if (st.loading) return;
   st.loading = true;
-  new GLTFLoader().loadAsync(url)
+  createGLTFLoader().loadAsync(url)
     .then((gltf) => {
       const m = gltf.scene;
       const box = new THREE.Box3().setFromObject(m);
@@ -909,6 +1105,7 @@ function loadBuildingModel(type, url) {
     .catch((e) => {
       console.warn(`[${type}] GLB load failed — keeping procedural`, e);
       st.model = null;
+      st.loading = false;   // allow a later retry (e.g. re-boot)
     });
 }
 
@@ -923,15 +1120,11 @@ function applyBuildingModel(type) {
   }
   st.fallbacks.length = 0;
   // …and any GLB clones applied by an earlier pass (variants load async, so
-  // re-applying must not stack duplicates).
+  // re-applying must not stack duplicates). Clones share geometry/material with
+  // the cached source model (clone(true)) — do NOT dispose them here, or the
+  // shared buffers are destroyed and every later clone renders black/broken.
   for (const clone of st.applied || []) {
     scene.remove(clone);
-    clone.traverse((o) => {
-      if (o.isMesh) {
-        o.geometry && o.geometry.dispose();
-        if (o.material) { if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose()); else o.material.dispose(); }
-      }
-    });
   }
   st.applied = [];
   // …and place a GLB clone on every spot (geometry shared, cheap).
@@ -960,19 +1153,33 @@ function applyBuildingModel(type) {
       continue;
     }
     const clone = st.model.clone(true);
-    const s = Math.min(
-      spot.fp[0] / st.size.x,
-      spot.fp[1] / st.size.z,
-      (spot.h || 24) / st.size.y
-    );
-    clone.scale.setScalar(s);
+    // Facility + mission buildings stretch to fill their footprint AND catalog
+    // height (non-uniform) so e.g. an office tower or the Finance Tower actually
+    // reads as a tower. Shared library items (nature / props / vehicles via
+    // lib:) keep uniform scaling so they are never distorted.
+    const stretch = GLB_BUILDING_TYPES[spot.glbType] || SPECIAL_BUILDING_MODELS[spot.glbType];
+    if (stretch) {
+      clone.scale.set(
+        spot.fp[0] / st.size.x,
+        (spot.h || 24) / st.size.y,
+        spot.fp[1] / st.size.z
+      );
+    } else {
+      const s = Math.min(
+        spot.fp[0] / st.size.x,
+        spot.fp[1] / st.size.z,
+        (spot.h || 24) / st.size.y
+      );
+      clone.scale.setScalar(s);
+    }
     clone.position.set(spot.x, 0, spot.z);
     clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     scene.add(clone);
     st.applied.push(clone);
-    // Skyscraper (AI Finance Tower): sprinkle window sparkles on the tower
-    // faces — small emissive points that twinkle in the main loop.
-    if (spot.glbType === 'skyscraper') addSkyscraperSparkles(spot, s, st.size);
+    // AI Finance Tower: sprinkle window sparkles on the tower faces — small
+    // emissive points that twinkle in the main loop. Uses the stretched world
+    // dims directly (spot.fp/height) because mission towers are non-uniform.
+    if (spot.glbType === 'finance_tower') addSkyscraperSparkles(spot, spot.fp[0], spot.h, spot.fp[1]);
   }
 }
 
@@ -980,8 +1187,7 @@ function applyBuildingModel(type) {
 // Small emissive points scattered over the tower's four faces that twinkle in
 // the main loop — "sparkle a bit / have a few lights" on the finance tower.
 const skyscraperSparkles = [];   // { points, base, phase } — updated each frame
-function addSkyscraperSparkles(spot, s, modelSize) {
-  const w = modelSize.x * s, h = modelSize.y * s, d = modelSize.z * s;
+function addSkyscraperSparkles(spot, w, h, d) {
   const count = 90;
   const positions = new Float32Array(count * 3);
   const baseAlpha = new Float32Array(count);
@@ -1020,17 +1226,105 @@ function updateSkyscraperSparkles(tNow) {
 }
 
 function buildGenericFacilities() {
+  const libIdsToLoad = new Set();
   for (const b of layout.buildings) {
     if (isSpecial(b.type)) continue;
-    const spec = catalogType(b.type);
+    const isLib = b.type.startsWith('lib:');
+    const spec = isLib ? libraryItem(b.type.slice(4)) : catalogType(b.type);
     if (!spec) continue;
     const cx = b.pos[0];
     const cz = b.pos[1];
     const fp = b.footprint || spec.footprint || [20, 20];
     // GLB-backed types can read too short if the source layout kept the small
     // catalog height — office towers should look like towers next to specials.
+    // Declared up top: the stadium branch below also needs the building height.
     const MIN_H = { office: 110 };
     const h = Math.min(220, Math.max(8, MIN_H[b.type] ?? (b.height || spec.height || 20)));
+
+    // Shared-library models (nature / props / vehicles / themed) render via
+    // their library GLB scaled to the footprint; a plain box stands in while
+    // the GLB loads (and as a fallback if it fails).
+    if (isLib) {
+      const libId = b.type.slice(4);
+      (glbState[libId] || (glbState[libId] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false })).spots.push({ x: cx, z: cz, fp, h: spec.height || 2, glbType: libId });
+      libIdsToLoad.add(libId);
+      const box = new THREE.Mesh(
+        new THREE.BoxGeometry(fp[0], spec.height || 2, fp[1]),
+        new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.85 })
+      );
+      box.position.set(cx, (spec.height || 2) / 2, cz);
+      scene.add(box);
+      glbState[libId].fallbacks.push(box);
+      if (labelRenderer) {
+        const el = document.createElement('div');
+        el.className = 'building-label';
+        el.innerHTML = `<div class="bl-en">${spec.name}</div>`;
+        const label = new CSS2DObject(el);
+        label.position.set(cx, (spec.height || 2) + 1.5, cz);
+        label.userData.mesh = box;
+        scene.add(label);
+      }
+      continue;
+    }
+
+    // Stadium — no good CC0 stadium GLB exists, so build a proper low-poly
+    // arena instead of the generic lit-window facade cuboid: green pitch at
+    // ground level, four tiered stands rising around it, corner floodlights.
+    if (b.type === 'stadium') {
+      const standMat = new THREE.MeshStandardMaterial({ color: 0x93a7b3, roughness: 0.75, metalness: 0.15 });
+      const tierMat = new THREE.MeshStandardMaterial({ color: 0x6f8493, roughness: 0.7, metalness: 0.2 });
+      const fieldMat = new THREE.MeshStandardMaterial({ color: 0x3f9b4f, roughness: 0.9 });
+      const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+
+      const [w, d] = fp;
+      const standH = h * 0.75;               // stands rise most of the way up
+      const fw = w * 0.5, fd = d * 0.5;      // pitch size
+      const add = (mesh) => { mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh); };
+
+      // Green pitch on the ground.
+      const field = new THREE.Mesh(new THREE.BoxGeometry(fw, 0.3, fd), fieldMat);
+      field.position.set(cx, 0.15, cz);
+      add(field);
+
+      // Four tiered stands — three steps each, rising and stepping outward.
+      const tierH = standH / 3;
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const length = dx !== 0 ? w * 0.92 : d * 0.92;     // along the side
+        const depth = (dx !== 0 ? w : d) * 0.25 / 3;       // per-tier depth
+        for (let t = 0; t < 3; t++) {
+          const off = (dx !== 0 ? w : d) * 0.25 + depth * (t + 0.5); // from centre
+          const stand = new THREE.Mesh(
+            new THREE.BoxGeometry(dx !== 0 ? length : depth, tierH, dz !== 0 ? length : depth),
+            t === 2 ? tierMat : standMat
+          );
+          stand.position.set(cx + dx * off, tierH * (t + 0.5), cz + dz * off);
+          add(stand);
+        }
+      }
+
+      // Corner floodlight towers.
+      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const px = cx + sx * (w / 2 - 1.5);
+        const pz = cz + sz * (d / 2 - 1.5);
+        const pole = new THREE.Mesh(new THREE.BoxGeometry(0.6, h + 3, 0.6), tierMat);
+        pole.position.set(px, (h + 3) / 2, pz);
+        add(pole);
+        const light = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 0.5), lightMat);
+        light.position.set(px, h + 4, pz);
+        add(light);
+      }
+
+      // Name label.
+      if (labelRenderer) {
+        const el = document.createElement('div');
+        el.className = 'building-label';
+        el.innerHTML = `<div class="bl-en">${spec.name}</div>`;
+        const label = new CSS2DObject(el);
+        label.position.set(cx, h + 6, cz);
+        scene.add(label);
+      }
+      continue;
+    }
 
     // Route each facility to its GLB slot: dedicated (office/housing) or the
     // shared generic model for the plain facilities.
@@ -1084,6 +1378,12 @@ function buildGenericFacilities() {
       scene.add(label);
     }
   }
+
+  // Load the shared-library GLBs used by this city (each loads once, shared).
+  for (const id of libIdsToLoad) {
+    const item = libraryItem(id);
+    if (item) loadBuildingModel(id, item.glb);
+  }
 }
 
 // ─── Parked vehicles (static, beside department buildings) ───────────────
@@ -1104,7 +1404,7 @@ function loadParkedVehicleModel(key) {
   const cfg = PARKED_VEHICLES[key];
   if (!cfg || _parkedVehicleState.models[key] || _parkedVehicleState.loading.has(key)) return;
   _parkedVehicleState.loading.add(key);
-  new GLTFLoader().loadAsync(cfg.file)
+  createGLTFLoader().loadAsync(cfg.file)
     .then((gltf) => {
       _parkedVehicleState.models[key] = gltf.scene;
       placeParkedVehicles();
@@ -1224,11 +1524,48 @@ function findSpawn() {
 async function spawnChampion() {
   const spawn = findSpawn();
   city.spawnWorld = new THREE.Vector3(spawn.x, 0, spawn.z);
-  champion = await createChampion(ASSET_BASE, city);
+  try {
+    champion = await createChampion(ASSET_BASE, city, {
+      // Start with the uploaded fitted champion (if any) instead of the bunny.
+      initialSkin: _customSkinUrl,
+      initialSkinId: '__custom__',
+    });
+  } catch (e) {
+    // Champion GLB failed to load — the city still renders; run without one
+    // rather than failing the whole boot.
+    console.warn('[city-builder] champion load failed — running without champion', e);
+    champion = null;
+    return;
+  }
+  city.champion = champion;     // debug/consumption handle (minimap/buddy/tests)
   // Grow the champion with the densified buildings so proportions stay right.
   if (growScale && growScale !== 1) champion.group.scale.multiplyScalar(growScale);
   scene.add(champion.group);
   orbit.target.copy(city.spawnWorld);
+  // Start the idle-camera timer from spawn so the camera doesn't snap on boot.
+  orbit.lastOrbitTs = performance.now();
+
+  // Low tier has realtime shadows off — a soft blob shadow keeps the champion
+  // visually grounded (cheap, one quad).
+  if (LOW_END) {
+    championShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(1.3, 20),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false })
+    );
+    championShadow.rotation.x = -Math.PI / 2;
+    championShadow.position.y = 0.02;
+    scene.add(championShadow);
+  }
+
+  // Goal ring — marks the current "next quest" building so there's always one
+  // clear nonverbal objective in the world.
+  goalRing = new THREE.Mesh(
+    new THREE.RingGeometry(1.7, 2.1, 28),
+    new THREE.MeshBasicMaterial({ color: 0x00ff9d, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })
+  );
+  goalRing.rotation.x = -Math.PI / 2;
+  goalRing.visible = false;
+  scene.add(goalRing);
   sim = {
     walkSpeed: 5,   // m/s — the champion walks ~5 m/s (was 2: too slow to cross a 2000m city)
     nearQuest: null,
@@ -1237,11 +1574,15 @@ async function spawnChampion() {
     questHasGame(type) { return questHasGameForType(type); },
     walkTo(building) {
       if (!champion || !building || (taxi && taxi.isActive())) return;
+      // Get out of the car before auto-walking.
+      if (drivingCar && drivingCar.isActive()) { drivingCar.exit(); updateDriveButtons(); }
       walkNav = { x: building.pos[0], z: building.pos[1] };
       showToast(`🚶 Walking to ${buildingName(building)}…`);
     },
     flyTo(building) {
       if (!champion || !building || !taxi) return;
+      // Get out of the car before flying.
+      if (drivingCar && drivingCar.isActive()) { drivingCar.exit(); updateDriveButtons(); }
       if (!taxi.isActive()) taxi.board(champion);
       const h = building.height || 30;
       taxiNav = { x: building.pos[0], z: building.pos[1], y: h + 14 };
@@ -1265,7 +1606,7 @@ async function spawnChampion() {
 }
 
 function buildingName(b) {
-  const spec = catalogType(b.type);
+  const spec = typeSpec(b.type);
   return spec ? spec.name : b.type;
 }
 
@@ -1274,7 +1615,8 @@ function setupAirTraffic() {
   const landingZones = (layout.parks || []).map((p) => ({ x: p.cx, z: p.cz, radius: Math.max(p.radius, 40) }));
   landingZones.push({ x: 1000, z: 1000, radius: 60 });
 
-  taxi = createFlyingTaxi(scene, { walkSpeed: 18, runSpeed: 70, landingZones, autoNavFloor: 260 });
+  taxi = createFlyingTaxi(scene, { walkSpeed: 18, runSpeed: 70, landingZones, autoNavFloor: 260, cruiseFloor: 240 });
+  window.__taxi = taxi;   // debug hook (harmless) — verify taxi boarding/state
 
   // Decorative skyline traffic + sentinels over the densified city footprint.
   // Tablets get a lighter swarm — these are pure decoration and each one is a
@@ -1287,7 +1629,7 @@ function setupAirTraffic() {
   // The drone COUNT is fixed (density independent of building count); the
   // bounds seed an even sky grid so the swarm covers the whole city.
   const stops = layout.buildings.map((b) => {
-    const h = b.height || catalogType(b.type)?.height || 30;
+    const h = b.height || typeSpec(b.type)?.height || 30;
     return { x: b.pos[0], z: b.pos[1], y: h + 8, home: b.type === 'atc' };
   });
   drones = stops.length ? createDrones(scene, 'central', { stops, bounds, mobile: IS_MOBILE }) : null;
@@ -1298,15 +1640,35 @@ function setupAirTraffic() {
   try { traffic = createTraffic(scene, layout.roads, { density: IS_MOBILE ? 0.55 : 1 }); }
   catch (e) { console.warn('[city-builder] traffic init failed', e); traffic = null; }
 
-  // Pedestrians — people milling around the city. Density is area-based so a
-  // big footprint gets proportionally more people; tablets use a lighter scale.
-  try { pedestrians = createPedestrians(scene, layout, { bounds, density: IS_MOBILE ? 0.55 : 1 }); }
-  catch (e) { console.warn('[city-builder] pedestrians init failed', e); pedestrians = null; }
-  city.pedestrians = pedestrians;
+  // Pedestrians — two instanced populations for the "living city" layer:
+  //  · robots glide around with a neon glow (AI patrol vibe)
+  //  · human citizens (posed: standing/walking/sitting/waving) cluster near
+  //    buildings so streets feel inhabited.
+  // Both async + graceful: if a model fails to load, that population just
+  // spawns fewer members; the city still runs.
+  createPedestrians(scene, layout, { bounds, density: IS_MOBILE ? 0.55 : 1 })
+    .then((p) => {
+      pedestrians = p;
+      if (p) city.pedestrians = p;
+    })
+    .catch((e) => console.warn('[city-builder] pedestrians init failed', e));
+  // Citizens are a separate population so robots and people coexist (and stay
+  // cheap: each is its own set of InstancedMeshes). Roughly half as many as
+  // robots so the city feels inhabited but not crowded on low-end tablets.
+  createPedestrians(scene, layout, { kind: 'human', bounds, density: (IS_MOBILE ? 0.55 : 1) * 0.5 })
+    .then((p) => { if (p) city.citizens = p; })
+    .catch((e) => console.warn('[city-builder] citizens init failed', e));
+
+  // Clouds — merged instanced cloud puffs drifting slowly across the sky.
+  // Async + graceful: if they fail to load, the city simply has clear skies.
+  createClouds(scene, layout, { bounds })
+    .then((c) => { clouds = c; if (c) city.clouds = c; })
+    .catch((e) => console.warn('[city-builder] clouds init failed', e));
 
   // Expose for the minimap + buddy (read-only consumers)
   city.layout = layout;
   city.drones = drones;
+  buildColliders();
 
   minimap = createMinimap(city, champion, taxi, { bounds });
 }
@@ -1321,6 +1683,8 @@ function updateFlyButtons() {
 
 function toggleTaxi() {
   if (!taxi || !champion) return;
+  // Driving a car and flying are mutually exclusive — exit the car first.
+  if (drivingCar && drivingCar.isActive()) drivingCar.exit();
   if (taxi.isActive()) {
     taxiNav = null;
     taxi.setAutoNav(false);
@@ -1332,15 +1696,266 @@ function toggleTaxi() {
   updateFlyButtons();
 }
 
+// ─── Drive a car ──────────────────────────────────────────────────────────
+// The 🚗 Drive button opens a car chooser (default: BYD Sealion 7). Picking a
+// car spawns it in front of the champion and boards them, mirroring the taxi
+// but on the ground. The champion exits back to walking with the car parked.
+
+/** Drivable cars shown in the 🚗 chooser (vehicles from the shared library). */
+function drivableCars() {
+  return LIBRARY.filter((it) => it.category === 'vehicles');
+}
+
+let _driveOverlay = null;   // car chooser overlay element (created on demand)
+
+function updateDriveButtons() {
+  const driving = drivingCar && drivingCar.isActive();
+  const btn = document.getElementById('btn-drive');
+  if (!btn) return;
+  const emoji = btn.childNodes[0];
+  if (emoji) emoji.textContent = driving ? '🚙' : '🚗';
+  const label = btn.querySelector('span');
+  if (label) label.textContent = driving ? 'Exit' : 'Drive';
+}
+
+function toggleDrive() {
+  if (!champion) return;
+  if (drivingCar && drivingCar.isActive()) {
+    // Driving → exit the current car (it stays parked where it stopped).
+    drivingCar.exit();
+    showToast('🚗 Parked! Walk back and press 🚗 to drive it again.');
+    updateDriveButtons();
+    return;
+  }
+  // Not driving → if a parked car is nearby, board it; otherwise open the chooser.
+  const near = parkedCarNearChampion();
+  if (near) {
+    near.board(champion);
+    showToast(`🚗 Driving the ${near.name || 'car'} again!`);
+    updateDriveButtons();
+    return;
+  }
+  openCarChooser();
+}
+
+/** Find a parked (exited) car within re-boarding range of the champion. */
+function parkedCarNearChampion() {
+  if (!champion || !driveCars || !driveCars.length) return null;
+  const p = champion.state.pos;
+  for (const car of driveCars) {
+    if (!car.isActive() && car.isParked()) {
+      const cp = car.getPos();
+      const dx = cp.x - p.x, dz = cp.z - p.z;
+      if (dx * dx + dz * dz < 8 * 8) return car;   // within 8 m
+    }
+  }
+  return null;
+}
+
+/** Build + show the car chooser overlay (🚗 Drive → pick a car). */
+function openCarChooser() {
+  if (!champion || drivingCar && drivingCar.isActive()) return;
+  closeDriveOverlay();
+  const overlay = document.createElement('div');
+  overlay.id = 'drive-overlay';
+  overlay.className = 'drive-overlay';
+  const panel = document.createElement('div');
+  panel.className = 'drive-panel';
+  overlay.appendChild(panel);
+
+  const header = document.createElement('div');
+  header.className = 'drive-header';
+  const title = document.createElement('div');
+  title.className = 'drive-title';
+  title.textContent = '🚗 Choose your car';
+  const sub = document.createElement('div');
+  sub.className = 'drive-sub';
+  sub.textContent = 'Pick a car to drive around your city!';
+  header.appendChild(title);
+  header.appendChild(sub);
+  panel.appendChild(header);
+
+  const grid = document.createElement('div');
+  grid.className = 'drive-grid';
+  for (const item of drivableCars()) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'drive-card';
+    card.style.setProperty('--accent', '#00F2FE');
+    card.innerHTML = `
+      <div class="drive-emoji" aria-hidden="true">${item.emoji}</div>
+      <div class="drive-name">${item.name}</div>
+    `;
+    card.addEventListener('click', () => {
+      closeDriveOverlay();
+      spawnDriveCar(item);
+    });
+    grid.appendChild(card);
+  }
+  panel.appendChild(grid);
+
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'drive-close';
+  close.textContent = '✕';
+  close.setAttribute('aria-label', 'Close');
+  close.addEventListener('click', closeDriveOverlay);
+  panel.appendChild(close);
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeDriveOverlay(); });
+  document.body.appendChild(overlay);
+  _driveOverlay = overlay;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .drive-overlay {
+      position: fixed; inset: 0; z-index: 2147483300;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(4, 8, 22, 0.72);
+      padding: 24px;
+    }
+    .drive-panel {
+      position: relative;
+      width: min(640px, 94vw); max-height: 84vh; overflow-y: auto;
+      background: #0d1730;
+      border: 1px solid rgba(0, 242, 254, 0.4);
+      border-radius: 18px;
+      padding: 22px 24px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+    }
+    .drive-header { text-align: center; margin-bottom: 18px; }
+    .drive-title { font-family: var(--font-display, inherit); font-size: 22px; font-weight: 800; color: #f8fafc; }
+    .drive-sub { margin-top: 6px; font-size: 13px; color: #8aa0c0; }
+    .drive-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .drive-card {
+      min-height: 96px; border-radius: 14px;
+      border: 1px solid rgba(0, 255, 157, 0.3);
+      background: #12203c; color: #f8fafc;
+      cursor: pointer; text-align: center;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    .drive-card:hover, .drive-card:active { background: #19305a; transform: translateY(-1px); border-color: #00F2FE; }
+    .drive-emoji { font-size: 34px; line-height: 1; }
+    .drive-name { font-size: 14px; font-weight: 800; }
+    .drive-close {
+      position: absolute; top: 10px; right: 12px;
+      border: none; background: transparent; color: #8aa0c0;
+      font-size: 18px; cursor: pointer; min-width: 44px; min-height: 44px;
+    }
+    @media (prefers-reduced-motion: reduce) { .drive-card { transition: none; } }
+  `;
+  document.head.appendChild(style);
+}
+
+function closeDriveOverlay() {
+  if (_driveOverlay) { _driveOverlay.remove(); _driveOverlay = null; }
+}
+
+/** Load a library vehicle GLB once, cache it, and return the normalized group. */
+function loadDriveModel(item) {
+  if (!driveGLBLoader) driveGLBLoader = createGLTFLoader();
+  const cacheKey = item.id;
+  if (_driveModelCache && _driveModelCache[cacheKey]) return Promise.resolve(_driveModelCache[cacheKey]);
+  return new Promise((resolve) => {
+    try {
+      driveGLBLoader.load(libraryUrl(item), (gltf) => {
+        const g = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+        if (!g) { console.warn('[drive] empty model', item.id); return resolve(null); }
+        // Normalize: scale to footprint, sit base on y=0, centre on X/Z.
+        //
+        // IMPORTANT: the scale + centering + "lift to y=0" are baked into an
+        // INNER container group, NOT onto `g` itself. drive.js board()/update()
+        // overwrite the top-level group's position/rotation to drive on y=0, so
+        // any correction stored on `g` gets wiped and cars whose model origin
+        // sits above the wheels (e.g. byd-sealion7: origin at the roof) sink
+        // into the ground. The inner group survives those writes.
+        const box = new THREE.Box3().setFromObject(g);
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+        const target = Math.max(item.footprint[0] || 1.5, item.footprint[1] || 2.6, item.height || 1.2);
+        const s = target / maxDim;
+        const cx = (box.min.x + box.max.x) / 2;
+        const cz = (box.min.z + box.max.z) / 2;
+        const lift = -box.min.y;
+        const inner = new THREE.Group();
+        inner.name = '__carBody__';
+        while (g.children.length) inner.add(g.children[0]);
+        inner.scale.setScalar(s);
+        inner.position.set(-cx, lift, -cz);
+        g.add(inner);
+        g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        if (!_driveModelCache) _driveModelCache = {};
+        _driveModelCache[cacheKey] = g;
+        resolve(g);
+      }, undefined, (err) => {
+        console.warn('[drive] load failed', item.id, err);
+        resolve(null);
+      });
+    } catch (e) { console.warn('[drive] load error', item.id, e); resolve(null); }
+  });
+}
+let _driveModelCache = null;
+let _driveReqSeq = 0;   // monotonically increasing pick token — stale picks lose
+
+/** Spawn a car of the chosen type in front of the champion and board them. */
+async function spawnDriveCar(item) {
+  if (!champion || !scene) return;
+  const req = ++_driveReqSeq;
+  const model = await loadDriveModel(item);
+  // A newer car pick superseded this one while its GLB was loading — drop it.
+  if (req !== _driveReqSeq) return;
+  if (!model) { showToast('⚠️ Could not load that car — try another!'); return; }
+
+  // If we already had a car, remove it (fresh spawn each time).
+  if (drivingCar && drivingCar.group && drivingCar.group.parent) {
+    drivingCar.reset();
+    drivingCar.group.parent.remove(drivingCar.group);
+  }
+  drivingCar = null;
+
+  const carGroup = model.clone(true);
+  scene.add(carGroup);
+  const car = createDrivableCar(scene, carGroup, {
+    walkSpeed: 15, runSpeed: 30,
+    radius: Math.max(item.footprint[0] || 1.5, item.footprint[1] || 2.6) / 2 * 0.9 + 0.3,
+  });
+  car.name = item.name;
+  drivingCar = car;
+  // Keep at most ONE parked car around for re-boarding; a fresh spawn replaces
+  // the previous car's group, so drop the stale controller from the list.
+  driveCars.length = 0;
+  driveCars.push(car);
+
+  // Board: snap the car just in front of the champion.
+  car.board(champion);
+  showToast(`🚗 Driving the ${item.name}! Use 🚶/🏃 to go, 🚗 to exit.`);
+  updateDriveButtons();
+}
+
 const _camPos = new THREE.Vector3();
-function updateCamera(dt, taxiActive) {
-  const focus = taxiActive ? taxi.getPos() : (champion ? champion.state.pos : orbit.target);
-  // Ease the zoom toward the mode's distance: overview → walk → taxi (closest).
-  const wantDist = taxiActive ? orbit.distTaxi : (champion ? orbit.distWalk : 62);
+function updateCamera(dt, taxiActive, driveActive) {
+  const driving = driveActive && drivingCar;
+  const focus = driving
+    ? drivingCar.getPos()
+    : taxiActive ? taxi.getPos() : (champion ? champion.state.pos : orbit.target);
+  // Ease the zoom toward the mode's distance: overview → walk → taxi → drive (closest).
+  const wantDist = driving ? (orbit.distDrive || 13)
+    : taxiActive ? orbit.distTaxi
+    : (champion ? orbit.distWalk : 62);
   orbit.dist += (wantDist - orbit.dist) * Math.min(1, dt * 2.5);
   if (!champion || orbit.locked) {
     // gentle auto-orbit when no champion yet / locked view
     orbit.theta += dt * 0.05;
+  } else if ((!taxiActive && !driving) && (performance.now() - orbit.lastOrbitTs) > 8000) {
+    // Idle camera auto-reset: after a while without orbit input, ease the
+    // camera back behind the champion's heading so walk-forward feels natural
+    // (the "where did my camera go" problem for young kids).
+    const targetTheta = champion.state.facing + Math.PI;
+    let dTheta = targetTheta - orbit.theta;
+    while (dTheta > Math.PI) dTheta -= Math.PI * 2;
+    while (dTheta < -Math.PI) dTheta += Math.PI * 2;
+    orbit.theta += dTheta * Math.min(1, dt * 1.2);
   }
   const cosP = Math.cos(orbit.phi);
   _camPos.set(
@@ -1351,6 +1966,52 @@ function updateCamera(dt, taxiActive) {
   camera.position.lerp(_camPos, Math.min(1, dt * 6));
   camera.lookAt(focus.x, focus.y + 2, focus.z);
   orbit.target.lerp(focus, Math.min(1, dt * 3));
+}
+
+// ─── Camera-relative movement ─────────────────────────────────────────────
+// Rotate raw direct input (iz = forward, ix = right) into world space relative
+// to the camera. The camera always lookAt `focus`, so the ground-forward is
+// focus − camera.position, projected onto XZ. Auto-navigation (walkNav/taxiNav)
+// already supplies world-space vectors and must NOT pass through here.
+function cameraRelativeMove(ix, iz, focus) {
+  const fx = focus.x - camera.position.x;
+  const fz = focus.z - camera.position.z;
+  const len = Math.hypot(fx, fz) || 1;
+  const Fx = fx / len, Fz = fz / len;
+  const Rx = -Fz, Rz = Fx;                    // ground-right (Y-up, right-handed)
+  return { x: Fx * iz + Rx * ix, z: Fz * iz + Rz * ix };
+}
+
+// ─── Champion building collision ──────────────────────────────────────────
+// Building footprints become AABBs (built once from the layout). The champion
+// is a circle that slides out along the axis of least penetration, so it never
+// walks through buildings but still glides along their walls.
+let buildingColliders = [];   // [{minX, maxX, minZ, maxZ}]
+
+function buildColliders() {
+  buildingColliders = [];
+  if (!city.layout || !city.layout.buildings) return;
+  for (const b of city.layout.buildings) {
+    const spec = typeSpec(b.type);
+    const fp = b.footprint || (spec && spec.footprint) || [20, 20];
+    const cx = b.pos[0], cz = b.pos[1];
+    const hw = (fp[0] || 20) / 2, hd = (fp[1] || 20) / 2;
+    buildingColliders.push({ minX: cx - hw, maxX: cx + hw, minZ: cz - hd, maxZ: cz + hd });
+  }
+}
+
+function resolveCollision(x, z, r) {
+  for (const c of buildingColliders) {
+    const minX = c.minX - r, maxX = c.maxX + r, minZ = c.minZ - r, maxZ = c.maxZ + r;
+    if (x < minX || x > maxX || z < minZ || z > maxZ) continue;
+    const dxL = x - minX, dxR = maxX - x, dzL = z - minZ, dzR = maxZ - z;
+    const m = Math.min(dxL, dxR, dzL, dzR);
+    if (m === dxL) x = minX;
+    else if (m === dxR) x = maxX;
+    else if (m === dzL) z = minZ;
+    else z = maxZ;
+  }
+  return { x, z };
 }
 
 // ─── Building entry (tap to open minigame) ────────────────────────────────
@@ -1371,6 +2032,7 @@ function wireRendererInteraction() {
     dragState.sx = e.clientX; dragState.sy = e.clientY;
     dragState.moved += Math.abs(dx) + Math.abs(dy);
     if (dragState.moved > 6) {
+      orbit.lastOrbitTs = performance.now();
       orbit.theta -= dx * 0.006;
       orbit.phi = Math.max(0.25, Math.min(1.45, orbit.phi - dy * 0.006));
     }
@@ -1382,10 +2044,35 @@ function wireRendererInteraction() {
   });
 }
 
-function tapAt(clientX, clientY) {
-  const rect = renderer.domElement.getBoundingClientRect();
-  pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+/** Register a placed library prop with the grab system so it can be selected,
+ *  picked up and moved (🎯 button). Persists the new position on drop. */
+function registerGrabbableProp(mesh, item) {
+  if (!grab || !mesh) return;
+  const fp = (item && item.footprint) || [1.5, 1.5];
+  grab.register(mesh, {
+    footprint: fp,
+    types: ['nature', 'prop', 'vehicle', 'character', 'scenario', 'building'],
+    movable: true,
+    tabletop: false,
+  });
+  grab.attach(mesh);
+  grab.addSurfaces(mesh);
+  // Keep the per-instance uid (assigned by prop-library) for move persistence;
+  // fall back to the library id so legacy records still match by id.
+  mesh.userData.propId = item ? item.id : (mesh.userData.propId || null);
+  mesh.userData.uid = mesh.userData.uid || (item ? item.id : (mesh.userData.uid || null));
+}
+
+function tapAt(clientX, clientY) {  const rect = renderer.domElement.getBoundingClientRect();
+  const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+  const ndcY = -((clientY - rect.top) / rect.height) * 2 + 1;
+  // Grab takes priority: while carrying → place; in select mode → pick a model.
+  if (grab) {
+    if (grab.mode !== 'idle') { grab.placeAt(ndcX, ndcY); return; }
+    if (selectMode) { grab.select(grab.pick(ndcX, ndcY)); return; }
+  }
+  // Normal building-entry raycast.
+  pointer.x = ndcX; pointer.y = ndcY;
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects(interactMeshes, false);
   if (hits.length && hits[0].object.userData.kind === 'quest') {
@@ -1415,6 +2102,7 @@ function openMinigame(data) {
       st.completed.push(data.questId);
       try { localStorage.setItem('hk_ai_city_quests_v1', JSON.stringify(st)); } catch (err) { /* ignore */ }
       invalidateQuestState();
+      refreshQuestStateCache();
     }
     showToast(`✅ ${data.name} complete!`);
   };
@@ -1426,25 +2114,37 @@ function openMinigame(data) {
 
 // ─── Buddy + skins ────────────────────────────────────────────────────────
 function mountChat() {
+  if (!champion) return;   // champion failed to load — skip buddy chat
   mountCityBuddy(city, champion, sim, layout);
 }
 
 function mountSkins() {
-  mountSkinSidebar(ASSET_BASE, champion, (skin) => showToast(`👑 ${skin.name} equipped!`));
+  if (!champion) return;   // champion failed to load — skip skin sidebar
+  // Preload Hunyuan accessory GLBs so equipping doesn't silently no-op.
+  preloadAccessories(ASSET_BASE);
+  mountSkinSidebar(ASSET_BASE, champion, (skin) => showToast(`👑 ${skin.name} ${t('toast.skinEquipped')}`),
+    _customSkinUrl ? { url: _customSkinUrl, name: 'My Champion' } : null);
 }
 
 // ─── Main loop ────────────────────────────────────────────────────────────
 let lastT = performance.now();
 function loop(now) {
-  requestAnimationFrame(loop);
+  // A newer boot() superseded this loop — stop without re-registering so the
+  // old RAF + renderer/composer don't keep running under the new scene.
+  const gen = _bootGen;
+  _rafId = requestAnimationFrame(loop);
+  if (gen !== _bootGen) return;
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
   const tNow = now / 1000;
 
   // Road traffic
   if (traffic) traffic.update(dt);
-  // Pedestrians
+  // Pedestrians (floating NPCs)
   if (pedestrians) pedestrians.update(dt, tNow);
+  if (citizens) citizens.update(dt, tNow);
+  // Clouds (drifting sky)
+  if (clouds) clouds.update(dt, tNow);
 
   // Air traffic
   if (decoTaxis) decoTaxis.update(dt, tNow);
@@ -1452,7 +2152,22 @@ function loop(now) {
   if (drones) drones.update(dt, tNow);
 
   const taxiActive = taxi && taxi.isActive();
-  if (taxiActive) {
+  const driveActive = drivingCar && drivingCar.isActive();
+  if (driveActive) {
+    // ── Driving a ground car ──────────────────────────────────────────────
+    // Camera-relative steering (same as walking/taxi). No auto-nav for cars.
+    const m = cameraRelativeMove(input.x, input.z, drivingCar.getPos());
+    drivingCar.update(dt, { x: m.x, z: m.z, running: input.running || runToggled }, tNow);
+    // Building collision — slide the car out of footprints so it never drives
+    // through buildings (re-sync the group after pushing the car's pos).
+    if (buildingColliders.length) {
+      const c = resolveCollision(drivingCar.getPos().x, drivingCar.getPos().z, drivingCar.radius);
+      drivingCar.getPos().x = c.x;
+      drivingCar.getPos().z = c.z;
+      drivingCar.group.position.set(c.x, 0, c.z);
+    }
+    sim.nearQuest = null;   // driving — no building is "near" for entering
+  } else if (taxiActive) {
     // Auto-fly to a building (buddy "fly to X") overrides manual steering.
     let tx = input.x, tz = input.z, ascend = input.ascend, descend = input.descend;
     if (taxiNav) {
@@ -1469,12 +2184,16 @@ function loop(now) {
         const dy = taxiNav.y - tp.y;
         if (dy > 2) ascend = true; else if (dy < -2) descend = true;
       }
+    } else {
+      // Camera-relative manual steering (no buddy auto-fly override)
+      const m = cameraRelativeMove(input.x, input.z, taxi.getPos());
+      tx = m.x; tz = m.z;
     }
     taxi.update(dt, { x: tx, z: tz, running: true, ascend, descend }, tNow);
     sim.nearQuest = null;   // flying — no building is "near" for entering
   } else if (champion) {
     // Walk navigation (buddy "walk to X") steers toward the target.
-    let mx = input.x, mz = input.z, mvRunning = input.running, mvJump = input.jump;
+    let mx = input.x, mz = input.z, mvRunning = input.running || runToggled, mvJump = input.jump;
     if (walkNav) {
       const p = champion.state.pos;
       const dx = walkNav.x - p.x, dz = walkNav.z - p.z;
@@ -1485,18 +2204,53 @@ function loop(now) {
         const len = dist || 1;
         mx = dx / len; mz = dz / len; mvRunning = false;
       }
+    } else {
+      // Camera-relative manual walking (no buddy walk-to override)
+      const m = cameraRelativeMove(input.x, input.z, champion.state.pos);
+      mx = m.x; mz = m.z;
     }    champion.update(dt, {
       x: mx, z: mz, running: mvRunning, jump: mvJump,
       speedScale: (sim.walkSpeed || 2) / WALK_SPEED,
     });
-    input.jump = false;
-    if (input.wave) { input.wave = false; champion.wave(); }
-    if (input.dance) { input.dance = false; champion.dance(); }
-    sim.nearQuest = nearestQuest();
-  }
+     // Building collision — slide out of footprints so the champion never walks
+     // through buildings (re-sync the group after pushing state.pos).
+     if (buildingColliders.length) {
+       const r = 0.5 * (champion.group.scale.x || 1);
+       const c = resolveCollision(champion.state.pos.x, champion.state.pos.z, r);
+       champion.state.pos.x = c.x;
+       champion.state.pos.z = c.z;
+       champion.group.position.set(c.x, champion.state.y, c.z);
+     }
+     // Blob shadow follows the champion (low tier only).
+     if (championShadow) {
+       championShadow.position.x = champion.state.pos.x;
+       championShadow.position.z = champion.state.pos.z;
+     }
+     input.jump = false;
+     if (input.wave) { input.wave = false; champion.wave(); }
+     if (input.dance) { input.dance = false; champion.dance(); }
+     sim.nearQuest = nearestQuest();
+   }
 
   updateQuestPrompt();
-  updateCamera(dt, taxiActive);
+  updateCamera(dt, taxiActive, driveActive);
+  if (grab) grab.update(dt, tNow);
+  // Goal ring → the next uncompleted quest building (recomputed ~2.5×/s, and
+  // only when not riding the taxi). Gives the child one clear nonverbal target.
+  if ((now - _lastGoalTs) > 400) {
+    _lastGoalTs = now;
+    _goalTarget = findNextQuest();
+  }
+  if (goalRing) {
+    if (_goalTarget && champion && !taxiActive && !driveActive) {
+      goalRing.visible = true;
+      goalRing.position.set(_goalTarget.pos[0], 2.2, _goalTarget.pos[1]);
+      const gs = 1 + 0.15 * Math.sin(now * 0.006);
+      goalRing.scale.setScalar(gs);
+    } else {
+      goalRing.visible = false;
+    }
+  }
   if (specialSystem) updateBeacons(now);
   if (skyscraperSparkles.length) updateSkyscraperSparkles(tNow);
   // CSS2D labels + minimap + HUD are DOM/canvas writes — throttle to ~30 Hz
@@ -1508,7 +2262,19 @@ function loop(now) {
     if (minimap) minimap.update();
     updateDebugHud();
   }
-  composer.render();
+
+  // Adaptive quality governor — watch sustained FPS and step resolution down
+  // (with hysteresis) so a struggling tablet degrades gracefully instead of
+  // sputtering.
+  govAcc += dt; govFrames++;
+  if (govAcc >= 2) {
+    govFps = govFrames / govAcc;
+    govAcc = 0; govFrames = 0;
+    adaptQuality(govFps);
+  }
+
+  if (composer) composer.render();
+  else renderer.render(scene, camera);
 }
 let _lastDomUpdate = 0;
 
@@ -1525,7 +2291,7 @@ function updateDebugHud() {
     document.body.appendChild(_debugHud);
   }
   _debugHud.textContent =
-    `people: ${pedestrians ? pedestrians.getCount() : 'null'}\n` +
+    `people: ${pedestrians ? pedestrians.getCount() : 'null'} + ${citizens ? citizens.getCount() : 'null'} citizens\n` +
     `cars/buses: ${traffic ? traffic.vehicles.length : 'null'}\n` +
     `drones: ${drones ? (drones.getCount ? drones.getCount() : '?') : 'null'}\n` +
     `loading: ${document.getElementById('loading').classList.contains('done') ? 'done' : '…'}`;
@@ -1545,11 +2311,27 @@ function nearestQuest() {
   return best ? QUESTS.find((q) => q.id === best.q.id) : null;
 }
 
+// Nearest quest building the child has NOT completed yet — the "next quest".
+// Falls back to the nearest quest when everything is done.
+function findNextQuest() {
+  if (!champion || !specialSystem) return null;
+  const p = champion.state.pos;
+  const st = loadQuestState();
+  let best = null, bestD = Infinity;
+  for (const ref of specialSystem.questRefs) {
+    const q = QUESTS.find((x) => x.id === ref.q.id);
+    if (!q || st.completed.includes(q.id)) continue;
+    const d = Math.hypot(ref.cx - p.x, ref.cz - p.z);
+    if (d < bestD) { bestD = d; best = q; }
+  }
+  return best || nearestQuest();
+}
+
 // ─── Quest enter prompt ──────────────────────────────────────────────────
 // When the champion stands near a mission building that has a playable
 // mini-game, show a visible "🎮 Enter" button (the invisible tap-target alone
 // wasn't discoverable for children). Locked / coming-soon buildings show the
-// label without the button, matching the HK topography flow.
+// label without the button.
 const _questPromptEl = document.getElementById('quest-prompt');
 const _questPromptLabel = document.getElementById('quest-prompt-label');
 const _questPromptBtn = document.getElementById('quest-prompt-btn');
@@ -1558,7 +2340,7 @@ function updateQuestPrompt() {
   if (!_questPromptEl) return;
   const quest = sim && sim.nearQuest;
   if (!quest) { _questPromptEl.classList.add('hidden'); return; }
-  const st = questStatus(quest, loadQuestState());
+  const st = questStatus(quest, questStateCached());
   if (st === 'locked') {
     _questPromptLabel.textContent = `🔒 ${quest.labelZh} ${quest.labelEn}`;
     _questPromptBtn.classList.add('hidden');
@@ -1585,9 +2367,17 @@ function wireQuestPrompt() {
 }
 
 const _bc = new THREE.Color();
+let _questStateCache = null;   // refreshed on quest completion (invalidation)
+function refreshQuestStateCache() {
+  _questStateCache = loadQuestState();
+}
+function questStateCached() {
+  if (!_questStateCache) refreshQuestStateCache();
+  return _questStateCache;
+}
 function updateBeacons(t) {
   if (!specialSystem.beacon) return;
-  const state = loadQuestState();
+  const state = questStateCached();
   specialSystem.beaconPositions.forEach((bp, i) => {
     const st = questStatus(specialSystem.questRefs[i].q, state);
     if (st === 'locked') { _bc.setHex(0x3a3f46); }
@@ -1621,31 +2411,86 @@ function wireInput() {
     if (isTyping()) return;
     keys[e.key.toLowerCase()] = true;
     const k = e.key.toLowerCase();
-    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) || ['w', 'a', 's', 'd'].includes(k)) e.preventDefault();
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) || ['w', 'a', 's', 'd', 'r'].includes(k)) e.preventDefault();
     if (k === ' ') input.jump = true;
+    if (k === 'r') runToggled = !runToggled;
   });
   window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
-  document.querySelectorAll('.dpad-btn').forEach((btn) => {
-    const dir = btn.dataset.dir;
-    const on = (e) => { e.preventDefault(); keys['dir:' + dir] = true; };
-    const off = (e) => { e.preventDefault(); keys['dir:' + dir] = false; };
-    btn.addEventListener('pointerdown', on);
-    btn.addEventListener('pointerup', off);
-    btn.addEventListener('pointerleave', off);
-  });
-  document.getElementById('btn-run').addEventListener('pointerdown', (e) => { e.preventDefault(); input.running = true; });
-  document.getElementById('btn-run').addEventListener('pointerup', () => { input.running = false; });
+  // Walk / Run — hold to move the champion forward (camera-relative). There
+  // are no arrow buttons: the champion walks the way the camera faces, and the
+  // child steers by orbiting the camera (drag to look around).
+  const bindHoldMove = (el, run) => {
+    if (!el) return;
+    const on = (e) => { e.preventDefault(); keys['dir:up'] = true; if (run) input.running = true; };
+    const off = (e) => { e.preventDefault(); keys['dir:up'] = false; if (run) input.running = false; };
+    el.addEventListener('pointerdown', on);
+    el.addEventListener('pointerup', off);
+    el.addEventListener('pointercancel', off);
+    el.addEventListener('pointerleave', off);
+  };
+  bindHoldMove(document.getElementById('btn-walk'), false);
+  bindHoldMove(document.getElementById('btn-run'), true);
   document.getElementById('btn-jump').addEventListener('pointerdown', (e) => { e.preventDefault(); input.jump = true; });
   document.getElementById('btn-wave').addEventListener('pointerdown', (e) => { e.preventDefault(); input.wave = true; });
   document.getElementById('btn-dance').addEventListener('pointerdown', (e) => { e.preventDefault(); input.dance = true; });
   document.getElementById('orbit-toggle').addEventListener('click', () => { orbit.locked = !orbit.locked; });
+
+  // "Take me home" — walk (or fly) the champion back to spawn. Reuses the
+  // buddy's walk-to/fly-to navigation so kids never get stranded across a
+  // growing city.
+  document.getElementById('btn-home').addEventListener('click', () => {
+    if (!city.spawnWorld) return;
+    // Get out of the car first, then head home.
+    if (drivingCar && drivingCar.isActive()) { drivingCar.exit(); updateDriveButtons(); }
+    if (taxi && taxi.isActive()) {
+      taxiNav = { x: city.spawnWorld.x, z: city.spawnWorld.z, y: 24 };
+      taxi.setAutoNav(true);
+      updateFlyButtons();
+    } else if (champion) {
+      walkNav = { x: city.spawnWorld.x, z: city.spawnWorld.z };
+    }    showToast('🏠 Heading home…');
+  });
+
+  // Small button back to the master site (hub / portal).
+  document.getElementById('btn-hub').addEventListener('click', () => {
+    window.location.href = 'https://p5-home.clover-marquis.workers.dev/';
+  });
+
+  // 🎯 button — select / pick-up / move placed library models (single-button
+  // cycle: enter select mode → tap a model → 🎯 to pick up → tap to place).
+  document.getElementById('btn-next').addEventListener('click', () => {
+    if (!grab) return;
+    if (grab.mode !== 'idle') {
+      grab.grabOrPlace();           // carrying → drop/place
+      return;
+    }
+    if (selectMode) {
+      const sel = grab.getSelected();
+      if (sel) grab.grabOrPlace();  // selected → pick up
+      else showToast('👀 Tap a model to select it, then 🎯 to pick it up.');
+      return;
+    }
+    selectMode = true;
+    showToast('👉 Select mode: tap a model, then 🎯 to pick it up and move it.');
+  });
+  // Tap-away to clear selection.
+  document.addEventListener('pointerdown', (e) => {
+    if (selectMode && grab && !e.target.closest('#btn-next') && grab.getSelected() && grab.mode === 'idle') {
+      grab.clearSelection();
+    }
+  });
 
   // Flying taxi controls
   const taxiBtn = document.getElementById('btn-taxi');
   const flyUp = document.getElementById('btn-flyup');
   const flyDown = document.getElementById('btn-flydown');
   taxiBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleTaxi(); });
+
+  // Drive controls — 🚗 opens the car chooser (default BYD Sealion 7); while
+  // driving the same button exits back to walking.
+  const driveBtn = document.getElementById('btn-drive');
+  driveBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleDrive(); });
   const hold = (el, key) => {
     const on = (e) => { e.preventDefault(); input[key] = true; };
     const off = (e) => { e.preventDefault(); input[key] = false; };
@@ -1691,12 +2536,334 @@ function showEntryError(msg) {
   if (sub) sub.textContent = '⚠️ ' + msg;
 }
 
+// ── Champion File: save / cloud / restore (cross-device backup) ─────────────
+const CLOUD_CODE_KEY = 'p5_cloud_code_v1';
+const SAVE_NAME_KEY = 'p5_city_save_name_v1';
+
+function downloadChampionFile(label) {
+  const file = composeChampionFile(collectState(), label);
+  const json = JSON.stringify(file, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = championFilename(label);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  rememberSavedAt();   // resume surface: "last saved …"
+  showToast(`💾 Saved "${label}" — keep this file as your backup!`);
+}
+
+async function cloudSave(label) {
+  const file = composeChampionFile(collectState(), label);
+  let lastCode = null;
+  try { lastCode = localStorage.getItem(CLOUD_CODE_KEY); } catch { /* ignore */ }
+  const res = await fetch('/api/save', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ label: file.label, state: file.state, code: lastCode || undefined }),
+  });
+  if (!res.ok) throw new Error('save failed (' + res.status + ')');
+  const data = await res.json();
+  try { localStorage.setItem(CLOUD_CODE_KEY, data.code); } catch { /* ignore */ }
+  rememberSavedAt();   // resume surface: "last saved …"
+  return data.code;
+}
+
+async function cloudLoad(code) {
+  const res = await fetch('/api/load?code=' + encodeURIComponent(code));
+  if (!res.ok) throw new Error('load failed (' + res.status + ')');
+  return await res.json();
+}
+
+/** Import a Champion File: write all state keys, then reload. Returns true if handled. */
+function importChampionFile(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return false;
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return false; }
+  const champ = sanitizeChampionFile(parsed);
+  if (!champ.ok) return false;
+  const n = writeState(champ.file.state);
+  showToast(`📂 Restored your Champion File${champ.file.label ? ' — ' + champ.file.label : ''} (${n} saved items). Reloading…`);
+  setTimeout(() => window.location.reload(), 600);
+  return true;
+}
+
+function wireSaveUi() {
+  const modal = document.getElementById('save-modal');
+  const nameInput = document.getElementById('save-name');
+  const cloudResult = document.getElementById('save-cloud-result');
+  const downloadBtn = document.getElementById('save-download');
+  const cloudBtn = document.getElementById('save-cloud');
+  const cloudModal = document.getElementById('cloud-modal');
+  const cloudCode = document.getElementById('cloud-code');
+  const cloudLoad = document.getElementById('cloud-load');
+  const cloudLoadResult = document.getElementById('cloud-load-result');
+  const openers = ['entry-save', 'entry-cloud-save', 'btn-save-hud']
+    .map((id) => document.getElementById(id)).filter(Boolean);
+
+  if (!modal || !nameInput) return;
+  const close = () => modal.classList.add('hidden');
+  const open = () => {
+    try { const last = localStorage.getItem(SAVE_NAME_KEY); if (last) nameInput.value = last; } catch { /* ignore */ }
+    if (cloudResult) { cloudResult.hidden = true; cloudResult.textContent = ''; }
+    modal.classList.remove('hidden');
+    nameInput.focus();
+    nameInput.select();
+  };
+  openers.forEach((el) => el.addEventListener('click', open));
+  modal.querySelectorAll('[data-save-close]').forEach((el) => el.addEventListener('click', close));
+
+  if (downloadBtn) downloadBtn.addEventListener('click', () => {
+    const name = nameInput.value.trim() || 'my-ai-city';
+    try { localStorage.setItem(SAVE_NAME_KEY, name); } catch { /* ignore */ }
+    downloadChampionFile(name);
+    close();
+  });
+
+  if (cloudBtn) cloudBtn.addEventListener('click', async () => {
+    const name = nameInput.value.trim() || 'my-ai-city';
+    try { localStorage.setItem(SAVE_NAME_KEY, name); } catch { /* ignore */ }
+    cloudBtn.disabled = true;
+    cloudBtn.textContent = '☁️ Saving…';
+    try {
+      const code = await cloudSave(name);
+      if (cloudResult) {
+        cloudResult.hidden = false;
+        cloudResult.innerHTML = 'Saved! Your cloud code is <b>' + code + '</b> — write it down to open this city on any device.';
+      }
+    } catch (e) {
+      if (cloudResult) {
+        cloudResult.hidden = false;
+        cloudResult.textContent = '⚠️ Could not save to the cloud right now (' + e.message + '). Try the 💾 Download instead.';
+      }
+    } finally {
+      cloudBtn.disabled = false;
+      cloudBtn.textContent = '☁️ Save to cloud';
+    }
+  });
+
+  // Open from cloud.
+  if (cloudModal && cloudCode && cloudLoad) {
+    const closeCloud = () => cloudModal.classList.add('hidden');
+    cloudModal.querySelectorAll('[data-cloud-close]').forEach((el) => el.addEventListener('click', closeCloud));
+    const openCloud = document.getElementById('entry-cloud-open');
+    if (openCloud) openCloud.addEventListener('click', () => {
+      try { const last = localStorage.getItem(CLOUD_CODE_KEY); if (last) cloudCode.value = last; } catch { /* ignore */ }
+      cloudLoadResult.textContent = '';
+      cloudModal.classList.remove('hidden');
+      cloudCode.focus();
+      cloudCode.select();
+    });
+    const doLoad = async () => {
+      const code = cloudCode.value.trim();
+      if (!code) { cloudLoadResult.textContent = 'Type your code first.'; return; }
+      cloudLoad.disabled = true;
+      cloudLoad.textContent = '☁️ Loading…';
+      try {
+        const data = await cloudLoad(code);
+        const champ = sanitizeChampionFile(data);
+        if (!champ.ok) { cloudLoadResult.textContent = '⚠️ ' + champ.error; return; }
+        const n = writeState(champ.file.state);
+        cloudLoadResult.textContent = '✅ Restored (' + n + ' saved items). Reloading…';
+        try { localStorage.setItem(CLOUD_CODE_KEY, code); } catch { /* ignore */ }
+        setTimeout(() => window.location.reload(), 700);
+      } catch (e) {
+        cloudLoadResult.textContent = '⚠️ Could not load (' + e.message + '). Check the code.';
+      } finally {
+        cloudLoad.disabled = false;
+        cloudLoad.textContent = '☁️ Load my city';
+      }
+    };
+    cloudLoad.addEventListener('click', doLoad);
+    cloudCode.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLoad(); });
+  }
+}
+
+// ── Inspector badge: HUD corner emblem + Logbook shell (MVP: lowest tier) ────
+function mountBadgeUi() {
+  const emblem = document.getElementById('badge-emblem');
+  if (!emblem) return;
+  const modal = document.getElementById('logbook-modal');
+  const body = document.getElementById('logbook-body');
+  if (!modal || !body) return;
+
+  const zh = (() => { try { return localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant'; } catch { return false; } })();
+  const state = readBadges();
+  const tier = tierOf(state);
+
+  // Emblem: small corner badge showing the current tier name (lowest for now).
+  const tag = document.createElement('span');
+  tag.className = 'badge-tag';
+  tag.textContent = zh ? tier.nameZh : tier.name;
+  emblem.appendChild(tag);
+  emblem.setAttribute('aria-label', zh ? `檢查員徽章：${tier.nameZh}` : `Inspector badge: ${tier.name}`);
+
+  const close = () => modal.classList.add('hidden');
+  emblem.addEventListener('click', () => {
+    const rows = TIERS.map((t) => {
+      const current = t.id === state.tier;
+      const reached = t.order <= tierOf(state).order;
+      const medal = t.order === 1 ? '🏗️' : t.order === 2 ? '🔍' : t.order === 3 ? '🛡️' : '🏛️';
+      return `<div class="logbook-tier ${current ? 'current' : ''} ${reached ? '' : 'locked'}">
+        <div class="tier-medal" aria-hidden="true">${medal}</div>
+        <div>
+          <div class="tier-name">${zh ? t.nameZh : t.name}${current ? ' ✓' : ''}</div>
+          <div class="tier-blurb">${zh ? t.blurbZh : t.blurb}</div>
+        </div>
+      </div>`;
+    }).join('');
+    body.innerHTML = rows
+      + `<div class="logbook-note">${zh
+        ? '你的徽章會在你證明你的機器後亮起 — 用留出的資料測試，並在「不確定」時說出來。'
+        : 'Your badges will light up as you prove your machines — test on data they have never seen, and say "not sure" when you should.'}</div>`;
+    modal.classList.remove('hidden');
+  });
+  modal.querySelectorAll('[data-logbook-close]').forEach((el) => el.addEventListener('click', close));
+}
+
+// ── Planted machines: Capability Panel (Stage 1 — display only, honest) ──────
+const CAPS_KEY = 'p5_city_capabilities_v1';
+const CAP_MAX_BYTES = 200 * 1024; // a numeric .cap is KBs; guard against bloat
+
+function readPlantedCaps() {
+  try { const a = JSON.parse(localStorage.getItem(CAPS_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch { return []; }
+}
+function writePlantedCaps(list) {
+  try { localStorage.setItem(CAPS_KEY, JSON.stringify(list.slice(0, 12))); } catch { /* ignore */ }
+}
+function renderCapPanel() {
+  const body = document.getElementById('cap-body');
+  if (!body) return;
+  const zh = (() => { try { return localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant'; } catch { return false; } })();
+  const caps = readPlantedCaps();
+  const cards = caps.map((cap) => {
+    const d = capabilityDescriptor(cap);
+    const s = d.scores;
+    const scoreLine = `study ${s.study ?? '—'} · check ${s.check ?? '—'} · sealed ${s.sealed ?? '—'}`;
+    return `<div class="cap-card">
+      <div class="cap-name">${esc(d.name)}</div>
+      <div class="cap-meta">${esc(d.algorithm)} · ${d.labels.length} labels · threshold ${d.threshold}</div>
+      <div class="cap-scores">${scoreLine}</div>
+      <div class="cap-note">${esc(stage1Note(zh))}</div>
+      <button class="cap-try" data-try-cap="${esc(d.id)}">🧪 ${zh ? '試試它' : 'Try it'}</button>
+    </div>`;
+  }).join('');
+  body.innerHTML = (caps.length ? '' : `<div class="cap-empty">${zh ? '還沒有種入的機器。從 Workshop 帶一台機器來，放進你的城市！' : 'No planted machines yet. Bring a machine from the Workshop and plant it in your city!'}</div>`)
+    + cards
+    + `<div class="cap-actions">
+         <button id="cap-plant-btn">📦 ${zh ? '種入機器' : 'Plant a machine'}</button>
+       </div>
+       <div id="cap-err" class="cap-error" aria-live="polite"></div>`;
+  const plant = document.getElementById('cap-plant-btn');
+  if (plant) plant.addEventListener('click', () => document.getElementById('cap-file').click());
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+function mountCapabilityUi() {
+  const btn = document.getElementById('cap-btn');
+  const modal = document.getElementById('cap-modal');
+  const fileInput = document.getElementById('cap-file');
+  if (!btn || !modal || !fileInput) return;
+
+  const zh = (() => { try { return localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant'; } catch { return false; } })();
+  const close = () => modal.classList.add('hidden');
+  btn.addEventListener('click', () => { renderCapPanel(); modal.classList.remove('hidden'); });
+  modal.querySelectorAll('[data-cap-close]').forEach((el) => el.addEventListener('click', close));
+
+  // "Try my machine" — feed a planted capability a real input, see the honest answer.
+  const tryModal = document.getElementById('cap-try-modal');
+  const tryBody = document.getElementById('cap-try-body');
+  const tryClose = () => tryModal && tryModal.classList.add('hidden');
+  if (tryModal && tryBody) {
+    tryModal.querySelectorAll('[data-captry-close]').forEach((el) => el.addEventListener('click', tryClose));
+    // delegate "Try it" clicks from freshly-rendered cap cards.
+    document.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-try-cap]');
+      if (!t) return;
+      const caps = readPlantedCaps();
+      const cap = caps.find((c) => c.id === t.getAttribute('data-try-cap'));
+      if (!cap) return;
+      openTry(cap);
+    });
+  }
+
+  function openTry(cap) {
+    const fields = (cap.input && cap.input.fields) || [];
+    const labels = (cap.output && cap.output.labels) || [];
+    const norm = (cap.input && cap.input.normalization) || {};
+    if (!tryModal || !tryBody) return;
+    const mid = (i) => { const lo = norm.min && norm.min[i] != null ? norm.min[i] : 0; const hi = norm.max && norm.max[i] != null ? norm.max[i] : 1; return Math.round(((lo + hi) / 2) * 100) / 100; };
+    const inputs = fields.map((f, i) => `
+      <label class="try-field">${esc(f.name)}
+        <input type="number" step="any" id="try-in-${i}" value="${mid(i)}" aria-label="${esc(f.name)}">
+      </label>`).join('');
+    tryBody.innerHTML = `
+      <p class="save-intro">${zh ? '給機器一些真實輸入，看看它會怎麼想。' : 'Give the machine a real input and watch what it decides.'}</p>
+      <div class="try-inputs">${inputs || (zh ? '（沒有輸入欄位）' : '(no input fields)')}</div>
+      <div class="goals-actions"><button id="try-run" class="plan-apply">⚙️ ${zh ? '讓機器思考' : 'Run the machine'}</button></div>
+      <div id="try-result" class="try-result" aria-live="polite"></div>
+      <div class="cap-note">${zh ? '「不確定」也是正確答案 — 當信心不足時，機器不猜。' : 'Saying "not sure" is a correct answer — when confidence is too low, the machine does not guess.'}</div>`;
+    const run = document.getElementById('try-run');
+    if (run) run.addEventListener('click', () => {
+      const event = {};
+      fields.forEach((f, i) => {
+        const el = document.getElementById('try-in-' + i);
+        event[f.name] = el ? Number(el.value) : NaN;
+      });
+      const res = runInference(cap, event);
+      const out = document.getElementById('try-result');
+      if (!out) return;
+      if (res.abstained) {
+        out.innerHTML = `<div class="try-decision abstain">${zh ? '🤔 不確定' : '🤔 Not sure'}</div>
+          <div class="try-detail">${zh ? '信心' : 'Confidence'} ${Math.round(res.confidence * 100)}%${res.abstainReason === 'missing-fields' ? ' — ' + (zh ? '輸入不完整' : 'incomplete input') : ' — ' + (zh ? '機器選擇不猜' : 'the machine chose not to guess')}</div>`;
+      } else {
+        out.innerHTML = `<div class="try-decision">${zh ? '它說' : 'It says'}: <b>${esc(res.decision)}</b></div>
+          <div class="try-detail">${zh ? '信心' : 'Confidence'} ${Math.round(res.confidence * 100)}% · ${zh ? '門檻' : 'threshold'} ${Math.round((cap.model && cap.model.threshold || 0) * 100)}%</div>
+          ${res.evidence && res.evidence.length ? '<div class="try-evidence">' + (zh ? '最近的例子' : 'Nearest examples') + ':</div>' + res.evidence.map((ev) => `<div class="try-evidence-row">• ${esc(ev.label)} — ${zh ? '距離' : 'distance'} ${ev.distance}</div>`).join('') : ''}`;
+      }
+    });
+    tryModal.classList.remove('hidden');
+  }
+
+  const plant = (raw) => {
+    if (!raw) return;
+    if (new TextEncoder().encode(raw).length > CAP_MAX_BYTES) {
+      const err = document.getElementById('cap-err');
+      if (err) err.textContent = zh ? '⚠️ 這個檔案太大（.cap 應為小 JSON）。' : '⚠️ That bundle is too large (.cap should be a small JSON).';
+      return;
+    }
+    const r = parseCapability(raw);
+    const err = document.getElementById('cap-err');
+    if (!r.ok) {
+      if (err) err.textContent = '⚠️ ' + r.error;
+      return;
+    }
+    const caps = readPlantedCaps();
+    if (!caps.some((c) => c.id === r.capability.id)) {
+      caps.push(r.capability);
+      writePlantedCaps(caps);
+    }
+    if (err) err.textContent = '';
+    renderCapPanel();
+  };
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => { plant(reader.result); fileInput.value = ''; };
+    reader.readAsText(f);
+  });
+}
+
 function startEntryFlow() {
   const overlay = document.getElementById('entry-overlay');
   const localBtn = document.getElementById('entry-local');
   const fileBtn = document.getElementById('entry-file');
   const pasteBtn = document.getElementById('entry-paste');
-  const sampleBtn = document.getElementById('entry-sample');
   const fileInput = document.getElementById('file-input');
   const pasteWrap = document.getElementById('paste-wrap');
   const pasteBox = document.getElementById('paste-box');
@@ -1704,7 +2871,26 @@ function startEntryFlow() {
 
   let saved = null;
   try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* ignore */ }
-  if (!saved) localBtn.textContent = '▶ Start with an empty sample';
+  if (!saved) {
+    // Localized empty-sample label (was hardcoded EN — broke zh-Hant here).
+    localBtn.textContent = t('entry.emptySample');
+  } else {
+    // Resume surface: a returning student sees "Continue my city" + when it was
+    // last backed up, instead of a cold "start".
+    localBtn.textContent = t('entry.continue');
+    const savedAt = lastSavedAt();
+    const resumeNote = document.getElementById('entry-resume');
+    if (savedAt && resumeNote) {
+      let dateStr = '';
+      try {
+        dateStr = new Date(savedAt).toLocaleDateString(localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant' ? 'zh-HK' : 'en-GB', { day: 'numeric', month: 'short' });
+      } catch { /* ignore */ }
+      if (dateStr) {
+        resumeNote.textContent = `↩ ${t('entry.resumeLabel')}: ${dateStr}`;
+        resumeNote.hidden = false;
+      }
+    }
+  }
 
   const begin = (raw) => {
     if (!loadLayout(raw)) return;
@@ -1716,8 +2902,30 @@ function startEntryFlow() {
     boot();
   };
 
+  // Auto-load from the planner handoff (?from=planner) — "build it, then walk
+  // into it" with zero extra taps. Same-origin localStorage carries the layout.
+  // Fully guarded: corrupt/absent JSON falls through to the normal entry overlay.
+  const fromPlanner = new URLSearchParams(location.search).get('from') === 'planner';
+  if (fromPlanner && saved) {
+    try {
+      begin(JSON.parse(saved));
+      history.replaceState(null, '', '/city-builder/'); // tidy the URL
+      return;
+    } catch (e) {
+      // corrupt save → fall through; the overlay shows "Start my saved city"
+    }
+  }
+
   localBtn.addEventListener('click', () => {
-    if (saved) { try { begin(JSON.parse(saved)); } catch (e) { begin(sampleLayout()); } }
+    if (saved) {
+      try { begin(JSON.parse(saved)); }
+      catch (e) {
+        // Saved city JSON is corrupt — fall back to the sample, but say so so
+        // the child isn't silently staring at a city they didn't build.
+        showEntryError('Your saved city could not be read — showing the sample instead. You can rebuild it in the planner.');
+        begin(sampleLayout());
+      }
+    }
     else begin(sampleLayout());
   });
   // Native <label for="file-input"> already opens the picker on every browser
@@ -1733,17 +2941,58 @@ function startEntryFlow() {
     const f = fileInput.files[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => { try { begin(JSON.parse(reader.result)); } catch (e) { showEntryError('That file is not valid JSON.'); } };
+    reader.onload = () => {
+      // Champion File (restore EVERYTHING) or a legacy layout JSON.
+      if (!importChampionFile(reader.result)) {
+        try { begin(JSON.parse(reader.result)); } catch (e) { showEntryError('That file is not valid JSON.'); }
+      }
+    };
     reader.readAsText(f);
   });
   pasteBtn.addEventListener('click', () => { pasteWrap.style.display = pasteWrap.style.display === 'none' ? 'block' : 'none'; });
   pasteGo.addEventListener('click', () => {
-    try { begin(JSON.parse(pasteBox.value)); } catch (e) { showEntryError('That JSON did not parse.'); }
+    if (!importChampionFile(pasteBox.value)) {
+      try { begin(JSON.parse(pasteBox.value)); } catch (e) { showEntryError('That JSON did not parse.'); }
+    }
   });
-  // "Try a sample city" → the existing Hong Kong topography 3D simulation.
-  sampleBtn.addEventListener('click', () => {
-    window.location.href = '/hong-kong-real/';
-  });
+
+  // ── Save / cloud (Champion File backup) ────────────────────────────────────
+  wireSaveUi();
+
+  // ── Optional: upload a "fitted champion" GLB from Fit Studio ──────────────
+  // The file is stored in IndexedDB (never uploaded anywhere) and becomes the
+  // champion's default skin for this and future sessions. Purely optional —
+  // pressing Start without uploading uses the saved/preset champion.
+  const skinInput = document.getElementById('skin-input');
+  const skinStatus = document.getElementById('skin-status');
+  const skinBtn = document.getElementById('entry-skin');
+  if (skinInput && skinStatus) {
+    skinBtn && skinBtn.addEventListener('click', (e) => {
+      if (e.defaultPrevented) return;   // label handled it
+      e.preventDefault();
+      skinInput.click();
+    });
+    skinInput.addEventListener('change', async () => {
+      const f = skinInput.files[0];
+      skinInput.value = '';             // allow re-picking the same file later
+      if (!f) return;
+      const ok = await looksLikeGlb(f);
+      if (!ok) {
+        skinStatus.textContent = '⚠️ Please pick a .glb champion file (under 64 MB).';
+        return;
+      }
+      try {
+        await saveCustomSkin(f);
+        if (_customSkinUrl) revokeObjectUrl(_customSkinUrl);
+        _customSkinUrl = blobToObjectUrl(f);
+        equipCustomDefault();           // make it the default next boot
+        skinStatus.textContent = `✅ ${f.name} saved — press Start to wear it!`;
+      } catch (e) {
+        console.warn('[city-builder] custom skin save failed', e);
+        skinStatus.textContent = '⚠️ Could not save that champion — try again.';
+      }
+    });
+  }
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────
@@ -1761,6 +3010,7 @@ function isWebGLAvailable() {
 
 function showBootError(msg) {
   // Never leave the loading spinner frozen: surface a clear error + retry.
+  clearTimeout(_bootWatchdog);   // boot failed (or watchdog fired) — no more retries needed
   const loading = document.getElementById('loading');
   const fill = document.getElementById('loading-fill');
   if (fill) fill.style.width = '100%';
@@ -1778,50 +3028,176 @@ async function boot() {
     await bootInner();
   } catch (e) {
     console.error('[city-builder] boot failed:', e);
+    window.__bootError = e;   // diagnostics hook — check in the console/Playwright
     showBootError('Something went wrong building your city — tap to try again.');
   }
 }
 
 async function bootInner() {
+  // Invalidate any previous boot's loop and tear down its scene/renderer.
+  _bootGen += 1;
+  if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
+  // Watchdog: if boot hangs (a loadAsync that never settles on a flaky network),
+  // surface the retry screen instead of a frozen loading bar. Cleared on success
+  // (end of bootInner) and on failure (showBootError).
+  clearTimeout(_bootWatchdog);
+  _bootWatchdog = setTimeout(() => {
+    const loading = document.getElementById('loading');
+    if (loading && !loading.classList.contains('done')) {
+      showBootError('Building your city is taking too long — check your connection and tap to try again.');
+    }
+  }, BOOT_TIMEOUT_MS);
+
+  // Resilience: one bad model or build step must never take down the whole
+  // city. Every step is wrapped — failures log + continue (the city degrades
+  // gracefully: missing trees/models rather than a blank boot error).
+  const warn = (name, e) => console.warn(`[city-builder] ${name} failed (continuing):`, e);
+  const safe = (name, fn) => { try { fn(); } catch (e) { warn(name, e); } };
+  const safeAwait = async (name, p) => { try { return await p; } catch (e) { warn(name, e); return null; } };
+
   setupScene();
   labelRenderer = createLabelRenderer(stage);
+  initI18n();
+  applyStatic();
+  mountLangToggle();
 
   const fill = document.getElementById('loading-fill');
   fill.style.width = '25%';
-  await loadTreeModels();
-  await loadTreePacks();
-  await loadParkModel();
-  loadNatureFiller();   // async — bushes/flowers/rocks for parks
+  await safeAwait('trees', loadTreeModels());
+  await safeAwait('tree-packs', loadTreePacks());
+  await safeAwait('park', loadParkModel());
+  safe('nature-filler', () => loadNatureFiller());   // async — bushes/flowers/rocks for parks
   fill.style.width = '60%';
 
-  buildTreeVariants();
-  carveParks();
-  carveRoads();
-  flushTrees();
-  flushNatureFiller();  // placements queued during carve; flush what's loaded
-  buildQuestLandmarks();
-  buildGenericFacilities();
+  safe('tree-variants', buildTreeVariants);
+  safe('parks', carveParks);
+  safe('roads', carveRoads);
+  safe('flush-trees', flushTrees);
+  safe('flush-nature', flushNatureFiller);  // placements queued during carve; flush what's loaded
+  safe('quest-landmarks', buildQuestLandmarks);
+  safe('generic-facilities', buildGenericFacilities);
   fill.style.width = '80%';
   // Street furniture (streetlights along roads, benches around parks).
-  streetProps = await createStreetProps(scene, layout);
+  streetProps = await safeAwait('street-props', createStreetProps(scene, layout));
   city.streetProps = streetProps;
   // Playground + street deco (async, non-blocking).
-  scatterStreetDeco(scene, layout);
+  safe('street-deco', () => scatterStreetDeco(scene, layout));
   // Async — replace procedural GLB-backed buildings (office towers, housing) when ready.
-  for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) loadBuildingModel(type, url);
-  loadHousingVariants();
+  safe('facility-glbs', () => { for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) loadBuildingModel(type, url); });
+  // Mission buildings — real GLBs for every special type (finance tower, industrial missions…).
+  safe('mission-glbs', () => { for (const [type, url] of Object.entries(SPECIAL_BUILDING_MODELS)) loadBuildingModel(type, url); });
+  safe('housing-variants', loadHousingVariants);
   // Parked vehicles (ambulance/firetruck/police/bus) — async, decorative.
-  for (const key of Object.keys(PARKED_VEHICLES)) loadParkedVehicleModel(key);
+  safe('parked-vehicles', () => { for (const key of Object.keys(PARKED_VEHICLES)) loadParkedVehicleModel(key); });
 
-  await spawnChampion();
-  wireRendererInteraction();
-  mountChat();
-  mountSkins();
-  wireInput();
-  wireQuestPrompt();
+  // Load the child's uploaded "fitted champion" GLB (Fit Studio) so it becomes
+  // the default skin this session. Read from IndexedDB → object URL.
+  const customBlob = await safeAwait('custom-skin', loadCustomSkinBlob());
+  if (customBlob) {
+    if (_customSkinUrl) revokeObjectUrl(_customSkinUrl);
+    _customSkinUrl = blobToObjectUrl(customBlob);
+  }
+
+  await safeAwait('champion', spawnChampion());
+  safe('renderer-interaction', wireRendererInteraction);
+
+  // Selected-object resize slider (2026-08-29): library models can ship at the
+  // wrong size, so let the student calibrate with a slider. Shown while a placed
+  // object is selected (🎯 select mode → tap); hidden on deselect. Created once,
+  // then just toggled. Scaling is relative to the size the object had when it
+  // was selected (0.2×–5×).
+  let _resizePanel = null;
+  function mountResizeSlider() {
+    if (_resizePanel) return _resizePanel;
+    const panel = document.createElement('div');
+    panel.className = 'resize-panel';
+    panel.innerHTML = `
+      <label for="resize-slider">Size</label>
+      <input type="range" id="resize-slider" min="0.2" max="5" step="0.05" value="1" aria-label="Resize selected object">
+      <span id="resize-value">100%</span>`;
+    document.body.appendChild(panel);
+    const slider = panel.querySelector('#resize-slider');
+    const valueEl = panel.querySelector('#resize-value');
+    slider.addEventListener('input', () => {
+      const v = parseFloat(slider.value);
+      valueEl.textContent = Math.round(v * 100) + '%';
+      if (grab) grab.setSelectedScale(v);
+    });
+    const style = document.createElement('style');
+    style.textContent = `
+      .resize-panel{
+        position:fixed; left:50%; bottom:96px; transform:translateX(-50%);
+        display:flex; align-items:center; gap:10px; z-index:40;
+        background:rgba(8,14,24,.9); border:1px solid rgba(255,255,255,.16);
+        border-radius:10px; padding:8px 14px; font:12px/1 system-ui,sans-serif; color:#f8fafc;
+        box-shadow:0 6px 24px rgba(0,0,0,.35); pointer-events:auto;
+      }
+      .resize-panel[hidden]{ display:none !important; }
+      .resize-panel input[type=range]{ width:150px; accent-color:#00f2fe; }
+      .resize-panel span{ min-width:42px; text-align:right; color:#9fd8ff; font-weight:600; }
+    `;
+    document.head.appendChild(style);
+    panel.hidden = true;
+    _resizePanel = {
+      panel,
+      setVisible(v) { panel.hidden = !v; },
+      reset() { slider.value = 1; valueEl.textContent = '100%'; },
+    };
+    return _resizePanel;
+  }
+
+  // Grab / select / pick-up / move system for placed library models.
+  safe('grab', () => {
+    grab = createGrabSystem(scene, {
+      getChampion: () => champion,
+      getCamera: () => camera,
+      getScene: () => scene,
+      colliders: buildingColliders,
+      onToast: showToast,
+      onSelection: (sel) => {
+        const rs = mountResizeSlider();
+        rs.setVisible(!!sel);
+        if (sel) rs.reset();
+      },
+      onDrop: (item) => {
+        // Persist the moved prop's new position — match by unique instance uid
+        // first, falling back to the library id for legacy records.
+        const api = window.__propLibrary;
+        const id = item && (item.userData.uid || item.userData.propId || item.userData.libraryId);
+        if (api && id) api.moveProp(id, item.position.x, item.position.z, item.rotation.y);
+      },
+    });
+    window.__grab = grab;
+    window.__drive = { get active() { return drivingCar ? drivingCar.isActive() : false; }, car: drivingCar };
+  });
+
+  safe('chat', mountChat);
+  safe('badges', mountBadgeUi);
+  safe('capabilities', mountCapabilityUi);
+  safe('skins', mountSkins);
+  safe('input', wireInput);
+  safe('quest-prompt', wireQuestPrompt);
+
+  // In-scenario model library: 🧰 button → pick a prop → tap-to-place on the
+  // ground. Placements persist per scenario in localStorage. A little dust puff
+  // celebrates each placement. Models come from the shared library catalog.
+  // Every placed prop is registered with the grab system so it can be selected,
+  // picked up and moved around (🎯 button).
+  safe('prop-library', () => {
+    const placementDust = new ParticlePool(scene, 40);
+    mountPropLibrary({
+      scene, camera, renderer,
+      storageKey: 'hk_ai_city_props_citybuilder_v1',
+      onPlaced: (x, z) => placementDust.spawn({ x, y: 0, z }, 6, 0.8, 1.6),
+      onPlacedMesh: (mesh, item) => registerGrabbableProp(mesh, item),
+      onPlacementDone: (mesh) => { if (grab && mesh) grab.select(mesh); },
+      onPlacementEnd: () => { if (grab) grab.clearSelection(); },
+    });
+  });
 
   document.getElementById('loading').classList.add('done');
   fill.style.width = '100%';
+  clearTimeout(_bootWatchdog);   // boot completed — disarm the hang guard
   // Non-blocking warning: a city with no roads renders as a bare ground (no
   // streets, streetlights, cars or road trees). Let the child know WHY instead
   // of leaving them confused — pure toast, never blocks or traps.
@@ -1838,9 +3214,14 @@ async function bootInner() {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
+applyStatic();       // localize the entry overlay before it's shown
 startEntryFlow();
 window.addEventListener('resize', () => {
-  if (renderer && camera) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); if (composer) composer.setSize(window.innerWidth, window.innerHeight); }
+  if (renderer && camera) {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    applyResolution();
+  }
 });
 
 // Update input each animation frame (cheap)

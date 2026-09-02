@@ -5,7 +5,7 @@
 // placement — ~250-450 streetlights become a single draw call.
 import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createGLTFLoader } from '../shared/gltf.js';
 
 const STREETLIGHT_EVERY = 30;   // m between streetlights along a road
 const STREETLIGHT_OFFSET = 3.2; // m from road centreline to the lamp post
@@ -15,7 +15,7 @@ const BENCH_SCALE = 1.0;        // bench model is already real-world scale
 
 /** Load the shared streetlight + bench models, then scatter them. */
 export async function createStreetProps(scene, layout) {
-  const loader = new GLTFLoader();
+  const loader = createGLTFLoader();
   const [lightGltf, benchGltf] = await Promise.all([
     loader.loadAsync('assets/models/street/streetlight.glb').catch((e) => { console.warn('[street-props] streetlight failed', e); return null; }),
     loader.loadAsync('assets/models/street/bench.glb').catch((e) => { console.warn('[street-props] bench failed', e); return null; }),

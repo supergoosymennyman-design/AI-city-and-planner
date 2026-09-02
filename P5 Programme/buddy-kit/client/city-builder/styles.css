@@ -1,0 +1,733 @@
+/* AI Smart City — Champion Simulator HUD */
+/* Solar-Cyber HK theme: solid dark panels, neon teal/magenta accents,
+   Octopus-card mission style. Tablet-first, touch targets >=56px. */
+
+:root {
+  /* Brand tokens — single source of truth (p5-brochure-brief.md design system).
+     Shipped accent is electric teal #00F2FE (a brighter sibling of the brief's
+     #3498DB); success #00FF9D, highlight #FFB84C, text #F8FAFC on navy #0B132B. */
+  --bg: rgba(10, 15, 29, 0.95);
+  --bg-solid: #0a0f1d;
+  --panel-border: rgba(0, 242, 254, 0.35);
+  --accent: #00F2FE;      /* smart electric teal */
+  --magenta: #FF007F;     /* Bauhinia */
+  --jade: #00FF9D;        /* eco green */
+  --amber: #FFB84C;
+  --text: #F8FAFC;
+  --muted: #94A3B8;
+  --radius: 12px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --neon: 0 0 12px rgba(0, 242, 254, 0.25);
+  --font-display: "Fredoka One", "Nunito", system-ui, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+.hidden { display: none !important; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   RESERVED UI ZONES (keep new UI inside these, never overlap them):
+     • Top-left  : tool toggles (skin 🎨, orbit 🎥, prop library 🧰) at top:64
+     • Bottom-left: movement controls (action bar + d-pad)
+     • Bottom-right: buddy chat bubble/panel
+     • Bottom-center: ONE transient "stage" slot shared by the mission card,
+       the waypoint hint, and the prop-placement toolbar (mutually exclusive).
+   The quest "Enter" prompt lives top-left BELOW the tool toggles (top:150),
+   clear of the buddy panel and the stage slot.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ---------- Quest proximity prompt ---------- */
+#quest-prompt {
+  position: fixed; top: 92px; bottom: auto; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(10, 15, 29, 0.96);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+  z-index: 130;
+  pointer-events: auto;
+}
+.quest-prompt-label { font-size: 15px; font-weight: 700; color: var(--text); }
+#quest-prompt-btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #06121a;
+  font-size: 14px; font-weight: 800;
+  cursor: pointer;
+}
+#quest-prompt-btn:active { transform: scale(0.94); }
+
+/* ---------- Building-entry mission card + vignette ---------- */
+#enter-vignette {
+  position: fixed; inset: 0; z-index: 200;
+  /* Spotlight the centre (where the interior room is) — the room stays fully
+     visible while the city edges fade to dark behind the walls. */
+  background: radial-gradient(ellipse at center,
+    rgba(0,0,0,0) 32%,
+    rgba(5,10,20,0.35) 55%,
+    rgba(5,10,20,0.92) 100%);
+  pointer-events: none;
+  animation: ev-in 0.4s ease;
+}
+@keyframes ev-in { from { opacity: 0; } to { opacity: 1; } }
+
+#enter-mission {
+  position: fixed; inset: 0; z-index: 210;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+#enter-mission.hidden, #enter-vignette.hidden { display: none; }
+
+/* ── Department holographic briefing (crisis + decision) ──────────────────── */
+#enter-dept {
+  position: fixed; inset: 0; z-index: 205;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+#enter-dept.hidden { display: none; }
+.dept-card {
+  --theme: #00f2fe;
+  width: min(400px, 88vw);
+  background: linear-gradient(160deg, rgba(10,16,30,0.97), rgba(6,10,22,0.97));
+  border: 2px solid var(--theme);
+  border-radius: 18px;
+  padding: 22px 24px;
+  text-align: left;
+  box-shadow: 0 0 44px color-mix(in srgb, var(--theme) 40%, transparent), var(--shadow);
+  animation: em-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  pointer-events: auto;
+}
+.dept-alert {
+  font-size: 13px; font-weight: 900; letter-spacing: 3px;
+  color: #ff5c7a; text-transform: uppercase;
+  margin-bottom: 6px;
+  animation: dept-pulse 1.4s ease-in-out infinite;
+}
+@keyframes dept-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+.dept-title {
+  font-size: 24px; font-weight: 900; color: var(--text);
+  line-height: 1.2;
+}
+.dept-sub {
+  font-size: 13px; font-weight: 700; color: var(--theme);
+  letter-spacing: 0.5px; margin: 2px 0 12px;
+}
+.dept-scenario {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 14px; line-height: 1.6; color: #dbe7f4;
+  background: rgba(0,242,254,0.05);
+  border: 1px solid rgba(0,242,254,0.18);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-height: 96px;
+  white-space: pre-wrap;
+  cursor: pointer;               /* tap to reveal the full message faster */
+}
+.dept-options { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.dept-opt {
+  display: block; width: 100%; text-align: left;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  font-size: 14px; font-weight: 600; line-height: 1.35;
+  cursor: pointer; pointer-events: auto;
+  transition: transform 0.08s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.dept-opt:active { transform: scale(0.98); }
+.dept-opt:hover:not(:disabled) { border-color: var(--theme); }
+.dept-opt:disabled { opacity: 0.55; cursor: default; }
+.dept-opt.correct {
+  border-color: #00ff9d; background: rgba(0,255,157,0.14);
+  color: #d8ffec;
+}
+.dept-opt.wrong {
+  border-color: #ff5c7a; background: rgba(255,92,122,0.12);
+  color: #ffe0e6;
+}
+.dept-feedback {
+  margin-top: 14px; padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(0,242,254,0.07);
+  border: 1px solid rgba(0,242,254,0.25);
+  font-size: 14px; line-height: 1.55; color: #dbe7f4;
+  animation: em-in 0.3s ease;
+}
+.dept-continue {
+  display: block; margin: 16px auto 2px;
+  padding: 11px 26px;
+  border: none; border-radius: 10px;
+  background: var(--theme);
+  color: #06233a;
+  font-size: 15px; font-weight: 800;
+  cursor: pointer; pointer-events: auto;
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+.dept-continue:active { transform: scale(0.95); }
+.dept-continue:hover { filter: brightness(1.15); }
+.em-card {
+  --theme: #00f2fe;
+  width: min(360px, 86vw);
+  background: linear-gradient(160deg, rgba(14,20,36,0.96), rgba(9,14,26,0.96));
+  border: 2px solid var(--theme);
+  border-radius: 18px;
+  padding: 22px 24px;
+  text-align: center;
+  box-shadow: 0 0 40px color-mix(in srgb, var(--theme) 35%, transparent), var(--shadow);
+  animation: em-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes em-in { from { opacity: 0; transform: translateY(24px) scale(0.94); } to { opacity: 1; transform: none; } }
+.em-number {
+  font-size: 12px; font-weight: 800; letter-spacing: 2px;
+  color: var(--theme); text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.em-icon { font-size: 46px; line-height: 1.1; margin: 6px 0 10px; filter: drop-shadow(0 0 12px color-mix(in srgb, var(--theme) 60%, transparent)); }
+.em-title { margin-bottom: 10px; }
+.em-zh { font-size: 22px; font-weight: 900; color: var(--text); line-height: 1.3; }
+.em-en { font-size: 15px; font-weight: 700; color: var(--theme); letter-spacing: 0.4px; margin-top: 2px; }
+.em-theme {
+  font-size: 13px; color: var(--text-muted, #9aa7bd);
+  font-style: italic; margin-bottom: 10px; line-height: 1.4;
+}
+.em-reason {
+  font-size: 12px; color: #ffd166; line-height: 1.4;
+  font-weight: 600; margin-bottom: 14px;
+  min-height: 17px;
+}
+.em-start {
+  display: inline-block;
+  padding: 11px 22px; margin: 2px 0 10px;
+  border: none; border-radius: 10px;
+  background: var(--theme);
+  color: #06233a;
+  font-size: 15px; font-weight: 800;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+.em-start:active { transform: scale(0.95); }
+.em-start:hover { filter: brightness(1.15); }
+.em-bar {
+  height: 6px; border-radius: 3px; overflow: hidden;
+  background: rgba(255,255,255,0.1);
+  display: none;   /* no longer a countdown timer */
+}
+.em-fill {
+  height: 100%; width: 0%;
+  background: var(--theme);
+}
+
+/* ---------- Minigame overlay ---------- */
+#game-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: #0a0f1d;
+  display: flex; flex-direction: column;
+}
+#game-overlay-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(10, 15, 29, 0.95);
+  border-bottom: 1px solid var(--panel-border);
+}
+#game-overlay-title { font-size: 16px; font-weight: 800; color: var(--text); }
+.game-overlay-actions { display: flex; gap: 10px; }
+.game-overlay-actions button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(10, 15, 29, 0.7);
+  color: var(--text);
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+}
+.game-overlay-actions button:active { transform: scale(0.95); }
+#game-overlay-close { border-color: var(--accent); color: var(--accent); }
+#game-overlay-done { border-color: var(--jade); color: var(--jade); }
+#game-frame { flex: 1; width: 100%; border: none; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg-solid);
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, "PingFang HK", sans-serif;
+  color: var(--text);
+  -webkit-user-select: none; user-select: none;
+  touch-action: none;
+}
+
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; touch-action: none; }
+
+/* ---------- Camera orbit toggle ---------- */
+#orbit-toggle {
+  position: fixed; top: 64px; left: 72px; z-index: 95;
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--bg);
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+#orbit-toggle:active { transform: scale(0.92); }
+#orbit-toggle.active { border-color: var(--accent); box-shadow: 0 0 12px rgba(0, 242, 254, 0.4); }
+
+/* Orbit hint toast (auto-fades) */
+.orbit-hint {
+  position: fixed; top: 120px; left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: rgba(10, 15, 29, 0.85);
+  border: 1px solid rgba(0, 242, 254, 0.5);
+  color: var(--text);
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 110;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+}
+.orbit-hint.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- Loading screen ---------- */
+#loading {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px;
+  background: linear-gradient(180deg, #0a0f1d 0%, #16224a 100%);
+  transition: opacity 0.6s ease;
+}
+#loading.done { opacity: 0; pointer-events: none; }
+.loading-logo { font-size: 64px; animation: bob 1.6s ease-in-out infinite; }
+.loading-title { font-family: var(--font-display); font-size: 28px; font-weight: 400; letter-spacing: 0.5px; color: var(--text); }
+.loading-sub { color: var(--muted); font-size: 15px; }
+.loading-bar { width: 220px; height: 8px; border-radius: 8px; background: rgba(255,255,255,0.1); overflow: hidden; }
+#loading-fill { width: 0%; height: 100%; background: var(--accent); border-radius: 8px; transition: width 0.3s ease; }
+
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* ---------- Top HUD ---------- */
+#hud-top {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--panel-border);
+  box-shadow: var(--neon);
+}
+.hud-title { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+.hud-champion { font-size: 14px; color: var(--text); font-weight: 600; }
+.hud-mission-count { font-size: 14px; color: var(--magenta); font-weight: 700; }
+
+/* ---------- Location tag ---------- */
+#location-tag {
+  position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 90;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 13px; color: var(--text);
+  pointer-events: none;
+  box-shadow: var(--shadow);
+}
+
+/* ---------- Mission card (Octopus-card style) ---------- */
+#mission-card {
+  position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); z-index: 100;
+  width: min(92%, 460px);
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.35s ease;
+}
+#mission-card.hidden { transform: translateX(-50%) translateY(30px); opacity: 0; pointer-events: none; }
+.mission-chip {
+  flex: 0 0 14px;
+  background: linear-gradient(180deg, var(--magenta), #ff5ea8);
+  border-right: 1px solid rgba(255,0,127,0.4);
+}
+.mission-body { flex: 1; padding: 14px 18px; }
+.mission-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.3px; }
+.mission-desc { font-size: 13.5px; color: var(--muted); margin-bottom: 12px; line-height: 1.4; }
+.mission-actions { display: flex; gap: 10px; }
+.btn {
+  flex: 1; height: 48px; border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  color: var(--text);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.btn:active { transform: scale(0.97); }
+.btn-accept {
+  background: linear-gradient(90deg, #FF007F, #FF5E00);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(255, 0, 127, 0.4);
+}
+.btn-accept:hover { filter: brightness(1.12); box-shadow: 0 6px 20px rgba(255, 0, 127, 0.6); }
+.btn-skip { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); }
+.btn:hover { filter: brightness(1.12); }
+
+/* ---------- Toast notifications ---------- */
+#toasts { position: fixed; top: 64px; right: 16px; z-index: 150; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.toast {
+  background: var(--bg);
+  border: 1px solid var(--jade);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 14px; font-weight: 600;
+  box-shadow: var(--shadow);
+  opacity: 0; transform: translateX(30px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.toast.show { opacity: 1; transform: translateX(0); }
+
+/* ---------- Controls ---------- */
+#controls {
+  position: fixed; bottom: 20px; left: 0; right: 0; z-index: 100;
+  display: flex; justify-content: flex-start; align-items: flex-end;
+  padding: 0 20px;
+  pointer-events: none;
+}
+#controls > * { pointer-events: auto; }
+.controls-left { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+
+/* Action bar: horizontal row of motion buttons */
+.action-bar {
+  display: flex; gap: 10px;
+  margin-bottom: 4px;
+}
+.action-btn {
+  width: 62px; height: 62px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 242, 254, 0.45);
+  background: rgba(10, 15, 29, 0.9);
+  color: var(--text);
+  font-size: 22px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  transition: transform 0.1s ease, background 0.1s ease, box-shadow 0.2s ease;
+}
+.action-btn span {
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.action-btn:active { transform: scale(0.9); background: rgba(0, 242, 254, 0.18); }
+.action-btn.run-active { border-color: #00FF9D; box-shadow: 0 0 12px rgba(0,255,157,0.4); }
+
+.dpad {
+  display: grid;
+  grid-template-columns: 64px 64px 64px;
+  grid-template-rows: 64px 64px 64px;
+  gap: 4px;
+}
+.dpad-btn {
+  width: 64px; height: 64px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  background: rgba(10, 15, 29, 0.9);
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  transition: background 0.1s ease, transform 0.1s ease;
+}
+.dpad-btn:active { background: rgba(0, 242, 254, 0.18); transform: scale(0.92); }
+.dpad-up    { grid-column: 2; grid-row: 1; }
+.dpad-left  { grid-column: 1; grid-row: 2; }
+.dpad-down  { grid-column: 2; grid-row: 3; }
+.dpad-right { grid-column: 3; grid-row: 2; }
+
+/* Hide the "brain: <model>" chip in the buddy chat — not needed for students */
+.model-chip { display: none !important; }
+
+/* ---------- Skin sidebar ---------- */
+#skin-toggle {
+  position: fixed; top: 64px; left: 16px; z-index: 105;
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--bg);
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+#skin-toggle:active { transform: scale(0.92); }
+#skin-toggle.active { border-color: var(--magenta); box-shadow: 0 0 12px rgba(255,0,127,0.4); }
+
+#skin-panel {
+  position: fixed; top: 120px; left: 16px; z-index: 105;
+  width: min(260px, 80vw);
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 14px;
+  transform: translateX(-320px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.3s ease;
+}
+#skin-panel.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+.skin-panel-title { font-family: var(--font-display); font-size: 15px; font-weight: 400; color: var(--accent); margin-bottom: 12px; letter-spacing: 0.4px; }
+
+/* ---------- Skin sidebar: Presets / Accessories tabs ---------- */
+.skin-tabs {
+  display: flex; gap: 6px; margin-bottom: 12px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 10px; padding: 4px;
+}
+.skin-tab {
+  flex: 1; padding: 7px 0;
+  border: none; border-radius: 8px;
+  background: transparent; color: var(--text-muted, #9aa7bd);
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.skin-tab.active { background: var(--accent); color: #06233a; }
+.acc-list { display: flex; flex-direction: column; gap: 6px; }
+.acc-slot-title {
+  font-size: 12px; font-weight: 800; color: var(--magenta, #ff007f);
+  letter-spacing: 0.5px; text-transform: uppercase;
+  margin: 10px 0 4px;
+}
+.acc-card .skin-name { font-size: 12px; }
+.acc-empty { font-size: 12px; color: var(--text-muted, #9aa7bd); padding: 8px; text-align: center; }
+.hidden { display: none !important; }
+
+#skin-list { display: flex; flex-direction: column; gap: 8px; }
+.skin-card {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+}
+.skin-card.equipped { border-color: var(--jade); background: rgba(0,255,157,0.08); }
+.skin-name { font-size: 13px; font-weight: 600; }
+.skin-equip {
+  padding: 6px 12px;
+  border: none; border-radius: 8px;
+  background: var(--accent);
+  color: #06233a;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.skin-equip:active { transform: scale(0.94); }
+.skin-equip:hover { filter: brightness(1.1); }
+.skin-equip:disabled { background: var(--jade); cursor: default; }
+
+/* ---------- Building labels (CSS2D overlay) ---------- */
+.building-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: rgba(11, 19, 43, 0.92);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  border-radius: 8px;
+  padding: 4px 10px;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.bl-zh { font-size: 13px; font-weight: 700; color: #00F2FE; line-height: 1.3; }
+.bl-en { font-size: 10px; color: #CBD5E1; letter-spacing: 0.3px; line-height: 1.3; }
+
+/* Quest building labels float higher and use a gold accent so they stand out */
+.quest-label { border-color: rgba(255, 184, 76, 0.6); background: rgba(20, 16, 8, 0.85); }
+.quest-label .bl-zh { color: #FFD166; font-size: 14px; }
+.quest-label .bl-en { color: #F0E6D2; }
+
+/* ---------- District selector (HK real map) ---------- */
+#district-bar {
+  position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 95;
+  display: flex; gap: 8px;
+}
+.district-btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.district-btn:active { transform: scale(0.94); }
+.district-btn.active { border-color: var(--magenta); background: rgba(255,0,127,0.15); }
+
+/* ---------- Minimap radar ---------- */
+#minimap {
+  position: fixed; top: 64px; right: 16px; z-index: 90;
+  width: 168px; height: 168px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(10, 15, 29, 0.8);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+/* ---------- Waypoint hint ---------- */
+#waypoint-hint {
+  position: fixed; bottom: 210px; left: 50%; transform: translateX(-50%); z-index: 95;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--magenta);
+  border-radius: 999px;
+  padding: 10px 18px;
+  box-shadow: var(--shadow);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+#waypoint-hint.hidden { opacity: 0; transform: translateX(-50%) translateY(20px); pointer-events: none; }
+.hint-bounce { font-size: 20px; animation: bob 1s ease-in-out infinite; }
+.hint-text { font-size: 14px; font-weight: 600; }
+
+/* ---------- Buddy bubble reposition (avoid d-pad overlap) ---------- */
+.bw-bubble { bottom: 210px !important; }
+/* The bubble is lifted to clear the d-pad; dock the panel just above it so the
+   two stay visually connected (210 + 64 bubble + 16 gap = 290). */
+.bw-panel { bottom: 290px !important; }
+
+/* ---------- Tablet / small screen ---------- */
+@media (max-width: 700px) {
+  .dpad-btn, .action-btn { width: 56px; height: 56px; }
+  .dpad { grid-template-columns: 56px 56px 56px; grid-template-rows: 56px 56px 56px; }
+  .action-btn span { font-size: 8px; }
+  #mission-card { bottom: 120px; }
+  #waypoint-hint { bottom: 190px; }
+  .bw-bubble { bottom: 180px !important; }
+  .bw-panel { bottom: 260px !important; } /* 180 + 64 + 16 */
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Design polish (visual only — no layout / behaviour changes)
+   ═══════════════════════════════════════════════════════════ */
+
+/* Keyboard focus + reduced motion (a11y) */
+button:focus-visible, [tabindex]:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Top bar typography hierarchy ── */
+/* Above the buddy panel (z 2147483000) so home/lang stay clickable when the
+   chat is open; the panel's own header is kept below 96px so the ✕ is clear. */
+#hud-top { height: 56px; z-index: 2147483100; }
+.hud-title { font-family: var(--font-display); font-size: 17px; font-weight: 400; color: #fff; letter-spacing: 0.4px; }
+.hud-champion {
+  font-size: 13px; font-weight: 800; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 1.4px;
+}
+.hud-mission-count {
+  font-size: 12px; font-weight: 800; color: #06233a;
+  background: var(--amber); border-radius: 999px; padding: 6px 14px;
+}
+
+/* Victory feedback: a quick pop on the star counter when a mission completes. */
+@keyframes star-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.hud-mission-count.pop { animation: star-pop 0.55s ease; }
+
+/* ── Home (back to hub) button ── */
+#home-btn {
+  margin-left: 12px;
+  width: 38px; height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  font-size: 17px; line-height: 1;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: transform 0.12s ease, border-color 0.15s ease;
+}
+#home-btn:hover { border-color: var(--accent); }
+#home-btn:active { transform: scale(0.9); }
+
+/* ── Thumb-zone panels: solid backings so controls read over the scene ── */
+.action-bar, .dpad {
+  background: rgba(11, 19, 43, 0.85);
+  border: 1px solid rgba(0, 242, 254, 0.16);
+  border-radius: 18px;
+  padding: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.action-bar { margin-bottom: 6px; }
+
+/* ── Quest prompt: high-contrast jade pill with a gentle pulse ── */
+#quest-prompt {
+  background: #0a0f1d;
+  border: 2px solid var(--jade);
+  border-radius: 999px;
+  padding: 8px 16px;
+  animation: qp-pulse 2.2s ease-in-out infinite;
+}
+@keyframes qp-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0, 255, 157, 0.30), 0 8px 24px rgba(0, 0, 0, 0.5); }
+  50%      { box-shadow: 0 0 0 4px rgba(0, 255, 157, 0.28), 0 8px 24px rgba(0, 0, 0, 0.5); }
+}
+#quest-prompt-btn { background: var(--jade); color: #06233a; }
+
+/* ── Mission card: solid framing with a jade accent edge ── */
+.em-card {
+  background: rgba(10, 16, 30, 0.98);
+  border-left: 6px solid var(--jade);
+}
+
+/* ── Toasts: left-accented pills, smooth slide-in ── */
+.toast {
+  border-radius: 999px;
+  border-left: 5px solid var(--jade);
+  transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+}
+
+/* ── Toggle buttons: consistent active/hover states ── */
+#orbit-toggle, #skin-toggle { border-radius: 12px; }
+#orbit-toggle:hover, #skin-toggle:hover { border-color: var(--accent); background: rgba(0, 242, 254, 0.1); }
+
+/* ── Skin panel: horizontal chip strip with a cyan equipped ring ── */
+#skin-list { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.skin-card { min-width: 150px; flex-shrink: 0; }
+.skin-card.equipped { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.3); }
+
+/* Scenario picker (interior environments) */
+#scenarios-btn { margin-left: 8px; height: 34px; min-width: 38px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--panel-border, rgba(0,242,254,0.35)); background: transparent; color: var(--text, #f8fafc); font-size: 14px; cursor: pointer; }
+#scenario-picker { position: fixed; inset: 0; z-index: 2147483400; display: flex; align-items: center; justify-content: center; background: rgba(4, 8, 22, 0.72); backdrop-filter: none; }
+#scenario-picker.hidden { display: none; }
+.scenario-picker-card { position: relative; background: #0d1730; border: 1px solid rgba(0, 242, 254, 0.4); border-radius: 18px; padding: 22px 24px; max-width: 420px; width: calc(100% - 48px); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); }
+.scenario-picker-title { font-family: var(--font-display, inherit); font-size: 18px; margin-bottom: 14px; color: var(--text, #f8fafc); }
+.scenario-picker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.scenario-pick { min-height: 64px; border-radius: 14px; border: 1px solid rgba(0, 255, 157, 0.3); background: #12203c; color: #f8fafc; font-family: var(--font-body, inherit); font-size: 15px; font-weight: 800; cursor: pointer; transition: transform 0.15s ease, background 0.15s ease; }
+.scenario-pick:hover, .scenario-pick:active { background: #19305a; transform: translateY(-1px); }
+.scenario-picker-close { position: absolute; top: 10px; right: 12px; border: none; background: transparent; color: #8aa0c0; font-size: 16px; cursor: pointer; min-width: 40px; min-height: 40px; }
+@media (prefers-reduced-motion: reduce) { .scenario-pick { transition: none; } }

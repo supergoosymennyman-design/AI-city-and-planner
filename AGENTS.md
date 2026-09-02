@@ -1,72 +1,56 @@
+
+
 # AGENTS.md — AI-Education Games Platform
 
-Single source of truth for every contributor and coding agent (Claude Code, opencode, …).
-`CLAUDE.md` imports this file. **CI is the real enforcer** — nothing here depends on an agent having read it.
+Web-app games teaching AI literacy to **kindergarten (K2/K3)** and **primary (P1–P6)** children — one game per lesson.
 
-## What we build
-Web-app games teaching AI to **kindergarten (K2/K3)** and **primary (P1–P6)** children, one game per lesson, on **tablets**, **English-primary**, **offline-preferred**.
-- **Kindergarten:** teacher-led "teachable-machine" voice/camera games.
-- **Primary "AI City Architect":** 2D sim games; lessons 18–20 **merge** earlier games into one authoritative simulated City (live 1×–1000×, precomputed fast-forward beyond).
+> **⚠️ Second, separate project: the Passiona P5 Programme** lives in
+> `P5 Programme/` — a Hong Kong school AI-literacy programme for P5 (~age 10),
+> built as a 3D AI City + AI Champion (live at
+> https://p5-home.clover-marquis.workers.dev/). It is NOT part of the
+> kindergarten/primary pipeline below. Read `P5 Programme/AGENTS.md` before
+> working there — it has its own layout, deploy script, and verification rules.
 
-## Golden rules (CI-enforced where ★)
-1. **The contract is law.** Build games to `@edu/contract`; never hand-edit central/generated files. ★ `validate-contracts`
-2. **`ctx`-only I/O.** Games touch the platform only through `GameContext` — no `window.*`, no globals.
-3. **English-primary; strings externalized.** No hardcoded user-facing text (i18n layer); a locale can be added later. ★
-4. **Offline-first** with documented exceptions; **no third-party CDN at runtime** — self-host + SRI. ★
-5. **Privacy (children):** no PII; camera frames memory-only; cloud STT off unless consented; never commit student data. ★ (see §5c of the plan)
-6. **Accessibility is contract law:** every core instruction/feedback/action reachable via ≥2 channels; `tap` always present. ★ `manifest.a11y`
-7. **Determinism in the sim:** fixed-point milli-units, seeded `rng`, **no `Math.random`** in `@edu/city`/`games/primary/**`. ★ lint
-8. **No `ctx.bus` for state** — cross-subsystem state flows through namespaced `CityState.ext` only. ★ lint
-9. **Tablet budgets:** lazy-load per game; one ML runtime per game + teardown; honor the size/perf budget. ★ size budget
-10. **Never break `@edu/*`** without core-guardian (CODEOWNERS). Inner sim schema is additive-only + versioned.
-11. **Salvage & port** existing capabilities (R22) — don't rebuild what works in `source/`.
-12. **Crash-proof, best-effort `ctx` I/O.** Wrap every `ctx.audio`/`ctx.ai` call: a device that throws, rejects, or hangs (a suspended `AudioContext`; Web Speech that rejects on `no-speech` or never fires `onend`) must degrade to the on-screen/tap path — **never crash the game or dead-end an input loop**. And **never gate game progression on a side-effect resolving** (advance on your own timer/state, not on TTS ending). Hunt these with the `game-breaker` agent + adversarial tests.
-
-## Stack
-React 18 + TypeScript + Vite · Zustand (sim state outside React) · Zod (schema+types) · react-i18next ·
-Canvas 2D (hand-rolled, RAF outside React) · Vitest + RTL + Playwright + fast-check + axe ·
-npm workspaces. ML/UX OSS: port MobileNet+knn-classifier (tfjs 4.x) + MediaPipe Hands; React Aria, dnd-kit, Howler, idb, vite-plugin-pwa. See plan §1/§12.
-
-## Code style & comments (debuggability-first)
-Goal: when something breaks, the code + comments + failure make the cause obvious. Thorough, **not** maximal — a comment that lies is worse than none.
-- **TSDoc `/** */` on every export** (type, function, component): what it does, **why** it exists, **units** (e.g. *milli-units*), non-obvious params/returns, and a `§`/plan link where relevant. `@edu/contract` is the reference example.
-- **Inline `//` comments explain the WHY, not the what.** **Mandatory** in the hard-to-debug zones: deterministic sim, fixed-point math, the `tick`/merge, capability gating, schema migrations.
-- **Make failures loud** (this is what actually helps debugging):
-  - Specific error messages — include the offending value **and** what was expected.
-  - `assert(cond, msg)` / `invariant(cond, msg)` at invariant boundaries (serializable, `dependsOn` DAG, integer-only fixed-point). Use `@edu/debug`.
-  - Namespaced logging `debug('city:waste')(...)` — gated off in production, **never logs PII** (§5c). Distinct from `ctx.telemetry`.
-- **Name to need fewer comments:** descriptive names, named constants (no magic numbers), small functions. Keep source maps on (already in `tsconfig.base`).
-- **Anti-rot:** update or delete stale comments; don't restate the obvious; the comment-analyzer review flags rot.
-
-## Repo map
+## Repo layout
 ```
-packages/   contract city engine toolbox ai i18n audio teacher telemetry   (@edu/*, CODEOWNERS-gated)
-apps/       host-standalone  host-city  launcher
-games/      kindergarten/<id>/  primary/<id>/
-scripts/    validate-contracts.mjs  new-game.mjs  ...
-docs/       curriculum/<lesson>.md  standards/*-ui-ux.md  PLAN.md  PROGRESS.md  ...
-source/     existing prototype — salvage/port source (R22), not the product
+source/       Lesson source docs (kindergarten + primary) + examples + toolbox reference
+games/        Built game output (kindergarten/<id>/, primary/<id>/)
+docs/         Curriculum reference (lessons.json registry)
+.opencode/agents/   Canonical agent definitions (source of truth)
+.opencode/agents/   Canonical agent definitions (source of truth) — the .ai/.claude symlink dirs were removed 2026-09
 ```
-> **No shared `@edu/ui` package** (removed 2026-06-07). Each game **owns its UI** — its own design
-> tokens, buttons, characters. The only UI boundary is the **vibe**:
-> `docs/standards/{ui-ux-common,kindergarten-ui-ux,primary-ui-ux}.md` + the render previews.
-> `kid-ux-reviewer` nudges vibe-match + a11y; nothing imports a UI component package.
 
-## Commands
-- `npm install` — install workspaces
-- `npm run typecheck` — `tsc --build`
-- `npm run contracts` — manifest + a11y + DAG validation gate
-- `npm run validate` — typecheck + contracts + test (lint added as tooling lands)
-- `npm test` — Vitest (React Testing Library + jsdom); shared doubles in `@edu/testing`
-- `npm run new-game` — scaffold a contract-conformant game (planned)
+## Workflow
+1. **Run the orchestrator** with a source lesson path → it drives the pipeline.
+2. **game-planner** asks 30+ questions across 6 rounds, refining a game spec → writes `games/<track>/<id>/PLAN.md`.
+3. **game-builder** builds the game from PLAN.md (agent chooses architecture).
+4. **game-tester** tests the built game.
+5. **game-breaker** adversarially tries to break it.
 
-## Contract & City
-- Contract: `packages/contract/src/` (`module.ts`, `manifest.ts`, `context.ts`, `city.ts`, `rng.ts`, `services.ts`, `capability.ts`).
-- **Split freeze:** outer surfaces (GameModule/Manifest/Context) are frozen; inner sim schema (CityState/Capability/tick) is additive-only + versioned via core-guardian.
+## Golden rules
+- **Agents decide architecture.** No enforced framework, no contract, no monorepo.
+- **Source material is in `source/`.** Port concepts, don't clone code.
+- **Toolbox in `source/toolbox/` is reference.** Use it if helpful, ignore if not.
+- **No child PII.** Camera/mic data stays in-memory.
+- **Each game is self-contained** in `games/<track>/<id>/` with its own tooling.
+- **Design quality matters.** Games must avoid AI-slop patterns (purple gradients,
+  glassmorphism, bounce UI, flat type hierarchy) and use age-appropriate polish.
+  See the builder's design quality section and the Impeccable anti-pattern catalog
+  at `https://impeccable.style/slop`. Optional: `npm install` at project root adds
+  the Impeccable CLI for automated design checking (`npm run detect`).
 
-## Definition of Done (per game)
-`validate` green · English complete + strings externalized · standalone (+ city for primary) · logic + render tests · **resilient `ctx` I/O** (game-breaker: no crash/freeze/dead-end on a throwing/rejecting/hanging device) · tablet-viewport tested · a11y two-channel · no new heavy deps · no PII · pedagogy gates (objective, age-appropriate, teaches concept, `aiRepresentation` recorded, SME review).
+## The 5 agents
 
-## Plan & progress
-- **Plan (full rationale):** [docs/PLAN.md](docs/PLAN.md) — the approved spec; update here when scope changes.
-- **Progress (what's done / pending):** [docs/PROGRESS.md](docs/PROGRESS.md) — update in every PR that completes or starts a tracked item. Done = git history; pending = PROGRESS.md.
+| Agent | Expertise |
+|---|---|
+| **orchestrator** | Parses requests, validates lessons, runs the pipeline, reports results |
+| **game-planner** | Deep K2/K3/primary curriculum knowledge, 6-round Q&A with 30+ domain-specific questions, writes PLAN.md |
+| **game-builder** | Knows established patterns from examples, tablet-first design, fallback patterns, multi-modal handling, builds bespoke games |
+| **game-tester** | Verifies AI narrative arc (K2: "AI doesn't know → learns → demonstrates"), multi-modal fallbacks, two-channel a11y, primary sim mechanics |
+| **game-breaker** | Thinks like a malicious child — wrong inputs, out-of-order, silence, rapid mashing, creative destruction, device failures |
+
+## Source material reference
+- `source/kindergarten/` — 20 K2 lesson scripts, Phase 1 (2D inputs) and Phase 2 (3D/body/sound)
+- `source/primary/` — primary lesson docs (20 lessons, AI City Architect capstone)
+- `source/examples/poor examples/` — what NOT to do (spaghetti code, no AI, server dependency)
+- `source/toolbox/` — reference AI implementations (STT, TTS, camera, joints)

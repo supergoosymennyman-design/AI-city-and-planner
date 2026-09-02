@@ -1,0 +1,261 @@
+/* My AI City — Champion Hub.
+   "Young Inventor's High-Tech Lab" — dark dashboard, crisp mechanical UI.
+   Neon accents live on card left-edges + icon tints only. No purple, no
+   glassmorphism, no gradients, no glow-everywhere. Motion is strictly linear. */
+
+:root {
+  --bg: #0F172A;            /* deep slate */
+  --card: #1E293B;          /* gunmetal */
+  --text: #F8FAFC;          /* ice white */
+  --muted: #94A3B8;         /* cool grey */
+  --border: #334155;        /* subtle slate */
+  --disabled-border: #475569;
+  --shadow: 0 4px 0px #020617;
+  --radius: 8px;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
+* { margin: 0; box-sizing: border-box; }
+
+html, body { min-height: 100%; }
+
+body {
+  background: var(--bg);
+  background-image: radial-gradient(900px 500px at 12% -100px, rgba(0, 229, 255, 0.07), transparent 60%);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  padding: 40px 24px 56px;
+}
+
+.hub {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.hub-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 36px;
+}
+.hub-champion {
+  width: 84px;
+  height: 84px;
+  flex: none;
+  filter: drop-shadow(0 6px 18px rgba(0, 229, 255, 0.25));
+}
+.hub-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.05;
+  letter-spacing: 0.3px;
+}
+.hub-sub {
+  font-size: 15px;
+  color: var(--muted);
+  margin-top: 6px;
+  font-weight: 400;
+}
+.hub-status {
+  margin-left: auto;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+/* ── Card grid ──────────────────────────────────────────── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(300px, 1fr));
+  gap: 24px;
+  justify-content: start;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 180px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent, #00E5FF);
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: inherit;
+  padding: 18px;
+  overflow: hidden;
+  transition: transform 80ms linear, box-shadow 80ms linear, border-left-color 80ms linear;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Icon zone — accent-tinted chip, top-left */
+.icon-zone {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent, #00E5FF) 16%, transparent);
+  color: var(--accent, #00E5FF);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.icon-zone svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+}
+
+/* Text zone — bottom-left */
+.text-zone {
+  padding-right: 40px;   /* leave room for the SOON badge */
+}
+.card-name {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 20px;
+  color: var(--text);
+  line-height: 1.15;
+}
+.card-blurb {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+/* States — rigid mechanical switch (translateY == shadow offset, linear) */
+a.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 0px #020617;
+  border-left-color: var(--accent, #00E5FF);
+}
+a.card:active {
+  transform: translateY(4px);
+  box-shadow: 0 0px 0px #020617;
+}
+
+/* Disabled ("coming soon") */
+.card.soon {
+  border-color: var(--border);
+  border-left-color: var(--disabled-border);
+  box-shadow: 0 4px 0px #020617;
+  pointer-events: none;
+  cursor: default;
+}
+.card.soon .icon-zone { opacity: 0.3; }
+.card.soon .card-name { color: var(--muted); }
+.card.soon .card-blurb { color: var(--muted); }
+
+/* ── Scenarios accordion ────────────────────────────────── */
+.scen-wrap { position: relative; }
+.scen-head {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.scen-head:hover { transform: translateY(-2px); box-shadow: 0 6px 0px #020617; }
+.scen-caret {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  color: var(--accent, #8de2ff);
+  font-size: 18px;
+  transition: transform 150ms linear;
+}
+.scen-wrap.open .scen-caret { transform: rotate(180deg); }
+.scen-body {
+  display: none;
+  gap: 10px;
+  padding: 12px 2px 2px;
+}
+.scen-wrap.open .scen-body { display: grid; }
+.scen-body .scen-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent, #00E5FF);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 80ms linear, box-shadow 80ms linear;
+}
+.scen-body .scen-link:hover { transform: translateY(-2px); box-shadow: 0 4px 0px #020617; }
+/* Dead (placeholder) scenario cards — visible but not clickable, like SOON. */
+.scen-body .scen-link.scen-dead {
+  border-color: var(--border);
+  border-left-color: var(--disabled-border, var(--border));
+  box-shadow: 0 4px 0px #020617;
+  pointer-events: none;
+  cursor: default;
+}
+.scen-body .scen-link.scen-dead .icon-zone { opacity: 0.35; }
+.scen-body .scen-link.scen-dead .card-name { color: var(--muted); }
+.scen-body .scen-link.scen-dead .card-blurb { color: var(--muted); }
+.scen-body .scen-link .soon-badge { top: 10px; right: 10px; }
+.scen-body .icon-zone { width: 36px; height: 36px; }
+.scen-body .icon-zone svg { width: 18px; height: 18px; }
+.scen-body .card-name { font-size: 16px; }
+.scen-body .card-blurb { font-size: 12.5px; }
+.soon-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: #334155;
+  color: #94A3B8;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* ── Footer ─────────────────────────────────────────────── */
+.hub-footer {
+  margin-top: 48px;
+  font-size: 12px;
+  color: #475569;
+  letter-spacing: 0.3px;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+/* iPad portrait (768–1023): 2 columns, left-aligned */
+@media (max-width: 1023px) {
+  .card-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+}
+/* Phone (<768): 1 column, full-width stack */
+@media (max-width: 767px) {
+  body { padding: 24px 16px 40px; }
+  .hub-header { margin-bottom: 24px; gap: 12px; }
+  .hub-champion { width: 56px; height: 56px; }
+  .hub-title { font-size: 24px; }
+  .hub-sub { font-size: 13px; }
+  .hub-status { font-size: 10px; padding: 4px 8px; }
+  .card-grid { grid-template-columns: 1fr; gap: 16px; }
+  .card {
+    min-height: 140px;
+    aspect-ratio: auto;
+    padding: 14px;
+  }
+  .card-name { font-size: 18px; }
+}

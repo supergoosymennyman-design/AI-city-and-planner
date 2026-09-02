@@ -58,13 +58,30 @@ Source: https://kenney.nl · License: Creative Commons CC0 (no attribution requi
 
 ## CC-BY credits (required)
 
+> ⚠️ The Poly-by-Google CC-BY models (Swing set, Slide, Fountain, Stop sign,
+> Hospital, Ballpark) were REMOVED in the CC0 cleanup and are no longer shipped.
+> The credits line below is retained for history only.
+
 Playground, facility and some street models are by **Poly by Google** and licensed
 [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/). Attribution:
 
 > "Swing set", "Slide", "Fountain", "Stop sign", "Hospital", "Ballpark" — Poly by Google
 > (via Poly Pizza), CC-BY 3.0. https://poly.pizza
 
+## CC0 re-density batch (2026-08-29) — Kenney City Kit
+
+All new facility + street-deco models are **CC0 1.0** from Kenney's City Kit
+packs — no attribution required, kept for provenance:
+
+- `school/hospital/shop/office/library/police/stadium.glb` — Kenney City Kit
+  (Commercial) v2.1 — https://kenney.nl/assets/city-kit-commercial
+- `street-deco/stop-sign.warning-sign.street-sign.glb`,
+  `street-deco/construction-cone.glb`, `construction-barrier.glb`,
+  `dumpster.glb`, `electricity-pole.glb`, `traffic-light-vertical/horizontal.glb`
+  — Kenney City Kit (Roads) — https://kenney.nl/assets/city-kit-roads
+
 ## Reuse rules
 - If a model is removed or replaced, update this file.
 - CC0 models (Kenney, Quaternius) are public domain — attribution kept for provenance.
 - CC-BY models (Poly by Google) require the credits line above.
+- CC-BY / non-CC0 models must NOT be added — see CC0-MANIFEST.md.

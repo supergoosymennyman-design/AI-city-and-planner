@@ -1,10 +1,21 @@
 /**
- * city-common/metrics.mjs — live city-planning metrics (client-side, offline).
+ * city-common/metrics.js — live city-planning metrics (client-side, offline).
  *
  * Common-sense city-planning rules, each scored 0..1 and folded into a single
- * 0-100 "City Score". The rules are deliberately NOT shown as individual bars
- * in the UI — the student gets one score + plain-language hints — so the
- * scoring stays a discovery, not a checklist.
+ * 0-100 "City Score". The sub-scores also roll up into four kid-named GOALS so
+ * the student can see *what* makes a good city and choose what to prioritise:
+ *
+ *   happy    — homes have school/shop/hospital/fire/police + water/power/bus + parks
+ *   walkable — buildings are near roads, and people can actually walk to needs
+ *   peaceful — noisy places (traffic/delivery/recycling/power) kept away from homes
+ *   spread   — mission buildings not clustered; a sensible building mix
+ *
+ * Weights: `computeMetrics(layout, params, weights, walk)` accepts an optional
+ * `weights` object over the four goal keys (or over the six metric keys
+ * directly). When weights are given, the score is the weighted blend of the
+ * sub-metrics (normalised to 0-100) so the student's priorities change BOTH
+ * the displayed score AND the optimizer's objective. When weights are omitted
+ * the original fixed blend is used (backwards compatible).
  *
  * Rules (a home is "served" by each of these within range):
  *   services  — school, shop, hospital, fire station, police station
@@ -29,6 +40,70 @@ export const METRIC_PARAMS = {
   serviceTypes: ['school', 'shop', 'hospital', 'fire', 'police'],
   utilityTypes: ['water', 'power', 'bus'],
 };
+
+// ── Goal model ──────────────────────────────────────────────────────────
+// The four kid-named goals. Each goal maps onto one or more of the raw
+// sub-metrics; the GOAL_METRIC_SPLIT says how a goal's weight is distributed
+// over its metrics when the student picks a mayor or moves a slider.
+
+export const GOAL_KEYS = ['happy', 'walkable', 'peaceful', 'spread'];
+
+/** How a goal weight is split across the raw sub-metrics (shares sum to 1). */
+export const GOAL_METRIC_SPLIT = {
+  happy: { coverage: 0.5, utilities: 0.3, green: 0.2 },
+  walkable: { accessibility: 0.7, walkability: 0.3 },
+  peaceful: { zoning: 1 },
+  spread: { spread: 0.5, balance: 0.5 },
+};
+
+/**
+ * Normalise a weights object into metric-level weights that sum to 1.
+ * Accepts either goal keys ({happy, walkable, peaceful, spread}) or the raw
+ * metric keys ({accessibility, coverage, utilities, zoning, spread, balance,
+ * green, walkability}). Returns null when weights are absent/empty — callers
+ * then fall back to the fixed default blend.
+ */
+export function normalizeWeights(weights) {
+  if (!weights || typeof weights !== 'object') return null;
+  const keys = Object.keys(weights);
+  if (!keys.length) return null;
+  // 'spread' is BOTH a goal key and a metric key, so detect metric-level
+  // objects by the presence of any metric-only key. Goal-level objects (from
+  // mayors/sliders) use only the four goal keys.
+  const METRIC_ONLY_KEYS = ['accessibility', 'coverage', 'utilities', 'zoning', 'balance', 'green', 'walkability'];
+  const hasGoal = !keys.some((k) => METRIC_ONLY_KEYS.includes(k)) && keys.some((k) => GOAL_KEYS.includes(k));
+  const out = {};
+  if (hasGoal) {
+    for (const g of GOAL_KEYS) {
+      const wg = Number(weights[g]);
+      if (!Number.isFinite(wg) || wg <= 0) continue;
+      const split = GOAL_METRIC_SPLIT[g];
+      for (const m of Object.keys(split)) out[m] = (out[m] || 0) + wg * split[m];
+    }
+  } else {
+    for (const m of keys) {
+      const w = Number(weights[m]);
+      if (Number.isFinite(w) && w > 0) out[m] = (out[m] || 0) + w;
+    }
+  }
+  let sum = 0;
+  for (const m of Object.keys(out)) sum += out[m];
+  if (!(sum > 0) || !Number.isFinite(sum)) return null;
+  for (const m of Object.keys(out)) out[m] /= sum;
+  return out;
+}
+
+/** Default metric-level weights (the fixed blend, normalised to sum to 1). */
+export function defaultMetricWeights() {
+  return { accessibility: 0.30, coverage: 0.25, utilities: 0.10, zoning: 0.15, spread: 0.10, balance: 0.10 };
+}
+
+/** Star rating (0..5 whole stars) from a 0..1 score. */
+export function stars(score01) {
+  const s = Number(score01);
+  if (!Number.isFinite(s)) return 0;
+  return Math.max(0, Math.min(5, Math.round(s * 5)));
+}
 
 /** Per-housing ratio targets (what a city of H homes should have). */
 export function ratioTargets(H) {
@@ -154,11 +229,20 @@ function balanceScore(layout, params = METRIC_PARAMS) {
 /**
  * Compute all planning metrics for a layout.
  * Returns { score, accessibility, coverage, utilities, balance, spread,
- *           zoning, green, problems }.
- * score ∈ [0,100]; each component ∈ [0,1].
+ *           zoning, green, goals, problems, goalHints, goalProblems }.
+ * score ∈ [0,100]; each component/goal ∈ [0,1].
+ *
+ * `weights` — optional goal-level or metric-level weights (see normalizeWeights).
+ * When given, `score` is the weighted blend; when omitted, the fixed default
+ * blend is used.
+ *
+ * `walk` — optional precomputed walkability result {reach} from
+ * walkability.js. When given, the walkable goal and the weighted score use the
+ * real walk-reach value (instead of falling back to accessibility).
  */
-export function computeMetrics(layout, params = METRIC_PARAMS) {
-  const problems = [];
+export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, walk = null) {
+  const tagged = [];            // {goal|null, text}
+  const problem = (goal, text) => tagged.push({ goal, text });
   const segs = roadSegments(layout);
   const buildings = layout.buildings || [];
   const parks = layout.parks || [];
@@ -169,7 +253,9 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
     return {
       score: 0, accessibility: 0, coverage: 0, utilities: 0, balance: 1,
       spread: 0, zoning: 0, green: 0,
+      goals: { happy: 0, walkable: 0, peaceful: 0, spread: 0 },
       problems: ['Place some buildings to see your city score!'],
+      goalHints: {}, goalProblems: {},
     };
   }
 
@@ -180,7 +266,7 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
   }
   const accessibility = accessible / buildings.length;
   if (accessibility < 0.8) {
-    problems.push(`${buildings.length - accessible} building(s) are far from any road — add roads near them.`);
+    problem('walkable', `${buildings.length - accessible} building(s) are far from any road — add roads near them.`);
   }
 
   // Services coverage — a home needs school, shop, hospital, fire, police.
@@ -203,7 +289,7 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
   // metrics must not default to "perfect". Score them 0 and tell the student
   // to add housing; the optimizer bootstraps with a housing move.
   if (housing.length === 0 && buildings.length > 0) {
-    problems.push('A city needs homes — place some 🏠 Housing so people can live there!');
+    problem('happy', 'A city needs homes — place some 🏠 Housing so people can live there!');
   }
   const coverage = housing.length ? serviceSum / housing.length : (buildings.length ? 0 : 1);
   const green = housing.length ? greenSum / housing.length : (buildings.length ? 0 : 1);
@@ -213,7 +299,7 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
       const n = missingByService[t] || 0;
       if (n > 0) lines.push(`${n} home${n > 1 ? 's' : ''} ${n > 1 ? 'have' : 'has'} no ${catalogType(t)?.name || t} nearby`);
     }
-    if (lines.length) problems.push(lines.join('; ') + '.');
+    if (lines.length) problem('happy', lines.join('; ') + '.');
   }
 
   // Utilities — homes need water, power, bus within district range.
@@ -234,7 +320,7 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
       const n = missingUtil[t] || 0;
       if (n > 0) lines.push(`${n} home${n > 1 ? 's' : ''} ${n > 1 ? 'are' : 'is'} far from the ${catalogType(t)?.name || t}`);
     }
-    if (lines.length) problems.push(lines.join('; ') + '.');
+    if (lines.length) problem('happy', lines.join('; ') + '.');
   }
 
   // Spread — how spread out the special buildings are (anti-clustering)
@@ -247,7 +333,7 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
   }
   const spread = specials.length > 1 ? Math.max(0, 1 - clusterPairs / Math.max(1, specials.length)) : 1;
   if (specials.length > 1 && spread < 0.6) {
-    problems.push('Some mission buildings are clustered together — spread them out across the city.');
+    problem('spread', 'Some mission buildings are clustered together — spread them out across the city.');
   }
 
   // Zoning — noisy buildings near housing; power has a mild setback.
@@ -263,7 +349,7 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
   }
   const zoning = housing.length ? Math.max(0, 1 - conflicts / Math.max(1, housing.length)) : (buildings.length ? 0 : 1);
   if (conflicts > 0) {
-    problems.push(`${Math.round(conflicts)} home(s) are next to noisy facilities (traffic/delivery/recycling) or right beside the power grid.`);
+    problem('peaceful', `${Math.round(conflicts)} home(s) are next to noisy facilities (traffic/delivery/recycling) or right beside the power grid.`);
   }
 
   const balance = balanceScore(layout, params);
@@ -275,7 +361,7 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
     const civicTypes = Object.keys(ratioTargets(1));
     const civicCount = civicTypes.reduce((n, t) => n + buildings.filter((b) => b.type === t).length, 0);
     if (civicCount > housing.length * 3) {
-      problems.push(`Only ${housing.length} home${housing.length === 1 ? '' : 's'} for ${civicCount} facilities — a real town needs more homes. Add some 🏠 Housing!`);
+      problem('spread', `Only ${housing.length} home${housing.length === 1 ? '' : 's'} for ${civicCount} facilities — a real town needs more homes. Add some 🏠 Housing!`);
     }
   }
 
@@ -287,18 +373,56 @@ export function computeMetrics(layout, params = METRIC_PARAMS) {
   for (const t of Object.keys(typeCounts)) {
     if (typeCounts[t] >= 6 && typeCounts[t] > buildings.length * 0.5) {
       const name = catalogType(t)?.name || t;
-      problems.push(`You have ${typeCounts[t]} ${name}s — that's a lot of one building. A real city spreads different buildings around.`);
+      problem('spread', `You have ${typeCounts[t]} ${name}s — that's a lot of one building. A real city spreads different buildings around.`);
     }
   }
 
-  const score = Math.round(100 * (
-    0.30 * accessibility +
-    0.25 * coverage +
-    0.10 * utilities +
-    0.15 * zoning +
-    0.10 * spread +
-    0.10 * balance
-  ));
+  // ── Goals: roll the raw sub-metrics up into the four kid-named goals. ──
+  const goals = {
+    happy: (coverage + utilities + green) / 3,
+    walkable: walk ? (accessibility + walk.reach) / 2 : accessibility,
+    peaceful: zoning,
+    spread: (spread + balance) / 2,
+  };
 
-  return { score, accessibility, coverage, utilities, balance, spread, zoning, green, problems };
+  // ── Score: weighted blend (when weights given) or the fixed default. ──
+  const mw = normalizeWeights(weights);
+  let score;
+  if (mw) {
+    const walkVal = walk ? walk.reach : accessibility;
+    score = Math.round(100 * (
+      (mw.accessibility || 0) * accessibility +
+      (mw.coverage || 0) * coverage +
+      (mw.utilities || 0) * utilities +
+      (mw.zoning || 0) * zoning +
+      (mw.spread || 0) * spread +
+      (mw.balance || 0) * balance +
+      (mw.green || 0) * green +
+      (mw.walkability || 0) * walkVal
+    ));
+  } else {
+    score = Math.round(100 * (
+      0.30 * accessibility +
+      0.25 * coverage +
+      0.10 * utilities +
+      0.15 * zoning +
+      0.10 * spread +
+      0.10 * balance
+    ));
+  }
+
+  // ── Problems: keep the flat list (backwards compatible) + goal-tagged. ──
+  const problems = [];
+  const goalProblems = {};
+  for (const { goal, text } of tagged) {
+    problems.push(text);
+    if (goal) (goalProblems[goal] = goalProblems[goal] || []).push(text);
+  }
+  const goalHints = {};
+  for (const g of GOAL_KEYS) {
+    const texts = goalProblems[g];
+    if (texts && texts.length) goalHints[g] = texts[0];
+  }
+
+  return { score, accessibility, coverage, utilities, balance, spread, zoning, green, goals, problems, goalHints, goalProblems };
 }

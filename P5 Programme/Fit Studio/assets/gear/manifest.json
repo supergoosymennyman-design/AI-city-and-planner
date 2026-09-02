@@ -1,0 +1,27 @@
+[
+  { "file": "red-samurai-helmet.glb",   "label": "Red Samurai Helmet",   "category": "Head",    "slot": "crown" },
+  { "file": "green-samurai-helmet.glb", "label": "Green Samurai Helmet", "category": "Head",    "slot": "crown" },
+  { "file": "blue-samurai-helmet.glb",  "label": "Blue Samurai Helmet",  "category": "Head",    "slot": "crown" },
+
+  { "file": "mood-sense-final-shrunk.glb",        "label": "Mood Sense",            "category": "Senses", "slot": "temples" },
+  { "file": "mood-sense-2-final-shrunk.glb",      "label": "Mood Sense 2",          "category": "Senses", "slot": "temples" },
+  { "file": "recycle-eye-2-final-shrunk.glb",     "label": "Recycle Eye 2",         "category": "Senses", "slot": "eye" },
+  { "file": "sky-sense-final-shrunk.glb",         "label": "Sky Sense",             "category": "Senses", "slot": "crown" },
+  { "file": "sky-sense-2-final-shrunk.glb",       "label": "Sky Sense 2",           "category": "Senses", "slot": "crown" },
+  { "file": "watch-sense-final-shrunk.glb",       "label": "Watch Sense",           "category": "Senses", "slot": "visor" },
+  { "file": "watch-sense-final-cutout-shrunk.glb","label": "Watch Sense (cutout)",  "category": "Senses", "slot": "visor" },
+
+  { "file": "flow-planner-final-stamped-shrunk.glb",  "label": "Flow Planner",         "category": "Back", "slot": "backRig" },
+  { "file": "grow-planner-final-stamped-shrunk.glb",  "label": "Grow Planner",         "category": "Back", "slot": "backRig2" },
+  { "file": "grid-warden-final-stamped-shrunk.glb",   "label": "Grid Warden",          "category": "Back", "slot": "backRig3" },
+  { "file": "ripple-warden-final-shrunk.glb",         "label": "Ripple Warden",        "category": "Back", "slot": "backRig4" },
+  { "file": "haul-planner-final-shrunk.glb",          "label": "Haul Planner",         "category": "Back", "slot": "hips" },
+  { "file": "haul-planner-2-final-shrunk.glb",        "label": "Haul Planner 2",       "category": "Back", "slot": "hips" },
+  { "file": "transit-brain-final-stamped-shrunk.glb", "label": "Transit Brain",        "category": "Back", "slot": "backRig5" },
+
+  { "file": "drone-bay-final-shrunk.glb", "label": "Drone Bay", "category": "Shoulders", "slot": "shoulderL" },
+
+  { "file": "rover-leg-final-shrunk.glb", "label": "Rover Leg", "category": "Legs", "slot": "legL", "pair": true },
+
+  { "file": "deep-scan-final-shrunk.glb", "label": "Deep Scan", "category": "Chest", "slot": "chest" }
+]

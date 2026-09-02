@@ -23,6 +23,7 @@
     })();
   </script>
   <link rel="stylesheet" href="../champion-city/styles.css">
+  <script src="/crash-guard.js"></script>
   <style>
     #entry-overlay {
       position: fixed; inset: 0; z-index: 400;
@@ -56,19 +57,104 @@
     .entry-btn:hover { border-color: #00f2fe; }
     .entry-btn.primary { background: #00ff9d; color: #06283a; }
     .entry-hint { font-size: 12px; color: #6b7a93; margin-top: 10px; }
+    .skin-status { font-size: 12px; color: #00ff9d; margin-top: 8px; min-height: 14px; }
     #paste-wrap textarea {
       width: 100%; min-height: 90px; margin-top: 8px;
       border-radius: 10px; border: 1px solid #33406e;
       background: #0b132b; color: #eaf2f8;
       font-family: ui-monospace, monospace; font-size: 12px; padding: 8px;
     }
-    /* The quest "Enter" prompt sits at the TOP-LEFT here, clear of the buddy
-       chat panel (which occupies the right/bottom on tablets). A centered
-       position collided with the panel on narrow screens. */
+    /* The quest "Enter" prompt sits near the TOP-MIDDLE here, clear of the
+       buddy chat panel (right/bottom) and the model-library slide-out (left). */
     #quest-prompt {
-      top: 64px; bottom: auto;
-      left: 16px; transform: none;
+      top: 92px; bottom: auto;
+      left: 50%; transform: translateX(-50%);
       z-index: 130;
+    }
+    /* Walk / Run — the only movement controls (camera-relative forward).
+       Steer by orbiting the camera. Styled like the shared action buttons so
+       they read as the same control family. */
+    .walk-run { display: flex; gap: 12px; }
+    .move-btn {
+      width: 88px; height: 88px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 242, 254, 0.5);
+      background: rgba(10, 15, 29, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #f8fafc;
+      font-size: 26px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+      transition: transform 0.1s ease, background 0.1s ease;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .move-btn span {
+      font-size: 10px;
+      letter-spacing: 0.4px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .move-btn:active { transform: scale(0.9); background: rgba(0, 242, 254, 0.18); }
+    #btn-run.move-btn { border-color: rgba(0, 255, 157, 0.6); }
+    @media (max-width: 640px), (max-height: 640px) {
+      .move-btn { width: 68px; height: 68px; font-size: 22px; }
+    }
+    /* "Take me home" — sits in the camera/skin toggle row (top-left). */
+    #btn-home {
+      position: fixed; top: 64px; left: 128px; z-index: 95;
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border, rgba(255,255,255,0.2));
+      background: var(--bg, rgba(10,15,29,0.85));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: var(--shadow, 0 4px 16px rgba(0,0,0,0.35));
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #btn-home:active { transform: scale(0.92); background: rgba(0, 242, 254, 0.18); }
+    /* "Go to next quest" — marks the one active objective (green ring in-world). */
+    #btn-next {
+      position: fixed; top: 64px; left: 240px; z-index: 95;
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border, rgba(255,255,255,0.2));
+      background: var(--bg, rgba(10,15,29,0.85));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: var(--shadow, 0 4px 16px rgba(0,0,0,0.35));
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #btn-next:active { transform: scale(0.92); background: rgba(0, 242, 254, 0.18); }
+    /* "Back to My AI City (hub)" — sits in the same top-left row as 🏠/🎯. */
+    #btn-hub {
+      position: fixed; top: 64px; left: 184px; z-index: 95;
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border, rgba(255,255,255,0.2));
+      background: var(--bg, rgba(10,15,29,0.85));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: var(--shadow, 0 4px 16px rgba(0,0,0,0.35));
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #btn-hub:active { transform: scale(0.92); background: rgba(0, 242, 254, 0.18); }
+    /* Solid panels: kill glass blur on the chrome this app actually uses.
+       Cheaper compositing on tablets and reads as solid paper/plastic,
+       matching the "toy diorama" direction instead of AI-slop glass. */
+    #orbit-toggle, #skin-toggle, #btn-home, #btn-next, #btn-hub,
+    #skin-panel, #quest-prompt, .action-btn, .move-btn, .toast {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
     }
   </style>
 </head>
@@ -98,27 +184,116 @@
     <h1>🏙️ My AI City</h1>
     <p>Your city from the planner is ready to explore in 3D!</p>
     <button class="entry-btn primary" id="entry-local">▶ Start my saved city</button>
+    <div class="resume-note" id="entry-resume" hidden></div>
     <label class="entry-btn" id="entry-file" for="file-input">📁 Upload my-city.json</label>
     <button class="entry-btn" id="entry-paste">📋 Paste JSON</button>
-    <button class="entry-btn" id="entry-sample">🇭🇰 Try the Hong Kong sample city</button>
     <input type="file" id="file-input" accept=".json,application/json" class="visually-hidden">
     <div id="paste-wrap" style="display:none">
       <textarea id="paste-box" placeholder='Paste your layout JSON here…'></textarea>
       <button class="entry-btn primary" id="paste-go">Load it!</button>
     </div>
-    <div class="entry-hint">Tip: build a city in the 2D planner, then press "Generate my city" — it lands here automatically.</div>
+    <label class="entry-btn" id="entry-skin" for="skin-input">🎨 Upload your fitted champion (.glb)</label>
+    <input type="file" id="skin-input" accept=".glb,model/gltf-binary" class="visually-hidden">
+    <div class="skin-status" id="skin-status"></div>
+    <div class="entry-save-divider" role="separator">— keep your city safe —</div>
+    <button class="entry-btn" id="entry-save" title="Download a backup file of your whole city">💾 Save my city</button>
+    <button class="entry-btn" id="entry-cloud-save" title="Save to the cloud and get a code to restore anywhere">☁️ Save to cloud</button>
+    <button class="entry-btn" id="entry-cloud-open" title="Open a city you saved to the cloud with a code">☁️ Open from cloud</button>
+    <div class="entry-hint">Tip: build a city in the 2D planner, then press "🌆 View my city" — it lands here automatically.</div>
+  </div>
+</div>
+
+<!-- Save modal: name + Download / Save-to-cloud (shows the code) -->
+<div id="save-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Save my city">
+  <div class="modal-backdrop" data-save-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title">💾 Save my city</span>
+      <button class="modal-close" data-save-close aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="save-intro">Name your city so you can find it later (your name, or a class code).</p>
+      <input id="save-name" class="save-input" type="text" value="my-ai-city" maxlength="60" aria-label="City name">
+      <div class="goals-actions save-actions">
+        <button id="save-download" class="entry-btn">💾 Download</button>
+        <button id="save-cloud" class="entry-btn primary-save">☁️ Save to cloud</button>
+      </div>
+      <div id="save-cloud-result" class="save-cloud-result" hidden></div>
+    </div>
+  </div>
+</div>
+
+<!-- Cloud open modal: enter the code -->
+<div id="cloud-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Open from cloud">
+  <div class="modal-backdrop" data-cloud-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title">☁️ Open from cloud</span>
+      <button class="modal-close" data-cloud-close aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="save-intro">Type the code you got when you saved (it looks like <b>tiger-bamboo-river-umbrella</b>).</p>
+      <input id="cloud-code" class="save-input" type="text" maxlength="64" placeholder="tiger-bamboo-river-umbrella" aria-label="Cloud code" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <div class="goals-actions"><button id="cloud-load" class="plan-apply">☁️ Load my city</button></div>
+      <div id="cloud-load-result" class="save-cloud-result" aria-live="polite"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Inspector's Logbook: tier emblem tap target -->
+<div id="logbook-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Inspector's Logbook">
+  <div class="modal-backdrop" data-logbook-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title">🎖️ Inspector's Logbook</span>
+      <button class="modal-close" data-logbook-close aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="logbook-body"></div>
+  </div>
+</div>
+
+<!-- Capability Panel: planted machines (Stage 1 — display only, honest) -->
+<div id="cap-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Your planted machines">
+  <div class="modal-backdrop" data-cap-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title">📦 Your planted machines</span>
+      <button class="modal-close" data-cap-close aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="cap-body"></div>
+  </div>
+</div>
+<input type="file" id="cap-file" accept=".json,application/json,.cap" class="visually-hidden">
+
+<!-- Try my machine: feed the planted capability a real input, see the honest answer -->
+<div id="cap-try-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Try my machine">
+  <div class="modal-backdrop" data-captry-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title">🧪 Try my machine</span>
+      <button class="modal-close" data-captry-close aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="cap-try-body"></div>
   </div>
 </div>
 
 <header id="hud-top">
   <div class="hud-left"><span class="hud-title">🏙️ My AI City</span></div>
   <div class="hud-center"><span class="hud-champion">Champion</span></div>
-  <div class="hud-right"><span class="hud-mission-count">🤖 Your AI City</span></div>
+  <div class="hud-right">
+    <span class="hud-mission-count">🤖 Your AI City</span>
+    <button id="cap-btn" class="hud-chip" aria-label="Your planted machines" title="Your planted machines">📦</button>
+    <button id="badge-emblem" class="badge-emblem" aria-label="Your inspector badge" title="Inspector badge">🎖️</button>
+  </div>
 </header>
 
 <button id="orbit-toggle" aria-label="Look around (rotate camera)" aria-pressed="false">🎥</button>
 <button id="skin-toggle" aria-label="Choose skin" aria-expanded="false">🎨</button>
-<div id="skin-panel" aria-hidden="true">
+  <button id="btn-home" aria-label="Take me home">🏠</button>
+  <button id="btn-next" aria-label="Go to next quest">🎯</button>
+  <button id="btn-hub" aria-label="Back to My AI City (hub)">🏠</button>
+  <button id="btn-save-hud" aria-label="Save my city (backup)">💾</button>
+  <div id="skin-panel" aria-hidden="true">
   <div class="skin-panel-title">Choose your champion</div>
   <div id="skin-list"></div>
 </div>
@@ -162,19 +337,17 @@
 <div id="controls">
   <div class="controls-left">
     <div class="action-bar">
-      <button class="action-btn" id="btn-run">🏃<span>Run</span></button>
       <button class="action-btn hidden" id="btn-jump">🦘<span>Jump</span></button>
       <button class="action-btn hidden" id="btn-flyup">⬆️<span>Climb</span></button>
       <button class="action-btn hidden" id="btn-flydown">⬇️<span>Descend</span></button>
+      <button class="action-btn" id="btn-drive">🚗<span>Drive</span></button>
       <button class="action-btn" id="btn-taxi">🚕<span>Taxi</span></button>
       <button class="action-btn" id="btn-wave">👋<span>Wave</span></button>
       <button class="action-btn" id="btn-dance">💃<span>Dance</span></button>
     </div>
-    <div class="dpad">
-      <button class="dpad-btn dpad-up" data-dir="up" aria-label="Forward">▲</button>
-      <button class="dpad-btn dpad-left" data-dir="left" aria-label="Left">◀</button>
-      <button class="dpad-btn dpad-down" data-dir="down" aria-label="Back">▼</button>
-      <button class="dpad-btn dpad-right" data-dir="right" aria-label="Right">▶</button>
+    <div class="walk-run">
+      <button class="move-btn" id="btn-walk" aria-label="Walk forward">🚶<span>Walk</span></button>
+      <button class="move-btn" id="btn-run" aria-label="Run forward">🏃<span>Run</span></button>
     </div>
   </div>
 </div>

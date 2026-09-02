@@ -1,0 +1,506 @@
+/* tune.css — extra HUD chrome for the "2D LOOK" section on tune.html only. Loaded AFTER
+   style.css so it can lean on the same custom properties (--accent, --text-dim, ...) without
+   redefining them. Kept separate from style.css per the "new files only" constraint on this
+   variant page. */
+
+.hud__control {
+  margin-top: 10px;
+}
+
+.hud__control:first-child {
+  margin-top: 0;
+}
+
+.hud__control-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.hud__control-val {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.hud__slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+  margin: 4px 0;
+}
+
+.hud__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #06262c;
+  cursor: pointer;
+}
+
+.hud__slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #06262c;
+  cursor: pointer;
+}
+
+.hud__control-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* WARDROBE (2026-08-09) — the multi-gear rack. Same custom properties as the rest of the HUD.
+   The list scrolls ON ITS OWN (2026-08-25) so a long rack can never push the fit tools/Assets
+   buttons below the fold — the HUD itself never grows a page scrollbar. */
+.wardrobe {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#wardrobeList {
+  max-height: 152px; /* ≈ 5 rows — enough context, keeps the Fit + Assets sections on screen */
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+#wardrobeList::-webkit-scrollbar {
+  width: 8px;
+}
+
+#wardrobeList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+}
+
+#wardrobeList::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+#wardrobeList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wardrobe__empty {
+  font-size: 11px;
+  color: var(--text-dim, rgba(255, 255, 255, 0.45));
+  margin: 2px 0;
+}
+
+.wardrobe__row {
+  display: flex;
+  gap: 4px;
+}
+
+.wardrobe__pick {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-size: 11px;
+  padding: 6px 8px;
+  color: var(--text, #dfe7ea);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wardrobe__row--active .wardrobe__pick {
+  border-color: var(--accent, #35d1e6);
+  color: var(--accent, #35d1e6);
+  background: rgba(53, 209, 230, 0.08);
+}
+
+.wardrobe__remove {
+  width: 28px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--text, #dfe7ea);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.wardrobe__remove:hover {
+  border-color: #e66a6a;
+  color: #e66a6a;
+}
+
+/* Shared-gear shelf links reuse the wardrobe row look; anchors need the block/no-underline bits. */
+.wardrobe__pick--link {
+  display: block;
+  text-decoration: none;
+}
+
+/* SHARED-GEAR SHELF chrome (2026-08-25) — category chips + search so a student finds a piece
+   fast, and the Auto-fit button (accent = the "it seats itself" promise, same colour family as
+   hud__btn--primary). */
+
+/* Collapsible section header: one full-width row that folds the whole shelf away. Mirrors the
+   look of .hud__label but as a real button (keyboard-activatable, aria-expanded). */
+.hud__section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 6px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim, rgba(255, 255, 255, 0.45));
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.hud__section-head:hover {
+  color: var(--text, #dfe7ea);
+}
+
+.hud__section-title {
+  flex: 1;
+}
+
+.hud__section-count {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text, #dfe7ea);
+}
+
+.hud__section-caret {
+  font-size: 10px;
+}
+
+/* Single AUTO-FIT button in the section header row (2026-08-25) — compact so the header stays
+   one line, accent colour = the "it seats itself" promise (same family as hud__btn--primary). */
+.hud__section-head {
+  flex: 1;
+  min-width: 0;
+}
+
+.auto-fit-btn {
+  flex: 0 0 auto;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-color: var(--accent, #35d1e6);
+  color: var(--accent, #35d1e6);
+  background: rgba(53, 209, 230, 0.10);
+  cursor: pointer;
+}
+
+.auto-fit-btn:hover {
+  background: rgba(53, 209, 230, 0.18);
+}
+
+.auto-fit-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text, #dfe7ea);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.auto-fit-btn:disabled:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* AUTO-FIT PICKER dialog — "Which gear do you want me to fit?" (2026-08-25). Overlay + card in
+   the same dark/accent language as the tutorial dialogs. */
+.af-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 6, 10, 0.66);
+}
+
+.af-dialog[hidden] {
+  display: none;
+}
+
+.af-dialog__card {
+  width: min(340px, calc(100vw - 48px));
+  max-height: min(560px, calc(100vh - 80px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: #0c1117;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+}
+
+.af-dialog__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.af-dialog__title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #dfe7ea);
+  margin: 0;
+}
+
+.af-dialog__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 2px;
+}
+
+.af-dialog__list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.af-dialog__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+}
+
+.af-dialog__group {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim, rgba(255, 255, 255, 0.45));
+  margin: 6px 0 2px;
+}
+
+.af-dialog__group:first-child {
+  margin-top: 0;
+}
+
+.af-dialog__row {
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 8px 10px;
+  color: var(--text, #dfe7ea);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  cursor: pointer;
+  /* No nowrap/ellipsis: long labels ("Watch Sense (cutout)", "Transit Brain (compact)") must
+     show in FULL — the list scrolls vertically, so wrapping is free (2026-08-25 fix). */
+  white-space: normal;
+  overflow: visible;
+}
+
+.af-dialog__row:hover {
+  border-color: var(--accent, #35d1e6);
+  color: var(--accent, #35d1e6);
+  background: rgba(53, 209, 230, 0.08);
+}
+
+.af-dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* AUTO-FIT DONE BUBBLE (2026-08-25) — bottom-center speech bubble over the canvas. Enters with a
+   quick pop, leaves with a fade; never blocks the HUD (pointer-events: none). */
+.fit-done {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 80px));
+  padding: 10px 16px 10px 12px;
+  background: #0c1117;
+  border: 1px solid rgba(53, 209, 230, 0.5);
+  border-radius: 14px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: fit-done-in 220ms ease-out;
+}
+
+.fit-done[hidden] {
+  display: none;
+}
+
+.fit-done--out {
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+
+.fit-done__text {
+  font-size: 13px;
+  color: var(--text, #dfe7ea);
+  line-height: 1.35;
+}
+
+@keyframes fit-done-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.shelf__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.shelf__chip {
+  font-size: 10px;
+  padding: 3px 9px;
+  color: var(--text, #dfe7ea);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.shelf__chip:hover {
+  border-color: var(--accent, #35d1e6);
+  color: var(--accent, #35d1e6);
+}
+
+.shelf__chip--active {
+  border-color: var(--accent, #35d1e6);
+  color: var(--accent, #35d1e6);
+  background: rgba(53, 209, 230, 0.12);
+}
+
+.shelf__search {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 11px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  color: var(--text, #dfe7ea);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+}
+
+.shelf__search::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.shelf__search:focus {
+  outline: none;
+  border-color: var(--accent, #35d1e6);
+}
+
+.wardrobe__fit {
+  flex: 0 0 auto;
+  font-size: 11px;
+  padding: 6px 9px;
+  color: var(--accent, #35d1e6);
+  background: rgba(53, 209, 230, 0.10);
+  border: 1px solid rgba(53, 209, 230, 0.45);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wardrobe__fit:hover {
+  background: rgba(53, 209, 230, 0.18);
+}
+
+/* HUD redesign (2026-08-10) — task-flow chrome. */
+.hud__btn--primary {
+  display: block;
+  text-align: center;
+  cursor: pointer;
+  border-color: var(--accent, #35d1e6);
+  color: var(--accent, #35d1e6);
+  background: rgba(53, 209, 230, 0.10);
+}
+
+.hud__hint {
+  font-size: 10px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.42);
+  margin: 6px 0 0;
+}
+
+a.wardrobe__dl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+a.wardrobe__dl:hover {
+  border-color: var(--accent, #35d1e6);
+  color: var(--accent, #35d1e6);
+}
+
+/* Status line reads NEUTRAL — the old red made every success look like an error. */
+.hud__message {
+  color: #8fb7c0;
+}
+
+/* MOTION CAPTURE (viewer.html) — the capture preview chip: source video + the landmark overlay
+   canvas glued on top, mirrored TOGETHER (one transform on the container) so dots track the
+   body. Bottom-left, but UNDER the HUD in the stack (z-index 1 vs the HUD's higher layer): on a
+   short window the HUD panel wins and covers the chip, instead of the chip covering the HUD's
+   own controls ("the model/preview overlapping" class of bug). */
+.mocap-preview {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  width: 220px;
+  border-radius: 10px;
+  border: 1px solid rgba(126, 231, 255, 0.35);
+  overflow: hidden;
+  transform: scaleX(-1);
+  z-index: 1;
+  background: #06090d;
+}
+.mocap-preview video {
+  display: block;
+  width: 100%;
+}
+.mocap-preview canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

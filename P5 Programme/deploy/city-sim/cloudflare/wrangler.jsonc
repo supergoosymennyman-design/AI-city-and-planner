@@ -5,6 +5,13 @@
     "nodejs_compat"
   ],
   "main": "../buddy/worker/index.mjs",
+  "vars": {
+    "BUDDY_MODEL_URL": "https://openrouter.ai/api/v1",
+    "BUDDY_MODEL_ID": "openrouter/free"
+  },
+  "kv_namespaces": [
+    { "binding": "SAVES", "id": "e8a1113e949949918955c7646d6158bb" }
+  ],
   "assets": {
     "directory": "..",
     "binding": "ASSETS",

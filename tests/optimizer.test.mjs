@@ -11,6 +11,7 @@ import { optimizeLayout } from '../P5 Programme/buddy-kit/client/city-common/opt
 import { computeMetrics, ratioTargets } from '../P5 Programme/buddy-kit/client/city-common/metrics.js';
 import { validateLayout, sanitizeLayout } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
 import { specialKeys } from '../P5 Programme/buddy-kit/client/city-common/catalog.js';
+import { proposeMoves, applyMove } from '../P5 Programme/buddy-kit/client/city-common/optimize.js';
 
 const NOISY = new Set(['power', 'traffic_lab', 'traffic_emergency', 'delivery', 'recycling']);
 const SPECIAL_SET = new Set(specialKeys());
@@ -540,4 +541,268 @@ test('12 traffic labs: trimmed to 1 (aggressive removal of duplicate mission bui
   assert.ok(diff.some((d) => d.action === 'remove' && d.what === 'traffic_lab'), 'should remove excess labs');
   assert.ok(m.score > before.score, `score should improve (${before.score} -> ${m.score})`);
   assert.ok(validateLayout(out).ok);
+});
+
+// ── Goal weights ────────────────────────────────────────────────────────
+test('weights change the score: a mayor who loves peace scores a quiet city higher', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [{ cx: 1000, cz: 1000, radius: 70 }],
+    buildings: [
+      { type: 'housing', pos: [900, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1100, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
+      { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
+      { type: 'delivery', pos: [1700, 1000], footprint: [26, 22], height: 44 },   // noisy but far from homes
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const balanced = computeMetrics(layout);
+  const peaceHeavy = computeMetrics(layout, undefined, { peaceful: 0.7, happy: 0.1, walkable: 0.1, spread: 0.1 });
+  const happyHeavy = computeMetrics(layout, undefined, { happy: 0.7, peaceful: 0.1, walkable: 0.1, spread: 0.1 });
+  assert.ok(peaceHeavy.score !== balanced.score || happyHeavy.score !== balanced.score,
+    'weights should change the score');
+  assert.ok(Object.keys(computeMetrics(layout).goals).length === 4, 'goals object has 4 keys');
+});
+
+test('goal weights change the optimizer objective (a green mayor gets parks added)', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [900, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1100, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
+      { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  // A green mayor weights happy (parks/green) heavily — the optimizer should
+  // find a park worth adding even though the balanced score barely rewards it.
+  const green = { happy: 0.6, walkable: 0.15, peaceful: 0.15, spread: 0.10 };
+  const res = optimizeLayout(layout, { weights: green }, 3);
+  assert.ok(res.diff.some((d) => d.action === 'add_park'), 'green mayor should add a park');
+  assert.ok(validateLayout(res.layout).ok);
+});
+
+test('weights: output still validates + score never decreases under a mayor', () => {
+  for (const seed of [3, 11, 31, 53]) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const weights = { happy: 0.4, walkable: 0.2, peaceful: 0.2, spread: 0.2 };
+    const before = computeMetrics(layout, undefined, weights);
+    const res = optimizeLayout(layout, { weights }, seed * 104729);
+    assert.ok(validateLayout(res.layout).ok, `seed ${seed}`);
+    const after = computeMetrics(res.layout, undefined, weights);
+    assert.ok(after.score >= before.score - 1e-9, `seed ${seed}: weighted score decreased`);
+    // Roads still sacred under weights.
+    assert.equal(JSON.stringify(layout.roads), JSON.stringify(res.layout.roads), `seed ${seed}: roads changed`);
+  }
+});
+
+// ── Locks ───────────────────────────────────────────────────────────────
+test('locked buildings are never moved or removed', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [400, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [600, 1000], footprint: [20, 20], height: 24 },
+      { type: 'delivery', pos: [410, 1000], footprint: [26, 22], height: 44, locked: true },   // noisy + locked
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  assert.equal(layout.buildings.find((b) => b.type === 'delivery').locked, true, 'sanitize preserves locked');
+  const { layout: out, diff } = optimizeLayout(layout, {}, 7);
+  const movedOrRemoved = diff.some((d) => d.what === 'delivery' && (d.action === 'move' || d.action === 'remove'));
+  assert.ok(!movedOrRemoved, 'locked noisy building should stay put');
+  const outDelivery = out.buildings.find((b) => b.type === 'delivery');
+  assert.ok(outDelivery, 'locked delivery should still exist');
+  assert.deepEqual(outDelivery.pos, layout.buildings.find((b) => b.type === 'delivery').pos, 'position unchanged');
+});
+
+test('locked utility is not repositioned', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [
+      { points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' },
+      { points: [[1000, 100], [1000, 1900]], width: 14, class: 'primary' },
+    ],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [900, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1100, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
+      { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
+      { type: 'hospital', pos: [1000, 1050], footprint: [30, 26], height: 34 },
+      { type: 'fire', pos: [880, 1000], footprint: [22, 20], height: 16 },
+      { type: 'police', pos: [1120, 1000], footprint: [22, 20], height: 18 },
+      { type: 'water', pos: [300, 1700], footprint: [24, 24], height: 40, locked: true },   // far + locked
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const { diff } = optimizeLayout(layout, {}, 5);
+  const movedWater = diff.some((d) => d.action === 'move' && d.what === 'water');
+  assert.ok(!movedWater, 'locked water should not be repositioned');
+});
+
+test('locked duplicate is not removed (others still can be)', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [1400, 1400], footprint: [20, 20], height: 24 },
+      { type: 'traffic_lab', pos: [500, 500], footprint: [22, 20], height: 40, locked: true },
+      { type: 'traffic_lab', pos: [540, 500], footprint: [22, 20], height: 40 },
+      { type: 'traffic_lab', pos: [580, 500], footprint: [22, 20], height: 40 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const { layout: out } = optimizeLayout(layout, {}, 3);
+  const labs = out.buildings.filter((b) => b.type === 'traffic_lab');
+  const lockedStillThere = labs.some((b) => b.locked && b.pos[0] === 500 && b.pos[1] === 500);
+  assert.ok(lockedStillThere, 'the locked traffic lab must survive');
+  assert.ok(labs.length >= 1, 'at least the locked one remains');
+  assert.ok(labs.length < 3, 'unlocked duplicates should be trimmed');
+});
+
+// ── Step mode ──────────────────────────────────────────────────────────
+test('step mode (maxIter 1) is a sub-plan of full optimize and never regresses', () => {
+  for (const seed of [3, 17, 41, 89]) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const stepRes = optimizeLayout(layout, { maxIter: 1 }, seed * 104729);
+    const fullRes = optimizeLayout(layout, {}, seed * 104729);
+    assert.ok(validateLayout(stepRes.layout).ok, `seed ${seed}`);
+    assert.ok(stepRes.after.score >= stepRes.before.score - 1e-9, `seed ${seed}: step regressed`);
+    assert.ok(stepRes.after.score <= fullRes.after.score + 1e-9,
+      `seed ${seed}: full optimize should be >= one step (${stepRes.after.score} vs ${fullRes.after.score})`);
+  }
+});
+
+// ── proposeMoves ─────────────────────────────────────────────────────────
+test('proposeMoves: returns <= k diverse moves, each improving, deterministic', () => {
+  for (const seed of [3, 17, 41, 89]) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const moves = proposeMoves(layout, {}, 3, seed * 104729);
+    assert.ok(moves.length <= 3, `seed ${seed}: <= 3 moves`);
+    // Deterministic for same seed.
+    const again = proposeMoves(layout, {}, 3, seed * 104729);
+    assert.deepEqual(moves.map((m) => m.action + m.what + m.deltaScore.toFixed(3)), again.map((m) => m.action + m.what + m.deltaScore.toFixed(3)), `seed ${seed}: deterministic`);
+    const before = computeMetrics(layout).score;
+    for (const m of moves) {
+      assert.ok(m.deltaScore > 0, `seed ${seed}: delta should be positive`);
+      assert.ok(m.action && m.what, 'move has action + what');
+      assert.ok(Array.isArray(m.improved), 'move has improved list');
+      // Applying the move must produce a valid layout with score >= before.
+      const applied = applyMove(layout, m);
+      assert.ok(validateLayout(applied).ok, `seed ${seed}: applied layout validates`);
+      assert.ok(computeMetrics(applied).score >= before - 1e-9, `seed ${seed}: applied score not lower`);
+    }
+  }
+});
+
+test('proposeMoves: top move is the best (highest delta) single change', () => {
+  for (const seed of [3, 31, 61]) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const moves = proposeMoves(layout, {}, 5, seed);
+    if (moves.length < 2) continue;
+    const sorted = moves.slice().sort((a, b) => b.deltaScore - a.deltaScore);
+    assert.equal(sorted[0], moves[0], `seed ${seed}: first move has the top delta`);
+  }
+});
+
+test('proposeMoves: respects locks (no locked building moved/removed)', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [400, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [600, 1000], footprint: [20, 20], height: 24 },
+      { type: 'delivery', pos: [410, 1000], footprint: [26, 22], height: 44, locked: true },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const moves = proposeMoves(layout, {}, 5, 7);
+  const touchedLocked = moves.some((m) => m.what === 'delivery' && (m.action === 'move' || m.action === 'remove'));
+  assert.ok(!touchedLocked, 'locked delivery should not be moved/removed in any proposal');
+});
+
+test('proposeMoves: respects goal weights (a green mayor proposes a park)', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [900, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1100, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
+      { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const green = { happy: 0.6, walkable: 0.15, peaceful: 0.15, spread: 0.10 };
+  const moves = proposeMoves(layout, { weights: green }, 5, 3);
+  // A green mayor's proposals must include a park-add at some point.
+  assert.ok(moves.some((m) => m.action === 'add_park'), 'green mayor should propose a park');
+});
+
+test('applyMove: add/move/remove/add_park each mutate correctly', () => {
+  const base = sanitizeLayout({
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [900, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
+    ],
+  });
+  // add
+  let out = applyMove(base, { action: 'add', what: 'shop', to: [1100, 1000] });
+  assert.ok(out.buildings.some((b) => b.type === 'shop' && b.pos[0] === 1100));
+  // move
+  out = applyMove(base, { action: 'move', what: 'school', from: [1000, 950], to: [1300, 1000] });
+  const moved = out.buildings.find((b) => b.type === 'school');
+  assert.deepEqual(moved.pos, [1300, 1000]);
+  // remove
+  out = applyMove(base, { action: 'remove', what: 'school', from: [1000, 950] });
+  assert.ok(!out.buildings.some((b) => b.type === 'school'));
+  // add_park
+  out = applyMove(base, { action: 'add_park', to: [500, 500] });
+  assert.equal(out.parks.length, 1);
+  assert.equal(out.parks[0].cx, 500);
+  // no-op on a missing target does not throw
+  assert.doesNotThrow(() => applyMove(base, { action: 'move', what: 'nope', from: [0, 0], to: [1, 1] }));
+});
+
+test('proposeMoves: optimal city proposes nothing (or very little)', () => {
+  // The well-balanced fixture should yield at most 1 weak proposal; often 0.
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [
+      { points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' },
+      { points: [[1000, 100], [1000, 1900]], width: 14, class: 'primary' },
+    ],
+    parks: [{ cx: 800, cz: 800, radius: 80 }, { cx: 1300, cz: 1300, radius: 80 }],
+    buildings: [
+      { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
+      { type: 'housing', pos: [960, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1040, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
+      { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
+      { type: 'hospital', pos: [1000, 1050], footprint: [30, 26], height: 34 },
+      { type: 'fire', pos: [1000, 920], footprint: [22, 20], height: 16 },
+      { type: 'police', pos: [1000, 1080], footprint: [22, 20], height: 18 },
+      { type: 'water', pos: [1000, 700], footprint: [24, 24], height: 40 },
+      { type: 'power', pos: [1000, 1300], footprint: [24, 24], height: 44 },
+      { type: 'bus', pos: [760, 1000], footprint: [26, 20], height: 38 },
+      { type: 'office', pos: [1060, 1000], footprint: [20, 20], height: 40 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const moves = proposeMoves(layout, {}, 3, 42);
+  assert.ok(moves.length <= 1, `balanced city should propose ~nothing (got ${moves.length})`);
 });

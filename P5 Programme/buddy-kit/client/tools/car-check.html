@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Car Check</title></head>
+<body>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/three.module.js", "three/addons/": "/vendor/three/addons/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { createGLTFLoader } from '/shared/gltf.js';
+const loader = createGLTFLoader();
+const scene = new THREE.Scene();
+window.__check = (glb) => new Promise((resolve) => {
+  loader.load(glb, (gltf) => {
+    const m = gltf.scene;
+    scene.add(m);
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    // orientation: for a car, length should be the MAX horizontal extent.
+    const horiz = { x: size.x, z: size.z };
+    const lengthAxis = horiz.x > horiz.z ? 'X' : 'Z';
+    resolve({ glb, size: [size.x, size.y, size.z].map(v=>+v.toFixed(2)), center: center.toArray().map(v=>+v.toFixed(2)), lengthAxis });
+    scene.remove(m);
+  }, undefined, (err) => resolve({ glb, error: String(err && err.message || err) }));
+});
+window.__checkAll = (list) => Promise.all(list.map((g) => window.__check(g)));
+</script>
+</body>
+</html>

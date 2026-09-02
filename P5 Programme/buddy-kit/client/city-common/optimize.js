@@ -277,6 +277,11 @@ function spreadCandidates(layout, b, rng, segs) {
  */
 export function optimizeLayout(layout, opts = {}, seed = 1) {
   const rng = seedRng(seed);
+  // Goal weights (mayor / custom sliders) change the optimizer's objective —
+  // passed through to every trial score. When null the fixed default blend is
+  // used (identical to the pre-goals behaviour).
+  const weights = opts?.weights || null;
+  const measure = (l) => computeMetrics(l, METRIC_PARAMS, weights);
   // Working copy — never touch the caller's layout.
   const out = JSON.parse(JSON.stringify(layout));
   const diff = [];
@@ -286,7 +291,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
   const parks = out.parks || [];
   out.parks = parks;
 
-  let before = computeMetrics(out);
+  let before = measure(out);
   let after = before;
 
   const maxIter = Math.min(MAX_ITERATIONS, Math.max(4, opts.maxIter ?? MAX_ITERATIONS));
@@ -296,7 +301,8 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
   const maxAdd = Math.max(14, opts.maxAdd ?? (6 * countType(HOUSING) + 10));
 
   // ── 1. Resolve overlaps first (a hard constraint: no overlaps ever left).
-  //    Nudge only the noisy/generic member; never a non-noisy special.
+  //    Nudge only the noisy/generic member; never a non-noisy special; never a
+  //    LOCKED building (the student pinned it — leave it and move the other).
   for (let pass = 0; pass < 8; pass++) {
     let movedAny = false;
     for (let i = 0; i < buildings().length; i++) {
@@ -305,10 +311,14 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
         const fa = a.footprint || footprintFor(a.type);
         const fb = b.footprint || footprintFor(b.type);
         if (!rectsOverlap(a.pos, fa, b.pos, fb, MARGIN)) continue;
+        const aLock = !!a.locked, bLock = !!b.locked;
+        if (aLock && bLock) continue;                 // both pinned — leave it
         const aNoisy = isNoisyType(a.type), bNoisy = isNoisyType(b.type);
         const aSpec = isSpecial(a), bSpec = isSpecial(b);
         let mover, other, mfp;
-        if (bNoisy && !aNoisy) { mover = b; other = a; mfp = fb; }
+        if (bLock) { mover = a; other = b; mfp = fa; }
+        else if (aLock) { mover = b; other = a; mfp = fb; }
+        else if (bNoisy && !aNoisy) { mover = b; other = a; mfp = fb; }
         else if (aNoisy && !bNoisy) { mover = a; other = b; mfp = fa; }
         else if (aSpec && !bSpec) { mover = b; other = a; mfp = fb; }
         else if (bSpec && !aSpec) { mover = a; other = b; mfp = fa; }
@@ -329,7 +339,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     if (!movedAny) break;
   }
   // Re-measure after overlap fixes.
-  after = computeMetrics(out);
+  after = measure(out);
 
   let addedTotal = 0;
   let lastImprovedIter = 0;
@@ -357,7 +367,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           if (distToRoad(sx, sz, segs) > METRIC_PARAMS.accessibleDist) continue;   // near a road
           const trial = JSON.parse(JSON.stringify(out));
           pushBuilding(trial, HOUSING, [sx, sz], catalogType(HOUSING)?.height);
-          const m = computeMetrics(trial);
+          const m = measure(trial);
           if (m.score >= after.score - 1e-9) {
             const improved = metricDeltas(after, m);
             diff.push({
@@ -404,7 +414,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           if (!needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.coverageDist)) continue;
           const trial = JSON.parse(JSON.stringify(out));
           pushBuilding(trial, t, [sx, sz], catalogType(t)?.height);
-          const m = computeMetrics(trial);
+          const m = measure(trial);
           if (m.coverage > after.coverage + 1e-9) {
             const improved = metricDeltas(after, m);
             const name = catalogType(t)?.name || t;
@@ -439,7 +449,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           if (!needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.utilityDist)) continue;
           const trial = JSON.parse(JSON.stringify(out));
           pushBuilding(trial, t, [sx, sz], catalogType(t)?.height);
-          const m = computeMetrics(trial);
+          const m = measure(trial);
           if (m.utilities > after.utilities + 1e-9) {
             const improved = metricDeltas(after, m);
             const name = catalogType(t)?.name || t;
@@ -468,7 +478,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     //     (the child reviews via Apply/Keep) — a mission building stranded in
     //     a field shouldn't keep the whole city's score down.
     if (!didImprove) {
-      const farList = buildings().filter((b) =>
+      const farList = buildings().filter((b) => !b.locked &&
         distToRoad(b.pos[0], b.pos[1], segs) > METRIC_PARAMS.accessibleDist * 2.5
       );
       for (const b of farList) {
@@ -491,7 +501,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           if (overlaps) continue;
           const from = tb.pos.slice();
           tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
-          const m = computeMetrics(trial);
+          const m = measure(trial);
           if (m.accessibility > after.accessibility + 1e-9) {
             const improved = metricDeltas(after, m);
             const name = catalogType(b.type)?.name || b.type;
@@ -520,7 +530,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     //     fix almost every time. We accept when zoning clearly improves and
     //     the composite doesn't meaningfully drop.
     if (!didImprove) {
-      const noisyList = buildings().filter((b) => isNoisyType(b.type));
+      const noisyList = buildings().filter((b) => !b.locked && isNoisyType(b.type));
       for (const b of noisyList) {
         const tooClose = buildings().some((h) => h.type === HOUSING && Math.hypot(b.pos[0] - h.pos[0], b.pos[1] - h.pos[1]) < 100);
         if (!tooClose) continue;
@@ -540,7 +550,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           if (overlaps) continue;
           const from = tb.pos.slice();
           tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
-          const m = computeMetrics(trial);
+          const m = measure(trial);
           if (m.zoning > after.zoning + 1e-9 && m.score >= after.score - 2) {
             const improved = metricDeltas(after, m);
             const name = catalogType(b.type)?.name || b.type;
@@ -570,7 +580,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     //     stay away from homes (a guard the non-noisy spread never needed).
     //     Specials are never REMOVED; the student reviews via Apply/Keep.
     if (!didImprove) {
-      const clustered = buildings().filter((b) =>
+      const clustered = buildings().filter((b) => !b.locked &&
         isSpecial(b) &&
         buildings().some((o) => o !== b && isSpecial(o) &&
           Math.hypot(b.pos[0] - o.pos[0], b.pos[1] - o.pos[1]) < METRIC_PARAMS.clusterDist)
@@ -616,7 +626,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           if (!placed) { ok = false; break; }
         }
         if (ok && plan.length >= 2) {
-          const m = computeMetrics(trial);
+          const m = measure(trial);
           if (m.spread > after.spread + 1e-9 && m.score > after.score + 1e-9) {
             const improved = metricDeltas(after, m);
             for (const p of plan) {
@@ -642,7 +652,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       const homes = buildings().filter((b) => b.type === HOUSING);
       for (const t of METRIC_PARAMS.utilityTypes) {
         const util = buildings().find((b) => b.type === t);
-        if (!util) continue;
+        if (!util || util.locked) continue;
         const needy = homes.filter((h) => !utilitiesNear(out, h).includes(t));
         if (!needy.length) continue;
         const spots = candidateSpots(out, t, rng, segs);
@@ -663,7 +673,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           if (overlaps) continue;
           const from = tu.pos.slice();
           tu.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
-          const m = computeMetrics(trial);
+          const m = measure(trial);
           if (m.utilities > after.utilities + 1e-9) {
             const improved = metricDeltas(after, m);
             const name = catalogType(t)?.name || t;
@@ -687,7 +697,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
     if (!didImprove) {
       const power = buildings().find((b) => b.type === 'power');
       const homes = buildings().filter((b) => b.type === HOUSING);
-      if (power && homes.some((h) => Math.hypot(h.pos[0] - power.pos[0], h.pos[1] - power.pos[1]) < METRIC_PARAMS.powerSetbackDist)) {
+      if (power && !power.locked && homes.some((h) => Math.hypot(h.pos[0] - power.pos[0], h.pos[1] - power.pos[1]) < METRIC_PARAMS.powerSetbackDist)) {
         const spots = candidateSpots(out, 'power', rng, segs);
         const fp = power.footprint || footprintFor('power');
         for (const [sx, sz] of spots) {
@@ -704,7 +714,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           if (overlaps) continue;
           const from = tp.pos.slice();
           tp.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
-          const m = computeMetrics(trial);
+          const m = measure(trial);
           if (m.zoning > after.zoning + 1e-9 && m.score >= after.score - 2) {
             const improved = metricDeltas(after, m);
             diff.push({
@@ -727,7 +737,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
       for (const [sx, sz] of spots) {
         const trial = JSON.parse(JSON.stringify(out));
         trial.parks.push({ cx: Math.round(sx), cz: Math.round(sz), radius: 60 + rng() * 30 });
-        const m = computeMetrics(trial);
+        const m = measure(trial);
         if (m.score > after.score) {
           const improved = metricDeltas(after, m);
           diff.push({
@@ -762,7 +772,8 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
         let t = null, victim = null;
         for (const tt of allTypes) {
           if (countType(tt) > keepFloor(tt)) {
-            const list = buildings().filter((b) => b.type === tt);
+            const list = buildings().filter((b) => !b.locked && b.type === tt);
+            if (!list.length) continue;   // every copy is locked — can't trim
             victim = list.slice().sort((x, y) => clusterScore(out, y, tt) - clusterScore(out, x, tt))[0];
             t = tt;
             break;
@@ -774,7 +785,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
         if (!real) break;
         const from = real.pos.slice();
         trial.buildings.splice(trial.buildings.indexOf(real), 1);
-        const m = computeMetrics(trial);
+        const m = measure(trial);
         // NEVER remove a service/utility that any home depends on — the score
         // gate alone is too permissive (removing a stranded school can leave
         // coverage equal if other metrics offset it). A needed facility must
@@ -817,7 +828,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
   //    result is worse, return the input layout untouched (never make the city
   //    worse, never let NaN through).
   try {
-    const final = computeMetrics(out);
+    const final = measure(out);
     if (!Number.isFinite(final.score) || final.score < before.score) {
       return { layout: JSON.parse(JSON.stringify(layout)), diff: [], before, after: before };
     }
@@ -860,4 +871,271 @@ function clusterScore(layout, b, type) {
     if (d < 90) s += 2 - d / 90;
   }
   return s;
+}
+
+// ── proposeMoves: expose the optimizer's next steps (for the "My move" round)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Generate the top-k single moves that would most improve the current layout,
+ * WITHOUT committing any. These are the greedy hill-climb choices the optimizer
+ * would take next, surfaced so the student can predict/choose instead of the
+ * optimizer silently acting.
+ *
+ * Each move: { action:'add'|'move'|'remove'|'add_park', what, from, to, reason,
+ *              deltaScore, improved:[metricNames], beforeScore, afterScore }.
+ * Deterministic for a given seed. Respects locks + goal weights. Returns
+ * <= k moves, diverse (not all the same type), sorted by deltaScore desc.
+ */
+export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
+  const rng = seedRng(seed);
+  const weights = opts?.weights || null;
+  const measure = (l) => computeMetrics(l, METRIC_PARAMS, weights);
+  const out = JSON.parse(JSON.stringify(layout));
+  const segs = roadSegments(out);
+  const buildings = () => out.buildings;
+  const countType = (t) => buildings().filter((b) => b.type === t).length;
+  const before = measure(out);
+  const candidates = [];
+
+  const record = (trial, action, what, from, to, reason) => {
+    const m = measure(trial);
+    const deltaScore = m.score - before.score;
+    if (deltaScore <= 0) return;
+    candidates.push({
+      action, what, from, to, reason,
+      deltaScore, improved: metricDeltas(before, m),
+      beforeScore: before.score, afterScore: m.score,
+    });
+  };
+
+  // Candidate spots for a single move of `type` — trial the top few and record
+  // the one with the best actual (measured) score delta.
+  const bestSpotFor = (type, pickSpot) => {
+    const spots = pickSpot(type) || [];
+    const fp = footprintFor(type);
+    const trial = JSON.parse(JSON.stringify(out));
+    let bestMove = null;
+    for (const [sx, sz] of spots.slice(0, 6)) {
+      const t = JSON.parse(JSON.stringify(out));
+      pushBuilding(t, type, [sx, sz], catalogType(type)?.height);
+      const m = measure(t);
+      if (m.score - before.score > (bestMove ? bestMove.deltaScore : -Infinity)) {
+        bestMove = { t, sx, sz, delta: m.score - before.score, improved: metricDeltas(before, m), afterScore: m.score };
+      }
+    }
+    return bestMove;
+  };
+
+  // ── 1. Add housing (only when a city lacks residents) ──
+  const civicCount = CIVIC.reduce((n, t) => n + countType(t), 0);
+  const targetHomes = Math.min(3, Math.max(1, Math.ceil(civicCount / 3)));
+  if (countType(HOUSING) < targetHomes) {
+    const bm = bestSpotFor(HOUSING, () => candidateSpots(out, HOUSING, rng, segs).filter(([sx, sz]) => distToRoad(sx, sz, segs) <= METRIC_PARAMS.accessibleDist));
+    if (bm) record(bm.t, 'add', HOUSING, null, [bm.sx, bm.sz],
+      countType(HOUSING) === 0 ? 'Add a home — a city needs somewhere for people to live!' : 'Add a home — a real town needs more residents!');
+  }
+
+  // ── 2. Add a missing service (best across all missing service types) ──
+  {
+    const homes = buildings().filter((b) => b.type === HOUSING);
+    const missingByType = {};
+    for (const t of METRIC_PARAMS.serviceTypes) missingByType[t] = [];
+    for (const h of homes) for (const t of missingServices(out, h)) missingByType[t].push(h);
+    for (const t of METRIC_PARAMS.serviceTypes) {
+      const needy = missingByType[t];
+      if (!needy.length) continue;
+      const bm = bestSpotFor(t, () => candidateSpots(out, t, rng, segs).filter(([sx, sz]) =>
+        needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.coverageDist)));
+      if (bm) record(bm.t, 'add', t, null, [bm.sx, bm.sz],
+        `Add a ${catalogType(t)?.name || t} so homes nearby have one to reach — services improve.`);
+    }
+  }
+
+  // ── 3. Add a missing utility (best across all missing utility types) ──
+  {
+    const homes = buildings().filter((b) => b.type === HOUSING);
+    const missingByType = {};
+    for (const t of METRIC_PARAMS.utilityTypes) missingByType[t] = [];
+    for (const h of homes) for (const t of missingUtilities(out, h)) missingByType[t].push(h);
+    for (const t of METRIC_PARAMS.utilityTypes) {
+      const needy = missingByType[t];
+      if (!needy.length) continue;
+      const bm = bestSpotFor(t, () => candidateSpots(out, t, rng, segs).filter(([sx, sz]) =>
+        needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.utilityDist)));
+      if (bm) record(bm.t, 'add', t, null, [bm.sx, bm.sz],
+        `Add the ${catalogType(t)?.name || t} so homes nearby have ${catalogType(t)?.name || t.toLowerCase()} — utilities improve.`);
+    }
+  }
+
+  // ── 4. Relocate a stranded building closer to a road (accessibility) ──
+  for (const b of buildings()) {
+    if (b.locked) continue;
+    if (distToRoad(b.pos[0], b.pos[1], segs) <= METRIC_PARAMS.accessibleDist * 2.5) continue;
+    const spots = candidateSpots(out, b.type, rng, segs).filter(([sx, sz]) => distToRoad(sx, sz, segs) <= METRIC_PARAMS.accessibleDist);
+    const fp = b.footprint || footprintFor(b.type);
+    for (const [sx, sz] of spots.slice(0, 4)) {
+      if (overlapsAny(out, sx, sz, fp)) continue;
+      const trial = JSON.parse(JSON.stringify(out));
+      const tb = findBuildingAt(trial, b);
+      if (!tb) continue;
+      const from = tb.pos.slice();
+      tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
+      record(trial, 'move', b.type, from, tb.pos.slice(),
+        `Move the ${catalogType(b.type)?.name || b.type} closer to a road so people can reach it — road access improves.`);
+      break;   // one relocation per stranded building
+    }
+  }
+
+  // ── 5. Move a noisy building away from homes (zoning) ──
+  for (const b of buildings()) {
+    if (b.locked || !isNoisyType(b.type)) continue;
+    const tooClose = buildings().some((h) => h.type === HOUSING && Math.hypot(b.pos[0] - h.pos[0], b.pos[1] - h.pos[1]) < 100);
+    if (!tooClose) continue;
+    const spots = candidateSpots(out, b.type, rng, segs);
+    const fp = b.footprint || footprintFor(b.type);
+    for (const [sx, sz] of spots.slice(0, 4)) {
+      if (overlapsAny(out, sx, sz, fp)) continue;
+      const trial = JSON.parse(JSON.stringify(out));
+      const tb = findBuildingAt(trial, b);
+      if (!tb) continue;
+      const from = tb.pos.slice();
+      tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
+      record(trial, 'move', b.type, from, tb.pos.slice(),
+        `Move the ${catalogType(b.type)?.name || b.type} away from nearby homes — quieter streets, better zoning.`);
+      break;
+    }
+  }
+
+  // ── 6. Spread a clustered special (mission building) ──
+  for (const b of buildings()) {
+    if (b.locked || !isSpecial(b)) continue;
+    const clustered = buildings().some((o) => o !== b && isSpecial(o) &&
+      Math.hypot(b.pos[0] - o.pos[0], b.pos[1] - o.pos[1]) < METRIC_PARAMS.clusterDist);
+    if (!clustered) continue;
+    const spots = spreadCandidates(out, b, rng, segs);
+    const fp = b.footprint || footprintFor(b.type);
+    for (const [sx, sz] of spots.slice(0, 4)) {
+      if (overlapsAny(out, sx, sz, fp)) continue;
+      const trial = JSON.parse(JSON.stringify(out));
+      const tb = findBuildingAt(trial, b);
+      if (!tb) continue;
+      const from = tb.pos.slice();
+      tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
+      record(trial, 'move', b.type, from, tb.pos.slice(),
+        `Move the ${catalogType(b.type)?.name || b.type} away from the other mission buildings — a spread-out city is smarter.`);
+      break;
+    }
+  }
+
+  // ── 7. Reposition a utility closer to homes that lack it ──
+  {
+    const homes = buildings().filter((b) => b.type === HOUSING);
+    for (const t of METRIC_PARAMS.utilityTypes) {
+      const util = buildings().find((b) => b.type === t && !b.locked);
+      if (!util) continue;
+      const needy = homes.filter((h) => !utilitiesNear(out, h).includes(t));
+      if (!needy.length) continue;
+      const spots = candidateSpots(out, t, rng, segs).filter(([sx, sz]) =>
+        needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.utilityDist));
+      const fp = util.footprint || footprintFor(t);
+      for (const [sx, sz] of spots.slice(0, 4)) {
+        if (overlapsAny(out, sx, sz, fp)) continue;
+        const trial = JSON.parse(JSON.stringify(out));
+        const tu = findBuildingAt(trial, util);
+        if (!tu) continue;
+        const from = tu.pos.slice();
+        tu.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
+        record(trial, 'move', t, from, tu.pos.slice(),
+          `Move the ${catalogType(t)?.name || t} closer to homes that were too far away — utilities improve.`);
+        break;
+      }
+    }
+  }
+
+  // ── 8. Add a park near homes with no green space ──
+  {
+    const spots = parkSpots(out, rng);
+    for (const [sx, sz] of spots) {
+      const trial = JSON.parse(JSON.stringify(out));
+      trial.parks.push({ cx: Math.round(sx), cz: Math.round(sz), radius: 60 + rng() * 30 });
+      record(trial, 'add_park', 'park', null, [sx, sz],
+        'Add a park near homes with no green space — happier, healthier neighbourhoods.');
+      break;
+    }
+  }
+
+  // ── 9. Remove an excess duplicate (leaner city) ──
+  {
+    const want = ratioTargets(countType(HOUSING));
+    for (const t of new Set(buildings().map((b) => b.type))) {
+      const keepFloor = t === HOUSING ? Infinity : catalogType(t)?.category === 'special' ? 1 : Math.max(1, want[t] ?? 1);
+      if (countType(t) <= keepFloor) continue;
+      const list = buildings().filter((b) => !b.locked && b.type === t);
+      if (!list.length) continue;
+      const victim = list.slice().sort((x, y) => clusterScore(out, y, t) - clusterScore(out, x, t))[0];
+      const trial = JSON.parse(JSON.stringify(out));
+      const real = findBuildingAt(trial, victim);
+      if (!real) continue;
+      const from = real.pos.slice();
+      trial.buildings.splice(trial.buildings.indexOf(real), 1);
+      const m = measure(trial);
+      const isService = METRIC_PARAMS.serviceTypes.includes(t);
+      const isUtility = METRIC_PARAMS.utilityTypes.includes(t);
+      if (isService && m.coverage < before.coverage - 1e-9) continue;
+      if (isUtility && m.utilities < before.utilities - 1e-9) continue;
+      record(trial, 'remove', t, from, null,
+        catalogType(t)?.category === 'special'
+          ? `Remove an extra ${catalogType(t)?.name || t} — this city only needs one; the rest were clutter.`
+          : `Remove an extra ${catalogType(t)?.name || t} — one is enough; the city stays just as good.`);
+    }
+  }
+
+  // ── Sort by delta desc, prefer diversity, cap at k. ──
+  // Pass 0: one of each ACTION (add/move/remove/park) so the student reasons
+  // across genuinely different kinds of change. Pass 1: one of each WHAT
+  // (building type). Pass 2: whatever is left.
+  candidates.sort((a, b) => b.deltaScore - a.deltaScore);
+  const picked = [];
+  const seenAction = new Set();
+  const seenWhat = new Set();
+  let pass = 0;
+  while (picked.length < k && pass < 3) {
+    let added = false;
+    for (const c of candidates) {
+      if (picked.includes(c)) continue;
+      const want = pass === 0 ? !seenAction.has(c.action) : pass === 1 ? !seenWhat.has(c.what) : true;
+      if (!want) continue;
+      picked.push(c);
+      seenAction.add(c.action);
+      seenWhat.add(c.what);
+      added = true;
+      if (picked.length >= k) break;
+    }
+    if (!added) break;
+    pass++;
+  }
+  return picked;
+}
+
+/**
+ * Apply a single proposed move to a deep-copied layout. Returns the new
+ * layout (caller may commit it). Moves that reference a building that no
+ * longer exists (e.g. after an undo) are no-ops.
+ */
+export function applyMove(layout, move) {
+  const out = JSON.parse(JSON.stringify(layout));
+  if (!move) return out;
+  if (move.action === 'add') {
+    pushBuilding(out, move.what, move.to, catalogType(move.what)?.height);
+  } else if (move.action === 'remove' && move.from) {
+    const idx = out.buildings.findIndex((b) => b.type === move.what && Math.hypot(b.pos[0] - move.from[0], b.pos[1] - move.from[1]) < 1);
+    if (idx >= 0) out.buildings.splice(idx, 1);
+  } else if (move.action === 'move' && move.to) {
+    const tb = out.buildings.find((b) => b.type === move.what && Math.hypot(b.pos[0] - move.from[0], b.pos[1] - move.from[1]) < 1);
+    if (tb) tb.pos = [Math.round(move.to[0] * 2) / 2, Math.round(move.to[1] * 2) / 2];
+  } else if (move.action === 'add_park' && move.to) {
+    out.parks.push({ cx: Math.round(move.to[0]), cz: Math.round(move.to[1]), radius: 60 });
+  }
+  return out;
 }

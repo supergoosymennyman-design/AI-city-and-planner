@@ -4,7 +4,7 @@
 // instanced (1 draw call for any count once the taxi GLB loads), so the
 // futuristic theme costs almost nothing on tablets.
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createGLTFLoader } from '../shared/gltf.js';
 import { buildTaxiGeometry } from '../champion-city/taxi.js';
 
 // Shared taxi model — loaded once, instanced for every background taxi. Same
@@ -14,7 +14,7 @@ const TAXI_GLB = '../champion-city/assets/models/taxi.glb';
 let _taxiModelPromise = null;
 function loadTaxiModel() {
   if (_taxiModelPromise) return _taxiModelPromise;
-  _taxiModelPromise = new GLTFLoader().loadAsync(TAXI_GLB)
+  _taxiModelPromise = createGLTFLoader().loadAsync(TAXI_GLB)
     .then((gltf) => {
       let mesh = null;
       gltf.scene.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });

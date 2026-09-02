@@ -1,10 +1,10 @@
 /**
- * city-builder/buddy.js — the "AI coding buddy" for the student's own 3D city.
+ * city-builder/buddy.js — the AI champion chat for the student's own 3D city.
  *
  * Unlike champion-city/buddy-bridge.js (hardcoded to the HK quest persona), this
- * mounts the generic buddy-kit coding-buddy identity with a context that only
- * knows about the city the child DESIGNED: their buildings, roads, parks, and
- * how to walk to each one. No quests, no departments, no taxi missions.
+ * mounts the AI champion identity with a context that only knows about the city
+ * the child DESIGNED: their buildings, roads, parks, and how to walk to each
+ * one. No quests, no departments, no taxi missions.
  */
 
 import { catalogType } from '../city-common/catalog.js';
@@ -25,8 +25,8 @@ export function mountCityBuddy(city, champion, sim, layout) {
       : 'Start by placing some buildings in the planner, then come back to explore them!';
 
   const greeting = buildings.length
-    ? `Hi! I'm your coding buddy. This is YOUR city — you designed every building here yourself! ${firstStepPhrase}`
-    : `Hi! I'm your coding buddy. This is your city — right now it's still empty. Go add buildings in the planner and come back!`;
+    ? `Hi! I'm your Coding Buddy! I'm here to help you in YOUR city — you designed every building here yourself! ${firstStepPhrase}`
+    : `Hi! I'm your Coding Buddy! I'm here to help you in your city — right now it's still empty. Go add buildings in the planner and come back!`;
 
   const getState = () => {
     const p = champion ? champion.state.pos : { x: 1000, z: 1000 };
@@ -157,10 +157,12 @@ export function mountCityBuddy(city, champion, sim, layout) {
     apply,
     onReply,
     commands: [enterCommand],
-    buddyName: 'Buddy',
+    buddyName: 'Coding Buddy',
     greeting,
-    persona: 'You are the child\'s coding buddy (the P5 AI Coding Buddy), living inside their OWN city that they designed '
-      + 'in the 2D planner. Every building, road and park is THEIRS — celebrate what they built and talk about it with '
+    persona: 'You are the child\'s Coding Buddy — an AI agent helper who works in the AI City they designed '
+      + 'in the 2D planner. You are NOT the Champion: the child builds, dresses and animates the Champion '
+      + 'themselves (in the Fit Studio / 3D Studio), and you are a separate helper who talks to them. '
+      + 'Every building, road and park is THEIRS — celebrate what they built and talk about it with '
       + 'pride. You can see where they are and which of their buildings is nearby. Help them explore: suggest flying or '
       + 'walking to one of their buildings, tell them what they placed, and encourage them to try the mission buildings\' '
       + 'mini-games. The child\'s FIRST suggested stop is always the ♻️ Recycling Lab (the recycling centre) — if the city '
@@ -171,8 +173,9 @@ export function mountCityBuddy(city, champion, sim, layout) {
       + 'building\'s name); for buildings close by, offer to WALK (walkTo param). '
       + 'The mission buildings here are the child\'s OWN special buildings (e.g. ♻️ Recycling Lab, 🏙️ AI City Central) — '
       + 'each can be entered to play its mini-game; the Recycling Lab\'s game is about sorting recycling. '
-      + 'Be honest about yourself: if asked, say you are a computer helper program (an AI) that lives in this app, and '
-      + 'that you are not sure which exact AI brain you run on — the grown-ups who built this app pick that part. '
+      + 'Be honest about yourself: if asked, say you are Champion, the child\'s AI robot — a computer helper program '
+      + '(an AI) that lives in this app, and that you are not sure which exact AI brain you run on — the grown-ups who '
+      + 'built this app pick that part. '
       + 'Keep replies to 2-3 short sentences. Use simple words a 10-year-old understands. End by inviting one small next '
       + 'step, like which building to visit next.',
     gatewayUrl: '', // same-origin (gateway serves this page)

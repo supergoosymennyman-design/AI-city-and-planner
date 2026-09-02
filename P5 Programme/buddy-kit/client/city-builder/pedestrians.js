@@ -1,216 +1,319 @@
-// pedestrians.js — people milling around the city.
-// Procedural capsule people (body + head) rendered via InstancedMesh — no GLB
-// files, so they appear instantly and never depend on network loads. Walkers
-// roam freely (crossing roads is fine), steer around building footprints, and
-// glide along the ground with a gentle bob. Matches the champion's world scale.
+// pedestrians.js — robots + human citizens populating the city.
+// Robots glide around (neon emissive, no rig); posed human citizens stand,
+// walk, sit and wave near buildings (instanced static, no glow). Each type is
+// instanced (one InstancedMesh per material group — multi-mesh GLBs are
+// merged per material) so both populations stay cheap on tablets. Both spawn
+// just outside a building's footprint, glide/wander toward near-building
+// targets, turn to face their direction, and steer around building footprints.
 import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+import { createGLTFLoader } from '../shared/gltf.js';
 
-const WALK_SPEED = 2.2;           // m/s
-const TURN_ANIM = 0.35;           // seconds to face the new heading
-const REACH_DIST = 1.6;           // m — close enough to advance to next target
-const DEFAULT_COUNT = 56;
-const PERSON_RADIUS = 1.1;        // m — collision radius vs buildings
-const PERSON_HEIGHT = 1.5;        // m — adult height, matches cars
-const BOB_AMPLITUDE = 0.12;       // m — gentle glide bob
-const BOB_SPEED = 2.2;            // rad/s
+// Add a new robot by dropping its GLB into assets/models/robots/ and appending
+// here. (CC0-only: the previous MagicaVoxel/itch robots were removed — see
+// library/CC0-MANIFEST.md. An empty list means no robots spawn.)
+// All models are CC0 / public-domain (Kenney-style + Quaternius/Poly Pizza):
+// humanoid robots, mechs, an android and a cute bot — no rig, no animation.
+const ROBOT_MODELS = [
+  '../library/characters/polypizza-robot.glb',      // humanoid robot (Quaternius)
+  'assets/models/robots/robot-pm.glb',              // humanoid robot (Polygonal Mind)
+  'assets/models/robots/robot-enemy.glb',           // combat robot (Quaternius)
+  'assets/models/robots/mech-a.glb',                // mech (Quaternius)
+  'assets/models/robots/robot-enemy-large.glb',     // large robot (Quaternius)
+  'assets/models/robots/android-bot.glb',           // android bot (Armory_3D)
+  'assets/models/robots/rolie.glb',                 // cute robot (scaranto)
+];
 
-// Coats / outfits — people read as distinct from the surroundings.
-const PERSON_COLORS = [0xd98b6a, 0x8caaba, 0x5a7d8c, 0xc77b6a, 0x9a8ba8, 0x7d9a6a, 0xb86a6a, 0x6a8ab8];
+// Human citizens — static posed people from the shared library (Quaternius,
+// CC0, Blender-normalized so they're already grounded + natural poses). These
+// are the "city is alive" layer: standing/walking/sitting/waving figures
+// clustered around buildings, no robot glow, no rig needed (instanced static).
+const CITIZEN_MODELS = [
+  '../library/characters/quaternius-posed-male-standing.glb',
+  '../library/characters/quaternius-posed-male-walking.glb',
+  '../library/characters/quaternius-posed-male-sitting.glb',
+  '../library/characters/quaternius-posed-male-waving.glb',
+  '../library/characters/quaternius-posed-male-cheering.glb',
+  '../library/characters/quaternius-posed-female-standing.glb',
+  '../library/characters/quaternius-posed-female-walking.glb',
+  '../library/characters/quaternius-posed-female-sitting.glb',
+  '../library/characters/quaternius-posed-woman-waving.glb',
+  '../library/characters/quaternius-posed-female-cheering.glb',
+  '../library/characters/quaternius-animchar-chef-male.glb',
+  '../library/characters/quaternius-animchar-doctor-male.glb',
+  '../library/characters/quaternius-animchar-worker-male.glb',
+  '../library/characters/quaternius-animchar-casual-male.glb',
+  '../library/characters/quaternius-animchar-casual-female.glb',
+];
 
-/** One shared merged geometry: tapered body + head. Vertex-colored per variant. */
-function buildPersonGeometry() {
-  const body = new THREE.CylinderGeometry(0.26, 0.34, 1.05, 10).translate(0, 0.72, 0);
-  const head = new THREE.SphereGeometry(0.19, 10, 8).translate(0, 1.42, 0);
-  return BufferGeometryUtils.mergeGeometries([body, head], false);
+const MIN_ROBOT_H = 1.0;         // m — small models are scaled up to at least this
+const MAX_ROBOT_H = 4.5;         // m — big models are scaled down to at most this
+const TURN_ANIM = 0.35;          // s — time to face a new direction
+const REACH_DIST = 1.6;          // m — close enough to pick a new target
+
+// Convert an InterleavedBufferAttribute to a plain BufferAttribute. three.js's
+// BufferGeometryUtils cannot merge interleaved attributes, and Blender/glTF
+// exports often interleave position/normal/uv — without this, robot GLBs fail
+// the merge step.
+function deinterleave(attr) {
+  if (!attr || !attr.isInterleavedBufferAttribute) return attr;
+  const src = attr.array;
+  const count = attr.count, itemSize = attr.itemSize, stride = attr.stride, offset = attr.offset;
+  const out = new (attr.array.constructor)(count * itemSize);
+  for (let i = 0; i < count; i++) {
+    for (let j = 0; j < itemSize; j++) out[i * itemSize + j] = src[i * stride + offset + j];
+  }
+  return new THREE.BufferAttribute(out, itemSize);
 }
 
-function withColor(geo, hex) {
-  const c = new THREE.Color(hex);
-  const n = geo.attributes.position.count;
-  const arr = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
-  geo.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+// Make a geometry safe for merging: keep only position/normal/uv, all as plain
+// (non-interleaved) BufferAttributes.
+function normalizeGeo(geo) {
+  if (!geo.attributes.normal) geo.computeVertexNormals();
+  const pos = geo.attributes.position;
+  const keep = { position: deinterleave(pos), normal: deinterleave(geo.attributes.normal) };
+  if (geo.attributes.uv) keep.uv = deinterleave(geo.attributes.uv);
+  else keep.uv = new THREE.BufferAttribute(new Float32Array(pos.count * 2), 2);
+  for (const name of Object.keys(geo.attributes)) {
+    if (!keep[name]) geo.deleteAttribute(name);
+  }
+  for (const name of Object.keys(keep)) geo.setAttribute(name, keep[name]);
   return geo;
 }
 
-/** Building footprints as expanded rects (margin = person radius). */
-function buildingRects(buildings) {
-  return (buildings || []).map((b) => {
-    const fp = b.footprint || [20, 20];
-    return {
-      x0: b.pos[0] - fp[0] / 2 - PERSON_RADIUS,
-      x1: b.pos[0] + fp[0] / 2 + PERSON_RADIUS,
-      z0: b.pos[1] - fp[1] / 2 - PERSON_RADIUS,
-      z1: b.pos[1] + fp[1] / 2 + PERSON_RADIUS,
-    };
-  });
-}
-
-// Coarse spatial hash over building rects so pointBlocked is O(cells in range)
-// instead of O(all buildings) per query. Buildings are static — build once.
-const GRID_CELL = 180;   // metres per cell (bigger than any footprint)
-function buildRectGrid(rects) {
-  const grid = new Map();
-  for (const r of rects) {
-    const cx0 = Math.floor(r.x0 / GRID_CELL), cx1 = Math.floor(r.x1 / GRID_CELL);
-    const cz0 = Math.floor(r.z0 / GRID_CELL), cz1 = Math.floor(r.z1 / GRID_CELL);
-    for (let gx = cx0; gx <= cx1; gx++) {
-      for (let gz = cz0; gz <= cz1; gz++) {
-        const key = gx + ':' + gz;
-        if (!grid.has(key)) grid.set(key, []);
-        grid.get(key).push(r);
-      }
-    }
-  }
-  return grid;
-}
-
-function pointBlocked(grid, x, z) {
-  const cell = grid.get(Math.floor(x / GRID_CELL) + ':' + Math.floor(z / GRID_CELL));
-  if (!cell) return false;
-  for (const r of cell) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) return true;
-  return false;
-}
-
-/** Sample a random wander target inside the city bounds, clear of buildings. */
-function wanderTarget(grid, bounds, rng) {
-  const pad = 30;
-  const minX = bounds.minX + pad, maxX = bounds.maxX - pad;
-  const minZ = bounds.minZ + pad, maxZ = bounds.maxZ - pad;
-  for (let i = 0; i < 30; i++) {
-    const x = minX + rng() * (maxX - minX);
-    const z = minZ + rng() * (maxZ - minZ);
-    if (!pointBlocked(grid, x, z)) return { x, z };
-  }
-  return { x: (minX + maxX) / 2, z: (minZ + maxZ) / 2 };
-}
-
 /**
- * A spawn/wander point biased toward the city centre (where the champion and
- * camera are), so walkers are actually visible around the player instead of
- * scattered one-per-300m across a 2km city. `spread` is the std-dev in metres;
- * a smaller spread keeps people near the middle.
+ * Load every model of the given kind, merge each into one InstancedMesh per
+ * material group, and spread `count` figures evenly across the types. Async +
+ * graceful: returns null if the models fail so the city still runs.
+ *
+ * opts.kind: 'robot' (default — gliding patrol robots with a neon emissive
+ * glow) or 'human' (static posed citizens, no glow). The two are separate
+ * instanced populations, so both can coexist cheaply.
  */
-function centerBiasedTarget(grid, bounds, rng, spread) {
-  const cx = (bounds.minX + bounds.maxX) / 2;
-  const cz = (bounds.minZ + bounds.maxZ) / 2;
-  for (let i = 0; i < 30; i++) {
-    // Box–Muller-ish: average of two uniforms gives a centre-heavy distribution.
-    const u = (rng() + rng()) / 2 - 0.5;   // ~[-0.5, 0.5], peaked at 0
-    const v = (rng() + rng()) / 2 - 0.5;
-    const x = cx + u * 2 * spread;
-    const z = cz + v * 2 * spread;
-    if (!pointBlocked(grid, x, z)) return { x, z };
-  }
-  return wanderTarget(grid, bounds, rng);
-}
-
-/**
- * A pedestrian system — procedural, instant, no GLB dependency.
- * Each walker is one instance in a colour-variant InstancedMesh; the walker
- * array holds state (pos, target, heading) and writes the instance matrix.
- */
-export function createPedestrians(scene, layout, opts = {}) {
+export async function createPedestrians(scene, layout, opts = {}) {
+  const kind = opts.kind === 'human' ? 'human' : 'robot';
+  const MODELS = kind === 'human' ? CITIZEN_MODELS : ROBOT_MODELS;
   const bounds = opts.bounds || { minX: 0, maxX: 2000, minZ: 0, maxZ: 2000 };
-  // Area-based density when the caller doesn't pass a count: people scale with
-  // the city's footprint so a small cluster and a big metropolis look equally
-  // busy. ~2x the previous fixed 56 for a bustling feel, capped for tablets.
   const area = Math.max(1, (bounds.maxX - bounds.minX) * (bounds.maxZ - bounds.minZ));
-  const count = opts.count ?? Math.max(20, Math.min(160, Math.round(area / (9000 * (opts.density ?? 1)))));
-  const grid = buildRectGrid(buildingRects(layout.buildings || []));
+  const count = opts.count ?? Math.max(30, Math.min(120, Math.round(area / (25000 * (opts.density ?? 1)))));
   const rng = (opts.seed != null) ? mulberry32(opts.seed) : Math.random;
 
-  // One InstancedMesh per colour variant; capacity spread evenly.
-  const perVariant = Math.ceil(count / PERSON_COLORS.length);
-  const insts = PERSON_COLORS.map((hex) => {
-    const geo = withColor(buildPersonGeometry(), hex);
-    const inst = new THREE.InstancedMesh(
-      geo,
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.1 }),
-      perVariant
-    );
-    inst.count = 0;
-    scene.add(inst);
-    return inst;
-  });
-
-  const walkers = [];
-  function spawnWalker(forcePos) {
-    const start = forcePos || centerBiasedTarget(grid, bounds, rng, 260);
-    const inst = insts[walkers.length % insts.length];
-    const slot = Math.floor(walkers.length / insts.length);
-    walkers.push({
-      pos: new THREE.Vector3(start.x, 0, start.z),
-      target: centerBiasedTarget(grid, bounds, rng, 260),
-      heading: rng() * Math.PI * 2,
-      phase: rng() * Math.PI * 2,
-      inst, slot,
-      active: true, stuck: 0,
-    });
-    inst.count = walkers.filter((w) => w.inst === inst).length;
+  // Load every model (each GLB may have many meshes/parts). One bad GLB
+  // must not drop the whole crowd — load per-item and keep the ones that work.
+  const loader = createGLTFLoader();
+  const settled = await Promise.all(
+    MODELS.map((f) => loader.loadAsync(f).catch((e) => { console.warn(`[pedestrians] ${kind} model failed`, f, e); return null; }))
+  );
+  const gltfs = settled.filter(Boolean);
+  if (!gltfs.length) {
+    console.warn(`[pedestrians] all ${kind} models failed to load — no ${kind}s`);
+    return null;
   }
 
-  // Initial population: half near the centre (where the camera is), the rest
-  // spread wider so the city still feels lived-in beyond the plaza.
-  for (let i = 0; i < count; i++) {
-    const spread = (i % 2 === 0) ? 200 : 700;
-    const p = centerBiasedTarget(grid, bounds, rng, spread);
-    spawnWalker(pointBlocked(grid, p.x, p.z) ? undefined : p);
-  }
+  // Build one type per GLB: merge meshes per material, bake node transforms
+  // (the GLBs store models tiny with big node scale/rotation), clamp the
+  // natural size into the height band, and create the InstancedMeshes.
+  const types = [];     // { baseScale, baseMinY }
+  const insts = [];     // per type: [InstancedMesh per material group]
+  for (const gltf of gltfs) {
+    gltf.scene.updateMatrixWorld(true);
+    const meshObjs = [];
+    gltf.scene.traverse((o) => { if (o.isMesh) meshObjs.push(o); });
+    if (!meshObjs.length) continue;
 
-  const m = new THREE.Matrix4();
-  const pos = new THREE.Vector3();
-  const quat = new THREE.Quaternion();
-  const up = new THREE.Vector3(0, 1, 0);
-  const scl = new THREE.Vector3(1, 1, 1);
+    // Bake node transforms into each mesh's geometry (the GLBs store models
+    // tiny with big node scale/rotation — without this, instances are
+    // microscopic specks).
+    const pieces = [];
+    for (const m of meshObjs) {
+      const mm = new THREE.Matrix4().copy(m.matrixWorld);
+      mm.elements[12] = mm.elements[13] = mm.elements[14] = 0;   // drop translation
+      const geo = normalizeGeo(m.geometry.clone());
+      geo.applyMatrix4(mm);
+      const mat = Array.isArray(m.material) ? m.material[0] : m.material;
+      pieces.push({ geo, mat });
+    }
 
-  function update(dt, tNow) {
-    const bob = BOB_AMPLITUDE * Math.sin((tNow || 0) * BOB_SPEED);
-    for (const w of walkers) {
-      if (!w.active) continue;
-      const dx = w.target.x - w.pos.x, dz = w.target.z - w.pos.z;
-      const dist = Math.hypot(dx, dz);
+    // Distinct materials used by this model.
+    const mats = [];
+    for (const p of pieces) if (!mats.includes(p.mat)) mats.push(p.mat);
 
-      if (dist < REACH_DIST) {
-        w.target = centerBiasedTarget(grid, bounds, rng, 260);
-        w.heading += (rng() - 0.5) * 1.4;
-        w.stuck = 0;
-      } else {
-        const targetHeading = Math.atan2(dx, dz);
-        let diff = targetHeading - w.heading;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        w.heading += diff * Math.min(1, dt / TURN_ANIM);
-
-        const nx = dx / dist, nz = dz / dist;
-        const step = WALK_SPEED * dt;
-        const px = w.pos.x + nx * step, pz = w.pos.z + nz * step;
-
-        if (pointBlocked(grid, px, pz)) {
-          const slideX = !pointBlocked(grid, px, w.pos.z);
-          const slideZ = !pointBlocked(grid, w.pos.x, pz);
-          if (slideX) w.pos.x = px;
-          else if (slideZ) w.pos.z = pz;
-          else {
-            w.stuck++;
-            w.heading += (rng() - 0.5) * 2.2;
-            if (w.stuck > 25) { w.target = wanderTarget(grid, bounds, rng); w.stuck = 0; }
-          }
-        } else {
-          w.pos.x = px; w.pos.z = pz;
-        }
+    const groups = [];
+    if (mats.length <= 1) {
+      // Single material — merge geometries and keep it (textures preserved).
+      const geos = pieces.map((p) => p.geo);
+      const merged = geos.length > 1 ? BufferGeometryUtils.mergeGeometries(geos, false) : geos[0];
+      if (mats[0] && kind === 'robot') { mats[0].emissive = new THREE.Color(0x244a78); mats[0].emissiveIntensity = 0.35; mats[0].needsUpdate = true; }
+      groups.push({ geometry: merged, material: mats[0] });
+    } else {
+      // Multi-material model — bake each mesh's material colour into vertex
+      // colours and merge into ONE geometry with one vertex-coloured material,
+      // so the type stays a single InstancedMesh (draw call). Humans keep
+      // their natural colours; robots get the neon emissive push.
+      const geos = [];
+      for (const p of pieces) {
+        const g = p.geo;
+        const color = (p.mat && p.mat.color) ? p.mat.color : new THREE.Color(0x8a8a8a);
+        const n = g.attributes.position.count;
+        const vc = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) { vc[i * 3] = color.r; vc[i * 3 + 1] = color.g; vc[i * 3 + 2] = color.b; }
+        g.setAttribute('color', new THREE.BufferAttribute(vc, 3));
+        geos.push(g);
       }
+      const merged = geos.length > 1 ? BufferGeometryUtils.mergeGeometries(geos, false) : geos[0];
+      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
+      if (kind === 'robot') { mat.emissive = new THREE.Color(0x244a78); mat.emissiveIntensity = 0.35; }
+      groups.push({ geometry: merged, material: mat });
+    }
 
-      pos.set(w.pos.x, PERSON_HEIGHT / 2 + bob * Math.sin(w.phase), w.pos.z);
-      quat.setFromAxisAngle(up, w.heading);
-      m.compose(pos, quat, scl);
-      w.inst.setMatrixAt(w.slot, m);
-      w.inst.instanceMatrix.needsUpdate = true;
+    const bb = new THREE.Box3();
+    for (const gr of groups) {
+      gr.geometry.computeBoundingBox();
+      if (gr.geometry.boundingBox) bb.union(gr.geometry.boundingBox);
+    }
+    const H = bb.max.y - bb.min.y;
+    if (!groups.length || !Number.isFinite(H) || H <= 0) {
+      console.warn('[pedestrians] skipped a robot type (bad geometry)');
+      continue;
+    }
+    const baseScale = Math.min(MAX_ROBOT_H, Math.max(MIN_ROBOT_H, H)) / H;
+    const baseMinY = bb.min.y;
+
+    const cap = Math.ceil(count / MODELS.length);
+    const tInsts = groups.map((gr) => {
+      const inst = new THREE.InstancedMesh(gr.geometry, gr.material, cap);
+      inst.count = 0;
+      inst.frustumCulled = false;      // robots span the whole city — never cull
+      inst.castShadow = true;
+      inst.receiveShadow = true;
+      inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      scene.add(inst);
+      return inst;
+    });
+
+    types.push({ baseScale, baseMinY });
+    insts.push(tInsts);
+  }
+  if (!types.length) return null;
+  const numTypes = types.length;
+
+  // Building footprints (with a 2 m margin) — robots avoid standing inside and
+  // steer around them while gliding.
+  const blds = (layout.buildings || []).map((b) => {
+    const fp = b.footprint || [20, 20];
+    return {
+      x0: b.pos[0] - fp[0] / 2 - 2, x1: b.pos[0] + fp[0] / 2 + 2,
+      z0: b.pos[1] - fp[1] / 2 - 2, z1: b.pos[1] + fp[1] / 2 + 2,
+    };
+  });
+  const insideBuilding = (x, z) => blds.some((b) => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1);
+  const boundsOk = (x, z) => x > bounds.minX + 20 && x < bounds.maxX - 20 && z > bounds.minZ + 20 && z < bounds.maxZ - 20;
+  const clearSpot = () => {
+    for (let i = 0; i < 20; i++) {
+      const x = bounds.minX + 30 + rng() * (bounds.maxX - bounds.minX - 60);
+      const z = bounds.minZ + 30 + rng() * (bounds.maxZ - bounds.minZ - 60);
+      if (!insideBuilding(x, z)) return { x, z };
+    }
+    return { x: (bounds.minX + bounds.maxX) / 2, z: (bounds.minZ + bounds.maxZ) / 2 };
+  };
+
+  // Robots cluster around buildings (like the patrol drones): pick a random
+  // building and a point just outside its footprint on clear ground.
+  const nearBuildingSpot = () => {
+    const buildings = layout.buildings || [];
+    for (let tries = 0; tries < 30; tries++) {
+      const b = buildings[Math.floor(rng() * buildings.length)];
+      if (!b) continue;
+      const fp = b.footprint || [20, 20];
+      const side = Math.floor(rng() * 4);
+      const margin = 3 + rng() * 12;             // 3–15 m off the wall
+      let x, z;
+      if (side === 0) { x = b.pos[0] + fp[0] / 2 + margin; z = b.pos[1] + (rng() - 0.5) * fp[1]; }
+      else if (side === 1) { x = b.pos[0] - fp[0] / 2 - margin; z = b.pos[1] + (rng() - 0.5) * fp[1]; }
+      else if (side === 2) { z = b.pos[1] + fp[1] / 2 + margin; x = b.pos[0] + (rng() - 0.5) * fp[0]; }
+      else { z = b.pos[1] - fp[1] / 2 - margin; x = b.pos[0] + (rng() - 0.5) * fp[0]; }
+      if (!boundsOk(x, z)) continue;
+      if (insideBuilding(x, z)) continue;
+      return { x, z };
+    }
+    return clearSpot();
+  };
+
+  // Even spread: round-robin robots across the types.
+  const typeRobots = types.map(() => []);
+  for (let i = 0; i < count; i++) {
+    const t = i % numTypes;
+    const start = nearBuildingSpot();
+    typeRobots[t].push({
+      pos: new THREE.Vector3(start.x, 0, start.z),
+      target: nearBuildingSpot(),
+      heading: rng() * Math.PI * 2,
+      speed: 1.0 + rng() * 1.4,          // glide speed
+      scale: types[t].baseScale * (0.9 + rng() * 0.25),
+    });
+  }
+
+  const M = new THREE.Matrix4();
+  const P = new THREE.Vector3();
+  const Q = new THREE.Quaternion();
+  const UP = new THREE.Vector3(0, 1, 0);
+  const S = new THREE.Vector3();
+
+  function writeMatrices() {
+    for (let t = 0; t < numTypes; t++) {
+      const robotsT = typeRobots[t];
+      const tInsts = insts[t];
+      for (let j = 0; j < robotsT.length; j++) {
+        const r = robotsT[j];
+        const sc = r.scale;
+        Q.setFromAxisAngle(UP, r.heading);
+        P.set(r.pos.x, -types[t].baseMinY * sc, r.pos.z);
+        S.set(sc, sc, sc);
+        M.compose(P, Q, S);
+        for (const inst of tInsts) inst.setMatrixAt(j, M);
+      }
+      for (const inst of tInsts) {
+        inst.count = robotsT.length;
+        inst.instanceMatrix.needsUpdate = true;
+      }
     }
   }
+  writeMatrices();
 
-  return { update, getCount: () => walkers.length };
+  function update(dt) {
+    for (let t = 0; t < numTypes; t++) {
+      for (const r of typeRobots[t]) {
+        const dx = r.target.x - r.pos.x, dz = r.target.z - r.pos.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < REACH_DIST) {
+          r.target = nearBuildingSpot();
+        } else {
+          const targetHeading = Math.atan2(dx, dz);
+          let diff = targetHeading - r.heading;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          r.heading += diff * Math.min(1, dt / TURN_ANIM);
+
+          const nx = dx / dist, nz = dz / dist;
+          const step = r.speed * dt;
+          const px = r.pos.x + nx * step, pz = r.pos.z + nz * step;
+          if (insideBuilding(px, pz)) {
+            // Steer: slide along the wall if possible, else turn away.
+            const slideX = !insideBuilding(px, r.pos.z);
+            const slideZ = !insideBuilding(r.pos.x, pz);
+            if (slideX) r.pos.x = px;
+            else if (slideZ) r.pos.z = pz;
+            else r.heading += (rng() - 0.5) * 1.6;
+          } else {
+            r.pos.x = px; r.pos.z = pz;
+          }
+        }
+      }
+    }
+    writeMatrices();
+  }
+
+  return { update, getCount: () => count };
 }
 
 /** Deterministic PRNG (mulberry32) so headless tests can reproduce runs. */

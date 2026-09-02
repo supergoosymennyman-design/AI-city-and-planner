@@ -1,0 +1,14 @@
+/* client/buddy-widget.css — INTENTIONALLY EMPTY. Kept as a file, not deleted.
+   Everything that used to be here (the bubble launcher, the visor-bot art, the panel header and the
+   slide-up panel chrome for buddy-widget.js) sorted cleanly into the two sheets the integration kit
+   ships:
+     - buddy-core.css  — layout, sizing, [hidden] state machinery, transitions, focus rings
+     - buddy-theme.css — the launcher gradient, the .bw-bot* art, and every other colour/font/shadow
+   Nothing was left over, so there is nothing to declare here.
+
+   WHY IT STILL EXISTS: ONE consumer still requests this filename by name — client/mock-project.html's
+   <link> (line 12). p5-01 was the second, and its migration onto BuddyBoot.mount() removed the runtime
+   loadCss that fetched this file, so the live game no longer touches it. Deleting the file would 404
+   the remaining <link>; a stylesheet 404 blocks nothing in a page's own <head>, so mock-project.html
+   would survive it — but a dead <link> in a page we ship as a reference host is noise a recipient has
+   to reason about. It goes away when that <link> does. */

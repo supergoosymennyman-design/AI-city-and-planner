@@ -2,7 +2,7 @@
 // Same animation state machine + skin swap as the procedural city, adapted to
 // move in world-space meters (lat/lng projected to local coords). No grid.
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createGLTFLoader } from '../shared/gltf.js';
 import { buildAccessoryMesh } from '../champion-city/accessories.js';
 
 // Champion is scaled up on the real-HK map (buildings are real meters tall) so
@@ -31,18 +31,43 @@ const CLIP_FILES = {
 // map spans Central → TST (~1500m) → Sheung Wan (west), so allow wide travel.
 const BOUNDS = 3200;
 
-export async function createChampion(assetBase, city) {
-  const loader = new GLTFLoader();
+export async function createChampion(assetBase, city, opts = {}) {
+  // createGLTFLoader() (shared/gltf.js) configures Draco + Meshopt decoders so
+  // compressed exports — e.g. a Fit Studio "fitted champion" — load too.
+  const loader = createGLTFLoader();
   const group = new THREE.Group();
+  // World scale for the champion. The city spawns it at CHAMPION_SCALE (~4 m,
+  // twice a human, so it reads on the real-HK map). Interior scenarios (lab,
+  // spaceship, station) pass a smaller scale (~1.0) so the robot fits human
+  // rooms with human-scale furniture. The ground drops below scale proportionally
+  // because they are absolute-meter values calibrated for CHAMPION_SCALE.
+  const SCALE = (city && city.scale) || CHAMPION_SCALE;
   const _dirV = new THREE.Vector3();   // scratch — avoid per-frame allocations
+  const _footV = new THREE.Vector3();  // scratch — animated foot position for auto-grounding
   const FACING_OFFSET = 0;
   const clips = {};
-  // The idle animation (Mixamo 'Idle' on the bunny skin) sits well above the
-  // ground — the skin is normalized to the static bind pose, but the idle pose
-  // lifts the feet a lot. Lower the resting idle pose by ~2/3 of a typical
-  // street tree's height (trees render ~4m tall; 2/3 ≈ 2.5m). Walking/running/
-  // dancing/jumping/waving are untouched.
-  const IDLE_DROP = 2.5;
+  // The shared Mixamo clips are baked for the bunny's rig, whose skeleton lives at
+  // ~100× the AI champion's meter-scale rig (Mixamo exports in centimetres with the
+  // mesh counter-scaled 0.01). A meter-scale skin (e.g. a fitted champion from Fit
+  // Studio) driven by those raw keyframes would have its bones displaced ~100× — a
+  // 333 m champion. `clipScale` = ratio between the skin's skeleton space and the
+  // clip space (Hips↔LeftFoot distance); when it ≠ 1 we play SCALED COPIES of the
+  // clips (position tracks × clipScale) so the skeleton stays in its own unit space.
+  // The model itself is never touched (display, gear and fit all stay perfect).
+  let clipPool = clips;     // raw, or scaled copies for a non-clip-space skin
+  let clipScale = 1;
+  // Grounding is per-skin now: the idle/walk/run clips hold the feet above the
+  // bind-pose ground by an amount proportional to the SKIN's height. The
+  // fractions below were measured from the bunny (~2 m tall): idle ~1.25 m,
+  // walk ~1.49 m, run ~1.47 m of foot-lift, i.e. 0.625 / 0.74 / 0.735 of skin
+  // height. A taller or shorter skin (e.g. a fitted champion from Fit Studio)
+  // scales automatically; SCALE converts the unscaled height into world units.
+  // NOTE: these are a FALLBACK. Auto-grounding below measures the actual
+  // animated LeftFoot height per skin each frame, so non-bunny skins no longer
+  // float (DROP_FRAC only applies when no foot bone is found).
+  const DROP_FRAC = { idle: 0.625, walk: 0.74, run: 0.735 };
+  let skinHeight = 2.0;   // unscaled normalized height; measured per skin on load
+  let _footBone = null;   // LeftFoot bone of the current skin (for auto-grounding)
   // Clips the champion needs on day one (loop + jump/wave are one-shot but
   // common); everything else (turns, dances) lazy-loads on first use so boot
   // only waits on the essential few, fetched in parallel.
@@ -64,6 +89,55 @@ export async function createChampion(assetBase, city) {
     }
   }
 
+  // Ratio between the clip space and THIS skin's skeleton space, measured on the
+  // rest pose (bones are still at their GLB bind values here — the mixer hasn't
+  // run for this model yet). ~1 = the skin already matches the clip units (bunny
+  // and Mixamo-cm skins); anything else (a meter-scale fitted champion) returns
+  // the per-unit factor to scale the clip POSITION tracks by.
+  function skinClipScaleFor(m) {
+    let skinned = null;
+    m.traverse((o) => { if (o.isSkinnedMesh && !skinned) skinned = o; });
+    if (!skinned || !skinned.skeleton) return 1;
+    const bones = skinned.skeleton.bones;
+    // GLTFLoader strips ":" from node names, so runtime bones are "mixamorigHips"
+    // (Fit Studio / Blender files) or "mixamorig:Hips" — match the tail either way.
+    const hips = bones.find((b) => /Hips$/.test(b.name));
+    const foot = bones.find((b) => /LeftFoot$/.test(b.name));
+    if (!hips || !foot) return 1;
+    const idle = clips.Idle;
+    const hipsTr = idle && idle.tracks.find((t) => /Hips\.position$/.test(t.name));
+    const footTr = idle && idle.tracks.find((t) => /LeftFoot\.position$/.test(t.name));
+    if (!hipsTr || !footTr) return 1;
+    const clipDist = Math.hypot(
+      hipsTr.values[0] - footTr.values[0],
+      hipsTr.values[1] - footTr.values[1],
+      hipsTr.values[2] - footTr.values[2]);
+    const skinDist = new THREE.Vector3().subVectors(hips.position, foot.position).length();
+    if (clipDist < 1e-6 || skinDist < 1e-6) return 1;
+    const f = skinDist / clipDist;
+    return Math.abs(f - 1) < 0.05 ? 1 : f;
+  }
+
+  // Copies of every loaded clip with POSITION track values scaled by `f`.
+  // Quaternion + scale tracks are untouched (rotations and bone scale are
+  // unit-independent; Mixamo scale tracks are constant 1).
+  function scaledClipMap(f) {
+    const out = {};
+    for (const key of Object.keys(clips)) {
+      const c = clips[key];
+      const tracks = c.tracks.map((t) => {
+        if (t.name.endsWith('.position')) {
+          const values = new Float32Array(t.values.length);
+          for (let i = 0; i < t.values.length; i++) values[i] = t.values[i] * f;
+          return new THREE.VectorKeyframeTrack(t.name, t.times, values);
+        }
+        return t;
+      });
+      out[key] = new THREE.AnimationClip(c.name, c.duration, tracks);
+    }
+    return out;
+  }
+
   // Load a non-core clip on demand (turns, dances, sit). Idempotent + cached.
   const _lazyClipPromises = {};
   function ensureClip(file) {
@@ -75,10 +149,23 @@ export async function createChampion(assetBase, city) {
           const clip = g.animations[0].optimize();
           const name = clip.name;
           clips[name] = clip;
+          // Keep the scaled pool in sync so a meter-scale skin also gets
+          // correctly-scaled lazy clips.
+          if (clipScale !== 1) {
+            const tracks = clip.tracks.map((t) => {
+              if (t.name.endsWith('.position')) {
+                const values = new Float32Array(t.values.length);
+                for (let i = 0; i < t.values.length; i++) values[i] = t.values[i] * clipScale;
+                return new THREE.VectorKeyframeTrack(t.name, t.times, values);
+              }
+              return t;
+            });
+            clipPool[name] = new THREE.AnimationClip(clip.name, clip.duration, tracks);
+          }
           // If the mixer already exists, bind this new action right away.
           if (mixer) {
             const key = Object.keys(CLIP_NAMES).find((k) => CLIP_NAMES[k] === name) || (DANCE_NAMES.includes(name) ? name : null);
-            if (key) actions[key] = mixer.clipAction(clip);
+            if (key) actions[key] = mixer.clipAction(clipPool[name]);
           }
         }
       })
@@ -88,34 +175,43 @@ export async function createChampion(assetBase, city) {
 
   let model = null, mixer = null, actions = {}, currentName = 'idle';
 
+  // Locate the skin's LeftFoot bone (Mixamo naming: "mixamorig:LeftFoot" or
+  // "mixamorigLeftFoot"). Used by auto-grounding to drop the champion by its
+  // ACTUAL animated foot height, so any skin (bunny, dragon, fitted champion)
+  // sits on the ground regardless of clip-space proportions.
+  function findFootBone(m) {
+    let skinned = null;
+    m.traverse((o) => { if (o.isSkinnedMesh && !skinned) skinned = o; });
+    if (!skinned || !skinned.skeleton) return null;
+    const bones = skinned.skeleton.bones;
+    return bones.find((b) => /LeftFoot$/.test(b.name)) || null;
+  }
+
   function normalizeModel(m) {
     m.updateMatrixWorld(true);
-    let minY = Infinity, maxY = -Infinity;
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    m.traverse((n) => {
-      if (n.isMesh && n.geometry) {
-        const pos = n.geometry.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-          const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-          if (x < minX) minX = x; if (x > maxX) maxX = x;
-          if (y < minY) minY = y; if (y > maxY) maxY = y;
-          if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
-        }
-      }
-    });
-    m.position.y -= minY;
-    m.position.x -= (minX + maxX) / 2;
-    m.position.z -= (minZ + maxZ) / 2;
+    // World-space bounds via Box3: accounts for the armature parent + node
+    // transforms (a meter-scale mesh under the Armature is not the same as a
+    // tiny bunny mesh that is a sibling of its skeleton). Ground the lowest
+    // point and centre X/Z in one pass.
+    const box = new THREE.Box3().setFromObject(m);
+    if (!box.isEmpty()) {
+      m.position.x -= (box.min.x + box.max.x) / 2;
+      m.position.z -= (box.min.z + box.max.z) / 2;
+      m.position.y -= box.min.y;
+      const size = box.getSize(new THREE.Vector3());
+      if (size.y > 1e-6) skinHeight = size.y;
+    }
+    m.updateMatrixWorld(true);
   }
 
   function buildMixer(m) {
     mixer = new THREE.AnimationMixer(m);
     actions = {};
     for (const key of Object.keys(CLIP_NAMES)) {
-      const clip = clips[CLIP_NAMES[key]];
+      const clip = clipPool[CLIP_NAMES[key]];
       if (clip) actions[key] = mixer.clipAction(clip);
     }
-    for (const d of DANCE_NAMES) if (clips[d]) actions[d] = mixer.clipAction(clips[d]);
+    for (const d of DANCE_NAMES) if (clipPool[d]) actions[d] = mixer.clipAction(clipPool[d]);
   }
 
   // Procedural champion — a friendly robot built from primitives. Used when the
@@ -155,6 +251,7 @@ export async function createChampion(assetBase, city) {
     const armR = armL.clone(); armR.position.x = 0.5; armR.rotation.z = -0.15; robot.add(armR);
     robot.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     model = robot;
+    _footBone = null;   // procedural robot has no skeleton — DROP_FRAC fallback
     group.add(robot);
     buildMixer(robot);
     currentName = 'idle';
@@ -170,12 +267,17 @@ export async function createChampion(assetBase, city) {
     try {
       gltf = await loader.loadAsync(glbUrl);
     } catch (e) {
-      console.warn('[champion] skin GLB load failed — using procedural champion:', e);
-      if (!model) buildProceduralChampion();
-      return;
+      console.warn('[champion] skin GLB load failed:', glbUrl, e);
+      return false;   // keep the current model — caller decides the fallback
     }
     const newModel = gltf.scene;
     normalizeModel(newModel);
+    _footBone = findFootBone(newModel);
+    // Adapt the shared clips to this skin's skeleton unit-space (meter-scale
+    // fitted champions vs the bunny's ~100× rig) BEFORE the mixer is built.
+    const s = skinClipScaleFor(newModel);
+    if (s !== 1) { clipScale = s; clipPool = scaledClipMap(s); }
+    else { clipScale = 1; clipPool = clips; }
     if (model) {
       group.remove(model);
       model.traverse((n) => {
@@ -194,6 +296,7 @@ export async function createChampion(assetBase, city) {
     state.isGrounded = true;
     state.y = 0; state.yVel = 0;
     if (actions.idle) { actions.idle.reset().play(); actions.idle.timeScale = 1; }
+    return true;
   }
 
   const state = {
@@ -215,13 +318,15 @@ export async function createChampion(assetBase, city) {
     if (prev && prev.isRunning()) prev.fadeOut(fadeTime);
     currentName = name;
     if (name === 'walk' || name === 'run' || name === 'idle') {
-      next.reset().fadeIn(fadeTime);
+      next.reset();
       next.setLoop(THREE.LoopRepeat, Infinity);
-      next.setEffectiveWeight(1);
       next.setEffectiveTimeScale(1);
+      next.play();                 // MUST activate — reset().fadeIn() alone never starts the action
+      next.fadeIn(fadeTime);       // then fade weight 0→1 for a smooth cross-fade
     } else {
       next.setLoop(THREE.LoopOnce, 1);
       next.clampWhenFinished = true;
+      next.play();
     }
   }
   function triggerOneShot(name) {
@@ -280,14 +385,24 @@ export async function createChampion(assetBase, city) {
   const ringColor = { idle: 0x00f2fe, busy: 0xff007f, executing: 0x00ff9d };
 
   await loadSharedClips();
-  await loadSkin(assetBase + 'clips/idle_bunny.glb');
+  // Start on the uploaded "fitted champion" when one was provided; otherwise
+  // the default bunny. If the custom GLB fails, fall back to bunny, then to
+  // the procedural robot so boot never hangs.
+  const defaultBunny = assetBase + 'clips/idle_bunny.glb';
+  const initialSkin = opts.initialSkin || defaultBunny;
+  const initialSkinId = opts.initialSkinId || 'bunny';
+  const initialLoaded = await loadSkin(initialSkin);
+  if (!initialLoaded && initialSkin !== defaultBunny) {
+    await loadSkin(defaultBunny);
+  }
+  if (!model) buildProceduralChampion();
   // Scale the GROUP (not the model) so the skeleton/skinning stays intact.
-  group.scale.setScalar(CHAMPION_SCALE);
+  group.scale.setScalar(SCALE);
 
   const api = {
     group, mixer, state,
     name: () => currentName,
-    skinId: 'bunny',
+    skinId: initialLoaded ? initialSkinId : 'bunny',
     async swapSkin(glbUrl, skinId) {
       await loadSkin(glbUrl);
       api.skinId = skinId || api.skinId;
@@ -373,12 +488,32 @@ export async function createChampion(assetBase, city) {
         state.y += state.yVel * dt;
         if (state.y <= 0) { state.y = 0; state.isGrounded = true; }
       }
-      // Lower ONLY the resting idle pose by IDLE_DROP so the feet touch the
-      // ground; walk/run (and one-shots handled above) are untouched.
-      const idleDrop = state.mode === 'idle' && !state.oneShot ? IDLE_DROP : 0;
-      group.position.set(state.pos.x, state.y - idleDrop, state.pos.z);
-      group.rotation.y = state.facing;
+      // Ground the champion so its feet touch the ground.
+      // Auto-grounding (preferred): measure the ANIMATED LeftFoot world height
+      // after the mixer updates, then drop the group by exactly that amount.
+      // This is per-skin and per-clip — the bunny's DROP_FRAC constants no
+      // longer matter, so dragon/neondragon/sentinel/crimson/custom all sit on
+      // the ground. When no foot bone exists (procedural robot) we fall back to
+      // the old fraction-based drop.
       mixer.update(dt);
+      let drop = 0;
+      if (!state.oneShot && _footBone) {
+        // Measure with the group parked at y=0 so _footV is the raw foot height
+        // in world units (includes SCALE). Animating between frames keeps the
+        // feet planted even as the clip moves the hips.
+        const savedY = group.position.y;
+        group.position.y = 0;
+        model.updateMatrixWorld(true);
+        _footBone.getWorldPosition(_footV);
+        drop = _footV.y;
+        group.position.y = savedY;
+        group.position.set(state.pos.x, state.y - drop, state.pos.z);
+      } else {
+        const groundedDrop = (DROP_FRAC[state.mode] || 0) * skinHeight * SCALE;
+        drop = !state.oneShot ? groundedDrop : 0;
+        group.position.set(state.pos.x, state.y - drop, state.pos.z);
+      }
+      group.rotation.y = state.facing;
     },
     wave() { triggerOneShot('wave'); },
     isBusy() { return !!state.oneShot; },

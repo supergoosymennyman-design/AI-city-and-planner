@@ -16,6 +16,15 @@
  */
 
 import { catalogType } from './catalog.js';
+import { libraryItem } from './library.js';
+
+// Resolve the spec for a building type — a city-catalog type OR a shared-library
+// item ('lib:<id>'). Returns null for unknown types.
+export function typeSpec(type) {
+  if (!type || typeof type !== 'string') return null;
+  if (type.startsWith('lib:')) return libraryItem(type.slice(4));
+  return catalogType(type);
+}
 
 export const LAYOUT_VERSION = 2;
 export const DEFAULT_SCALE = 2000;
@@ -102,7 +111,7 @@ export function validateLayout(raw) {
   buildings.forEach((b, i) => {
     const tag = `building[${i}]`;
     if (!b || typeof b !== 'object') { errors.push(`${tag} not an object`); return; }
-    if (typeof b.type !== 'string' || !catalogType(b.type)) {
+    if (typeof b.type !== 'string' || !typeSpec(b.type)) {
       errors.push(`${tag}: unknown type "${b.type}"`);
       return;
     }
@@ -125,8 +134,8 @@ export function validateLayout(raw) {
     for (let j = i + 1; j < buildings.length; j++) {
       const c = buildings[j];
       if (!b.pos || !c.pos) continue;
-      const fp1 = b.footprint || (catalogType(b.type)?.footprint || [20, 20]);
-      const fp2 = c.footprint || (catalogType(c.type)?.footprint || [20, 20]);
+      const fp1 = b.footprint || (typeSpec(b.type)?.footprint || [20, 20]);
+      const fp2 = c.footprint || (typeSpec(c.type)?.footprint || [20, 20]);
       const overlapX = Math.abs(b.pos[0] - c.pos[0]) < (fp1[0] + fp2[0]) / 2;
       const overlapY = Math.abs(b.pos[1] - c.pos[1]) < (fp1[1] + fp2[1]) / 2;
       if (overlapX && overlapY) {
@@ -176,7 +185,7 @@ export function sanitizeLayout(raw) {
   if (Array.isArray(raw?.buildings)) {
     const clamp = (v) => Math.max(0, Math.min(scale, v));
     base.buildings = raw.buildings
-      .filter((b) => b && typeof b.type === 'string' && catalogType(b.type))
+      .filter((b) => b && typeof b.type === 'string' && typeSpec(b.type))
       .map((b) => {
         // Coordinates must be finite numbers — a NaN/Infinity/string coord would
         // poison metrics, densify and the 3D renderer. Drop invalid buildings
@@ -195,6 +204,7 @@ export function sanitizeLayout(raw) {
           pos: [clamp(px), clamp(pz)],
           ...(fp ? { footprint: fp } : {}),
           ...(Number.isFinite(b.height) ? { height: +b.height } : {}),
+          ...(b.locked === true ? { locked: true } : {}),
         };
       })
       .filter((b) => b !== null);

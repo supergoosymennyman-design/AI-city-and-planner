@@ -1,0 +1,47 @@
+# p5.yml — CI gate for the P5 (Passiona) programme.
+#
+# Runs on push/PR to anything in the repo:
+#   1. unit   — node:test suite (metrics, optimizer, layout, catalog, buddy logic…)
+#   2. audit  — shared model library integrity (missing glb/thumbnail, orphans)
+#   3. e2e    — Playwright: city-builder boots clean + prop picker works
+#
+# Deploys stay manual (deploy-city-apps.sh). Add a workflow_dispatch deploy job
+# here once secrets (CLOUDFLARE_API_TOKEN) are configured in the repo.
+name: P5 CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit + library audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:unit
+      - run: npm run test:library
+
+  e2e:
+    name: E2E (Playwright, built bundle)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      # test:e2e builds the unified bundle (planner+pregame+city under one
+      # origin) and runs the full suite against it — incl. the journey spec.
+      - run: npm run test:e2e
+        env:
+          CI: 'true'
