@@ -506,13 +506,24 @@ function challenge3(container) {
   const BUDGET = 400;
   let pick = null, within = null;
 
+  // Lane each label so overlapping text never collides ACROSS routes (they all
+  // share the same HOME origin, so e.g. A's "150m" and C's "120m" used to sit
+  // on top of each other). Horizontal segments stagger UP by lane; a dark
+  // stroke behind the text keeps it readable where a route crosses another.
+  const hLanes = {};
   const svgRoutes = routes.map((r) => {
     const d = r.pts.map((p, i) => (i === 0 ? `M ${p[0]} ${p[1]}` : `L ${p[0]} ${p[1]}`)).join(' ');
+    const segLabel = (x, y, seg) => `<text x="${x}" y="${y}" text-anchor="middle" fill="#ffb84c" font-size="12" font-weight="bold" paint-order="stroke" stroke="#0b132b" stroke-width="4" stroke-linejoin="round">${seg}m</text>`;
     const labels = r.segs.map((seg, i) => {
       const a = r.pts[i], b = r.pts[i + 1];
       const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
       const horiz = a[1] === b[1];
-      return `<text x="${mx}" y="${horiz ? my - 8 : my + 4}" text-anchor="middle" fill="#ffb84c" font-size="12" font-weight="bold">${seg}m</text>`;
+      if (horiz) {
+        const key = Math.round(my);
+        const lane = (hLanes[key] = (hLanes[key] || 0) + 1);
+        return segLabel(mx, my - 8 - (lane - 1) * 15, seg);
+      }
+      return segLabel(mx, my + 4, seg);
     }).join('');
     return `
       <g class="route-path" data-route="${r.id}" tabindex="0" role="button" aria-label="Route ${r.id}: ${r.segs.join(' + ')} metres">
@@ -801,8 +812,8 @@ function graduate() {
   unlockBtn.disabled = !allDone;
   downloadBtn.disabled = !allDone;
   downloadHint.textContent = allDone
-    ? 'Your planner is ready! Hit "Unlock the planner" to open it — or download the file as a backup.'
-    : 'Finish all four rooms to unlock your file.';
+    ? 'Your planner is ready! Hit "Unlock the planner" to open it — or keep your license file as a backup.'
+    : 'Finish all four rooms to earn your license file.';
 }
 
 /** Same-origin unlock: set the flag the 2D planner checks, then open it. */
@@ -831,7 +842,7 @@ function downloadLicense() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast('💾 Downloaded planner-license.json! Now upload it in the 2D city planner.');
+  toast('💾 Downloaded planner-license.json — your license file! Upload it in the 2D city planner on a new tablet.');
 }
 
 // ── Restart (custom modal, no confirm()) ────────────────

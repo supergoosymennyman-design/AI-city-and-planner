@@ -25,6 +25,7 @@ import * as THREE from 'three';
 import { createGLTFLoader } from '../shared/gltf.js';
 import { t } from './i18n.js';
 import { LIBRARY, LIBRARY_CATEGORIES, libraryByCategory, libraryUrl } from '../city-common/library.js';
+import { vehicleTargetLength } from '../city-common/vehicle-scale.js';
 
 // ─── Curated model library (shared catalog) ────────────────────────────────
 // The city-builder's 🧰 reads the SAME catalog the scenarios use
@@ -55,7 +56,9 @@ function scaleToFootprint(model, item, extra) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  const target = Math.max(item.footprint[0], item.footprint[1], item.height || 1) * (extra || 1);
+  // Vehicles use their real-world default length (matched to the 3D city's
+  // traffic cars / champion), not the small source-unit library footprint.
+  const target = (item.category === 'vehicles' ? vehicleTargetLength(item) : Math.max(item.footprint[0], item.footprint[1], item.height || 1)) * (extra || 1);
   const s = target / maxDim;
   model.scale.setScalar(s);
   box.setFromObject(model);
@@ -192,7 +195,8 @@ export function mountPropLibrary(opts) {
     .prop-lib-tabs { display: flex; flex-wrap: wrap; gap: 8px; row-gap: 8px; margin-bottom: 10px; }
     .prop-lib-tab {
       flex: 0 1 auto; white-space: nowrap;
-      padding: 8px 12px; border: 1px solid var(--panel-border, rgba(0,242,254,0.35));
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 44px; padding: 0 14px; border: 1px solid var(--panel-border, rgba(0,242,254,0.35));
       border-radius: 999px; background: transparent; color: var(--text, #f8fafc);
       font-size: 13px; font-weight: 700; cursor: pointer; line-height: 1.2;
     }
@@ -200,10 +204,10 @@ export function mountPropLibrary(opts) {
     .prop-lib-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; flex: 1; }
     .prop-lib-card {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 10px; border-radius: 10px;
+      min-height: 52px; padding: 6px 8px; border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
       cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;
-      content-visibility: auto; contain-intrinsic-size: 54px;
+      content-visibility: auto; contain-intrinsic-size: 60px;
     }
     .prop-lib-card:hover { border-color: var(--accent, #00f2fe); }
     .prop-lib-card:active { background: rgba(0,242,254,0.15); }
@@ -211,9 +215,10 @@ export function mountPropLibrary(opts) {
     .prop-lib-thumb { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; background: rgba(255,255,255,0.06); flex-shrink: 0; }
     .prop-lib-name { font-size: 13px; font-weight: 600; color: var(--text, #f8fafc); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .prop-lib-place {
-      padding: 5px 10px; border: none; border-radius: 8px;
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 44px; min-width: 44px; padding: 0 14px; border: none; border-radius: 10px;
       background: var(--accent, #00f2fe); color: #06233a;
-      font-size: 12px; font-weight: 700; cursor: pointer;
+      font-size: 13px; font-weight: 700; cursor: pointer;
     }
     .prop-lib-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
     .prop-lib-count { font-size: 11px; color: var(--muted, #94a3b8); }

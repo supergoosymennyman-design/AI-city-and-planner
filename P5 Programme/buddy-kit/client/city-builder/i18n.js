@@ -77,7 +77,7 @@ const DICT = {
     'coach.c3b': 'Tap the toolbox to open the model library and place trees, friends and robots on the ground.',
     'entry.start': '▶ Start my saved city',
     'entry.continue': '▶ Continue my city',
-    'entry.emptySample': '▶ Start with an empty sample',
+    'entry.emptySample': '▶ Explore an example city',
     'entry.resumeLabel': 'Last saved',
     'entry.openFile': '📁 Open my city file',
     'entry.moreWays': 'More ways…',
@@ -244,9 +244,9 @@ export function mountLangToggle() {
   _langBtn.setAttribute('aria-label', 'Language / 語言');
   _langBtn.textContent = _lang === 'zh-Hant' ? 'EN' : '中';
   _langBtn.style.cssText =
-    'margin-left:8px;height:34px;min-width:38px;padding:0 8px;border-radius:10px;' +
+    'margin-left:8px;height:44px;min-width:44px;padding:0 10px;border-radius:10px;' +
     'border:1px solid var(--panel-border,rgba(0,242,254,0.35));background:transparent;' +
-    'color:var(--text,#f8fafc);font-size:12px;font-weight:800;cursor:pointer;' +
+    'color:var(--text,#f8fafc);font-size:13px;font-weight:800;cursor:pointer;' +
     'font-family:var(--font-body,inherit);';
   _langBtn.addEventListener('click', () => setLang(_lang === 'zh-Hant' ? 'en' : 'zh-Hant'));
   hudRight.appendChild(_langBtn);

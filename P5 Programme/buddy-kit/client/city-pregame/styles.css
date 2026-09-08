@@ -35,7 +35,9 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  /* CJK-safe stack: Latin faces first, then Traditional-Chinese system faces so
+     bilingual copy (EN + 繁體中文) never falls back to a mismatched default. */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "PingFang TC", "PingFang HK", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   font-size: 16px;
   line-height: 1.5;
   overflow-x: hidden;
@@ -122,7 +124,7 @@ svg { display: block; max-width: 100%; height: auto; }
 .btn-hint:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ─── Room shell ─── */
-.room { padding-bottom: 40px; }
+.room { padding-bottom: 104px; } /* clear the fixed bottom nav pill */
 .room-header { margin-bottom: 24px; }
 .room-tag {
   display: inline-block; padding: 4px 12px;
@@ -140,7 +142,17 @@ svg { display: block; max-width: 100%; height: auto; }
   background: var(--panel); padding: 14px 18px; border-radius: var(--r-md);
   font-size: var(--fs-sm); line-height: 1.6;
 }
-.math-block code { color: var(--cyan); font-family: ui-monospace, Menlo, Consolas, monospace; }
+.math-block code {
+  color: var(--cyan);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  background: rgba(0, 242, 254, 0.12);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
 
 .why-box {
   background: var(--panel); padding: 14px 18px; border-radius: var(--r-md);
@@ -352,12 +364,21 @@ svg { display: block; max-width: 100%; height: auto; }
   box-shadow: 0 4px 24px rgba(0,0,0,0.4);
 }
 .nav-dot {
+  position: relative;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; padding: 0; cursor: pointer;
+}
+.nav-dot::before {
+  content: '';
   width: 16px; height: 16px; border-radius: 50%;
   background: var(--line); border: 2px solid var(--line);
-  transition: all 0.2s; cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.2s;
 }
-.nav-dot.current { background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
-.nav-dot.done { background: var(--jade); border-color: var(--jade); }
+.nav-dot:hover::before { transform: scale(1.2); }
+.nav-dot.current::before { background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+.nav-dot.done::before { background: var(--jade); border-color: var(--jade); }
 
 /* ─── Toast ─── */
 .toast {
@@ -394,7 +415,8 @@ svg { display: block; max-width: 100%; height: auto; }
   .rc-row { grid-template-columns: 86px 38px 52px 52px 1fr; font-size: 0.85rem; }
   .rc-label { font-size: 0.8rem; }
   .room-nav { padding: 8px 16px; gap: 10px; }
-  .nav-dot { width: 14px; height: 14px; }
+  .nav-dot { width: 40px; height: 40px; }
+  .nav-dot::before { width: 14px; height: 14px; }
 }
 
 @media (min-width: 768px) {

@@ -184,7 +184,11 @@ export function mountCityBuddy(city, champion, sim, layout) {
   if (widgetPromise && typeof widgetPromise.then === 'function') {
     widgetPromise.then((widget) => {
       if (!widget) return;
-      if (typeof widget.open === 'function') widget.open();
+      // Do NOT auto-open the full chat panel on load: the panel is ~420px wide
+      // and would cover the minimap + quest-banner Enter on the child's first
+      // look at their own city (flagged by design review as the #1 first-run
+      // problem). The greeting message is queued, so tapping the bubble still
+      // shows it. The 64px bubble launcher remains as the discoverable affordance.
       const minimise = () => { if (typeof widget.close === 'function') widget.close(); };
       window.addEventListener('buddy:minimise', minimise);
     }).catch(() => { /* mount failures log loudly in buddy-boot */ });

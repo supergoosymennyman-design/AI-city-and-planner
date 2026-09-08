@@ -35,9 +35,10 @@ import { createPedestrians } from './pedestrians.js';
 import { createClouds } from './clouds.js';
 import { createStreetProps } from './street-props.js';
 import { scatterStreetDeco } from './street-deco.js';
+import { createStreetFurniture } from './street-furniture.js';
 import { createMinimap } from './minimap.js';
 import { mountCityBuddy } from './buddy.js';
-import { createLabelRenderer } from '../champion-city/labels.js';
+import { createLabelRenderer, updateLabels } from '../champion-city/labels.js';
 import { mountSkinSidebar, equipCustomDefault } from '../champion-city/skins.js';
 import { preloadAccessories } from '../champion-city/accessories.js';
 import { saveCustomSkin, loadCustomSkinBlob, blobToObjectUrl, revokeObjectUrl, looksLikeGlb } from '../champion-city/custom-skin.js';
@@ -47,6 +48,8 @@ import { ParticlePool } from '../champion-city/particles.js';
 import { catalogType, isSpecial } from '../city-common/catalog.js';
 import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout, typeSpec } from '../city-common/layout.js';
 import { LIBRARY, libraryUrl, libraryItem } from '../city-common/library.js';
+import { buildSampleCity } from '../city-common/sample-city.js';
+import { isRoadVehicle, vehicleTargetLength } from '../city-common/vehicle-scale.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt, lastSavedAt } from '../city-common/champion-file.js';
 import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
 import { parseCapability, capabilityDescriptor, stage1Note, runInference } from '../city-common/cap-runtime.js';
@@ -150,64 +153,189 @@ function getWindowTexture() {
   return _windowTex;
 }
 
+// Inverted window grid used as a bumpMap: walls stay mid-grey, window cells are
+// dark, so the shared lit-window canvas also reads as recessed frames under the
+// key light instead of a flat sticker. Same 14×22 grid + repeat wrapping so the
+// relief lines up with the emissive pattern.
+let _windowBumpTex = null;
+function getWindowBumpTexture() {
+  if (_windowBumpTex) return _windowBumpTex;
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#7f7f7f';
+  ctx.fillRect(0, 0, size, size);
+  const cols = 14, rows = 22, cw = size / cols, ch = size / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const lit = ((r * 7 + c * 13) % 5) < 4;
+      // Window glass darker than the surrounding wall → recess in the bump map.
+      ctx.fillStyle = lit ? '#3c4a55' : '#141c26';
+      ctx.fillRect(c * cw + 3, r * ch + 3, cw - 6, ch - 6);
+    }
+  }
+  _windowBumpTex = new THREE.CanvasTexture(canvas);
+  _windowBumpTex.wrapS = _windowBumpTex.wrapT = THREE.RepeatWrapping;
+  return _windowBumpTex;
+}
+
+// Ground distance-fade: the 6000×6000 ground plane's far edge must melt into
+// the fog colour *before* FogExp2's residual (~86% at 2 km) could expose the
+// seam against the sky. Mixes the textured albedo toward the fog colour past
+// ~800 m from the camera, so the "world ends in a straight line" artefact can
+// never reappear regardless of exposure or lighting on the ground.
+let _groundMat = null;   // ref for the per-frame camera uniform
+function groundDistanceFade(material) {
+  _groundMat = material;
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uFogColor = { value: new THREE.Color(0x1c2b5a) };
+    shader.uniforms.uCamPos = { value: new THREE.Vector3(1000, 220, 1000) };
+    shader.uniforms.uFadeNear = { value: 800 };
+    shader.uniforms.uFadeFar = { value: 1700 };
+    // Keep a live handle to the compiled uniform so the frame loop can move it.
+    material.userData.__uCamPos = shader.uniforms.uCamPos;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGndWorld;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gndW = modelMatrix * vec4(transformed, 1.0); vGndWorld = gndW.xyz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGndWorld;\nuniform vec3 uFogColor;\nuniform vec3 uCamPos;\nuniform float uFadeNear;\nuniform float uFadeFar;')
+      .replace('#include <color_fragment>',
+        '#include <color_fragment>\n' +
+        'float gndDist = distance(vGndWorld.xz, uCamPos.xz);\n' +
+        'float gndFade = smoothstep(uFadeNear, uFadeFar, gndDist);\n' +
+        'diffuseColor.rgb = mix(diffuseColor.rgb, uFogColor, gndFade);');
+  };
+  return material;
+}
+
+// Ground-AO gradient injected into MeshStandardMaterial: facade colour fades
+// from ~62% at street level to full brightness above ~12 m, grounding buildings
+// and hiding the 8-bit banding where flat walls meet the fog. Applied per-pixel
+// on world Y so it never touches the emissive window layer.
+function groundFacadeAO(material) {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vGroundAO;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 aoWorld = modelMatrix * vec4(transformed, 1.0); vGroundAO = aoWorld.y;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vGroundAO;')
+      .replace('#include <color_fragment>',
+        '#include <color_fragment>\n' +
+        'float aoAmt = smoothstep(0.0, 12.0, vGroundAO);\n' +
+        'diffuseColor.rgb *= mix(0.62, 1.0, aoAmt);');
+  };
+  return material;
+}
+
+// Patch-mottle for asphalt (the "black paper" fix): a large-scale value-noise
+// from world XZ varies albedo ±~12% and roughness ±~0.08 so the road reads as
+// worn tarmac instead of one uniform black ribbon. Uses only standard varyings
+// (modelMatrix × transformed → world XZ) — no custom attributes, safe on the
+// shared road material. Wheel-track sheen is intentionally deferred: it needs a
+// per-vertex lateral attribute across varying road widths that can't be QA'd
+// blind on a built-in material.
+function asphaltSurfaceDetail(material) {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vRoadXZ;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 rdW = modelMatrix * vec4(transformed, 1.0); vRoadXZ = rdW.xz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vRoadXZ;')
+      .replace('#include <color_fragment>',
+        '#include <color_fragment>\n' +
+        'vec2 rp = floor(vRoadXZ / 90.0);\n' +
+        'float hsh = fract(sin(dot(rp, vec2(127.1, 311.7))) * 43758.5453);\n' +
+        'float mottle = (hsh - 0.5) * 0.24;\n' +
+        'diffuseColor.rgb *= 1.0 + mottle;')
+      .replace('#include <roughnessmap_fragment>',
+        '#include <roughnessmap_fragment>\n' +
+        'roughnessFactor = clamp(roughnessFactor + (hsh - 0.5) * 0.16, 0.6, 1.0);');
+  };
+  return material;
+}
+
+// Contact-shadow texture for grounding buildings: a soft radial dark blob that
+// visually pins each footprint to the ground (realtime shadows are off on the
+// low tier and weak at altitude even where they exist). Generated once, shared
+// by every footprint quad.
+let _contactShadowTex = null;
+function getContactShadowTexture() {
+  if (_contactShadowTex) return _contactShadowTex;
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(0,0,0,0.50)');
+  g.addColorStop(0.55, 'rgba(0,0,0,0.28)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  _contactShadowTex = new THREE.CanvasTexture(canvas);
+  return _contactShadowTex;
+}
+// One merged mesh of soft shadow quads under every building footprint — grounds
+// GLB and procedural buildings alike (fixes "floating boxes" in the aerial and
+// street views) for a single draw call. Shadow quads sit just above the ground,
+// below roads/buildings, and are depth-tested only against the ground plane so
+// they never smear over roads or the champion's feet.
+let _buildingShadows = null;
+function addBuildingContactShadows() {
+  if (_buildingShadows) { scene.remove(_buildingShadows); _buildingShadows.geometry && _buildingShadows.geometry.dispose(); _buildingShadows = null; }
+  const buildings = (layout && layout.buildings) || [];
+  if (!buildings.length) return;
+  const mat = new THREE.MeshBasicMaterial({
+    map: getContactShadowTexture(),
+    transparent: true, opacity: 1,
+    depthWrite: false,
+  });
+  // Blend so multiple overlapping shadow quads don't fully blacken.
+  mat.blending = THREE.MultiplyBlending;
+  const geometry = new THREE.PlaneGeometry(1, 1);
+  const mesh = new THREE.InstancedMesh(geometry, mat, buildings.length);
+  const m = new THREE.Matrix4(), s = new THREE.Vector3(), p = new THREE.Vector3(), q = new THREE.Quaternion();
+  let i = 0;
+  for (const b of buildings) {
+    const spec = b.type.startsWith('lib:') ? libraryItem(b.type.slice(4)) : catalogType(b.type);
+    const fp = b.footprint || spec?.footprint || [20, 20];
+    const h = Math.max(fp[0], fp[1]);
+    const over = 2.5;                    // bleed past the footprint
+    s.set(h / 2 + over, 1, h / 2 + over);
+    p.set(b.pos[0], 0.015, b.pos[1]);
+    m.compose(p, q, s);
+    mesh.setMatrixAt(i++, m);
+  }
+  mesh.count = i;
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.renderOrder = -1;
+  mesh.userData.kind = 'building-contact-shadow';
+  scene.add(mesh);
+  _buildingShadows = mesh;
+  // Re-apply once the champion spawns (shadows render under everything by
+  // renderOrder, no per-frame work).
+  return mesh;
+}
+
 function hashString(s) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
 
-// ─── Sample layout (bundled so the whole thing is testable without the planner)
+// ─── Sample layout (bundled so the whole thing is testable without the planner) ──
+// Generation lives in city-common/sample-city.js (pure, node-testable) so the 3D
+// builder and the unit tests share one source of truth. The example city is the
+// Radial Ring template + cross avenue with shared-library model variety baked in.
 function sampleLayout() {
-  return {
-    version: 2,
-    scaleMeters: 2000,
-    roads: [
-      { points: [[200, 1000], [1800, 1000]], width: 14, class: 'primary' },
-      { points: [[1000, 200], [1000, 1800]], width: 14, class: 'primary' },
-      { points: [[600, 550], [600, 1450]], width: 9, class: 'tertiary' },
-      { points: [[1400, 550], [1400, 1450]], width: 9, class: 'tertiary' },
-      { points: [[550, 700], [1450, 700]], width: 7, class: 'residential' },
-      { points: [[550, 1300], [1450, 1300]], width: 7, class: 'residential' },
-    ],
-    parks: [
-      { cx: 1400, cz: 1400, radius: 120 },
-      { cx: 500, cz: 500, radius: 110 },
-      { cx: 800, cz: 1550, radius: 80 },
-    ],
-    buildings: [
-      // mission buildings
-      { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
-      { type: 'finance_tower', pos: [760, 1080], footprint: [24, 24], height: 80 },
-      { type: 'sentiment_lab', pos: [1230, 900], footprint: [22, 22], height: 45 },
-      { type: 'atc', pos: [1360, 1180], footprint: [20, 20], height: 70 },
-      { type: 'water', pos: [820, 620], footprint: [24, 24], height: 40 },
-      { type: 'power', pos: [1380, 620], footprint: [24, 24], height: 44 },
-      { type: 'traffic_lab', pos: [720, 900], footprint: [22, 20], height: 40 },
-      { type: 'recycling', pos: [1280, 1080], footprint: [24, 20], height: 36 },
-      { type: 'drone_routing', pos: [1180, 1280], footprint: [24, 24], height: 55 },
-      { type: 'health', pos: [900, 1280], footprint: [24, 20], height: 42 },
-      // housing + facilities
-      { type: 'housing', pos: [700, 700], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [730, 740], footprint: [20, 20], height: 22 },
-      { type: 'housing', pos: [1300, 1300], footprint: [20, 20], height: 26 },
-      { type: 'housing', pos: [1330, 1340], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [500, 1200], footprint: [20, 20], height: 22 },
-      { type: 'housing', pos: [1500, 800], footprint: [20, 20], height: 24 },
-      { type: 'school', pos: [1100, 700], footprint: [26, 24], height: 20 },
-      { type: 'hospital', pos: [900, 1300], footprint: [30, 26], height: 34 },
-      { type: 'shop', pos: [1120, 760], footprint: [32, 32], height: 26 },
-      { type: 'library', pos: [880, 1240], footprint: [22, 20], height: 18 },
-      { type: 'office', pos: [860, 960], footprint: [20, 20], height: 40 },
-      { type: 'stadium', pos: [600, 1500], footprint: [36, 30], height: 30 },
-      { type: 'fire', pos: [1500, 1500], footprint: [22, 20], height: 16 },
-      { type: 'police', pos: [500, 900], footprint: [22, 20], height: 18 },
-    ],
-  };
+  return buildSampleCity();
 }
 
 // ─── Boot ────────────────────────────────────────────────────────────────
 const stage = document.getElementById('stage');
 let scene, camera, renderer, composer, labelRenderer;
+let _bloomPass = null;   // glow pass ref (altitude backstop drives its strength)
+const buildingLabels = [];   // CSS2D building badges — distance-faded every DOM tick
 let city = {};            // object passed to champion/buddy (scene/camera/renderer/spawnWorld)
 let champion = null;
 let sim = null;
@@ -261,6 +389,7 @@ const orbit = {
   distWalk: 26, distTaxi: 15, distDrive: 13,
   lastOrbitTs: 0,          // last manual orbit drag (for idle camera auto-reset)
 };
+window.__orbit = orbit;    // debug hook — visual QA scripts drive the camera
 const input = { x: 0, z: 0, running: false, jump: false, wave: false, dance: false, ascend: false, descend: false };
 let keys = {};
 
@@ -278,9 +407,10 @@ function setupScene() {
     } catch (e) { /* best-effort teardown */ }
   }
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x16224a);
-  // Fog slightly lighter/warmer than the background so the horizon softens
-  // instead of clipping harshly at the draw distance (design polish).
+  // Background and fog share one colour so the horizon seam disappears: distant
+  // buildings fade into the same tone the sky shows at the ground line (design
+  // polish — the old mismatch drew a hard edge at the draw distance).
+  scene.background = new THREE.Color(0x1c2b5a);
   scene.fog = new THREE.FogExp2(0x1c2b5a, 0.0007);
 
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1.0, 8000);
@@ -291,7 +421,7 @@ function setupScene() {
   applyResolution();
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.25;
+  renderer.toneMappingExposure = 1.15;  // deep-night blacks, predictable bloom budget (was 1.25)
   renderer.shadowMap.enabled = !LOW_END;      // no realtime shadows on low tier
   renderer.shadowMap.type = IS_MOBILE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   stage.appendChild(renderer.domElement);
@@ -313,9 +443,15 @@ function setupScene() {
   } else {
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), IS_MOBILE ? 0.85 : 1.1, 0.5, 0.35);
-    bloom.threshold = 0.35;
-    bloom.strength = IS_MOBILE ? 0.85 : 1.1;
+    // Glow discipline: threshold 0.68 keeps only genuine emitters (windows,
+    // beacons, lamp accents) past the bloom gate — reflective road paint,
+    // foliage and distant dashes no longer blow out into white haze. Strength
+    // scaled down so bloom reads as glow, not glare. Emitters that must keep
+    // glowing are re-bumped above the threshold (see facade/beacon passes).
+    const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), IS_MOBILE ? 0.55 : 0.7, 0.4, 0.68);
+    bloom.threshold = 0.68;
+    bloom.strength = IS_MOBILE ? 0.55 : 0.7;
+    _bloomPass = bloom;
     composer.addPass(bloom);
     const sat = { uniforms: { tDiffuse: { value: null }, amount: { value: IS_MOBILE ? 1.15 : 1.28 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
@@ -353,7 +489,7 @@ function setupScene() {
   // desktop and a huge precision win on mobile.
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(6000, 6000),
-    new THREE.MeshStandardMaterial({ color: 0x141a2e, roughness: 0.9 })
+    groundDistanceFade(new THREE.MeshStandardMaterial({ color: 0x141a2e, roughness: 0.9 }))
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.1;
@@ -401,13 +537,16 @@ function setupScene() {
     scene.add(pts);
   })();
 
-  // Subtle cyan ground grid so the student can gauge distance/movement speed
-  // while driving; the existing fog fades it out with depth (design polish).
-  const grid = new THREE.GridHelper(2000, 20, 0x00f2fe, 0x00f2fe);
-  grid.material.transparent = true;
-  grid.material.opacity = 0.06;
-  grid.position.y = 0.02;
-  scene.add(grid);
+  // Distance/grid gauge for driving is debug-only: at altitude it reads as a
+  // faint cyan artefact in the "toy screenshot" sense, so ship builds skip it.
+  // QA/dev can opt back in with ?grid=1.
+  if (new URLSearchParams(location.search).get('grid') === '1') {
+    const grid = new THREE.GridHelper(2000, 20, 0x00f2fe, 0x00f2fe);
+    grid.material.transparent = true;
+    grid.material.opacity = 0.06;
+    grid.position.y = 0.02;
+    scene.add(grid);
+  }
 
   city.scene = scene;
   city.camera = camera;
@@ -427,78 +566,411 @@ function darken(hex, factor) {
   return (r << 16) | (g << 8) | b;
 }
 
-function buildRoadsInto(group, roads, opts = {}) {
-  const asphGeos = [];
-  const edgeGeos = [];
-  const laneGeos = [];
-  for (const road of roads) {
-    const half = (road.width || ROAD_WIDTH[road.class] || ROAD_WIDTH.residential) / 2;
-    const pts = road.points.map(([x, z]) => new THREE.Vector3(x, 0, z));
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1];
-      const dx = b.x - a.x, dz = b.z - a.z;
-      const len = Math.hypot(dx, dz);
-      if (len < 0.01) continue;
-      const nx = (-dz / len) * half, nz = (dx / len) * half;
-      const y = opts.elevated ? 0.07 : 0.03;
-      const edgeY = opts.elevated ? 0.09 : 0.06;
-      asphGeos.push(buildQuad(a, b, nx, nz, y));
-      edgeGeos.push(linePair(a, b, nx, nz, edgeY));
-      // Dashed centre line: alternate ~4 m dashes with ~4 m gaps so the road
-      // reads as a proper lane-marked road instead of a single thin line.
-      const DASH = 4, GAP = 4;
-      for (let t = 0; t < len; t += DASH + GAP) {
-        const t0 = t / len, t1 = Math.min(t + DASH, len) / len;
-        laneGeos.push([
-          a.x + (b.x - a.x) * t0, laneY(opts), a.z + (b.z - a.z) * t0,
-          a.x + (b.x - a.x) * t1, laneY(opts), a.z + (b.z - a.z) * t1,
-        ]);
+// ─── Road FX: swept-ribbon PBR roads ───────────────────────────────────────
+// Dark-charcoal asphalt (clearly darker than the ground), CC0 albedo + normal +
+// roughness maps, arc-length centre dashes, and a single cool edge light on each
+// side (below the bloom gate — reflective paint, not neon). A flat concrete
+// sidewalk ribbon sits a hair below the asphalt so roads read as asphalt-inside-
+// concrete even from the taxi with zero markings. Junction mouths get baked
+// zebra + stop-line geometry (masking alone left black holes).
+const ROAD_FX = {
+  tileM: 16,            // world metres per texture tile along the road (coarser
+                        // than the old 8 m — fewer repeats reduce altitude aliasing)
+  asphColor: 0x242a30,  // dark charcoal tint (road stays darker than the ground)
+  asphY: 0.03,
+  dashW: 0.5,
+  dashLen: 4,
+  dashGap: 4,
+  // Glow discipline (road markings are reflective PAINT, not light sources —
+  // they must sit under the 0.68 bloom threshold). Near-white cool dash, dim
+  // cool-grey edge line; brightness falls with distance so nothing smears from
+  // altitude. The edge line ramps down early (see uRamp* in the marking shader)
+  // so thin edge circles dissolve before they alias at altitude.
+  dashColor: 0xe8f2ff,
+  markY: 0.05,          // markings sit a hair above the asphalt
+  glowInset: 0.7,       // glowing edge light: just inside the road edge
+  glowW: 0.25,          // thin — reads as a light line, not a band
+  glowY: 0.045,
+  // Flat sidewalk ribbon: untextured concrete under the asphalt so the road
+  // network has figure-ground at altitude without curb geometry.
+  swW: 1.8,             // m of pavement on EACH side of the road
+  swY: 0.02,            // a hair below asphalt (0.03) so asphalt sits on it
+  swColor: 0x3a4149,    // cool concrete — lighter than asphalt, darker than ground tint
+  // Junction mouth details (baked geometry, one merged layer city-wide).
+  zebraGap: 1.2,        // m — spacing between zebra bars along the through road
+  zebraLen: 0.45,       // m — bar thickness along the through road
+  zebraDist: 2.6,       // m — zebra zone starts this far back from the mouth
+  stopDist: 2.0,        // m — stop line sits this far before the terminating end
+  stopLen: 0.5,         // m — stop line thickness
+};
+// Distance fade for road markings: full brightness up close, fades to zero by
+// `fadeFar` so from the flying-taxi altitude the edge glow/dashes don't smear
+// into a white fog (and don't trip the bloom at distance).
+const FADE_NEAR = 140;   // m — full brightness up to here
+const FADE_FAR = 360;    // m — completely gone beyond here
+// Marking LOD: above the taxi altitude the fade window tightens so sub-pixel
+// markings dissolve before they alias (the sidewalk + asphalt value carry the
+// network read above ~300 m).
+const FADE_FAR_HIGH = 220;   // m — fade window shrinks to this at altitude
+function makeMarkingMaterial(colorHex, intensity, rampMin = 1.0) {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(colorHex) },
+      uIntensity: { value: intensity },
+      uFadeNear: { value: FADE_NEAR },
+      uFadeFar: { value: FADE_FAR },
+      uRampMin: { value: rampMin },          // multiply toward this past uRampNear
+      uRampNear: { value: 140 },
+      uRampFar: { value: 300 },
+    },
+    vertexShader: `
+      varying float vDist;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vDist = -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      uniform vec3 uColor; uniform float uIntensity;
+      uniform float uFadeNear; uniform float uFadeFar;
+      uniform float uRampMin; uniform float uRampNear; uniform float uRampFar;
+      varying float vDist;
+      void main() {
+        float f = 1.0 - smoothstep(uFadeNear, uFadeFar, vDist);
+        // Optional early intensity ramp: edge lines fall off before the fade so
+        // thin lines never hang around long enough to alias into dotted rings.
+        float r = mix(1.0, uRampMin, smoothstep(uRampNear, uRampFar, vDist));
+        gl_FragColor = vec4(uColor * (uIntensity * f * r), 1.0);
+      }`,
+    side: THREE.DoubleSide,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
+  return mat;
+}
+const _roadMats = {
+  asph: asphaltSurfaceDetail(new THREE.MeshStandardMaterial({ color: ROAD_FX.asphColor, roughness: 1, metalness: 0, side: THREE.DoubleSide })),
+  // Flat concrete sidewalk — one untextured standard material, merged city-wide.
+  sw: new THREE.MeshStandardMaterial({ color: ROAD_FX.swColor, roughness: 0.95, metalness: 0, side: THREE.DoubleSide }),
+  // Markings are unlit flat colour shaders with polygonOffset (robust at
+  // distance) and a camera-distance fade (no white smear from the taxi).
+  // Intensities are paint-level (well under the 0.68 bloom gate) so the lines
+  // read as reflective road markings, not glowing tubes. The edge line gets an
+  // early distance ramp so it dissolves cleanly before it aliases at altitude.
+  dash: makeMarkingMaterial(ROAD_FX.dashColor, 0.5),
+  glow: makeMarkingMaterial(0xbfd4e6, 0.25, 0.18),
+  // Junction details (zebra bars + stop lines) — same paint shader as markings.
+  jct: makeMarkingMaterial(ROAD_FX.dashColor, 0.5),
+};
+let _roadTexLoading = false;
+// CC0 asphalt albedo (ground-asphalt.jpg) + matching normal + roughness maps.
+// Roads render flat charcoal until the maps arrive (same async pattern as the
+// ground texture). Maps are Polyhaven "Aerial Asphalt 01", CC0.
+function loadRoadTextures() {
+  if (_roadTexLoading) return;
+  _roadTexLoading = true;
+  const L = new THREE.TextureLoader();
+  const cfg = (t, srgb) => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    // Anisotropy: 16 is wasted on tile-based mobile GPUs — cap 4 there. Aniso
+    // only matters at grazing angles; altitude views are near-vertical and the
+    // mips handle them.
+    t.anisotropy = Math.min(IS_MOBILE ? 4 : 16, renderer.capabilities.getMaxAnisotropy());
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  };
+  Promise.all([
+    new Promise((res, rej) => L.load('assets/textures/ground-asphalt.jpg', (t) => res(cfg(t, true)), undefined, rej)),
+    new Promise((res, rej) => L.load('assets/textures/aerial_asphalt_01_nor_gl_1k.jpg', (t) => res(cfg(t, false)), undefined, rej)),
+    new Promise((res, rej) => L.load('assets/textures/aerial_asphalt_01_rough_1k.jpg', (t) => res(cfg(t, false)), undefined, rej)),
+  ]).then(([albedo, normal, rough]) => {
+    _roadMats.asph.map = albedo;
+    _roadMats.asph.normalMap = normal;
+    _roadMats.asph.normalScale.set(0.15, 0.15);   // low — kills high-freq normal aliasing at altitude
+    _roadMats.asph.roughnessMap = rough;
+    _roadMats.asph.roughness = 1;
+    _roadMats.asph.needsUpdate = true;
+  }).catch((e) => { console.warn('[road-fx] textures failed — staying flat charcoal', e); _roadTexLoading = false; });
+}
+
+/** Horizontal perpendicular to a polyline, averaged at vertices (for offsets). */
+function roadLateral(poly) {
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    let nx = 0, nz = 0;
+    const add = (a, b) => {
+      const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1;
+      nx += -dz / l; nz += dx / l;
+    };
+    if (i > 0) add(poly[i - 1], poly[i]);
+    if (i < poly.length - 1) add(poly[i], poly[i + 1]);
+    const l = Math.hypot(nx, nz) || 1;
+    out.push({ x: nx / l, z: nz / l });
+  }
+  return out;
+}
+function offsetRoad(poly, lat, d) {
+  return poly.map((p, i) => ({ x: p.x + lat[i].x * d, z: p.z + lat[i].z * d }));
+}
+/** Push a swept ribbon (two triangles per segment) into Pos (+ optional Uv). */
+function pushRibbon(Pos, Uv, path, width, y, wantUv) {
+  const half = width / 2;
+  if (path.length < 2) return;
+  const lat = roadLateral(path);
+  const cum = [0];
+  for (let i = 1; i < path.length; i++) {
+    cum.push(cum[i - 1] + Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z));
+  }
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i], b = path[i + 1];
+    const lx0 = -lat[i].x * half, lz0 = -lat[i].z * half, rx0 = lat[i].x * half, rz0 = lat[i].z * half;
+    const lx1 = -lat[i + 1].x * half, lz1 = -lat[i + 1].z * half, rx1 = lat[i + 1].x * half, rz1 = lat[i + 1].z * half;
+    const xL0 = a.x + lx0, zL0 = a.z + lz0, xR0 = a.x + rx0, zR0 = a.z + rz0;
+    const xL1 = b.x + lx1, zL1 = b.z + lz1, xR1 = b.x + rx1, zR1 = b.z + rz1;
+    Pos.push(xL0, y, zL0, xR0, y, zR0, xL1, y, zL1);
+    Pos.push(xL1, y, zL1, xR0, y, zR0, xR1, y, zR1);
+    if (wantUv && Uv) {
+      const u0 = cum[i] / ROAD_FX.tileM, u1 = cum[i + 1] / ROAD_FX.tileM;
+      const vL = -half / ROAD_FX.tileM, vR = half / ROAD_FX.tileM;
+      Uv.push(u0, vL, u0, vR, u1, vL, u1, vL, u0, vR, u1, vR);
+    }
+  }
+}
+function pointAtPoly(poly, cum, d) {
+  let lo = 0, hi = poly.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (cum[m] <= d) lo = m + 1; else hi = m; }
+  const i = Math.max(0, lo - 1);
+  const segLen = cum[i + 1] - cum[i] || 1;
+  const t = Math.max(0, Math.min(1, (d - cum[i]) / segLen));
+  return { x: poly[i].x + (poly[i + 1].x - poly[i].x) * t, z: poly[i].z + (poly[i + 1].z - poly[i].z) * t };
+}
+/** Centre dashes as short quads placed by arc length. skipArc(midArc) → boolean. */
+function pushDashes(Pos, poly, cum, y, skipArc) {
+  const total = cum[cum.length - 1];
+  const half = ROAD_FX.dashW / 2;
+  for (let s = 0; s < total; s += ROAD_FX.dashLen + ROAD_FX.dashGap) {
+    const d0 = Math.min(s + ROAD_FX.dashLen, total);
+    if (d0 - s < 0.3) continue;
+    if (skipArc && skipArc((s + d0) / 2)) continue;
+    const a = pointAtPoly(poly, cum, s), b = pointAtPoly(poly, cum, d0);
+    let dx = b.x - a.x, dz = b.z - a.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    const nx = -dz * half, nz = dx * half;
+    Pos.push(a.x + nx, y, a.z + nz, a.x - nx, y, a.z - nz, b.x + nx, y, b.z + nz);
+    Pos.push(b.x + nx, y, b.z + nz, a.x - nx, y, a.z - nz, b.x - nx, y, b.z - nz);
+  }
+}
+/** Push a two-triangle quad between centreline points a→b (per-segment, maskable). */
+function pushSegQuad(Pos, a, b, half, y) {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  const len = Math.hypot(dx, dz);
+  if (len < 1e-4) return;
+  const nx = (-dz / len) * half, nz = (dx / len) * half;
+  const x1 = a.x + nx, z1 = a.z + nz, x2 = a.x - nx, z2 = a.z - nz;
+  const x3 = b.x + nx, z3 = b.z + nz, x4 = b.x - nx, z4 = b.z - nz;
+  Pos.push(x1, y, z1, x2, y, z2, x3, y, z3);
+  Pos.push(x3, y, z3, x2, y, z2, x4, y, z4);
+}
+
+// ── Junction masking (generic) ───────────────────────────────────────────────
+// Roads that terminate on another road (a roundabout ring, a T-junction) get
+// their centre dashes + edge glow masked a few metres before the join, and the
+// "through" road's markings are masked across the approach mouth. Asphalt is
+// left full-length so roads still connect.
+function nearestArcOnPoly(poly, cum, P) {
+  let bestArc = 0, bestDist = Infinity;
+  for (let i = 0; i < poly.length - 1; i++) {
+    const a = poly[i], b = poly[i + 1];
+    const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz;
+    const segLen = cum[i + 1] - cum[i] || 1;
+    let t = l2 ? ((P.x - a.x) * dx + (P.z - a.z) * dz) / l2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const qx = a.x + dx * t, qz = a.z + dz * t;
+    const d = Math.hypot(P.x - qx, P.z - qz);
+    if (d < bestDist) { bestDist = d; bestArc = cum[i] + segLen * t; }
+  }
+  return { arc: bestArc, dist: bestDist };
+}
+/** Signed arc distance between two arc positions, wrapping for closed loops. */
+function arcDelta(arc, c, total, closed) {
+  let d = Math.abs(arc - c);
+  if (closed) d = Math.min(d, Math.abs(arc - (c + total)), Math.abs(arc - (c - total)));
+  return d;
+}
+function buildJunctionContacts(infos) {
+  // infos: [{poly, cum, total, half, closed}]
+  // Returns masks (per-road {arc, mask} for marking culling) AND junctions
+  // (structured records used to draw zebra + stop-line detail at each mouth).
+  const masks = infos.map(() => []);
+  const junctions = [];
+  for (let i = 0; i < infos.length; i++) {
+    const A = infos[i];
+    const ends = [
+      { x: A.poly[0].x, z: A.poly[0].z, at: 0, atEnd: 'start' },
+      { x: A.poly[A.poly.length - 1].x, z: A.poly[A.poly.length - 1].z, at: A.total, atEnd: 'end' },
+    ];
+    for (const end of ends) {
+      for (let j = 0; j < infos.length; j++) {
+        if (i === j) continue;
+        const B = infos[j];
+        const hit = nearestArcOnPoly(B.poly, B.cum, end);
+        if (hit.dist < B.half + 2.5) {
+          // On the terminating road i: mask markings near its end (extra room so
+          // the zebra/stop detail we draw there isn't clobbered by a leftover
+          // dash edge). On the through road j: mask across the approach mouth
+          // (extended past the contact so no dash survives inside the junction).
+          masks[i].push({ arc: end.at, mask: 8 });
+          masks[j].push({ arc: hit.arc, mask: A.half + 6 });
+          junctions.push({
+            term: i, termEnd: end.atEnd, termArc: end.at,
+            thru: j, thruArc: hit.arc,
+            termHalf: A.half, thruHalf: B.half,
+            thruTotal: B.total, thruClosed: B.closed,
+            endX: end.x, endZ: end.z,
+          });
+        }
       }
     }
   }
-  if (asphGeos.length) {
-    const merged = BufferGeometryUtils.mergeGeometries(asphGeos, false);
-    // Near-black charcoal so the road surface reads clearly against the grey
-    // textured ground (cyberpunk-night asphalt).
-    const color = opts.elevated ? 0x2f3b57 : 0x151c2b;
-    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.2 });
-    const mesh = new THREE.Mesh(merged, mat);
+  return { masks, junctions };
+}
+function makeMaskTest(masks, total, closed) {
+  if (!masks || !masks.length) return null;
+  return (arc) => masks.some((m) => arcDelta(arc, m.arc, total, closed) < m.mask);
+}
+function addFlatMesh(group, arr, mat, receive) {
+  if (!arr.length) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, mat);
+  if (receive) mesh.receiveShadow = true;
+  group.add(mesh);
+}
+
+function buildRoadsInto(group, roads, opts = {}) {
+  const elevated = !!opts.elevated;
+  const P = { sw: [], asph: [], uv: [], jct: [], dash: [], glow: [] };
+
+  // Phase 1 — collect road geometry (poly, arc info, half widths).
+  const infos = [];
+  for (const road of roads) {
+    const width = road.width || ROAD_WIDTH[road.class] || ROAD_WIDTH.residential;
+    const poly = road.points.map(([x, z]) => ({ x, z }));
+    if (poly.length < 2) continue;
+    const cum = [0];
+    for (let i = 1; i < poly.length; i++) {
+      cum.push(cum[i - 1] + Math.hypot(poly[i].x - poly[i - 1].x, poly[i].z - poly[i - 1].z));
+    }
+    const total = cum[cum.length - 1];
+    if (total < 0.5) continue;
+    const first = poly[0], last = poly[poly.length - 1];
+    infos.push({
+      width, half: width / 2, poly, cum, total,
+      closed: Math.hypot(last.x - first.x, last.z - first.z) < 1,
+    });
+  }
+
+  // Phase 2 — junction contacts (which roads terminate on which).
+  const { masks, junctions } = buildJunctionContacts(infos);
+
+  // Phase 3 — emit layers, masking dashes + glow near junction contacts.
+  const yAsph = elevated ? 0.07 : ROAD_FX.asphY;
+  const yMark = elevated ? 0.095 : ROAD_FX.markY;
+  const yGlow = elevated ? 0.085 : ROAD_FX.glowY;
+  const ySide = ROAD_FX.swY;
+
+  for (let k = 0; k < infos.length; k++) {
+    const { width, half, poly, cum, total, closed } = infos[k];
+    const lat = roadLateral(poly);
+    const skip = makeMaskTest(masks[k], total, closed);
+    const maskedAt = (arc) => (skip ? skip(arc) : false);
+
+    // Flat sidewalk ribbon — a wider concrete band under the asphalt so the
+    // road network keeps figure-ground at altitude (no curb geometry needed).
+    if (!elevated) pushRibbon(P.sw, null, poly, width + ROAD_FX.swW * 2, ySide, false);
+    // Asphalt ribbon (with texture UVs) — full length, no masking.
+    pushRibbon(P.asph, P.uv, poly, width, yAsph, true);
+    // Centre dashes by arc length (masked near junctions).
+    pushDashes(P.dash, poly, cum, yMark, maskedAt);
+    // White glowing edge light per side (masked near junctions), skipped on the
+    // elevated/lane variant which uses plain colour lanes instead.
+    if (!elevated) {
+      const gOff = half - ROAD_FX.glowInset - ROAD_FX.glowW / 2;
+      for (const side of [1, -1]) {
+        const path = offsetRoad(poly, lat, gOff * side);
+        // Per-segment so masked arcs leave clean gaps.
+        for (let s = 0; s < path.length - 1; s++) {
+          if (maskedAt((cum[s] + cum[s + 1]) / 2)) continue;
+          pushSegQuad(P.glow, path[s], path[s + 1], ROAD_FX.glowW / 2, yGlow);
+        }
+      }
+    }
+  }
+
+  // Phase 4 — junction mouth detail (stop lines + zebra bars). Reclaims the
+  // masked mouths so they read as painted crossings, not black holes. Each
+  // terminating approach gets a stop line near its join plus zebra bars before
+  // it (crossing the approach arm, pointing at approaching traffic).
+  if (!elevated && junctions.length) {
+    for (const jc of junctions) {
+      const termInfo = infos[jc.term];
+      // Direction from the mouth INTO the terminating road (where bars sit).
+      const inward = jc.termEnd === 'start' ? 1 : -1;
+      // Stop line: single thick bar at stopDist back from the mouth.
+      const stopAt = jc.termArc + inward * ROAD_FX.stopDist;
+      pushArcBar(P.jct, termInfo, clampArc(stopAt, termInfo.total), termInfo.half, ROAD_FX.stopLen / 2, yMark);
+      // Zebra: thin bars, spaced out from just behind the stop line.
+      for (let b = 0; b < 3; b++) {
+        const zb = jc.termArc + inward * (ROAD_FX.stopDist + 1.2 + b * ROAD_FX.zebraGap);
+        if (zb < 0 || zb > termInfo.total) continue;
+        pushArcBar(P.jct, termInfo, zb, termInfo.half, ROAD_FX.zebraLen / 2, yMark);
+      }
+    }
+  }
+
+  // One mesh per layer keeps draw calls low on tablets.
+  if (P.sw.length) addFlatMesh(group, P.sw, _roadMats.sw, true);
+  if (P.asph.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(P.asph, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(P.uv, 2));
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, _roadMats.asph);
     mesh.receiveShadow = true;
     group.add(mesh);
   }
-  if (edgeGeos.length) {
-    const pts = [];
-    for (const g of edgeGeos) pts.push(...g);
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    const mat = new THREE.LineBasicMaterial({ color: opts.elevated ? 0xffffff : 0x00f2fe, transparent: true, opacity: opts.elevated ? 0.85 : 0.9 });
-    group.add(new THREE.LineSegments(geo, mat));
-  }
-  if (laneGeos.length) {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(laneGeos.flat(), 3));
-    const mat = new THREE.LineBasicMaterial({ color: opts.elevated ? 0x00ff9d : 0xffffff, transparent: true, opacity: opts.elevated ? 0.9 : 0.75 });
-    group.add(new THREE.LineSegments(geo, mat));
-  }
+  addFlatMesh(group, P.jct, _roadMats.jct, false);
+  addFlatMesh(group, P.dash, _roadMats.dash, false);
+  addFlatMesh(group, P.glow, _roadMats.glow, false);
 }
 
-function laneY(opts) { return opts.elevated ? 0.1 : 0.08; }
+function clampArc(a, total) { return Math.max(0, Math.min(total, a)); }
 
-function buildQuad(a, b, nx, nz, y) {
-  const p = [];
-  p.push(a.x + nx, y, a.z + nz, a.x - nx, y, a.z - nz, b.x + nx, y, b.z + nz);
-  p.push(b.x + nx, y, b.z + nz, a.x - nx, y, a.z - nz, b.x - nx, y, b.z - nz);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-  geo.computeVertexNormals();
-  return geo;
-}
-
-function linePair(a, b, nx, nz, y) {
-  return [
-    a.x + nx, y, a.z + nz, b.x + nx, y, b.z + nz,
-    a.x - nx, y, a.z - nz, b.x - nx, y, b.z - nz,
-  ];
+/** Push a bar ACROSS a road (perpendicular to its centreline) at arc position
+ *  `arc`, spanning the road width (half*2) and `halfThick` deep along it.
+ *  Used for stop lines + zebra bars at junction mouths. */
+function pushArcBar(Pos, info, arc, half, halfThick, y) {
+  const { poly, cum } = info;
+  // Find the segment containing `arc` and its unit tangent.
+  let lo = 0, hi = poly.length - 2;
+  while (lo < hi) {
+    const m = (lo + hi + 1) >> 1;
+    if (cum[m] <= arc) lo = m; else hi = m - 1;
+  }
+  const i = Math.max(0, Math.min(poly.length - 2, lo));
+  const a = poly[i], b = poly[i + 1];
+  const segLen = cum[i + 1] - cum[i] || 1;
+  let dx = b.x - a.x, dz = b.z - a.z;
+  const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
+  const t = Math.max(0, Math.min(1, (arc - cum[i]) / segLen));
+  const px = a.x + (b.x - a.x) * t, pz = a.z + (b.z - a.z) * t;
+  // Across (perpendicular to travel) endpoints; bar thickness is along travel.
+  const nx = -dz * half, nz = dx * half;
+  pushSegQuad(Pos,
+    { x: px + nx, z: pz + nz },
+    { x: px - nx, z: pz - nz },
+    halfThick, y);
 }
 
 // ─── Fabric: parks (grass + trees) ────────────────────────────────────────
@@ -912,7 +1384,7 @@ function buildQuestLandmarks() {
     const state = loadQuestState();
     const beacon = new THREE.InstancedMesh(
       new THREE.OctahedronGeometry(2.2, 0),
-      new THREE.MeshBasicMaterial({ toneMapped: false }),
+      new THREE.MeshBasicMaterial({ toneMapped: false, color: new THREE.Color(2.0, 2.0, 2.0) }),
       beaconPositions.length
     );
     const m = new THREE.Matrix4(), v = new THREE.Vector3(), qq = new THREE.Quaternion(), ss = new THREE.Vector3();
@@ -957,6 +1429,7 @@ function addBuildingLabel(zh, en, x, y, z) {
   const label = new CSS2DObject(el);
   label.position.set(x, y, z);
   scene.add(label);
+  buildingLabels.push(label);
 }
 
 // ─── Generic facilities (realistic facades + label) ───────────────────────
@@ -982,8 +1455,7 @@ const GLB_BUILDING_TYPES = {
 };
 // Special/mission buildings — real CC0 GLBs (Kenney City Kit). Each keeps its
 // quest beacon + label; only the building body is swapped in place of the old
-// procedural/dark-box look. finance_tower also gets the twinkling window
-// sparkles (see applyBuildingModel).
+// procedural/dark-box look.
 const SPECIAL_BUILDING_MODELS = {
   finance_tower: 'assets/models/mission/finance-tower.glb',
   treasury: 'assets/models/mission/treasury.glb',
@@ -1176,52 +1648,6 @@ function applyBuildingModel(type) {
     clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     scene.add(clone);
     st.applied.push(clone);
-    // AI Finance Tower: sprinkle window sparkles on the tower faces — small
-    // emissive points that twinkle in the main loop. Uses the stretched world
-    // dims directly (spot.fp/height) because mission towers are non-uniform.
-    if (spot.glbType === 'finance_tower') addSkyscraperSparkles(spot, spot.fp[0], spot.h, spot.fp[1]);
-  }
-}
-
-// ─── Skyscraper window sparkles (AI Finance Tower) ─────────────────────────
-// Small emissive points scattered over the tower's four faces that twinkle in
-// the main loop — "sparkle a bit / have a few lights" on the finance tower.
-const skyscraperSparkles = [];   // { points, base, phase } — updated each frame
-function addSkyscraperSparkles(spot, w, h, d) {
-  const count = 90;
-  const positions = new Float32Array(count * 3);
-  const baseAlpha = new Float32Array(count);
-  const phase = new Float32Array(count);
-  for (let i = 0; i < count; i++) {
-    // Pick a face (0..3) and a random spot on it, slightly proud of the surface.
-    const face = Math.floor(Math.random() * 4);
-    const u = (Math.random() * 2 - 1) * 0.46;
-    const v = (Math.random() * 0.92 + 0.04) * h;   // spread up the tower
-    const inset = 0.3;
-    switch (face) {
-      case 0: positions.set([spot.x + u * w, v, spot.z + d / 2 + inset], i * 3); break;   // +Z
-      case 1: positions.set([spot.x + u * w, v, spot.z - d / 2 - inset], i * 3); break;   // -Z
-      case 2: positions.set([spot.x + w / 2 + inset, v, spot.z + u * d], i * 3); break;   // +X
-      case 3: positions.set([spot.x - w / 2 - inset, v, spot.z + u * d], i * 3); break;   // -X
-    }
-    baseAlpha[i] = 0.3 + Math.random() * 0.7;
-    phase[i] = Math.random() * Math.PI * 2;
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const mat = new THREE.PointsMaterial({
-    color: 0xfff2c8, size: 0.9, sizeAttenuation: true,
-    transparent: true, opacity: 0.9, toneMapped: false,
-    depthWrite: false,
-  });
-  const points = new THREE.Points(geo, mat);
-  scene.add(points);
-  skyscraperSparkles.push({ points, baseAlpha, phase, count, h });
-}
-
-function updateSkyscraperSparkles(tNow) {
-  for (const sp of skyscraperSparkles) {
-    sp.points.material.opacity = 0.55 + 0.35 * Math.sin(tNow * 0.8 + sp.phase[0]);
   }
 }
 
@@ -1263,6 +1689,7 @@ function buildGenericFacilities() {
         label.position.set(cx, (spec.height || 2) + 1.5, cz);
         label.userData.mesh = box;
         scene.add(label);
+        buildingLabels.push(label);
       }
       continue;
     }
@@ -1322,6 +1749,7 @@ function buildGenericFacilities() {
         const label = new CSS2DObject(el);
         label.position.set(cx, h + 6, cz);
         scene.add(label);
+        buildingLabels.push(label);
       }
       continue;
     }
@@ -1346,10 +1774,14 @@ function buildGenericFacilities() {
       const uz = cz + dz * fp[1];
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(unitFp[0], h, unitFp[1]),
-        new THREE.MeshStandardMaterial({
+        groundFacadeAO(new THREE.MeshStandardMaterial({
           color: facade, roughness: cfg.roughness, metalness: cfg.metalness,
-          emissive: 0xffffff, emissiveMap: getWindowTexture(), emissiveIntensity: Math.max(0.15, cfg.intensity),
-        })
+          emissive: 0xffffff, emissiveMap: getWindowTexture(),
+          // Windows re-bumped toward the 0.68 bloom threshold so mid/high-rise
+          // still read as a lit skyline (bloom now reserved for genuine emitters).
+          emissiveIntensity: Math.min(1.45, Math.max(0.25, cfg.intensity * 2.55)),
+          bumpMap: getWindowBumpTexture(), bumpScale: 0.02,
+        }))
       );
       mesh.position.set(ux, h / 2, uz);
       mesh.castShadow = true;
@@ -1376,6 +1808,7 @@ function buildGenericFacilities() {
       const label = new CSS2DObject(el);
       label.position.set(cx, h + 6, cz);
       scene.add(label);
+      buildingLabels.push(label);
     }
   }
 
@@ -1432,6 +1865,42 @@ function nearestRoadDir(x, z) {
   }
   const len = Math.hypot(dir.dx, dir.dz) || 1;
   return { dx: dir.dx / len, dz: dir.dz / len };
+}
+
+// Analytic ground-height lookup for the champion's feet (no raycast).
+// Returns the TOP of the walkable surface at (x,z):
+//   asphalt   +0.03   when inside a road's carriageway (|d| ≤ half width)
+//   sidewalk  +0.02   when within the flat sidewalk ribbon beyond the road edge
+//   bare      −0.10   everywhere else (the ground plane top)
+// These must match the road FX + ground Y values that the meshes actually sit
+// at (ROAD_FX.asphY / swY and the ground plane at −0.1), so the champion's feet
+// land ON the surface the eye sees.
+function groundHeightAt(x, z) {
+  const BARE = -0.10;
+  const SIDEWALK = ROAD_FX.swY;      // +0.02
+  const ASPHALT = ROAD_FX.asphY;     // +0.03
+  let bestDist = Infinity;
+  let bestSide = 0;
+  for (const r of layout.roads || []) {
+    const pts = r.points || [];
+    if (pts.length < 2) continue;
+    const width = r.width || ROAD_WIDTH[r.class] || ROAD_WIDTH.residential;
+    const half = width / 2;
+    const side = half + ROAD_FX.swW;   // carriageway + sidewalk ribbon
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const dx = b[0] - a[0], dz = b[1] - a[1];
+      const l2 = dx * dx + dz * dz || 1;
+      let t = ((x - a[0]) * dx + (z - a[1]) * dz) / l2;
+      t = Math.max(0, Math.min(1, t));
+      const px = a[0] + dx * t, pz = a[1] + dz * t;
+      const d = Math.hypot(x - px, z - pz);
+      if (d < bestDist) { bestDist = d; bestSide = side; }
+      if (d <= half) return ASPHALT;   // inside the carriageway
+    }
+  }
+  if (bestDist === Infinity) return BARE;           // no roads anywhere
+  return bestDist <= bestSide ? SIDEWALK : BARE;    // on the pavement ribbon?
 }
 
 function placeParkedVehicles() {
@@ -1515,10 +1984,67 @@ function scatterStreetTrees() {
 }
 
 // ─── Champion + camera + input ────────────────────────────────────────────
+// Find a clear spawn point: at least SPAWN_CLEAR metres from the edge of every
+// building (the champion's follow camera orbits ~26m out, so spawning next to
+// or inside a building starts the camera inside its walls — looks bad), off
+// every road carriageway (spawning in a lane puts the champion where cars
+// drive), and outside every park (parks carry trees + a centre model — a spawn
+// inside the grass would put the champion inside a fountain/trunk). Roads are
+// stored as centreline polylines, so we clear the centreline by width/2 +
+// SPAWN_ROAD_CLEAR.
+const SPAWN_CLEAR = 30;
+const SPAWN_ROAD_CLEAR = 5;
+const SPAWN_PARK_CLEAR = 4;
 function findSpawn() {
-  const central = layout.buildings.find((b) => b.type === 'city_central');
-  if (central) return { x: central.pos[0], z: central.pos[1] };
-  return { x: 1000, z: 1000 };
+  const SCALE = (layout && layout.scaleMeters) || 2000;
+  const cx = SCALE / 2, cz = SCALE / 2;
+  const boxes = (layout.buildings || []).map((b) => {
+    const fp = b.footprint || [20, 20];
+    return {
+      minX: b.pos[0] - fp[0] / 2 - SPAWN_CLEAR, maxX: b.pos[0] + fp[0] / 2 + SPAWN_CLEAR,
+      minZ: b.pos[1] - fp[1] / 2 - SPAWN_CLEAR, maxZ: b.pos[1] + fp[1] / 2 + SPAWN_CLEAR,
+    };
+  });
+  // Road clearance bands: distance from a point to a road segment must exceed
+  // the road's half-width plus a small sidewalk margin.
+  const roadBands = (layout.roads || []).flatMap((r) => {
+    const w = (r.width || ROAD_WIDTH[r.class] || 9) / 2 + SPAWN_ROAD_CLEAR;
+    const pts = r.points || [];
+    const segs = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      segs.push({ x1: pts[i][0], z1: pts[i][1], x2: pts[i + 1][0], z2: pts[i + 1][1], w });
+    }
+    return segs;
+  });
+  const parkCircles = (layout.parks || []).map((p) => ({
+    cx: p.cx, cz: p.cz,
+    r: (Number(p.radius) || 0) + SPAWN_PARK_CLEAR,
+  }));
+  const distToSeg = (px, pz, x1, z1, x2, z2) => {
+    const dx = x2 - x1, dz = z2 - z1, l2 = dx * dx + dz * dz;
+    if (l2 === 0) return Math.hypot(px - x1, pz - z1);
+    let t = Math.max(0, Math.min(1, ((px - x1) * dx + (pz - z1) * dz) / l2));
+    return Math.hypot(px - (x1 + t * dx), pz - (z1 + t * dz));
+  };
+  const clearAt = (x, z) => {
+    if (x < SPAWN_CLEAR || x > SCALE - SPAWN_CLEAR || z < SPAWN_CLEAR || z > SCALE - SPAWN_CLEAR) return false;
+    for (const b of boxes) if (x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ) return false;
+    for (const s of roadBands) if (distToSeg(x, z, s.x1, s.z1, s.x2, s.z2) < s.w) return false;
+    for (const p of parkCircles) if (Math.hypot(x - p.cx, z - p.cz) < p.r) return false;
+    return true;
+  };
+  if (clearAt(cx, cz)) return { x: cx, z: cz };
+  // Walk outward in ~12m rings until an open point is found (max ~360m out).
+  for (let ring = 1; ring <= 30; ring++) {
+    const r = ring * 12;
+    for (let a = 0; a < 32; a++) {
+      const ang = (a / 32) * Math.PI * 2;
+      const x = Math.round(cx + Math.cos(ang) * r);
+      const z = Math.round(cz + Math.sin(ang) * r);
+      if (clearAt(x, z)) return { x, z };
+    }
+  }
+  return { x: cx, z: cz };
 }
 
 async function spawnChampion() {
@@ -1545,23 +2071,34 @@ async function spawnChampion() {
   // Start the idle-camera timer from spawn so the camera doesn't snap on boot.
   orbit.lastOrbitTs = performance.now();
 
-  // Low tier has realtime shadows off — a soft blob shadow keeps the champion
-  // visually grounded (cheap, one quad).
-  if (LOW_END) {
+  // Soft blob shadow keeps the champion visually grounded on ALL tiers. The
+  // realtime PCF map (high tier) is mushy at ~3 cm/texel on a 4 m character, so
+  // the blob is the crisp contact cue everywhere; on high tier it is lighter so
+  // it doesn't double-darken with the real shadow.
+  {
     championShadow = new THREE.Mesh(
-      new THREE.CircleGeometry(1.3, 20),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false })
+      new THREE.CircleGeometry(1.5, 24),
+      new THREE.MeshBasicMaterial({
+        map: getContactShadowTexture(),
+        transparent: true,
+        opacity: LOW_END ? 0.45 : 0.35,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+      })
     );
     championShadow.rotation.x = -Math.PI / 2;
-    championShadow.position.y = 0.02;
+    championShadow.position.y = 0.015;
     scene.add(championShadow);
   }
 
   // Goal ring — marks the current "next quest" building so there's always one
-  // clear nonverbal objective in the world.
+  // clear nonverbal objective in the world. Colour scaled above the 0.68 bloom
+  // gate so the ring keeps its glow (it must read as a target, not a decal).
   goalRing = new THREE.Mesh(
     new THREE.RingGeometry(1.7, 2.1, 28),
-    new THREE.MeshBasicMaterial({ color: 0x00ff9d, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(0x00ff9d).multiplyScalar(1.9), transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })
   );
   goalRing.rotation.x = -Math.PI / 2;
   goalRing.visible = false;
@@ -1610,12 +2147,106 @@ function buildingName(b) {
   return spec ? spec.name : b.type;
 }
 
-function setupAirTraffic() {
-  // Landing zones = student parks (open areas) + the city centre plaza.
-  const landingZones = (layout.parks || []).map((p) => ({ x: p.cx, z: p.cz, radius: Math.max(p.radius, 40) }));
-  landingZones.push({ x: 1000, z: 1000, radius: 60 });
+/**
+ * sampleCrowdSpots — open, camera-visible ground spots for the crowd: a small
+ * diagonal cluster at the central spawn plaza, sidewalks along the primary
+ * roads, and just inside each park's rim. Every spot is filtered to stay clear
+ * of building footprints AND road carriageways, so a figure never clips a wall
+ * or stands in the path of a car. The final list is deterministically shuffled
+ * so round-robin placement spreads the crowd across the whole city instead of
+ * dumping everyone at the plaza. Returns [{x, z}] in world metres (layout
+ * coords — already densified).
+ */
+function sampleCrowdSpots(layout) {
+  const spots = [];
+  const clearOfBuilding = (x, z) => {
+    for (const b of layout.buildings || []) {
+      const fp = b.footprint || [20, 20];
+      if (Math.abs(x - b.pos[0]) < fp[0] / 2 + 2.5 && Math.abs(z - b.pos[1]) < fp[1] / 2 + 2.5) return false;
+    }
+    return true;
+  };
+  const distToRoad = (x, z, road) => {
+    const pts = road.points;
+    let best = Infinity;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x1, z1] = pts[i], [x2, z2] = pts[i + 1];
+      const dx = x2 - x1, dz = z2 - z1, l2 = dx * dx + dz * dz;
+      if (l2 === 0) continue;
+      let t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / l2));
+      best = Math.min(best, Math.hypot(x - (x1 + t * dx), z - (z1 + t * dz)));
+    }
+    return best;
+  };
+  const clearOfRoad = (x, z) => {
+    for (const r of layout.roads || []) {
+      if (distToRoad(x, z, r) < (r.width || 9) / 2 + 1.5) return false;
+    }
+    return true;
+  };
+  const push = (x, z) => { if (clearOfBuilding(x, z) && clearOfRoad(x, z)) spots.push({ x, z }); };
 
-  taxi = createFlyingTaxi(scene, { walkSpeed: 18, runSpeed: 70, landingZones, autoNavFloor: 260, cruiseFloor: 240 });
+  // 1. A small diagonal ring around the central spawn plaza (the cross roads
+  //    eat the N/E/S/W points, so only the 45° diagonals stay clear). Kept
+  //    small so the plaza has a little life without hogging the whole crowd.
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + Math.PI / 4;
+    push(1000 + Math.cos(a) * 32, 1000 + Math.sin(a) * 32);
+  }
+
+  // 2. Sidewalks along each primary road (both sides, every ~20 m).
+  for (const road of layout.roads || []) {
+    if (road.class !== 'primary' || !road.points || road.points.length < 2) continue;
+    const pts = road.points;
+    const half = (road.width || 14) / 2;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x1, z1] = pts[i], [x2, z2] = pts[i + 1];
+      const dx = x2 - x1, dz = z2 - z1, len = Math.hypot(dx, dz) || 1;
+      const nx = -dz / len, nz = dx / len;
+      const n = Math.max(1, Math.floor(len / 20));
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n;
+        for (const side of [1, -1]) {
+          push(x1 + dx * t + nx * side * (half + 3), z1 + dz * t + nz * side * (half + 3));
+        }
+      }
+    }
+  }
+
+  // 3. Just inside each park's rim.
+  for (const p of layout.parks || []) {
+    const ring = Math.max(6, Math.round(((p.radius * 2 * Math.PI) || 0) / 30));
+    for (let i = 0; i < ring; i++) {
+      const a = (i / ring) * Math.PI * 2 + 0.4;
+      const rr = Math.max(3, (p.radius || 30) - 4);
+      push(p.cx + Math.cos(a) * rr, p.cz + Math.sin(a) * rr);
+    }
+  }
+
+  // Deterministic shuffle (mulberry32 seeded by a fixed constant) so round-robin
+  // placement samples the whole city, not just whatever was pushed first.
+  const seedShuffle = (arr) => {
+    let s = 0x9e3779b9 >>> 0;
+    const rnd = () => {
+      s = (s + 0x6D2B79F5) | 0;
+      let t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+  return seedShuffle(spots);
+}
+
+function setupAirTraffic() {
+  // Flying taxi: board → rise to cruise height (240 m, clearing the 220 m
+  // skyline), then the pilot climbs/descends freely. Buddy "fly to X" auto-nav
+  // cruises a little higher (260 m) so it clears every building en route.
+  taxi = createFlyingTaxi(scene, { walkSpeed: 18, runSpeed: 70, autoNavFloor: 260, cruiseFloor: 240 });
   window.__taxi = taxi;   // debug hook (harmless) — verify taxi boarding/state
 
   // Decorative skyline traffic + sentinels over the densified city footprint.
@@ -1640,23 +2271,23 @@ function setupAirTraffic() {
   try { traffic = createTraffic(scene, layout.roads, { density: IS_MOBILE ? 0.55 : 1 }); }
   catch (e) { console.warn('[city-builder] traffic init failed', e); traffic = null; }
 
-  // Pedestrians — two instanced populations for the "living city" layer:
-  //  · robots glide around with a neon glow (AI patrol vibe)
-  //  · human citizens (posed: standing/walking/sitting/waving) cluster near
-  //    buildings so streets feel inhabited.
-  // Both async + graceful: if a model fails to load, that population just
-  // spawns fewer members; the city still runs.
-  createPedestrians(scene, layout, { bounds, density: IS_MOBILE ? 0.55 : 1 })
+  // Pedestrians — two instanced populations for the "living city" layer.
+  // Robots + people spawn spread across the open spots and glide between them
+  // at a walking pace (see pedestrians.js). Async + graceful: if a model fails
+  // to load, that population just spawns fewer members; the city still runs.
+  const crowdSpots = sampleCrowdSpots(layout);
+  createPedestrians(scene, layout, { bounds, count: 90, spots: crowdSpots })
     .then((p) => {
       pedestrians = p;
       if (p) city.pedestrians = p;
     })
     .catch((e) => console.warn('[city-builder] pedestrians init failed', e));
   // Citizens are a separate population so robots and people coexist (and stay
-  // cheap: each is its own set of InstancedMeshes). Roughly half as many as
-  // robots so the city feels inhabited but not crowded on low-end tablets.
-  createPedestrians(scene, layout, { kind: 'human', bounds, density: (IS_MOBILE ? 0.55 : 1) * 0.5 })
-    .then((p) => { if (p) city.citizens = p; })
+  // cheap: each is its own set of InstancedMeshes). The module-level `citizens`
+  // handle must be set too — the per-frame update loop drives it, so without
+  // this the people spawn but never move.
+  createPedestrians(scene, layout, { kind: 'human', bounds, count: 60, spots: crowdSpots })
+    .then((p) => { if (p) { city.citizens = p; citizens = p; } })
     .catch((e) => console.warn('[city-builder] citizens init failed', e));
 
   // Clouds — merged instanced cloud puffs drifting slowly across the sky.
@@ -1667,6 +2298,8 @@ function setupAirTraffic() {
 
   // Expose for the minimap + buddy (read-only consumers)
   city.layout = layout;
+  // Champion grounding: analytic surface-height lookup (bare/sidewalk/asphalt).
+  city.groundHeightAt = groundHeightAt;
   city.drones = drones;
   buildColliders();
 
@@ -1701,9 +2334,9 @@ function toggleTaxi() {
 // car spawns it in front of the champion and boards them, mirroring the taxi
 // but on the ground. The champion exits back to walking with the car parked.
 
-/** Drivable cars shown in the 🚗 chooser (vehicles from the shared library). */
+/** Drivable cars shown in the 🚗 chooser (road vehicles from the shared library). */
 function drivableCars() {
-  return LIBRARY.filter((it) => it.category === 'vehicles');
+  return LIBRARY.filter((it) => it.category === 'vehicles' && isRoadVehicle(it));
 }
 
 let _driveOverlay = null;   // car chooser overlay element (created on demand)
@@ -1873,7 +2506,10 @@ function loadDriveModel(item) {
         const box = new THREE.Box3().setFromObject(g);
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z) || 1;
-        const target = Math.max(item.footprint[0] || 1.5, item.footprint[1] || 2.6, item.height || 1.2);
+        // Real-world default length (metres) by vehicle kind — matched to the
+        // road traffic (cars ~5 m / buses ~9 m) and the ~4 m AI champion, not
+        // the library's small source-unit footprint.
+        const target = vehicleTargetLength(item);
         const s = target / maxDim;
         const cx = (box.min.x + box.max.x) / 2;
         const cz = (box.min.z + box.max.z) / 2;
@@ -1916,9 +2552,15 @@ async function spawnDriveCar(item) {
 
   const carGroup = model.clone(true);
   scene.add(carGroup);
+  // Collision radius from the model's REAL (post-normalize) footprint — the
+  // car was scaled to its default length in loadDriveModel, so measure that,
+  // not the library's small source-unit footprint.
+  const _bb = new THREE.Box3().setFromObject(model);
+  const _bsz = _bb.getSize(new THREE.Vector3());
+  const bodyRadius = Math.max(_bsz.x, _bsz.z) / 2 * 0.9 + 0.3;
   const car = createDrivableCar(scene, carGroup, {
     walkSpeed: 15, runSpeed: 30,
-    radius: Math.max(item.footprint[0] || 1.5, item.footprint[1] || 2.6) / 2 * 0.9 + 0.3,
+    radius: bodyRadius,
   });
   car.name = item.name;
   drivingCar = car;
@@ -1935,6 +2577,18 @@ async function spawnDriveCar(item) {
 
 const _camPos = new THREE.Vector3();
 function updateCamera(dt, taxiActive, driveActive) {
+  // QA hook: visual-test scripts pin an exact viewpoint for screenshots.
+  // `pos`/`target` may be THREE.Vector3 or [x,y,z] arrays.
+  const over = window.__camOverride;
+  if (over && over.pos) {
+    if (over.pos.isVector3) camera.position.copy(over.pos);
+    else camera.position.set(over.pos[0], over.pos[1], over.pos[2]);
+    if (over.target) {
+      if (over.target.isVector3) camera.lookAt(over.target);
+      else camera.lookAt(over.target[0], over.target[1], over.target[2]);
+    }
+    return;
+  }
   const driving = driveActive && drivingCar;
   const focus = driving
     ? drivingCar.getPos()
@@ -2213,19 +2867,22 @@ function loop(now) {
       speedScale: (sim.walkSpeed || 2) / WALK_SPEED,
     });
      // Building collision — slide out of footprints so the champion never walks
-     // through buildings (re-sync the group after pushing state.pos).
+     // through buildings. Only x/z move here — the grounded Y set by
+     // champion.update() must be preserved (surface-aware, sole on the ground).
      if (buildingColliders.length) {
        const r = 0.5 * (champion.group.scale.x || 1);
        const c = resolveCollision(champion.state.pos.x, champion.state.pos.z, r);
        champion.state.pos.x = c.x;
        champion.state.pos.z = c.z;
-       champion.group.position.set(c.x, champion.state.y, c.z);
+       champion.group.position.x = c.x;
+       champion.group.position.z = c.z;
      }
-     // Blob shadow follows the champion (low tier only).
-     if (championShadow) {
-       championShadow.position.x = champion.state.pos.x;
-       championShadow.position.z = champion.state.pos.z;
-     }
+      // Blob shadow follows the champion, on the surface under it (all tiers).
+      if (championShadow) {
+        championShadow.position.x = champion.state.pos.x;
+        championShadow.position.z = champion.state.pos.z;
+        championShadow.position.y = groundHeightAt(champion.state.pos.x, champion.state.pos.z) + 0.015;
+      }
      input.jump = false;
      if (input.wave) { input.wave = false; champion.wave(); }
      if (input.dance) { input.dance = false; champion.dance(); }
@@ -2252,13 +2909,15 @@ function loop(now) {
     }
   }
   if (specialSystem) updateBeacons(now);
-  if (skyscraperSparkles.length) updateSkyscraperSparkles(tNow);
   // CSS2D labels + minimap + HUD are DOM/canvas writes — throttle to ~30 Hz
   // (every other frame) so they never contend with the GL render for the main
   // thread on a tablet.
   if ((now - _lastDomUpdate) > 33) {
     _lastDomUpdate = now;
-    if (labelRenderer) labelRenderer.render(scene, camera);
+    if (labelRenderer) {
+      updateLabels(buildingLabels, camera);
+      labelRenderer.render(scene, camera);
+    }
     if (minimap) minimap.update();
     updateDebugHud();
   }
@@ -2273,16 +2932,61 @@ function loop(now) {
     adaptQuality(govFps);
   }
 
+  // Road + facade LOD — uniforms driven from camera height once per frame
+  // (cheap sets; keeps the marking fade window + asphalt normal detail + window
+  // emissive altitude-correct).
+  updateRoadLod(camera);
+
   if (composer) composer.render();
   else renderer.render(scene, camera);
 }
 let _lastDomUpdate = 0;
 
+// Altitude-driven LOD for the shared road materials: tighten the marking fade
+// window and drop asphalt normal strength as the taxi climbs, so sub-pixel
+// markings dissolve before they alias and the normal map stops shimmering.
+// Also fades GLB facade window emissive toward a dim average glow above ~250 m
+// so lit cells stop speckling into coloured noise at taxi altitude (mip
+// averaging can't fix that — a flat per-building glow can).
+function updateRoadLod(cam) {
+  const mats = _roadMats;
+  const camY = cam ? cam.position.y : 0;
+  if (mats.dash) {
+    const ff = FADE_FAR_HIGH + (FADE_FAR - FADE_FAR_HIGH) * (1 - smooth01(camY, 120, 400));
+    mats.dash.uniforms.uFadeFar.value = ff;
+    mats.glow.uniforms.uFadeFar.value = ff;
+    mats.jct.uniforms.uFadeFar.value = ff;
+  }
+  if (mats.asph && mats.asph.normalMap) {
+    // Normal detail reads up close, shimmer-free from the taxi.
+    const ns = 0.5 - 0.35 * smooth01(camY, 100, 320);
+    mats.asph.normalScale.set(ns, ns);
+  }
+  // Ground seam guard: feed the camera XZ so the plane's albedo fades to the
+  // fog colour around the viewpoint (uniform set is cheap).
+  if (_groundMat && _groundMat.userData.__uCamPos) {
+    _groundMat.userData.__uCamPos.value.set(cam.position.x, cam.position.y, cam.position.z);
+  }
+  // Bloom altitude backstop: from the taxi the residual glow of far emitters
+  // can re-veil the city — scale strength down as the camera climbs.
+  if (_bloomPass) {
+    const base = IS_MOBILE ? 0.55 : 0.7;
+    _bloomPass.strength = base * (1 - 0.55 * smooth01(camY, 120, 450));
+  }
+}
+/** 0→1 smoothstep between two world heights. */
+function smooth01(v, a, b) {
+  const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
 // ─── Debug HUD (people / vehicles / drones live counts) ────────────────────
 // A small readout in the corner so we can see at a glance whether the living
-// city systems are actually running. Auto-shows after boot; 'd' toggles it.
+// city systems are actually running. DEV-ONLY: hidden unless the URL carries
+// ?debug=1 (a child's payoff screen must never show "drones: ?" telemetry).
+// 'd' still toggles it while visible.
 let _debugHud = null;
-let _debugShow = true;
+let _debugShow = new URLSearchParams(window.location.search).has('debug');
 function updateDebugHud() {
   if (!_debugShow) return;
   if (!_debugHud) {
@@ -2290,10 +2994,14 @@ function updateDebugHud() {
     _debugHud.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:9999;background:rgba(0,0,0,0.75);color:#7dffb0;font:12px ui-monospace,monospace;padding:6px 10px;border-radius:8px;pointer-events:none;white-space:pre;';
     document.body.appendChild(_debugHud);
   }
+  const gd = (champion && champion.groundDebug) || null;
   _debugHud.textContent =
     `people: ${pedestrians ? pedestrians.getCount() : 'null'} + ${citizens ? citizens.getCount() : 'null'} citizens\n` +
     `cars/buses: ${traffic ? traffic.vehicles.length : 'null'}\n` +
     `drones: ${drones ? (drones.getCount ? drones.getCount() : '?') : 'null'}\n` +
+    (gd
+      ? `ground: surf ${gd.surface.toFixed(2)} sole ${gd.soleY.toFixed(2)} gap ${gd.gap.toFixed(3)} soleOff ${gd.soleOff.toFixed(3)}\n`
+      : '') +
     `loading: ${document.getElementById('loading').classList.contains('done') ? 'done' : '…'}`;
 }
 document.addEventListener('keydown', (e) => {
@@ -2553,7 +3261,7 @@ function downloadChampionFile(label) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   rememberSavedAt();   // resume surface: "last saved …"
-  showToast(`💾 Saved "${label}" — keep this file as your backup!`);
+  showToast(`💾 Saved "${championFilename(label)}" — it's in your tablet's Files app › Downloads. Next lesson: start screen → 📁 Open my city file.`);
 }
 
 async function cloudSave(label) {
@@ -2635,9 +3343,12 @@ function wireSaveUi() {
         cloudResult.innerHTML = 'Saved! Your cloud code is <b>' + code + '</b> — write it down to open this city on any device.';
       }
     } catch (e) {
+      console.error('[city-builder] cloud save failed', e);
       if (cloudResult) {
         cloudResult.hidden = false;
-        cloudResult.textContent = '⚠️ Could not save to the cloud right now (' + e.message + '). Try the 💾 Download instead.';
+        // Kid-first copy: reassure first, then the concrete next step. The
+        // HTTP detail stays in the console — never in a child's sentence.
+        cloudResult.textContent = '⚠️ The cloud isn\u2019t reachable right now — your city is still safe on this tablet, nothing is lost. Tap 💾 Download to keep a backup file you can hold.';
       }
     } finally {
       cloudBtn.disabled = false;
@@ -2752,10 +3463,12 @@ function renderCapPanel() {
       <button class="cap-try" data-try-cap="${esc(d.id)}">🧪 ${zh ? '試試它' : 'Try it'}</button>
     </div>`;
   }).join('');
-  body.innerHTML = (caps.length ? '' : `<div class="cap-empty">${zh ? '還沒有種入的機器。從 Workshop 帶一台機器來，放進你的城市！' : 'No planted machines yet. Bring a machine from the Workshop and plant it in your city!'}</div>`)
+  body.innerHTML = (caps.length ? '' : `<div class="cap-empty">${zh
+    ? '還沒有種入的 AI 機器。AI 機器會「思考」——它是在 Workshop（另一個 App）裡造好、存成 .cap 小檔案，再種到這裡。'
+    : 'No planted AI machines yet. An AI machine is a building that thinks — you build it in the Workshop (a separate app), save it as a small .cap file, then plant it here.'}</div>`)
     + cards
     + `<div class="cap-actions">
-         <button id="cap-plant-btn">📦 ${zh ? '種入機器' : 'Plant a machine'}</button>
+         <button id="cap-plant-btn">📦 ${zh ? '種入機器檔案 (.cap)' : 'Plant a machine file (.cap)'}</button>
        </div>
        <div id="cap-err" class="cap-error" aria-live="polite"></div>`;
   const plant = document.getElementById('cap-plant-btn');
@@ -2862,7 +3575,6 @@ function mountCapabilityUi() {
 function startEntryFlow() {
   const overlay = document.getElementById('entry-overlay');
   const localBtn = document.getElementById('entry-local');
-  const fileBtn = document.getElementById('entry-file');
   const pasteBtn = document.getElementById('entry-paste');
   const fileInput = document.getElementById('file-input');
   const pasteWrap = document.getElementById('paste-wrap');
@@ -2928,15 +3640,10 @@ function startEntryFlow() {
     }
     else begin(sampleLayout());
   });
-  // Native <label for="file-input"> already opens the picker on every browser
-  // (including tablets/iOS where programmatic .click() on a hidden input is
-  // unreliable). This JS handler is a fallback for browsers that block label
-  // activation; the change event itself is what actually loads the file.
-  fileBtn.addEventListener('click', (e) => {
-    if (e.defaultPrevented) return;   // label already handled it
-    e.preventDefault();
-    fileInput.click();
-  });
+  // The native <label for="file-input"> opens the picker on every browser,
+  // including iPad/iOS where a programmatic input.click() fallback would cancel
+  // the label's reliable activation and then get silently ignored. So there is
+  // deliberately NO click handler here — the change event loads the file.
   fileInput.addEventListener('change', () => {
     const f = fileInput.files[0];
     if (!f) return;
@@ -2965,13 +3672,9 @@ function startEntryFlow() {
   // pressing Start without uploading uses the saved/preset champion.
   const skinInput = document.getElementById('skin-input');
   const skinStatus = document.getElementById('skin-status');
-  const skinBtn = document.getElementById('entry-skin');
   if (skinInput && skinStatus) {
-    skinBtn && skinBtn.addEventListener('click', (e) => {
-      if (e.defaultPrevented) return;   // label handled it
-      e.preventDefault();
-      skinInput.click();
-    });
+    // The native <label for="skin-input"> opens the picker (see #entry-file
+    // note about iPad/iOS). No programmatic .click() fallback here.
     skinInput.addEventListener('change', async () => {
       const f = skinInput.files[0];
       skinInput.value = '';             // allow re-picking the same file later
@@ -3066,6 +3769,7 @@ async function bootInner() {
   await safeAwait('trees', loadTreeModels());
   await safeAwait('tree-packs', loadTreePacks());
   await safeAwait('park', loadParkModel());
+  safe('road-textures', loadRoadTextures);   // async — roads upgrade from flat charcoal to textured asphalt
   safe('nature-filler', () => loadNatureFiller());   // async — bushes/flowers/rocks for parks
   fill.style.width = '60%';
 
@@ -3076,12 +3780,18 @@ async function bootInner() {
   safe('flush-nature', flushNatureFiller);  // placements queued during carve; flush what's loaded
   safe('quest-landmarks', buildQuestLandmarks);
   safe('generic-facilities', buildGenericFacilities);
+  safe('building-shadows', addBuildingContactShadows);
   fill.style.width = '80%';
   // Street furniture (streetlights along roads, benches around parks).
   streetProps = await safeAwait('street-props', createStreetProps(scene, layout));
   city.streetProps = streetProps;
   // Playground + street deco (async, non-blocking).
   safe('street-deco', () => scatterStreetDeco(scene, layout));
+  // Sidewalk furniture from the shared library (hydrants/bins/mailboxes/
+  // planters/parasols) — async, instanced, tiny; degrades per-model on failure.
+  safe('street-furniture', () => {
+    createStreetFurniture(scene, layout).catch((e) => console.warn('[city-builder] street furniture init failed', e));
+  });
   // Async — replace procedural GLB-backed buildings (office towers, housing) when ready.
   safe('facility-glbs', () => { for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) loadBuildingModel(type, url); });
   // Mission buildings — real GLBs for every special type (finance tower, industrial missions…).
