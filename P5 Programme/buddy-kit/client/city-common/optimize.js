@@ -4,8 +4,11 @@
  * A MEASURED hill-climb, not a rule-stamping pipeline. We start from the
  * student's layout and repeatedly propose small, deterministic candidate
  * moves (add / move / remove / add-park). Each move is trial-applied to a
- * working copy and scored with computeMetrics(); a move is KEPT only when it
- * strictly raises the city score (or ties with fewer buildings). The result:
+ * working copy and scored with computeMetrics(); a move is KEPT when it
+ * strictly raises the city score (or ties with fewer buildings). A few
+ * reviewable moves that fix something real (quieter zoning, decluttering) may
+ * keep a tiny score dip of up to 2 points — the plan text says so honestly.
+ * The result:
  *
  *   - the student's ROADS are never touched;
  *   - special/mission buildings are never removed or moved;
@@ -211,9 +214,12 @@ function candidateSpots(layout, type, rng, segs) {
   return scored.slice(0, MAX_CANDIDATES).map((s) => [s.x, s.z]);
 }
 
-/** Snapshot of the 4 sub-metrics as a comparable tuple. */
+/** Snapshot of the tracked sub-metrics as a comparable tuple. `green` is
+ * included because a park can be the ONLY thing a move improves (it is 20% of
+ * the happy goal) — without it an `add_park` move would show an empty
+ * `improved` list and the child could not answer the reason question. */
 function metricTuple(m) {
-  return [m.accessibility, m.coverage, m.utilities, m.spread, m.zoning, m.balance];
+  return [m.accessibility, m.coverage, m.utilities, m.spread, m.zoning, m.balance, m.green];
 }
 
 /**
@@ -262,7 +268,8 @@ function spreadCandidates(layout, b, rng, segs) {
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, MAX_CANDIDATES).map((s) => [s.x, s.z]);
 }function metricDeltas(before, after) {
-  const names = ['accessibility', 'coverage', 'utilities', 'spread', 'zoning', 'balance'];
+  // Order MUST match metricTuple().
+  const names = ['accessibility', 'coverage', 'utilities', 'spread', 'zoning', 'balance', 'green'];
   const improved = [];
   const tb = metricTuple(before), ta = metricTuple(after);
   for (let i = 0; i < names.length; i++) if (ta[i] > tb[i] + 1e-9) improved.push(names[i]);
@@ -633,7 +640,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
               const name = catalogType(p.what)?.name || p.what;
               diff.push({
                 action: 'move', what: p.what, count: 1, from: p.from, to: p.to,
-                reason: `Moved the ${name} away from the other mission buildings — a spread-out city is a smarter city.`,
+                reason: `Moved the ${name} farther from the other special buildings so they're not squeezed together.`,
                 improved, fromScore: after.score, toScore: m.score,
               });
             }
@@ -719,7 +726,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
             const improved = metricDeltas(after, m);
             diff.push({
               action: 'move', what: 'power', count: 1, from, to: tp.pos.slice(),
-              reason: 'Moved the Smart Power Grid a little away from the nearest home — the hum is fine at a small distance.',
+              reason: 'Moved the Smart Power Grid a bit farther from that home to cut the noisy hum — this may trade away a point or two, but quieter homes win here.',
               improved, fromScore: after.score, toScore: m.score,
             });
             out.buildings = trial.buildings;
@@ -742,7 +749,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           const improved = metricDeltas(after, m);
           diff.push({
             action: 'add_park', what: 'park', count: 1, from: null, to: [sx, sz],
-            reason: 'Added a park near homes that had no green space nearby — happier, healthier neighbourhoods.',
+            reason: 'Added a park near homes that had no green space close by — now they have somewhere green to walk to.',
             improved, fromScore: after.score, toScore: m.score,
           });
           out.parks = trial.parks;
@@ -806,7 +813,7 @@ export function optimizeLayout(layout, opts = {}, seed = 1) {
           action: 'remove', what: t, count: 1, from, to: null,
           reason: isSpecialDup
             ? `Removed an extra ${name} — this city only needs one; the rest were clutter.`
-            : `Removed an extra ${name} — one is enough; the city stayed just as good with less clutter.`,
+            : `Removed an extra ${name} — one is enough. This may trade away a point or two, but a leaner city was worth it.`,
           improved, fromScore: after.score, toScore: m.score,
         });
         out.buildings = trial.buildings;
@@ -883,7 +890,11 @@ function clusterScore(layout, b, type) {
  * optimizer silently acting.
  *
  * Each move: { action:'add'|'move'|'remove'|'add_park', what, from, to, reason,
- *              deltaScore, improved:[metricNames], beforeScore, afterScore }.
+ *              reasonMetric, deltaScore, improved:[metricNames], beforeScore,
+ *              afterScore }. `reasonMetric` is the metric the reason string
+ *              narrates — the reveal uses it as the fallback when a move's
+ *              measured `improved` is empty, so the reason question is always
+ *              answerable.
  * Deterministic for a given seed. Respects locks + goal weights. Returns
  * <= k moves, diverse (not all the same type), sorted by deltaScore desc.
  */
@@ -898,12 +909,12 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
   const before = measure(out);
   const candidates = [];
 
-  const record = (trial, action, what, from, to, reason) => {
+  const record = (trial, action, what, from, to, reason, reasonMetric) => {
     const m = measure(trial);
     const deltaScore = m.score - before.score;
     if (deltaScore <= 0) return;
     candidates.push({
-      action, what, from, to, reason,
+      action, what, from, to, reason, reasonMetric,
       deltaScore, improved: metricDeltas(before, m),
       beforeScore: before.score, afterScore: m.score,
     });
@@ -933,7 +944,8 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
   if (countType(HOUSING) < targetHomes) {
     const bm = bestSpotFor(HOUSING, () => candidateSpots(out, HOUSING, rng, segs).filter(([sx, sz]) => distToRoad(sx, sz, segs) <= METRIC_PARAMS.accessibleDist));
     if (bm) record(bm.t, 'add', HOUSING, null, [bm.sx, bm.sz],
-      countType(HOUSING) === 0 ? 'Add a home — a city needs somewhere for people to live!' : 'Add a home — a real town needs more residents!');
+      countType(HOUSING) === 0 ? 'Add a home — a city needs somewhere for people to live!' : 'Add a home — a real town needs more residents!',
+      'balance');
   }
 
   // ── 2. Add a missing service (best across all missing service types) ──
@@ -948,7 +960,7 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
       const bm = bestSpotFor(t, () => candidateSpots(out, t, rng, segs).filter(([sx, sz]) =>
         needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.coverageDist)));
       if (bm) record(bm.t, 'add', t, null, [bm.sx, bm.sz],
-        `Add a ${catalogType(t)?.name || t} so homes nearby have one to reach — services improve.`);
+        `Add a ${catalogType(t)?.name || t} so homes nearby have one to reach — services improve.`, 'coverage');
     }
   }
 
@@ -964,7 +976,7 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
       const bm = bestSpotFor(t, () => candidateSpots(out, t, rng, segs).filter(([sx, sz]) =>
         needy.some((h) => Math.hypot(h.pos[0] - sx, h.pos[1] - sz) <= METRIC_PARAMS.utilityDist)));
       if (bm) record(bm.t, 'add', t, null, [bm.sx, bm.sz],
-        `Add the ${catalogType(t)?.name || t} so homes nearby have ${catalogType(t)?.name || t.toLowerCase()} — utilities improve.`);
+        `Add the ${catalogType(t)?.name || t} so homes nearby have ${catalogType(t)?.name || t.toLowerCase()} — utilities improve.`, 'utilities');
     }
   }
 
@@ -982,7 +994,7 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
       const from = tb.pos.slice();
       tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
       record(trial, 'move', b.type, from, tb.pos.slice(),
-        `Move the ${catalogType(b.type)?.name || b.type} closer to a road so people can reach it — road access improves.`);
+        `Move the ${catalogType(b.type)?.name || b.type} closer to a road so people can reach it — road access improves.`, 'accessibility');
       break;   // one relocation per stranded building
     }
   }
@@ -1002,7 +1014,7 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
       const from = tb.pos.slice();
       tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
       record(trial, 'move', b.type, from, tb.pos.slice(),
-        `Move the ${catalogType(b.type)?.name || b.type} away from nearby homes — quieter streets, better zoning.`);
+        `Move the ${catalogType(b.type)?.name || b.type} away from nearby homes — quieter streets, better zoning.`, 'zoning');
       break;
     }
   }
@@ -1023,7 +1035,7 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
       const from = tb.pos.slice();
       tb.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
       record(trial, 'move', b.type, from, tb.pos.slice(),
-        `Move the ${catalogType(b.type)?.name || b.type} away from the other mission buildings — a spread-out city is smarter.`);
+        `Move the ${catalogType(b.type)?.name || b.type} farther from the other special buildings so they're not squeezed together.`, 'spread');
       break;
     }
   }
@@ -1047,7 +1059,7 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
         const from = tu.pos.slice();
         tu.pos = [Math.round(sx * 2) / 2, Math.round(sz * 2) / 2];
         record(trial, 'move', t, from, tu.pos.slice(),
-          `Move the ${catalogType(t)?.name || t} closer to homes that were too far away — utilities improve.`);
+          `Move the ${catalogType(t)?.name || t} closer to homes that were too far away — utilities improve.`, 'utilities');
         break;
       }
     }
@@ -1060,7 +1072,7 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
       const trial = JSON.parse(JSON.stringify(out));
       trial.parks.push({ cx: Math.round(sx), cz: Math.round(sz), radius: 60 + rng() * 30 });
       record(trial, 'add_park', 'park', null, [sx, sz],
-        'Add a park near homes with no green space — happier, healthier neighbourhoods.');
+        'Add a park near homes with no green space close by — now they have somewhere green to walk to.', 'green');
       break;
     }
   }
@@ -1087,7 +1099,8 @@ export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
       record(trial, 'remove', t, from, null,
         catalogType(t)?.category === 'special'
           ? `Remove an extra ${catalogType(t)?.name || t} — this city only needs one; the rest were clutter.`
-          : `Remove an extra ${catalogType(t)?.name || t} — one is enough; the city stays just as good.`);
+          : `Remove an extra ${catalogType(t)?.name || t} — one is enough; cutting the clutter keeps the score strong.`,
+        'balance');
     }
   }
 

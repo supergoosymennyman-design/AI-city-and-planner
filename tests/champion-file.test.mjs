@@ -27,6 +27,13 @@ test('CF_KEYS covers the full student-data surface (layout, quests, props, skin,
   assert.equal(CF_KEYS.plannerUnlocked, 'p5_planner_unlocked');
 });
 
+test('CF_KEYS covers planted AI machines (caps) and the city name — data-loss safety net', () => {
+  // Regression guard: a child's planted .cap machines and city label must
+  // travel inside the Champion File (iOS Safari evicts localStorage ~7 days).
+  assert.equal(CF_KEYS.caps, 'p5_city_capabilities_v1');
+  assert.equal(CF_KEYS.cityName, 'p5_city_save_name_v1');
+});
+
 test('collectState reads only the keys that are present, as raw strings', () => {
   const storage = fakeStorage({
     p5_city_planner_layout_v1: '{"version":2}',
@@ -60,6 +67,9 @@ test('round-trip: compose → sanitize → writeState restores every key', () =>
     p5_planner_unlocked: '1',
     p5_city_planner_coach_v1: '1',
     p5_pregame_progress: '{"1":true,"2":true,"3":true,"4":true}',
+    p5_city_badges_v1: '{"current":"builder"}',
+    p5_city_capabilities_v1: '[{"id":"m1","name":"My Classifier"}]',
+    p5_city_save_name_v1: 'Jason week 3',
   };
   const file = composeChampionFile(collectState(fakeStorage(seed)), 'Round trip');
   const parsed = JSON.parse(JSON.stringify(file)); // simulate file download/upload

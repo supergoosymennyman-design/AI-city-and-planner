@@ -747,7 +747,32 @@ test('proposeMoves: respects goal weights (a green mayor proposes a park)', () =
   const green = { happy: 0.6, walkable: 0.15, peaceful: 0.15, spread: 0.10 };
   const moves = proposeMoves(layout, { weights: green }, 5, 3);
   // A green mayor's proposals must include a park-add at some point.
-  assert.ok(moves.some((m) => m.action === 'add_park'), 'green mayor should propose a park');
+  const parkMove = moves.find((m) => m.action === 'add_park');
+  assert.ok(parkMove, 'green mayor should propose a park');
+  // Regression guard: `green` is 20% of the happy goal, so a park move's
+  // MEASURED improved list must contain it (it used to be untracked, leaving
+  // the reason question unanswerable). reasonMetric must narrate it too.
+  assert.equal(parkMove.reasonMetric, 'green', 'park move narrates the green metric');
+  assert.ok(parkMove.improved.includes('green'),
+    `park move measured improved list includes green (got ${JSON.stringify(parkMove.improved)})`);
+});
+
+test('proposeMoves: every move carries a valid reasonMetric (reason always answerable)', () => {
+  const VALID = new Set(['accessibility', 'coverage', 'utilities', 'zoning', 'spread', 'balance', 'green']);
+  for (const seed of [3, 17, 41, 89]) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const moves = proposeMoves(layout, {}, 3, seed * 104729);
+    assert.ok(moves.length <= 3, `seed ${seed}: <= 3 moves`);
+    for (const m of moves) {
+      assert.ok(m.action && m.what, `seed ${seed}: move has action + what`);
+      assert.ok(VALID.has(m.reasonMetric),
+        `seed ${seed}: ${m.action}:${m.what} reasonMetric must be a tracked metric (got ${m.reasonMetric})`);
+      assert.ok(Array.isArray(m.improved), `seed ${seed}: move has improved list`);
+      for (const met of m.improved) {
+        assert.ok(VALID.has(met), `seed ${seed}: improved entry "${met}" is a tracked metric`);
+      }
+    }
+  }
 });
 
 test('applyMove: add/move/remove/add_park each mutate correctly', () => {

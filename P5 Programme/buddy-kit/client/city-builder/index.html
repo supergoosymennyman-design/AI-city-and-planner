@@ -56,6 +56,8 @@
     }
     .entry-btn:hover { border-color: #00f2fe; }
     .entry-btn.primary { background: #00ff9d; color: #06283a; }
+    .entry-btn.cloud-btn { border-color: rgba(0, 183, 255, 0.55); background: #0f2c4a; color: #bfe9ff; }
+    .entry-save-divider { margin: 12px 0 4px; font-size: 12px; font-weight: 700; color: #6b7a93; letter-spacing: 0.4px; }
     .entry-hint { font-size: 12px; color: #6b7a93; margin-top: 10px; }
     .skin-status { font-size: 12px; color: #00ff9d; margin-top: 8px; min-height: 14px; }
     #paste-wrap textarea {
@@ -185,6 +187,13 @@
     <p>Your city from the planner is ready to explore in 3D!</p>
     <button class="entry-btn primary" id="entry-local">▶ Start my saved city</button>
     <div class="resume-note" id="entry-resume" hidden></div>
+
+    <div class="entry-save-divider" role="separator">— take your city to another device —</div>
+    <button class="entry-btn cloud-btn" id="entry-cloud-save" title="Save to the cloud and get a code to restore anywhere">☁️ Save to cloud</button>
+    <button class="entry-btn cloud-btn" id="entry-cloud-open" title="Open a city you saved to the cloud with a code">☁️ Open from cloud</button>
+
+    <div class="entry-save-divider" role="separator">— or keep it as a file —</div>
+    <button class="entry-btn" id="entry-save" title="Download a backup file of your whole city">💾 Save my city</button>
     <label class="entry-btn" id="entry-file" for="file-input">📁 Upload my-city.json</label>
     <button class="entry-btn" id="entry-paste">📋 Paste JSON</button>
     <input type="file" id="file-input" accept=".json,application/json" class="visually-hidden">
@@ -192,14 +201,13 @@
       <textarea id="paste-box" placeholder='Paste your layout JSON here…'></textarea>
       <button class="entry-btn primary" id="paste-go">Load it!</button>
     </div>
+
+    <div class="entry-save-divider" role="separator">— make it yours —</div>
     <label class="entry-btn" id="entry-skin" for="skin-input">🎨 Upload your fitted champion (.glb)</label>
     <input type="file" id="skin-input" accept=".glb,model/gltf-binary" class="visually-hidden">
     <div class="skin-status" id="skin-status"></div>
-    <div class="entry-save-divider" role="separator">— keep your city safe —</div>
-    <button class="entry-btn" id="entry-save" title="Download a backup file of your whole city">💾 Save my city</button>
-    <button class="entry-btn" id="entry-cloud-save" title="Save to the cloud and get a code to restore anywhere">☁️ Save to cloud</button>
-    <button class="entry-btn" id="entry-cloud-open" title="Open a city you saved to the cloud with a code">☁️ Open from cloud</button>
-    <div class="entry-hint">Tip: build a city in the 2D planner, then press "🌆 View my city" — it lands here automatically.</div>
+
+    <div class="entry-hint">💡 On a school iPad? Tap <b>☁️ Save to cloud</b>, write down the code, then <b>☁️ Open from cloud</b> on any device. Tip: build in the 2D planner, press "🌆 View my city" to land here instantly.</div>
   </div>
 </div>
 
@@ -252,12 +260,12 @@
   </div>
 </div>
 
-<!-- Capability Panel: planted machines (Stage 1 — display only, honest) -->
-<div id="cap-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Your planted machines">
+<!-- Capability Panel: planted AI machines (Stage 1 — display only, honest) -->
+<div id="cap-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Your planted AI machines">
   <div class="modal-backdrop" data-cap-close></div>
   <div class="modal-card">
     <div class="modal-head">
-      <span class="modal-title">📦 Your planted machines</span>
+      <span class="modal-title">📦 Your planted AI machines</span>
       <button class="modal-close" data-cap-close aria-label="Close">✕</button>
     </div>
     <div class="modal-body" id="cap-body"></div>
@@ -282,7 +290,8 @@
   <div class="hud-center"><span class="hud-champion">Champion</span></div>
   <div class="hud-right">
     <span class="hud-mission-count">🤖 Your AI City</span>
-    <button id="cap-btn" class="hud-chip" aria-label="Your planted machines" title="Your planted machines">📦</button>
+    <button id="btn-save-hud" class="hud-chip" aria-label="Save my city (backup)" title="Save my city">💾</button>
+    <button id="cap-btn" class="hud-chip" aria-label="Your planted AI machines" title="Your planted AI machines">📦</button>
     <button id="badge-emblem" class="badge-emblem" aria-label="Your inspector badge" title="Inspector badge">🎖️</button>
   </div>
 </header>
@@ -292,7 +301,6 @@
   <button id="btn-home" aria-label="Take me home">🏠</button>
   <button id="btn-next" aria-label="Go to next quest">🎯</button>
   <button id="btn-hub" aria-label="Back to My AI City (hub)">🏠</button>
-  <button id="btn-save-hud" aria-label="Save my city (backup)">💾</button>
   <div id="skin-panel" aria-hidden="true">
   <div class="skin-panel-title">Choose your champion</div>
   <div id="skin-list"></div>

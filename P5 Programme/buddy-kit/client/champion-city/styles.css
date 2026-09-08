@@ -742,7 +742,10 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible {
 @media (prefers-reduced-motion: reduce) { .scenario-pick { transition: none; } }
 
 /* ── Modal (save / cloud) — used by the city-builder entry + HUD ── */
-.modal { position: fixed; inset: 0; z-index: 900; display: flex; align-items: center; justify-content: center; font-family: var(--font-ui, sans-serif); }
+/* z-index must sit ABOVE the Coding Buddy dock (buddy-core.css 2147483000) and
+   the top HUD (#hud-top 2147483100) so a dialog's ✕ / backdrop are always
+   clickable, but stay below the legacy #scenario-picker (2147483400). */
+.modal { position: fixed; inset: 0; z-index: 2147483300; display: flex; align-items: center; justify-content: center; font-family: var(--font-ui, sans-serif); }
 .modal.hidden { display: none; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(6, 10, 20, 0.7); }
 .modal-card {

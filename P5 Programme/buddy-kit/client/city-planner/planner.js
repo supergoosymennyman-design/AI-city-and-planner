@@ -62,7 +62,6 @@ const state = {
   mayorId: null,          // null = balanced, else MAYORS key
   sliderVals: { happy: 30, walkable: 30, peaceful: 20, spread: 20 },
   viewMode: 'normal',     // 'normal' | 'happy' | 'walk' | 'ranges'
-  farmMode: 'off',        // 'auto' | 'off' | 'manual' — rural farm ring
   walkCache: null,
   homeHappy: [],          // per-building index: 0..1 served share (null = not housing)
   homeWalk: [],           // per-building index: walk reach 0..1 (null = not housing)
@@ -85,7 +84,6 @@ const goalsModal = document.getElementById('goals-modal');
 const mayorGrid = document.getElementById('mayor-grid');
 const sliderList = document.getElementById('slider-list');
 const templateMenu = document.getElementById('template-menu');
-const farmMenu = document.getElementById('farm-menu');
 
 let dpr = 1;
 function resize() {
@@ -383,33 +381,6 @@ function drawGesture(w, h) {
 const LIB_DRAWER_CATEGORIES = ['nature', 'props', 'vehicles', 'scenarios'];
 const LIB_CATEGORY_LABEL = { nature: 'Nature', props: 'Props', vehicles: 'Vehicles', scenarios: 'Themed' };
 
-// Farm palette — a curated rural set from the shared library so students can
-// build a farm ring/outskirts by hand (Manual mode) or let the planner add an
-// auto ring (Auto mode). Each id maps to a LIBRARY entry; placement reuses the
-// 'lib:<id>' path (layout + 3D builder both understand it).
-const FARM_ITEMS = [
-  { id: 'bld_farm_barn', name: 'Barn' },
-  { id: 'bld_farm_barn_big', name: 'Big Barn' },
-  { id: 'bld_farm_barn_open', name: 'Open Barn' },
-  { id: 'bld_farm_barn_small', name: 'Small Barn' },
-  { id: 'bld_farm_chicken_coop', name: 'Chicken Coop' },
-  { id: 'bld_farm_silo', name: 'Silo' },
-  { id: 'bld_farm_silo_house', name: 'Silo House' },
-  { id: 'bld_farm_windmill', name: 'Windmill' },
-  { id: 'bld_farm_windmill_tower', name: 'Windmill Tower' },
-  { id: 'bld_farm_water_tower', name: 'Water Tower' },
-  { id: 'nat_crop_wheat', name: 'Wheat Field' },
-  { id: 'nat_crop_corn', name: 'Corn Field' },
-  { id: 'nat_crop_pumpkin', name: 'Pumpkin Patch' },
-  { id: 'nat_crop_watermelon', name: 'Watermelon Field' },
-  { id: 'nat_crop_tomato', name: 'Tomato Field' },
-  { id: 'nat_crop_rice', name: 'Rice Field' },
-  { id: 'nat_crop_berries', name: 'Berry Bush' },
-  { id: 'prop_farm_well', name: 'Well' },
-  { id: 'prop_farm_fence', name: 'Fence' },
-  { id: 'prop_farm_fence_2', name: 'Fence B' },
-];
-
 function buildDrawer() {
   catalogList.innerHTML = '';
   const groups = [
@@ -460,29 +431,6 @@ function buildDrawer() {
       });
       catalogList.appendChild(btn);
     }
-  }
-  // Farm palette — rural set for the farm-ring feature. Uses the same 'lib:'
-  // path as the shared-library drawer so farm buildings/crops/fences render in
-  // the 3D builder with no extra wiring.
-  const farmLabel = document.createElement('div');
-  farmLabel.className = 'drawer-title';
-  farmLabel.textContent = '🚜 Farm';
-  catalogList.appendChild(farmLabel);
-  for (const f of FARM_ITEMS) {
-    const spec = libraryItem(f.id);
-    if (!spec) continue;
-    const btn = document.createElement('button');
-    btn.className = 'cat-btn lib';
-    btn.dataset.type = 'lib:' + f.id;
-    btn.innerHTML = `<span class="emoji">${spec.emoji}</span><span class="name">${f.name}</span>`;
-    btn.addEventListener('click', () => {
-      state.selectedType = 'lib:' + f.id;
-      state.selectedIdx = -1;
-      setTool('place');
-      selectCatalogBtn('lib:' + f.id);
-      hint('Tap the map to place the ' + f.name + '.');
-    });
-    catalogList.appendChild(btn);
   }
   selectCatalogBtn(state.selectedType);
 }
@@ -797,7 +745,53 @@ function deleteSelectedOrClear() {
     toast(`🗑️ Removed the ${name}`);
     return;
   }
-  clearAll();
+  if (cityIsEmpty()) {
+    clearAll();
+  } else {
+    confirmCityAction({
+      title: 'Clear the whole map?',
+      message: 'This removes every building, road and park. You can press ↩️ Undo to bring it all back — but double-check first!',
+      yesLabel: '🗑️ Clear it',
+      onYes: clearAll,
+    });
+  }
+}
+
+function cityIsEmpty() {
+  const l = state.layout;
+  return !l.buildings.length && !l.roads.length && !l.parks.length;
+}
+
+// Lightweight confirm sheet for destructive actions. Built on demand (no
+// permanent markup), reuses the app's modal styling, and always leaves a safe
+// "keep" path focused by default.
+function confirmCityAction({ title, message, yesLabel, onYes }) {
+  const old = document.getElementById('confirm-modal');
+  if (old) old.remove();
+  const m = document.createElement('div');
+  m.className = 'modal confirm-modal';
+  m.id = 'confirm-modal';
+  m.setAttribute('role', 'dialog');
+  m.setAttribute('aria-modal', 'true');
+  m.setAttribute('aria-label', title);
+  m.innerHTML = `
+    <div class="modal-backdrop confirm-backdrop"></div>
+    <div class="modal-card confirm-card">
+      <div class="modal-head"><span class="modal-title">${title}</span></div>
+      <div class="modal-body">
+        <p class="confirm-text">${message}</p>
+        <div class="goals-actions confirm-actions">
+          <button class="confirm-cancel" id="confirm-no" type="button">Keep my city</button>
+          <button class="plan-apply" id="confirm-yes" type="button">${yesLabel}</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  const close = () => m.remove();
+  m.querySelector('.confirm-backdrop').addEventListener('click', close);
+  m.querySelector('#confirm-no').addEventListener('click', close);
+  m.querySelector('#confirm-yes').addEventListener('click', () => { close(); onYes(); });
+  m.querySelector('#confirm-no').focus();
 }
 
 // ─── Road templates ────────────────────────────────────
@@ -813,10 +807,23 @@ function renderTemplates() {
     const item = document.createElement('button');
     item.className = 'template-item';
     item.dataset.template = t.id;
-    item.innerHTML = `<span class="tpl-emoji">${t.emoji}</span> <span class="tpl-name">${t.name}</span><span class="tpl-good">for the ${t.goodFor}</span>`;
+    item.innerHTML = `<span class="tpl-emoji">${t.emoji}</span> <span class="tpl-name">${t.name}</span><span class="tpl-good">for ${t.goodFor}</span>`;
     item.addEventListener('click', () => {
-      loadRoadTemplate(t.id);
-      templateMenu.classList.add('hidden');
+      const apply = () => {
+        loadRoadTemplate(t.id);
+        templateMenu.classList.add('hidden');
+      };
+      if (cityIsEmpty()) {
+        apply();
+      } else {
+        templateMenu.classList.add('hidden');
+        confirmCityAction({
+          title: `Start from ${t.name}?`,
+          message: 'This replaces your whole city with a ready-made road layout — you start fresh with roads, then add buildings. ↩️ Undo can bring your city back.',
+          yesLabel: '🛤️ Replace my city',
+          onYes: apply,
+        });
+      }
     });
     list.appendChild(item);
   }
@@ -839,123 +846,6 @@ function loadRoadTemplate(key) {
   toast(`🛤️ Loaded the ${tpl.name} roads — now place your buildings!`);
 }
 
-// ─── Farm ring (rural outskirts) ────────────────────────
-// Students can toggle the farmland: Auto (generate a ring of barns, fields and
-// fences at the city edge), Off (nothing), or Manual (farm pieces live in the
-// drawer, placed by hand). Farm entries are 'lib:<id>' buildings so the layout
-// + 3D builder render them with zero extra wiring.
-const FARM_RING = {
-  barns: ['bld_farm_barn', 'bld_farm_barn_big', 'bld_farm_barn_open', 'bld_farm_barn_small', 'bld_farm_chicken_coop', 'bld_farm_silo', 'bld_farm_silo_house', 'bld_farm_windmill', 'bld_farm_windmill_tower', 'bld_farm_water_tower'],
-  fields: ['nat_crop_wheat', 'nat_crop_corn', 'nat_crop_pumpkin', 'nat_crop_watermelon', 'nat_crop_tomato', 'nat_crop_rice', 'nat_crop_berries'],
-  deco: ['prop_farm_well', 'prop_farm_fence', 'prop_farm_fence_2'],
-};
-
-function isFarmLibType(type) {
-  if (!type || !type.startsWith('lib:')) return false;
-  const id = type.slice(4);
-  return FARM_RING.barns.includes(id) || FARM_RING.fields.includes(id) || FARM_RING.deco.includes(id);
-}
-
-function farmSpec(id) {
-  const lib = libraryItem(id);
-  return lib ? { id, name: lib.name, emoji: lib.emoji, footprint: lib.footprint, height: lib.height } : null;
-}
-
-/** Remove any existing farm entries from the layout (auto or manual). */
-function removeFarmEntries() {
-  const before = state.layout.buildings.length;
-  state.layout.buildings = state.layout.buildings.filter((b) => !isFarmLibType(b.type));
-  return state.layout.buildings.length !== before;
-}
-
-/** Generate a rural ring of farm buildings + crop fields at the map edges. */
-function addFarmRing() {
-  removeFarmEntries();
-  const M = SCALE;                    // plan is 0..SCALE (2000m)
-  const edge = 90;                    // distance from the border
-  const ring = [];
-  const pushFarm = (id, x, z, rotY) => {
-    const spec = farmSpec(id);
-    if (!spec) return;
-    ring.push({
-      type: 'lib:' + id,
-      pos: [Math.round(x), Math.round(z)],
-      footprint: spec.footprint,
-      height: spec.height,
-      ...(rotY ? { rotY } : {}),
-    });
-  };
-  const band = (coord, spread) => coord + (Math.random() - 0.5) * spread;
-  const spots = 8;                    // 8 barns/buildings around the ring
-  for (let i = 0; i < spots; i++) {
-    const t = (i / spots) * Math.PI * 2 + Math.random() * 0.5;
-    const cx = M / 2 + Math.cos(t) * (M / 2 - edge);
-    const cz = M / 2 + Math.sin(t) * (M / 2 - edge);
-    const bld = FARM_RING.barns[i % FARM_RING.barns.length];
-    pushFarm(bld, band(cx, 60), band(cz, 60), Math.floor(Math.random() * 4) * 90);
-  }
-  // Fields: scatter a couple of crops near each barn.
-  for (let i = 0; i < spots; i++) {
-    const t = (i / spots) * Math.PI * 2 + Math.random() * 0.5;
-    const cx = M / 2 + Math.cos(t) * (M / 2 - edge - 40);
-    const cz = M / 2 + Math.sin(t) * (M / 2 - edge - 40);
-    const crop = FARM_RING.fields[i % FARM_RING.fields.length];
-    pushFarm(crop, band(cx, 50), band(cz, 50), Math.floor(Math.random() * 4) * 90);
-  }
-  // A few wells + fences as accents.
-  for (let i = 0; i < 4; i++) {
-    const t = (i / 4) * Math.PI * 2 + 0.3;
-    const cx = M / 2 + Math.cos(t) * (M / 2 - edge - 20);
-    const cz = M / 2 + Math.sin(t) * (M / 2 - edge - 20);
-    pushFarm(i % 2 ? 'prop_farm_well' : 'prop_farm_fence', band(cx, 40), band(cz, 40));
-  }
-  state.layout.buildings.push(...ring);
-}
-
-/** Apply the farm mode choice to the current layout. */
-function applyFarmMode(mode) {
-  state.farmMode = mode;
-  if (mode === 'auto') {
-    addFarmRing();
-    toast('🌾 Farm ring added around the city!');
-  } else if (mode === 'off') {
-    if (removeFarmEntries()) toast('🚫 Farm ring removed.');
-    else toast('No farm entries to remove.');
-  } else {
-    // manual — nothing auto-placed; farm pieces are in the drawer.
-    toast('✋ Farm: place pieces yourself from the drawer.');
-  }
-  pushUndo();
-  updateMetrics();
-  render();
-}
-
-function renderFarmMode() {
-  const btn = document.getElementById('btn-farm');
-  const opts = document.querySelectorAll('.farm-opt');
-  if (!btn || !opts.length) return;
-  const labels = { auto: '🌾 Auto', off: '🚜 Farm', manual: '✋ Farm' };
-  btn.textContent = labels[state.farmMode] || labels.off;
-  opts.forEach((o) => o.classList.toggle('active', o.dataset.farm === state.farmMode));
-}
-
-function initFarmMenu() {
-  const btn = document.getElementById('btn-farm');
-  if (!btn || !farmMenu) return;
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    farmMenu.classList.toggle('hidden');
-  });
-  document.querySelectorAll('.farm-opt').forEach((o) => {
-    o.addEventListener('click', () => {
-      applyFarmMode(o.dataset.farm);
-      farmMenu.classList.add('hidden');
-    });
-  });
-  document.addEventListener('click', () => farmMenu.classList.add('hidden'));
-  renderFarmMode();
-}
-
 // ─── Metrics panel ──────────────────────────────────────
 let _walkDirty = true;
 function computeWalkState() {
@@ -974,7 +864,8 @@ function updateMetrics() {
   const walk = computeWalkState();
   const m = computeMetrics(state.layout, undefined, weights, walk);
   state.lastMetrics = m;
-  scoreEl.textContent = m.score;
+  const scoreNum = scoreEl.querySelector('.score-num');
+  if (scoreNum) scoreNum.textContent = m.score;
   scoreEl.style.setProperty('--pct', String(m.score));
 
   // Per-home happiness (services + utilities + park within straight range).
@@ -1028,6 +919,14 @@ function renderGoalList(m) {
     const val = m.goals[g] || 0;
     const s = stars(val);
     const hint = m.goalHints[g];
+    // Happy-goal chips: one per missing service, showing how many homes need
+    // it. Rendered from the structured counts metrics provides.
+    const missing = (g === 'happy' && m.missingServices) ? m.missingServices : null;
+    const missingKeys = missing ? Object.keys(missing).filter((k) => missing[k] > 0) : [];
+    const chips = (missingKeys.length && s < 3) ? missingKeys.map((k) => {
+      const spec = CATALOG[k];
+      return `<button class="goal-chip" type="button" data-type="${k}" title="Place ${spec?.name || k}">${spec?.emoji || '🏗️'} <b>${missing[k]}</b></button>`;
+    }).join('') : '';
     const row = document.createElement('div');
     row.className = 'goal-row';
     row.innerHTML = `
@@ -1036,8 +935,19 @@ function renderGoalList(m) {
         <span class="goal-name">${meta.name}</span>
         <span class="goal-stars" title="${Math.round(val * 100)}%">${starHTML(s)}</span>
       </div>
-      ${hint && s < 3 ? `<div class="goal-hint">💡 ${hint}</div>` : ''}
+      ${hint && s < 3 && !chips ? `<div class="goal-hint">💡 ${hint}</div>` : ''}
+      ${chips ? `<div class="goal-chips"><span class="goal-chips-label">Homes need:</span>${chips}</div>` : ''}
     `;
+    // Tap a chip → select that facility by clicking the drawer's own button
+    // (single source of truth — the same handler the child uses on the
+    // catalog, so selection + tool + hint stay consistent forever).
+    row.querySelectorAll('.goal-chip').forEach((b) => {
+      b.addEventListener('click', () => {
+        const type = b.dataset.type;
+        const drawerBtn = catalogList.querySelector(`.cat-btn[data-type="${CSS.escape(type)}"]`);
+        if (drawerBtn) drawerBtn.click();
+      });
+    });
     goalList.appendChild(row);
   }
 }
@@ -1265,8 +1175,9 @@ const REASON_CHIPS = [
   { id: 'spread', label: 'Buildings more spread out' },
   { id: 'utilities', label: 'Water / power / bus closer' },
   { id: 'balance', label: 'Better mix of buildings' },
+  { id: 'green', label: 'More green space near homes' },
 ];
-const REASON_METRIC = { coverage: 'coverage', accessibility: 'accessibility', zoning: 'zoning', spread: 'spread', utilities: 'utilities', balance: 'balance' };
+const REASON_METRIC = { coverage: 'coverage', accessibility: 'accessibility', zoning: 'zoning', spread: 'spread', utilities: 'utilities', balance: 'balance', green: 'green' };
 
 /**
  * "My move": the planner proposes up to 3 candidate moves. The student must
@@ -1354,25 +1265,40 @@ function renderMyMoveReveal() {
   const { moves, chosenMove, chosenReason } = state.mymove;
   const chosen = moves[chosenMove];
   const best = moves[0];   // sorted by deltaScore desc = greedy pick
-  const moveCorrect = chosenMove === 0;
-  const reasonCorrect = chosen.improved.includes(REASON_METRIC[chosenReason]);
+  const strictBest = chosenMove === 0;
+  // Near-tie tolerance: a move within a small band of the greedy best is still
+  // a correct prediction. Hybrid band so tiny deltas (0.3) don't get an
+  // absurdly tight band and big deltas (20) don't get an overly generous one.
+  const tieBand = Math.max(0.5, 0.10 * best.deltaScore);
+  const nearBest = chosen.deltaScore >= best.deltaScore - tieBand;
+  // The reason is correct when the picked chip matches ANY metric that rose —
+  // or, if nothing measurable rose (defensive), the metric this move's own
+  // reason narrates. Every proposed move carries `reasonMetric`, so the reason
+  // question always has an answerable path.
+  const reasonTarget = chosen.improved.length ? chosen.improved : (chosen.reasonMetric ? [chosen.reasonMetric] : []);
+  const reasonCorrect = reasonTarget.includes(REASON_METRIC[chosenReason]);
   const meta = goalMetaForWeights();
 
+  let banner, bannerCls;
+  if (strictBest && reasonCorrect) { banner = '🎉 Spot on! You picked the best move and the right reason.'; bannerCls = 'good'; }
+  else if (strictBest) { banner = '😮 You picked the best move, but the reason was off — look at which part actually changed.'; bannerCls = 'meh'; }
+  else if (nearBest && reasonCorrect) { banner = '👍 Great eye — your move scored within a whisker of the best, and the reason was right.'; bannerCls = 'good'; }
+  else if (nearBest) { banner = '😮 Your move scored within a whisker of the best, but the reason was off — look at which part actually changed.'; bannerCls = 'meh'; }
+  else if (reasonCorrect) { banner = '👍 Good reason, but not the best move. Compare below.'; bannerCls = 'meh'; }
+  else { banner = '🤔 Not quite — here\u2019s what actually helped. Look at the numbers!'; bannerCls = 'meh'; }
+
   body.innerHTML = `
-    <div class="reveal-correct ${moveCorrect && reasonCorrect ? 'good' : 'meh'}">
-      ${moveCorrect && reasonCorrect ? '🎉 Spot on! You picked the best move and the right reason.' :
-        moveCorrect ? '😮 You picked the best move, but the reason was off — look at which part actually changed.' :
-        reasonCorrect ? '👍 Good reason, but not the best move. Compare below.' :
-        '🤔 Not quite — here\u2019s what actually helped. Look at the numbers!'}
+    <div class="reveal-correct ${bannerCls}">
+      ${banner}
     </div>
     <div class="mymove-question">How the maths changed for <strong>${moveLabel(chosen)}</strong>:</div>
-    <div class="reveal-receipt">${receiptDeltaHTML(chosen, chosenReason)}</div>
+    <div class="reveal-receipt">${receiptDeltaHTML(chosen, chosenReason, reasonCorrect)}</div>
     ${chosenMove !== 0 ? `<div class="reveal-greedy">
       <strong>The computer would have picked:</strong> ${moveLabel(best)} (${best.deltaScore > 0 ? '+' : ''}${best.deltaScore} points).
       It works like a hill-climber — it only looks one step ahead and grabs the biggest gain now.
     </div>` : ''}
     <div class="reveal-greedy">
-      <strong>Hill-climbing rule:</strong> try one change, keep it only if the score goes up, then try again. That\u2019s all the planner does — one step at a time.
+      <strong>Hill-climbing rule:</strong> try one change, and keep it if the score goes up (the full plan may also keep a change that dips the score a little to fix something important). Then try again — one step at a time.
     </div>
     <div class="goals-actions">
       <button id="mymove-apply" class="plan-apply">✅ Apply my move</button>
@@ -1444,14 +1370,16 @@ function moveLabel(m) {
   return 'Change';
 }
 
-function receiptDeltaHTML(move, chosenReason) {
+function receiptDeltaHTML(move, chosenReason, reasonCorrect) {
   const metricLabel = { accessibility: 'walk to a road', coverage: 'schools/shops/help nearby', utilities: 'water/power/bus', zoning: 'quiet for homes', spread: 'spread out', balance: 'building mix', green: 'parks' };
   const metricEmoji = { accessibility: '🛣️', coverage: '🏘️', utilities: '💧', zoning: '🤫', spread: '🧩', balance: '⚖️', green: '🌳' };
   const lines = move.improved.length ? move.improved.map((m) => {
     return `<div class="rr-line"><span>${metricEmoji[m] || ''} ${metricLabel[m] || m}</span><span class="rr-up">↑ improved</span></div>`;
   }) : [];
+  // The ✓/✗ badge must use the SAME correctness answer as the banner above
+  // (which falls back to reasonMetric when `improved` is empty).
   const reasonBadge = chosenReason
-    ? `<div class="rr-line"><span>Your reason: ${REASON_CHIPS.find((r) => r.id === chosenReason)?.label || ''}</span><span class="${move.improved.includes(REASON_METRIC[chosenReason]) ? 'rr-up' : 'rr-down'}">${move.improved.includes(REASON_METRIC[chosenReason]) ? '✓ right!' : '✗ not the change'}</span></div>`
+    ? `<div class="rr-line"><span>Your reason: ${REASON_CHIPS.find((r) => r.id === chosenReason)?.label || ''}</span><span class="${reasonCorrect ? 'rr-up' : 'rr-down'}">${reasonCorrect ? '✓ right!' : '✗ not the change'}</span></div>`
     : '';
   return `
     <div class="rr-line"><strong>City Score</strong><strong>${move.beforeScore} → ${move.afterScore} (+${move.deltaScore})</strong></div>
@@ -1642,9 +1570,10 @@ const METRIC_LABEL = {
   spread: 'mission buildings spread out',
   zoning: 'quieter for homes',
   balance: 'better building mix',
+  green: 'parks & green space',
 };
 const METRIC_ICON = {
-  accessibility: '🛣️', coverage: '🏘️', utilities: '💧', spread: '🧩', zoning: '🤫', balance: '⚖️',
+  accessibility: '🛣️', coverage: '🏘️', utilities: '💧', spread: '🧩', zoning: '🤫', balance: '⚖️', green: '🌳',
 };
 
 function metricBadges(improved) {
@@ -1914,6 +1843,9 @@ if (importBackupBtn) {
 
 // Score receipt — tap the City Score ring.
 document.getElementById('score').addEventListener('click', openReceipt);
+document.getElementById('score').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openReceipt(); }
+});
 document.getElementById('receipt-done').addEventListener('click', closeReceipt);
 
 // ── Planner's License (unlock gate) ─────────────────────
@@ -1928,21 +1860,21 @@ function maybeLock() {
 }
 
 function tryUnlock(raw) {
-  let parsed;
-  try { parsed = JSON.parse(raw); } catch (e) {
-    document.getElementById('lock-error').textContent = 'That doesn\u2019t look like a valid file. Try the Algorithm File from the training.';
-    return;
-  }
-  if (parsed && parsed.key === LICENSE_KEY) {
+  const errEl = document.getElementById('lock-error');
+  // Forgiving match: trim, ignore case, accept the key anywhere in the text.
+  // A pasted/uploaded license (or a file that got wrapped in prose) still
+  // unlocks. This is a soft gate for kids — never an error wall.
+  const hasKey = typeof raw === 'string' && raw.toUpperCase().includes(LICENSE_KEY);
+  if (hasKey) {
     try { localStorage.setItem(UNLOCK_STORAGE_KEY, '1'); } catch (e) { /* ignore */ }
     document.getElementById('lock-overlay').classList.add('hidden');
     toast('🔓 Unlocked! Your city awaits, Junior Planner.');
     aiOutput.innerHTML = '<span class="ai-buddy">Nova</span> Well done! You earned the Planner\u2019s License. Let\u2019s build your city. 🌟';
     updateMetrics();
     render();
-  } else {
-    document.getElementById('lock-error').textContent = 'Hmm — that file doesn\u2019t have the right key. Did you finish the City Planning Academy and download the Algorithm File?';
+    return;
   }
+  errEl.textContent = 'That doesn\u2019t look like a license file. Fastest fix: tap \u201CGo to City Planning Academy\u201D and finish the training (\u224810 min) \u2014 it opens the planner on this tablet.';
 }
 
 (function wireLock() {
@@ -1992,7 +1924,6 @@ function toast(msg) {
 // Restore a saved layout if present, else center the view.
 (function init() {
   buildDrawer();
-  initFarmMenu();
   wireSaveModal();
   let saved = null;
   try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* ignore */ }

@@ -36,6 +36,8 @@ export const CF_KEYS = {
   coachSeen: 'p5_city_planner_coach_v1',
   pregame: 'p5_pregame_progress',
   badges: 'p5_city_badges_v1',
+  caps: 'p5_city_capabilities_v1',
+  cityName: 'p5_city_save_name_v1',
 };
 
 /** Read every known key as its raw string (absent keys omitted). */
