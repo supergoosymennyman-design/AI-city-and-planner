@@ -41,7 +41,10 @@ export function httpError(status, message) { return Object.assign(new Error(mess
  */
 export function secretValues(env, byokKey) {
   const out = [];
-  if (typeof byokKey === 'string' && byokKey.length >= 8) out.push(byokKey);
+  // An EXPLICITLY supplied BYOK key is scrubbed regardless of length (Gemini pass-2 F4): we know it
+  // is a secret, so a short one must not slip into a log. Env values keep the >=8 guard, which only
+  // exists to avoid replacing generic short strings that are not keys.
+  if (typeof byokKey === 'string' && byokKey.length > 0) out.push(byokKey);
   for (const [k, v] of Object.entries(env || {})) {
     if (!/(_API_KEY|_KEY|_TOKEN|_SECRET)$/i.test(k)) continue;
     if (typeof v === 'string' && v.length >= 8) out.push(v);

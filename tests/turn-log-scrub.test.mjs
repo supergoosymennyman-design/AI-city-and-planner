@@ -27,7 +27,9 @@ test('secretValues collects the BYOK key and every *_KEY / *_API_KEY / *_TOKEN /
   assert.ok(vals.includes('tok-12345678'), 'SOME_TOKEN');
   assert.ok(vals.includes('secret-12345678'), 'A_SECRET');
   assert.ok(!vals.includes('https://example.test/v1'), 'URLs are not secrets');
-  assert.ok(!vals.includes('abc'), 'short values are ignored');
+  assert.ok(!vals.includes('abc'), 'short env values are ignored');
+  // But an explicitly supplied BYOK key is scrubbed regardless of length (pass-2 F4).
+  assert.ok(secretValues({}, 'abc').includes('abc'), 'a short BYOK key is still scrubbed');
 });
 
 test('scrubSecrets replaces every secret with [key] and caps the result', () => {
