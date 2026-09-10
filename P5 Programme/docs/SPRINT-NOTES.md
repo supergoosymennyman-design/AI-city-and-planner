@@ -73,3 +73,49 @@ Plan of record: the five themes in `docs/ai-concept-map.md` +
 Commits: still DEFERRED (same untracked-folder reason as the first cycle).
 Deploy: city-sim + home deployed and live-verified (see run log).
 
+---
+
+# Sprint notes — Durability + correctness cycle (2026-09-10, gemini-pro run)
+
+Follow-up to the AI-depth cycle. Three locked decisions: scoped commit (leave
+pre-existing deletions), milestones become durable in the Champion File +
+Inspector's Logbook, and the Academy gets zh-Hant. Three pro passes, each ≥100s
+apart.
+
+- **Sprint A — scoped commit.** Committed ONLY the AI-depth + durability files
+  (`city-common/optimize.js|walkability.js`, `city-planner/*`, `city-pregame/*`,
+  `home/*`, deploy script, e2e static-server, docs, tests). Pre-existing
+  deletions (quaternius GLBs, root configs) left unstaged. `.gitignore` now
+  excludes the large reference PDFs. 128 unit tests green at commit time.
+- **Sprint B — bilingual Academy (pro pass #1).** New `city-pregame/i18n.js`
+  (181 keys, en + zh-Hant) mirroring the planner's pattern, keyed off
+  `hk_ai_city_lang_v1`. `app.js` renders every room string, weight-lab UI,
+  Dijkstra narration, escape beat, four bridges and the journey strip via
+  `t()/tf()`; fixed `中/EN` toggle; `data-i18n` chrome. Deploy copies `i18n.js`.
+  New `tests/pregame-i18n.test.mjs` (key parity + placeholder/HTML survival +
+  acceptance strings). Live-verified `/pregame/` renders zh-Hant.
+- **Sprint C — deterministic Optimise + Explore honesty (pro pass #2).** New
+  `stableSeed()` (FNV-1a over canonical JSON — sorted keys, order-independent
+  building/road arrays) replaces `Date.now()^Math.random()` in `askOptimise()`
+  and `runMyMove()`. ONE seed shared by Greedy + Explore so Explore's restart #0
+  reproduces Greedy (Explore ≥ Greedy). Strategy deliberately excluded (pro
+  confirmed). Proved Explore strictly beats Greedy (+3: 86 vs 89) on a realistic
+  hand-placed child-town fixture; 4 new tests. Live-verified two Optimise presses
+  produce an identical plan.
+- **Sprint D — durable milestones (pro pass #3).** New
+  `city-common/milestones.js`: `{id,date,evidence}` store, added to
+  `champion-file.js` `CF_KEYS` so milestones travel cross-device. Taxonomy
+  audited against `badges-and-tiers.md`: dropped the `≥0.999` and `score 95+`
+  triggers (Overfitter's Trap) for six LOCAL capability gates
+  (first_connection, services_nearby, safe_routes, smart_zoning,
+  spread_services, green_nearby). Legacy id-array migrates to v2. Rendered in
+  the 3D Inspector's Logbook via a pure `milestoneSectionHTML(state, lang)`
+  (EN + zh-Hant). New `tests/milestones.test.mjs` (16 tests); e2e Logbook spec
+  now asserts the milestones section.
+
+Verify: unit **151 pass**, library audit PASS, built-bundle e2e **12/12 pass**,
+import-graph OK. Deploy: `p5-city-sim` + `p5-home` deployed; live smoke — pregame
+zh-Hant, planner durable milestones + deterministic Optimise, hub journey links.
+(The MCP headless browser has no WebGL, so the 3D Logbook was smoke-tested via
+the e2e chromium instead.)
+
