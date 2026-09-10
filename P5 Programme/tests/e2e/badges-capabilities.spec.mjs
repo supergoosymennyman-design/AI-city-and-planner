@@ -13,10 +13,15 @@ async function bootCity(page) {
     sessionStorage.setItem('seeded', '1');
     localStorage.setItem('p5_planner_unlocked', '1');
     localStorage.setItem('p5_city_planner_layout_v1', LAYOUT);
+    // A durable, capability-based milestone (see city-common/milestones.js).
+    localStorage.setItem('p5_city_milestones_v1', JSON.stringify({
+      version: 2,
+      earned: [{ id: 'first_connection', date: '2026-09-10T00:00:00.000Z', evidence: { homes: 2 } }],
+    }));
   }, { LAYOUT });
   await page.goto('/city-builder/', { waitUntil: 'load' });
   await page.waitForTimeout(2000);
-  await page.evaluate(() => { const el = [...document.querySelectorAll('button')].find((b) => /continue my city|saved city|empty sample|開始|繼續|示範/i.test(b.textContent || '')); if (el) el.click(); });
+  await page.evaluate(() => { const el = [...document.querySelectorAll('button')].find((b) => /continue my city|saved city|example city|empty sample|開始|繼續|示範/i.test(b.textContent || '')); if (el) el.click(); });
   await expect(page.locator('canvas')).toBeVisible({ timeout: 60000 });
   await page.waitForFunction(() => document.getElementById('loading')?.classList.contains('done') === true, null, { timeout: 60000 });
 }
@@ -33,6 +38,10 @@ test('badge emblem shows the lowest tier (Builder) and opens the Logbook', async
   const body = await page.locator('#logbook-body').textContent();
   expect(body).toContain('Builder');
   expect(body).toContain('Architect'); // the ladder is shown, future tiers locked
+  // Durable milestones render here too (recognition, never a gate).
+  expect(body).toContain('Milestones you earned');
+  expect(body).toContain('First Neighbourhood');
+  expect(body).toContain('Not earned yet'); // unearned rows stay visible
   expect(errors, `pageerrors:\n${errors.join('\n') || '(none)'}`).toEqual([]);
 });
 
@@ -44,6 +53,6 @@ test('capability panel opens and shows an honest empty state', async ({ page }) 
   await page.locator('#cap-btn').click();
   await expect(page.locator('#cap-modal')).toBeVisible();
   const body = await page.locator('#cap-body').textContent();
-  expect(body).toContain('No planted machines');
+  expect(body).toContain('No planted AI machines');
   expect(errors, `pageerrors:\n${errors.join('\n') || '(none)'}`).toEqual([]);
 });
