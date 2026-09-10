@@ -19,6 +19,9 @@
  */
 
 import { WEIGHT_LAB, weightLabTotal, DIJKSTRA_LESSON, DIJKSTRA_BUS_DIST, dijkstraReveal, dijkstraWinner } from './lesson-core.js';
+import { initI18n, currentLang, t, tf, applyStatic, mountLangToggle } from './i18n.js';
+
+initI18n();
 
 // ── The Planner's License ───────────────────────────────
 // Shared with the 2D planner's lock gate (soft gate, not security).
@@ -28,67 +31,31 @@ const PROGRESS_KEY = 'p5_pregame_progress';
 // Same-origin unlock flag the 2D planner checks (planner.js UNLOCK_STORAGE_KEY).
 const UNLOCK_STORAGE_KEY = 'p5_planner_unlocked';
 
-// ── Room content (story / maths / why) ──────────────────
-const ROOMS = {
-  1: {
-    title: 'Report Card Room',
-    emoji: '📋',
-    story: 'Welcome to the Report Card Room! A city is like a school report: not every subject counts the same. Our planner uses a weighted report card.',
-    math: [
-      'Each part gets a sub-score from 0 to 100. Multiply it by its weight, then add everything together.',
-      'The weights are fixed: <code>near roads 30%</code>, <code>services 25%</code>, <code>quiet 15%</code>, <code>spread 10%</code>, <code>mix 10%</code>, <code>utilities 10%</code>.',
-    ],
-    whyTitle: 'Why these weights?',
-    why: [
-      'Near roads (30%) is the biggest because roads are the city\u2019s skeleton — a school or shop nobody can reach is useless, however good it is.',
-      'Services near homes (25%) comes next: a home is only a home if school, shop, hospital, fire and police are within reach.',
-      'Quiet (15%) matters because living beside a noisy factory is unpleasant, but it doesn\u2019t stop a city from working.',
-      'Spread, mix and utilities (10% each) make a city nicer to live in, but the city still works even if they aren\u2019t perfect.',
-    ],
-    bridge: 'In the planner, the City Score is exactly this report card: every part gets a sub-score, you multiply by its weight, and add it all up. Pick a Mayor and the weights change — that\u2019s the whole trick.',
-  },
-  2: {
-    title: 'Leash Garden',
-    emoji: '🦮',
-    story: 'Step into the Leash Garden. Imagine a dog tied to a post — it can only reach a circle around it. Homes work the same way: a school, shop or hospital is only useful if you can walk there easily. If something is too far, people just won\u2019t use it — so the planner only counts it within a convenient walking distance.',
-    math: [
-      'Services — school, shop, hospital, fire, police — count for a home if they are within <code>150m</code>. Utilities — water, power, bus — count within <code>400m</code>.',
-      'On our map, <code>1 square = 50m</code>. So 150m = 3 squares, and 400m = 8 squares.',
-    ],
-    whyTitle: 'Why two distances?',
-    why: [
-      'You use a school or shop every day, so it must be really close — 150m.',
-      'Water, power and buses you need less often (or they reach you through pipes and wires), so 400m is fine.',
-    ],
-    bridge: 'In the planner, tap ⭕ Ranges and you\u2019ll see these circles drawn around every building. A home is only \u201cserved\u201d when a school, shop, hospital, fire or police station sits inside its circle.',
-  },
-  3: {
-    title: 'Ant Trail Room',
-    emoji: '🐜',
-    story: 'In the Ant Trail Room, remember: ants cannot fly. They follow paths. Our planner walks along roads, not through buildings.',
-    math: [
-      'Roads form a network. Add only the road pieces you use. If a route uses 120m + 100m + 180m, the walk is 400m.',
-      'A straight line is not enough if there is no road. The walk budget is <code>400m</code>; the shortest legal route wins.',
-    ],
-    whyTitle: null,
-    why: null,
-    bridge: 'When you tap 🚶 Walk in the planner, it runs exactly this search on YOUR roads — it finds the real walking route to school, shop and park, never a straight line through buildings.',
-  },
-  4: {
-    title: 'Foggy Mountain Room',
-    emoji: '⛰️',
-    story: 'Last is the Foggy Mountain. You cannot see the top, only the next step. Climb carefully!',
-    math: [
-      'The algorithm tries one small change. If the city score goes <strong>up</strong>, it keeps the change. If the score goes down or stays the same, it undoes the change. Repeat.',
-      'Example: 63 → 65, keep; 65 → 61, undo. It is greedy and only looks one step ahead, so it can get stuck on a local optimum — a small hill.',
-    ],
-    whyTitle: null,
-    why: null,
-    bridge: 'The planner\u2019s 🧮 Optimise button is this hiker — it keeps every step that improves the score. Now you know why it can stop early on a small hill, and that a fresh start (Explore) can climb higher.',
-  },
-};
-
+// ── Room content (localized at render time) ─────────────
+// The teaching copy lives in i18n.js keyed per room; buildRooms() assembles it
+// for the active language and is rebuilt on `i18n:change`.
+const ROOM_EMOJI = { 1: '📋', 2: '🦮', 3: '🐜', 4: '⛰️' };
+const ROOM_WHY_COUNT = { 1: 4, 2: 2, 3: 0, 4: 0 };
 const ROOM_ORDER = [1, 2, 3, 4];
+
+function buildRooms() {
+  const out = {};
+  for (const n of ROOM_ORDER) {
+    const whyCount = ROOM_WHY_COUNT[n];
+    out[n] = {
+      title: t(`room.${n}.title`),
+      emoji: ROOM_EMOJI[n],
+      story: t(`room.${n}.story`),
+      math: [0, 1].map((i) => t(`room.${n}.math.${i}`)),
+      whyTitle: whyCount ? t(`room.${n}.whyTitle`) : null,
+      why: whyCount ? Array.from({ length: whyCount }, (_, i) => t(`room.${n}.why.${i}`)) : null,
+      bridge: t(`room.${n}.bridge`),
+      hints: { 1: t(`hint.${n}.1`), 2: t(`hint.${n}.2`) },
+    };
+  }
+  return out;
+}
+let ROOMS = buildRooms();
 
 // ── State ───────────────────────────────────────────────
 const state = {
@@ -178,16 +145,16 @@ function hintButton(room, container) {
   wrap.className = 'hint-row';
   const btn = document.createElement('button');
   btn.className = 'btn-hint';
-  btn.textContent = '💡 Hint';
+  btn.textContent = t('pg.room.hint');
   btn.addEventListener('click', () => {
     state.hintLevel[room] = Math.min(2, (state.hintLevel[room] || 0) + 1);
     const level = state.hintLevel[room];
-    const t = ROOMS[room].hints && ROOMS[room].hints[level];
+    const hint = ROOMS[room].hints && ROOMS[room].hints[level];
     let f = Array.from(container.children).find((c) => c.classList && c.classList.contains('feedback'));
     if (!f) { f = document.createElement('div'); f.className = 'feedback'; container.appendChild(f); }
-    if (t) {
+    if (hint) {
       f.className = 'feedback';
-      f.innerHTML = `<span class="icon" aria-hidden="true">💡</span> ${t}`;
+      f.innerHTML = `<span class="icon" aria-hidden="true">💡</span> ${hint}`;
     }
     if (!ROOMS[room].hints[level + 1]) btn.disabled = true;
   });
@@ -200,13 +167,13 @@ function completeRoom(room) {
   state.currentRoom = null;
   saveProgress();
   updateNav();
-  toast(`✅ ${ROOMS[room].title} complete!`);
+  toast(tf('pg.room.complete', { title: ROOMS[room].title }));
   const nav = document.getElementById('room-next-nav');
   if (nav) {
     nav.innerHTML = '';
     const next = document.createElement('button');
     next.className = 'btn-primary';
-    next.textContent = room === 4 ? '🎓 Graduate' : '➡️ Next room';
+    next.textContent = room === 4 ? t('pg.room.graduate') : t('pg.room.next');
     next.addEventListener('click', () => {
       if (room === 4) graduate();
       else { state.currentRoom = room + 1; showScreen('rooms'); window.scrollTo({ top: 0 }); }
@@ -218,7 +185,7 @@ function completeRoom(room) {
 // ── Room renderer ───────────────────────────────────────
 function roomPathHTML(current) {
   // A visual journey strip: 4 rooms in order, marked done/current/next.
-  return `<div class="room-path" role="list" aria-label="Your training journey">
+  return `<div class="room-path" role="list" aria-label="${t('pg.room.pathAria')}">
     ${ROOM_ORDER.map((r) => {
     const rinfo = ROOMS[r];
     const done = !!state.completed[r];
@@ -229,7 +196,7 @@ function roomPathHTML(current) {
     const prevDone = r === 1 || !!state.completed[r - 1];
     const reachable = done || cur || prevDone;
     return `<button class="path-step ${done ? 'done' : ''} ${cur ? 'current' : ''}"
-        data-room="${r}" role="listitem" aria-label="Room ${r}: ${rinfo.title}" ${reachable ? '' : 'aria-disabled="true" disabled'}>
+        data-room="${r}" role="listitem" aria-label="${tf('pg.room.pathStepAria', { n: r, title: rinfo.title })}" ${reachable ? '' : 'aria-disabled="true" disabled'}>
         <span class="path-emoji">${rinfo.emoji}</span>
         <span class="path-name">${rinfo.title}</span>
         <span class="path-flag">${done ? '✓' : cur ? '▶' : ''}</span>
@@ -247,14 +214,14 @@ function renderRoom(room) {
   el.innerHTML = `
     <div class="room-path-wrap">${roomPathHTML(room)}</div>
     <div class="room-header">
-      <span class="room-tag">Training Room ${room} of 4</span>
+      <span class="room-tag">${tf('pg.room.tag', { n: room })}</span>
       <h2>${r.emoji} ${r.title}</h2>
       <p class="room-intro">${r.story}</p>
     </div>
     <div class="room-body">
-      ${r.bridge ? `<div class="bridge-box">🔗 <strong>Why this matters in the planner:</strong> ${r.bridge}</div>` : ''}
+      ${r.bridge ? `<div class="bridge-box">🔗 <strong>${t('pg.room.bridgeLabel')}</strong> ${r.bridge}</div>` : ''}
       ${r.math.map((m) => `<div class="math-block">${m}</div>`).join('')}
-      ${r.why ? `<div class="why-box"><strong>${r.whyTitle || 'Why?'}</strong><ul>${r.why.map((w) => `<li>${w}</li>`).join('')}</ul></div>` : ''}
+      ${r.why ? `<div class="why-box"><strong>${r.whyTitle || t('pg.room.whyFallback')}</strong><ul>${r.why.map((w) => `<li>${w}</li>`).join('')}</ul></div>` : ''}
       <div id="challenge-${room}" class="challenge-box"></div>
       <div id="room-next-nav" class="room-nav-slot"></div>
     </div>
@@ -282,12 +249,12 @@ function renderRoom(room) {
 // ════════════════════════════════════════════════════════════
 function challenge1(container) {
   const rows = [
-    { label: 'Near roads', score: 90, w: '30%', ans: 27 },
-    { label: 'Services', score: 70, w: '25%', ans: 17.5 },
-    { label: 'Quiet', score: 80, w: '15%', ans: 12 },
-    { label: 'Spread', score: 60, w: '10%', ans: 6 },
-    { label: 'Mix', score: 70, w: '10%', ans: 7 },
-    { label: 'Utilities', score: 90, w: '10%', ans: 9 },
+    { label: t('c1.row.nearRoads'), score: 90, w: '30%', ans: 27 },
+    { label: t('c1.row.services'), score: 70, w: '25%', ans: 17.5 },
+    { label: t('c1.row.quiet'), score: 80, w: '15%', ans: 12 },
+    { label: t('c1.row.spread'), score: 60, w: '10%', ans: 6 },
+    { label: t('c1.row.mix'), score: 70, w: '10%', ans: 7 },
+    { label: t('c1.row.utilities'), score: 90, w: '10%', ans: 9 },
   ];
   const TOTAL = 78.5;
   const MAX_PRODUCT = 27;
@@ -300,37 +267,39 @@ function challenge1(container) {
   }
   const fills = Array(rows.length).fill(null);
 
+  const leftName = t('c1.lab.left');
+  const rightName = t('c1.lab.right');
   container.innerHTML = `
     <div class="lab-card" id="rc-lab">
-      <h3>🎛️ Try it: what does a weight DO?</h3>
-      <p>Two subjects, two sub-scores. Slide the divider to give <strong>${WEIGHT_LAB.left.name}</strong> more or less of the 100%. Watch the total move — a weight is how much a part is allowed to matter.</p>
+      <h3>${t('c1.lab.title')}</h3>
+      <p>${tf('c1.lab.intro', { left: leftName })}</p>
       <div class="lab-track" id="lab-track">
         <div class="lab-half lab-left">
-          <div class="lab-name">${WEIGHT_LAB.left.name}</div>
-          <div class="lab-score">score ${WEIGHT_LAB.left.score}</div>
+          <div class="lab-name">${leftName}</div>
+          <div class="lab-score">${tf('c1.lab.score', { n: WEIGHT_LAB.left.score })}</div>
           <div class="lab-share" id="lab-left-share">50%</div>
         </div>
         <input type="range" class="lab-slider" id="lab-slider" min="0" max="100" value="50" step="1"
-          aria-label="Weight split between ${WEIGHT_LAB.left.name} and ${WEIGHT_LAB.right.name}">
+          aria-label="${tf('c1.lab.sliderAria', { left: leftName, right: rightName })}">
         <div class="lab-half lab-right">
-          <div class="lab-name">${WEIGHT_LAB.right.name}</div>
-          <div class="lab-score">score ${WEIGHT_LAB.right.score}</div>
+          <div class="lab-name">${rightName}</div>
+          <div class="lab-score">${tf('c1.lab.score', { n: WEIGHT_LAB.right.score })}</div>
           <div class="lab-share" id="lab-right-share">50%</div>
         </div>
       </div>
-      <div class="lab-total"><span>Weighted total</span><strong id="lab-total">${weightLabTotal(0.5, [WEIGHT_LAB.left.score, WEIGHT_LAB.right.score])}</strong></div>
-      <p class="lab-note">See it? Give ${WEIGHT_LAB.left.name} (score ${WEIGHT_LAB.left.score}) more weight and the total climbs toward ${WEIGHT_LAB.left.score}. Give ${WEIGHT_LAB.right.name} (score ${WEIGHT_LAB.right.score}) more and it falls toward ${WEIGHT_LAB.right.score}.</p>
+      <div class="lab-total"><span>${t('c1.lab.total')}</span><strong id="lab-total">${weightLabTotal(0.5, [WEIGHT_LAB.left.score, WEIGHT_LAB.right.score])}</strong></div>
+      <p class="lab-note">${tf('c1.lab.note', { left: leftName, ls: WEIGHT_LAB.left.score, right: rightName, rs: WEIGHT_LAB.right.score })}</p>
     </div>
-    <p><strong>Challenge:</strong> Complete the city report card. Tap a number tile, then tap the box for the part it belongs to. Then type the total.</p>
+    <p>${t('c1.challenge')}</p>
     <div class="report-card" id="rc-rows"></div>
-    <div class="tile-tray" id="rc-tiles" aria-label="Number tiles"></div>
+    <div class="tile-tray" id="rc-tiles" aria-label="${t('c1.tilesAria')}"></div>
     <div class="stacked-total" id="rc-stacked" aria-hidden="true"></div>
-    <div class="total-caption" id="rc-caption">Total so far: 0</div>
-    <div class="section-label">Total score (add them all up)</div>
+    <div class="total-caption" id="rc-caption">${tf('c1.totalCaption', { n: 0 })}</div>
+    <div class="section-label">${t('c1.totalLabel')}</div>
     <div class="input-row">
-      <label class="sr-only" for="rc-total">Total score</label>
-      <input type="text" inputmode="decimal" id="rc-total" placeholder="Type the total, e.g. 78.5">
-      <button class="btn-primary" id="rc-check">✅ Check</button>
+      <label class="sr-only" for="rc-total">${t('c1.totalLabel')}</label>
+      <input type="text" inputmode="decimal" id="rc-total" placeholder="${t('c1.totalPlaceholder')}">
+      <button class="btn-primary" id="rc-check">${t('c1.check')}</button>
     </div>
   `;
 
@@ -361,7 +330,7 @@ function challenge1(container) {
       <span class="rc-label">${row.label}</span>
       <span class="rc-score">${row.score}</span>
       <span class="rc-weight">× ${row.w}</span>
-      <span class="rc-box" data-i="${i}" role="button" tabindex="0" aria-label="${row.label} product box">?</span>
+      <span class="rc-box" data-i="${i}" role="button" tabindex="0" aria-label="${tf('c1.boxAria', { label: row.label })}">?</span>
       <div class="rc-bar" data-bar="${i}" style="--bar-c:${barColors[i % barColors.length]}"></div>
     `;
     rowsEl.appendChild(rowEl);
@@ -420,7 +389,7 @@ function challenge1(container) {
         updateStacked();
         return;
       }
-      feedback(container, 'Tap a number tile first!', false);
+      feedback(container, t('c1.fb.tileFirst'), false);
     };
     box.addEventListener('click', fillBox);
     box.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fillBox(); } });
@@ -434,17 +403,17 @@ function challenge1(container) {
       return `<div class="st-seg" style="flex-grow:${fills[i]};--seg-c:${barColors[i % barColors.length]}">${fills[i]}</div>`;
     }).join('');
     const sum = fills.reduce((a, b) => a + (b || 0), 0);
-    document.getElementById('rc-caption').textContent = `Total so far: ${(Math.round(sum * 10) / 10)}`;
+    document.getElementById('rc-caption').textContent = tf('c1.totalCaption', { n: (Math.round(sum * 10) / 10) });
   }
 
   document.getElementById('rc-check').addEventListener('click', () => {
-    if (!fills.every((f) => f !== null)) { feedback(container, 'Fill every box with a number tile first.', false); return; }
+    if (!fills.every((f) => f !== null)) { feedback(container, t('c1.fb.fillAll'), false); return; }
     const rowOk = rows.every((r, i) => Math.abs(fills[i] - r.ans) < 0.01);
     const totalInput = document.getElementById('rc-total').value.trim();
     const totalOk = Math.abs(parseTotal(totalInput) - TOTAL) < 0.01;
-    if (!rowOk) { feedback(container, 'Some multiplications are wrong. Hint: find 10% first, then multiply.', false); return; }
-    if (!totalOk) { feedback(container, 'The sub-scores are right — now add them all together for the total!', false); return; }
-    feedback(container, '🎉 Perfect! 27 + 17.5 + 12 + 6 + 7 + 9 = 78.5.', true);
+    if (!rowOk) { feedback(container, t('c1.fb.rowsWrong'), false); return; }
+    if (!totalOk) { feedback(container, t('c1.fb.totalWrong'), false); return; }
+    feedback(container, t('c1.fb.perfect'), true);
     completeRoom(1);
   });
 }
@@ -472,7 +441,7 @@ function buildCoverageTask(container, task) {
     const d2In = s.d2 <= limit;
     return `
       <g class="spot-row" data-spot="${s.id}" tabindex="0" role="button"
-         aria-label="${s.name}: home one ${s.d1}m, home two ${s.d2}m. Tap to see the ${limit}m reach.">
+         aria-label="${tf('c2.spotAria', { name: s.name, d1: s.d1, d2: s.d2, limit })}">
         <circle class="reach" cx="${cx}" cy="${y}" r="${limPx}" fill="#00ff9d"/>
         <line x1="${cx - limPx}" y1="${y}" x2="${cx + limPx}" y2="${y}" stroke="#00ff9d" stroke-dasharray="4 4" opacity="0.35"/>
         <circle cx="${cx}" cy="${y}" r="10" fill="#ffb84c" stroke="#0b132b" stroke-width="2"/>
@@ -487,25 +456,25 @@ function buildCoverageTask(container, task) {
   const card = document.createElement('div');
   card.className = 'task-card';
   card.innerHTML = `
-    <h3>${emoji} ${title} — ${limit}m leash (${limit / 50} squares)</h3>
-    <p>Tap a spot to see its reach circle. Then mark each spot <strong>OK</strong> (both homes inside) or <strong>TOO FAR</strong>.</p>
+    <h3>${tf('c2.cardTitle', { emoji, title, limit, squares: limit / 50 })}</h3>
+    <p>${t('c2.intro')}</p>
     <div class="cover-map" aria-hidden="true">
-      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${title} coverage map">
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${tf('c2.svgAria', { title })}">
         ${svgRows}
       </svg>
     </div>
-    <div class="legend-line">1 square = 50 m · the dashed ring shows the ${limit}m reach</div>
-    <table class="mark-table" role="group" aria-label="Mark each ${title} OK or TOO FAR">
-      <tr><th>Spot</th><th>Home 1</th><th>Home 2</th><th>OK</th><th>Too far</th></tr>
+    <div class="legend-line">${tf('c2.legend', { limit })}</div>
+    <table class="mark-table" role="group" aria-label="${tf('c2.tableAria', { title })}">
+      <tr><th>${t('c2.th.spot')}</th><th>${t('c2.th.home1')}</th><th>${t('c2.th.home2')}</th><th>${t('c2.th.ok')}</th><th>${t('c2.th.toofar')}</th></tr>
       ${spots.map((s) => `
         <tr data-mark="${s.id}">
           <td>${s.name}</td><td>${s.d1}m</td><td>${s.d2}m</td>
-          <td><button class="mark-btn ok" data-mark-val="ok">OK</button></td>
-          <td><button class="mark-btn toofar" data-mark-val="toofar">TOO FAR</button></td>
+          <td><button class="mark-btn ok" data-mark-val="ok">${t('c2.markOk')}</button></td>
+          <td><button class="mark-btn toofar" data-mark-val="toofar">${t('c2.markTooFar')}</button></td>
         </tr>`).join('')}
     </table>
-    <p>Now pick the best spot (both homes inside the ${limit}m leash).</p>
-    <div class="best-row" role="radiogroup" aria-label="Best ${title}">
+    <p>${tf('c2.bestIntro', { limit })}</p>
+    <div class="best-row" role="radiogroup" aria-label="${tf('c2.bestAria', { title })}">
       ${spots.map((s) => `<button class="btn-best" data-best="${s.id}">${s.name}</button>`).join('')}
     </div>
   `;
@@ -550,27 +519,27 @@ function buildCoverageTask(container, task) {
 
 function challenge2(container) {
   const shop = buildCoverageTask(container, {
-    emoji: '🛍️', title: 'Shop — service',
+    emoji: '🛍️', title: t('c2.shopTitle'),
     limit: 150, best: 'B',
     spots: [
-      { id: 'A', name: 'Spot A', d1: 100, d2: 200 },
-      { id: 'B', name: 'Spot B', d1: 150, d2: 150 },
-      { id: 'C', name: 'Spot C', d1: 50, d2: 250 },
+      { id: 'A', name: t('c2.spotA'), d1: 100, d2: 200 },
+      { id: 'B', name: t('c2.spotB'), d1: 150, d2: 150 },
+      { id: 'C', name: t('c2.spotC'), d1: 50, d2: 250 },
     ],
   });
   const bus = buildCoverageTask(container, {
-    emoji: '🚌', title: 'Bus stop — utility',
+    emoji: '🚌', title: t('c2.busTitle'),
     limit: 400, best: 'Y',
     spots: [
-      { id: 'X', name: 'Stop X', d1: 300, d2: 500 },
-      { id: 'Y', name: 'Stop Y', d1: 350, d2: 400 },
-      { id: 'Z', name: 'Stop Z', d1: 100, d2: 450 },
+      { id: 'X', name: t('c2.stopX'), d1: 300, d2: 500 },
+      { id: 'Y', name: t('c2.stopY'), d1: 350, d2: 400 },
+      { id: 'Z', name: t('c2.stopZ'), d1: 100, d2: 450 },
     ],
   });
 
   const check = document.createElement('div');
   check.className = 'input-row';
-  check.innerHTML = '<button class="btn-primary" id="rc2-check">✅ Check</button>';
+  check.innerHTML = `<button class="btn-primary" id="rc2-check">${t('c2.check')}</button>`;
   container.appendChild(check);
 
   const markOk = (task) => task.spots.every((s) => {
@@ -581,11 +550,11 @@ function challenge2(container) {
   });
 
   document.getElementById('rc2-check').addEventListener('click', () => {
-    if (!markOk(shop)) { feedback(container, 'Some shop OK / TOO FAR marks are wrong. A shop counts only if BOTH homes are within 150m.', false); return; }
-    if (!markOk(bus)) { feedback(container, 'Some bus OK / TOO FAR marks are wrong. A bus stop counts only if BOTH homes are within 400m.', false); return; }
-    if (shop.bestPick.val !== 'B') { feedback(container, 'The shop marks are right, but the best shop spot is wrong. Pick the spot where BOTH homes are within 150m.', false); return; }
-    if (bus.bestPick.val !== 'Y') { feedback(container, 'The bus marks are right, but the best bus spot is wrong. Pick the stop where BOTH homes are within 400m.', false); return; }
-    feedback(container, '🎉 Shop = Spot B, Bus stop = Stop Y. Both homes are within range!', true);
+    if (!markOk(shop)) { feedback(container, t('c2.fb.shopMarks'), false); return; }
+    if (!markOk(bus)) { feedback(container, t('c2.fb.busMarks'), false); return; }
+    if (shop.bestPick.val !== 'B') { feedback(container, t('c2.fb.shopBest'), false); return; }
+    if (bus.bestPick.val !== 'Y') { feedback(container, t('c2.fb.busBest'), false); return; }
+    feedback(container, t('c2.fb.perfect'), true);
     completeRoom(2);
   });
 }
@@ -611,7 +580,7 @@ const SEARCH_POS = {
 function buildSearchSvg(svg, graph) {
   svg.setAttribute('viewBox', '0 0 520 260');
   svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', 'Road network diagram from HOME to BUS');
+  svg.setAttribute('aria-label', t('c3.searchSvgAria'));
   let inner = '<rect width="520" height="260" fill="#0b132b" rx="10"/>';
   for (const [a, b, len] of graph.edges) {
     const pa = SEARCH_POS[a], pb = SEARCH_POS[b];
@@ -642,13 +611,13 @@ function runSearchStage(container, onDone) {
   const stage = document.createElement('div');
   stage.className = 'search-stage';
   stage.innerHTML = `
-    <h3>🔍 First, watch the planner SEARCH</h3>
-    <p>It can\u2019t guess. From HOME it marks every crossing it can reach, then confirms the <strong>closest one first</strong>, spreads out, and updates if it finds a shorter way. Watch the distances appear:</p>
+    <h3>${t('c3.searchTitle')}</h3>
+    <p>${t('c3.searchIntro')}</p>
     <div class="search-map" aria-hidden="true"><svg id="c3-search-svg"></svg></div>
-    <div class="search-status" id="c3-search-status" aria-live="polite">Starting the search…</div>
+    <div class="search-status" id="c3-search-status" aria-live="polite">${t('c3.searchStatusStart')}</div>
     <div class="search-actions">
-      <button class="btn-secondary" id="c3-search-replay">↻ Replay</button>
-      <button class="btn-secondary" id="c3-search-skip">⏭ Skip to the challenge</button>
+      <button class="btn-secondary" id="c3-search-replay">${t('c3.replay')}</button>
+      <button class="btn-secondary" id="c3-search-skip">${t('c3.skip')}</button>
     </div>
   `;
   container.prepend(stage);
@@ -685,7 +654,7 @@ function runSearchStage(container, onDone) {
   function play() {
     const my = ++gen;
     let i = 0;
-    status.textContent = 'Starting the search…';
+    status.textContent = t('c3.searchStatusStart');
 
     // Instant-complete under prefers-reduced-motion.
     if (reduceMotion) { finish(my); return; }
@@ -702,13 +671,13 @@ function runSearchStage(container, onDone) {
         distText(ev.node, ev.dist);
         nodeState(ev.node, 'marked');
         status.textContent = had && Number.isFinite(old)
-          ? `Shorter way to ${ev.node} found — update ${old}m → ${ev.dist}m!`
-          : `The ant can reach ${ev.node} — mark ${ev.dist}m.`;
+          ? tf('c3.markFound', { node: ev.node, old, dist: ev.dist })
+          : tf('c3.markReach', { node: ev.node, dist: ev.dist });
       } else {
         nodeState(ev.node, 'settled');
         status.textContent = ev.node === 'H'
-          ? `HOME is 0m — the ant starts here.`
-          : `Confirm ${ev.node}: it\u2019s the closest marked crossing (${ev.dist}m). Now spread out from ${ev.node}.`;
+          ? t('c3.settleHome')
+          : tf('c3.settleNode', { node: ev.node, dist: ev.dist });
       }
       setTimeout(step, 720);
     };
@@ -723,7 +692,7 @@ function runSearchStage(container, onDone) {
     nodeState('BUS', 'settled');
     const busG = svg.querySelector('.dj-node[data-node="BUS"]');
     if (busG) busG.classList.add('bus-final');
-    status.innerHTML = `🏁 BUS reached at <strong>${DIJKSTRA_BUS_DIST}m</strong> — that\u2019s Route ${winner}, inside the 400m budget. The planner never took a straight line; it walked real roads and kept the shortest legal route. Now it\u2019s YOUR turn below.`;
+    status.innerHTML = tf('c3.busReached', { dist: DIJKSTRA_BUS_DIST, winner });
     stage.querySelector('#c3-search-replay').disabled = false;
     if (onDone) onDone();
   }
@@ -774,7 +743,7 @@ function challenge3(container) {
       return segLabel(mx, my + 4, seg);
     }).join('');
     return `
-      <g class="route-path" data-route="${r.id}" tabindex="0" role="button" aria-label="Route ${r.id}: ${r.segs.join(' + ')} metres">
+      <g class="route-path" data-route="${r.id}" tabindex="0" role="button" aria-label="${tf('c3.routeAria', { id: r.id, segs: r.segs.join(' + ') })}">
         <path class="road-base" d="${d}" fill="none" stroke="#445588" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
         <path class="road-walk" d="${d}" fill="none" stroke="#00ff9d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
         ${labels}
@@ -782,9 +751,9 @@ function challenge3(container) {
   }).join('');
 
   container.innerHTML = `
-    <p><strong>Challenge:</strong> Help the ant reach the bus stop. Tap a route to see the ant walk it. Add the road pieces, type the route total, and tell us if it fits the 400m budget.</p>
+    <p>${t('c3.challenge')}</p>
     <div class="road-map" aria-hidden="true">
-      <svg viewBox="0 0 480 270" role="img" aria-label="Road network with three routes from HOME to BUS STOP">
+      <svg viewBox="0 0 480 270" role="img" aria-label="${t('c3.svgAria')}">
         <rect x="20" y="42" width="58" height="40" fill="#1a2448" stroke="#334478" stroke-width="2" rx="4"/>
         <text x="49" y="67" text-anchor="middle" fill="#8899cc" font-size="11">HOME</text>
         <rect x="402" y="132" width="62" height="42" fill="#1a2448" stroke="#334478" stroke-width="2" rx="4"/>
@@ -797,24 +766,24 @@ function challenge3(container) {
       </svg>
     </div>
     <div class="budget-meter">
-      <div class="bm-label">Walk budget</div>
+      <div class="bm-label">${t('c3.budgetLabel')}</div>
       <div class="bm-bar"><div class="bm-fill" id="bm-fill"></div></div>
-      <div class="bm-value" id="bm-value">0 m / 400 m</div>
+      <div class="bm-value" id="bm-value">${tf('c3.budgetValue', { shown: 0 })}</div>
     </div>
-    <div class="route-buttons" role="radiogroup" aria-label="Choose a route">
-      ${routes.map((r) => `<button class="btn-route" data-route="${r.id}">Route ${r.id}</button>`).join('')}
+    <div class="route-buttons" role="radiogroup" aria-label="${t('c3.chooseRouteAria')}">
+      ${routes.map((r) => `<button class="btn-route" data-route="${r.id}">${tf('c3.route', { id: r.id })}</button>`).join('')}
     </div>
-    <div class="section-label">Chosen route total</div>
+    <div class="section-label">${t('c3.chosenTotal')}</div>
     <div class="input-row">
-      <label class="sr-only" for="route-total">Route total</label>
-      <input type="text" inputmode="decimal" id="route-total" placeholder="Type the total, e.g. 350 or 350m">
+      <label class="sr-only" for="route-total">${t('c3.chosenTotal')}</label>
+      <input type="text" inputmode="decimal" id="route-total" placeholder="${t('c3.totalPlaceholder')}">
     </div>
-    <div class="section-label">Is it within 400m?</div>
-    <div class="route-buttons" role="radiogroup" aria-label="Within budget">
-      <button class="btn-route" data-within="yes">Yes</button>
-      <button class="btn-route" data-within="no">No</button>
+    <div class="section-label">${t('c3.withinLabel')}</div>
+    <div class="route-buttons" role="radiogroup" aria-label="${t('c3.withinAria')}">
+      <button class="btn-route" data-within="yes">${t('c3.yes')}</button>
+      <button class="btn-route" data-within="no">${t('c3.no')}</button>
     </div>
-    <div class="input-row"><button class="btn-primary" id="rc3-check">✅ Check</button></div>
+    <div class="input-row"><button class="btn-primary" id="rc3-check">${t('c3.check')}</button></div>
   `;
 
   // "Watch the planner SEARCH" beat — prepended above the ant challenge. Its
@@ -859,7 +828,7 @@ function challenge3(container) {
       // Running total: count up with the ant.
       const frac = i / steps;
       const shown = Math.round(total * frac * 10) / 10;
-      value.textContent = `${shown} m / 400 m`;
+      value.textContent = tf('c3.budgetValue', { shown });
       fill.style.width = Math.min(100, (shown / BUDGET) * 100) + '%';
       fill.classList.toggle('over', shown > BUDGET);
       i++;
@@ -869,7 +838,7 @@ function challenge3(container) {
     // Final total.
     animTimeout = setTimeout(() => {
       if (gen !== animGen) return;   // superseded by a newer route selection
-      value.textContent = `${total} m / 400 m`;
+      value.textContent = tf('c3.budgetValue', { shown: total });
       fill.style.width = Math.min(100, (total / BUDGET) * 100) + '%';
       fill.classList.toggle('over', total > BUDGET);
     }, steps * 16 + 60);
@@ -900,10 +869,10 @@ function challenge3(container) {
 
   document.getElementById('rc3-check').addEventListener('click', () => {
     const total = parseTotal(document.getElementById('route-total').value);
-    if (pick !== 'A') { feedback(container, 'Check each route: which is shortest AND within 400m?', false); return; }
-    if (!Number.isFinite(total) || Math.abs(total - 350) > 0.01) { feedback(container, 'Add the three pieces: 150 + 100 + 100 = 350. You can type 350 or 350m.', false); return; }
-    if (within !== 'yes') { feedback(container, 'Is 350m within the 400m budget?', false); return; }
-    feedback(container, '🎉 Route A = 350m, within 400m. The shortest legal route wins!', true);
+    if (pick !== 'A') { feedback(container, t('c3.fb.pick'), false); return; }
+    if (!Number.isFinite(total) || Math.abs(total - 350) > 0.01) { feedback(container, t('c3.fb.total'), false); return; }
+    if (within !== 'yes') { feedback(container, t('c3.fb.within'), false); return; }
+    feedback(container, t('c3.fb.perfect'), true);
     completeRoom(3);
   });
 }
@@ -914,14 +883,14 @@ function challenge3(container) {
 function challenge4(container) {
   const rounds = [
     { current: 58, opts: [
-      { id: 'A', label: 'A: add tree → 60', to: 60 },
-      { id: 'B', label: 'B: move school → 57', to: 57 },
-      { id: 'C', label: 'C: add road → 59', to: 59 },
+      { id: 'A', label: t('c4.r1.a'), to: 60 },
+      { id: 'B', label: t('c4.r1.b'), to: 57 },
+      { id: 'C', label: t('c4.r1.c'), to: 59 },
     ], keep: 'A', next: 60 },
     { current: 60, opts: [
-      { id: 'D', label: 'D: add shop → 62', to: 62 },
-      { id: 'E', label: 'E: remove lamp → 59', to: 59 },
-      { id: 'F', label: 'F: move bin → 60', to: 60 },
+      { id: 'D', label: t('c4.r2.d'), to: 62 },
+      { id: 'E', label: t('c4.r2.e'), to: 59 },
+      { id: 'F', label: t('c4.r2.f'), to: 60 },
     ], keep: 'D', next: 62 },
   ];
   const picks = { 1: null, 2: null };
@@ -932,9 +901,9 @@ function challenge4(container) {
   ];
 
   container.innerHTML = `
-    <p><strong>Challenge:</strong> You are the optimiser. The planner tested a few small changes — tap the one it KEEPS: the change whose score went UP the most. If the score goes down or stays the same, it undoes it.</p>
+    <p>${t('c4.challenge')}</p>
     <div class="mountain" aria-hidden="true">
-      <svg viewBox="0 0 500 250" role="img" aria-label="Foggy mountain with a local hill and a distant higher peak">
+      <svg viewBox="0 0 500 250" role="img" aria-label="${t('c4.mountainAria')}">
         <defs>
           <linearGradient id="m-sky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#1a2448"/><stop offset="1" stop-color="#0b132b"/>
@@ -959,29 +928,29 @@ function challenge4(container) {
       </svg>
     </div>
     <div class="score-display" aria-live="polite">
-      <div class="sd-label">Current score</div>
+      <div class="sd-label">${t('c4.currentScore')}</div>
       <div class="sd-value" id="hc-score">58</div>
     </div>
     <div id="hc-rounds"></div>
     <div class="hc-stuck" id="hc-stuck" hidden>
-      <h3>The foggy peak</h3>
-      <p>The hiker is at <strong>62</strong> on a small hill. Every nearby change gives 61, 61 or 60 — all lower. A distant plan would score <strong>80</strong>, but reaching it needs a drop to <strong>55</strong> first.</p>
-      <p><strong>Will the algorithm move to the distant 80 plan?</strong></p>
+      <h3>${t('c4.stuck.title')}</h3>
+      <p>${t('c4.stuck.body')}</p>
+      <p>${t('c4.stuck.q')}</p>
       <div class="hc-options">
-        <button class="btn-stuck" data-answer="yes">Yes — 80 is bigger</button>
-        <button class="btn-stuck" data-answer="no">No — it only accepts upward steps</button>
+        <button class="btn-stuck" data-answer="yes">${t('c4.stuck.yes')}</button>
+        <button class="btn-stuck" data-answer="no">${t('c4.stuck.no')}</button>
       </div>
       <div class="hc-escape" id="hc-escape" hidden>
-        <p>Right! The greedy planner is <strong>stuck on the small hill</strong>. It will never walk downhill, so it can\u2019t reach the 80 peak on its own.</p>
-        <p><strong>What can a smarter planner do to reach the 80 plan?</strong></p>
+        <p>${t('c4.escape.body')}</p>
+        <p>${t('c4.escape.q')}</p>
         <div class="hc-options">
-          <button class="btn-stuck escape" data-escape="restart">↻ Restart from a brand-new spot and climb again</button>
-          <button class="btn-stuck escape" data-escape="tryagain">🔁 Keep trying the same small steps</button>
+          <button class="btn-stuck escape" data-escape="restart">${t('c4.escape.restart')}</button>
+          <button class="btn-stuck escape" data-escape="tryagain">${t('c4.escape.tryagain')}</button>
         </div>
-        <p class="escape-reveal" id="hc-escape-reveal" hidden>🎉 Exactly! A fresh start lands somewhere new — sometimes on a taller hill. In the planner you\u2019ll meet this as the <strong>Explore</strong> strategy: when Optimise gets stuck, Explore restarts and climbs again, so it can beat the greedy planner\u2019s best score.</p>
+        <p class="escape-reveal" id="hc-escape-reveal" hidden>${t('c4.escape.reveal')}</p>
       </div>
     </div>
-    <div class="input-row"><button class="btn-primary" id="rc4-check">✅ Check</button></div>
+    <div class="input-row"><button class="btn-primary" id="rc4-check">${t('c4.check')}</button></div>
   `;
 
   const scoreEl = document.getElementById('hc-score');
@@ -1001,7 +970,7 @@ function challenge4(container) {
     const wrap = document.createElement('div');
     wrap.className = 'hc-round';
     wrap.innerHTML = `
-      <h3>Round ${ri + 1} — score is ${round.current}. Which change does the planner keep?</h3>
+      <h3>${tf('c4.round', { n: ri + 1, cur: round.current })}</h3>
       <div class="hc-options">
         ${round.opts.map((o) => `<button class="btn-hc" data-round="${ri + 1}" data-choice="${o.id}" data-to="${o.to}">${o.label}</button>`).join('')}
       </div>
@@ -1019,7 +988,7 @@ function challenge4(container) {
           btn.classList.add('kept');
           $$('.btn-hc', wrap).forEach((b) => { if (b !== btn) b.classList.add('rejected'); });
           f.className = 'feedback ok';
-          f.innerHTML = `<span class="icon" aria-hidden="true">✓</span> Keep it! ${round.next} > ${round.current} — the score went up, so the hiker climbs.`;
+          f.innerHTML = `<span class="icon" aria-hidden="true">✓</span> ${tf('c4.keepIt', { next: round.next, cur: round.current })}`;
           moveHiker(ri + 1);
           if (ri + 1 < rounds.length) {
             setTimeout(() => { const nxt = roundsWrap.children[ri + 1]; if (nxt) nxt.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 900);
@@ -1033,7 +1002,7 @@ function challenge4(container) {
         } else {
           f.className = 'feedback err';
           const up = Number(btn.dataset.to) > round.current;
-          f.innerHTML = `<span class="icon" aria-hidden="true">✗</span> ${up ? 'That score went up but not the most — the planner keeps the best improvement.' : 'That score went DOWN — the planner undoes it. Tap the one that goes up the most.'}`;
+          f.innerHTML = `<span class="icon" aria-hidden="true">✗</span> ${up ? t('c4.rejectUp') : t('c4.rejectDown')}`;
         }
       });
     });
@@ -1072,10 +1041,10 @@ function challenge4(container) {
   });
 
   document.getElementById('rc4-check').addEventListener('click', () => {
-    if (picks[1] !== 'A' || picks[2] !== 'D') { feedback(container, 'Keep the change whose score goes UP the most. Round 1: 58 → ? Round 2: 60 → ?', false); return; }
-    if (last !== 'no') { feedback(container, 'Remember the rule: the algorithm never accepts a downhill step, so it cannot reach that distant plan.', false); return; }
-    if (escapePick !== 'restart') { feedback(container, 'Same small steps stay on the same small hill. The escape is a fresh start somewhere new — then climb again.', false); return; }
-    feedback(container, '🎉 You climbed: 58 → 60 → 62 — that is a local optimum. And you know the escape: restart somewhere new (Explore) to climb even higher!', true);
+    if (picks[1] !== 'A' || picks[2] !== 'D') { feedback(container, t('c4.fb.rounds'), false); return; }
+    if (last !== 'no') { feedback(container, t('c4.fb.rule'), false); return; }
+    if (escapePick !== 'restart') { feedback(container, t('c4.fb.escape'), false); return; }
+    feedback(container, t('c4.fb.perfect'), true);
     completeRoom(4);
   });
 }
@@ -1083,23 +1052,8 @@ function challenge4(container) {
 // ── Challenge dispatch ──────────────────────────────────
 const CHALLENGES = { 1: challenge1, 2: challenge2, 3: challenge3, 4: challenge4 };
 
-// ── Hints (2 levels per room) ───────────────────────────
-ROOMS[1].hints = {
-  1: 'Find 10% first: 10% of 90 is 9, so 30% of 90 is 27. 25% of 70 is 70 ÷ 4 = 17.5.',
-  2: '15% = 10% + 5%: 10% of 80 = 8, 5% of 80 = 4, so 15% of 80 = 12. Then add: 27 + 17.5 + 12 + 6 + 7 + 9 = 78.5.',
-};
-ROOMS[2].hints = {
-  1: 'Use the dashed ring: a spot works only if BOTH homes are inside it. For the shop, 150m is 3 squares; for the bus, 400m is 8 squares.',
-  2: 'Shop: Spot A has a 200m home (too far), Spot C has a 250m home (too far) — only Spot B fits. Bus: Stop X has a 500m home, Stop Z has a 450m home — only Stop Y fits.',
-};
-ROOMS[3].hints = {
-  1: 'Only add road pieces the ant actually uses. Ignore the straight-line distance across the map. (The search up top already found it: BUS = 350m.)',
-  2: 'Route A: 150 + 100 = 250, then + 100 = 350. Compare with 400. Routes B (450) and C (420) are over the budget.',
-};
-ROOMS[4].hints = {
-  1: 'Ask: is the new score BIGGER than the old score? If yes, keep. If no, undo.',
-  2: 'The greedy planner is stuck at 62 and cannot reach 80 by itself. To climb the taller peak it must start over somewhere new — that is the Explore trick.',
-};
+// ── Hints (2 levels per room) come from i18n.js (hint.N.1 / hint.N.2) ──
+// buildRooms() attaches them to each room.
 
 // ── Graduation / download ───────────────────────────────
 function graduate() {
@@ -1110,18 +1064,18 @@ function graduate() {
   if (unlockBtn) unlockBtn.disabled = !allDone;
   if (downloadBtn) downloadBtn.disabled = !allDone;
   if (downloadHint) downloadHint.textContent = allDone
-    ? 'Your planner is ready! Hit "Unlock the planner" to open it — or keep your license file as a backup.'
-    : 'Finish all four rooms to earn your license file.';
+    ? t('pg.downloadHint.ready')
+    : t('pg.downloadHint.locked');
 }
 
 /** Same-origin unlock: set the flag the 2D planner checks, then open it. */
 function unlockPlanner() {
   try { localStorage.setItem(UNLOCK_STORAGE_KEY, '1'); }
   catch (e) {
-    toast('⚠️ Could not save the unlock on this browser — use the download instead.');
+    toast(t('pg.toast.unlockFail'));
     return;
   }
-  toast('🔓 Unlocked! Opening the planner…');
+  toast(t('pg.toast.unlocked'));
   window.location.href = '/planner/';
 }
 
@@ -1140,7 +1094,7 @@ function downloadLicense() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast('💾 Downloaded planner-license.json — your license file! Upload it in the 2D city planner on a new tablet.');
+  toast(t('pg.toast.downloaded'));
 }
 
 // ── Restart (custom modal, no confirm()) ────────────────
@@ -1157,8 +1111,27 @@ function restart() {
   state.hintLevel = {};
   updateNav();
   showScreen('intro');
-  toast('Progress reset. Let\u2019s start fresh!');
+  toast(t('pg.toast.reset'));
 }
+
+// ── Language ────────────────────────────────────────────
+function applyNavAria() {
+  $$('.nav-dot').forEach((dot) => {
+    dot.setAttribute('aria-label', tf('pg.nav.room', { n: Number(dot.dataset.room) }));
+  });
+}
+applyStatic();
+mountLangToggle('#lang-slot');
+applyNavAria();
+
+// Re-localize dynamic surfaces when the language flips (static chrome is
+// handled by applyStatic inside setLang).
+window.addEventListener('i18n:change', () => {
+  ROOMS = buildRooms();
+  applyNavAria();
+  if (screenFinale.classList.contains('active')) graduate();
+  else if (screenRooms.classList.contains('active') && state.currentRoom) renderRoom(state.currentRoom);
+});
 
 // ── Init ────────────────────────────────────────────────
 document.getElementById('btn-start').addEventListener('click', () => {

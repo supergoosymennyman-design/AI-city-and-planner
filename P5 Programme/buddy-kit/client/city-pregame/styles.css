@@ -53,6 +53,16 @@ svg { display: block; max-width: 100%; height: auto; }
   overflow: hidden; clip: rect(0,0,0,0); border: 0;
 }
 
+/* Language toggle (mounted by i18n.js) — fixed so it stays reachable on every screen */
+#lang-slot {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 50;
+  display: flex;
+}
+#lang-slot button { min-height: 44px; }
+
 /* ─── Layout ─── */
 #app {
   min-height: 100vh;

@@ -116,6 +116,7 @@ build_city_sim() {
   cp "$KIT/client/city-planner/styles.css"  city-sim/planner/styles.css
   cp "$KIT/client/city-pregame/index.html"  city-sim/pregame/index.html
   cp "$KIT/client/city-pregame/app.js"      city-sim/pregame/app.js
+  cp "$KIT/client/city-pregame/i18n.js"     city-sim/pregame/i18n.js
   cp "$KIT/client/city-pregame/lesson-core.js" city-sim/pregame/lesson-core.js
   cp "$KIT/client/city-pregame/styles.css"  city-sim/pregame/styles.css
   # Root landing → the 3D city. (The buddy worker owns the root today, which

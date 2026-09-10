@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>City Planning Academy</title>
+  <title data-i18n="pg.title">City Planning Academy</title>
   <meta name="description" content="Learn how the city planner works — weighted scores, coverage, shortest paths and hill-climbing.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
   <link rel="stylesheet" href="styles.css">
   <script src="/crash-guard.js"></script>
 </head>
 <body>
+  <div id="lang-slot"></div>
   <main id="app">
     <!-- ═══ INTRO ═══ -->
-    <section id="screen-intro" class="screen active" aria-label="Introduction">
+    <section id="screen-intro" class="screen active" data-i18n-aria="pg.intro.aria" aria-label="Introduction">
       <div class="intro-wrap">
         <div class="nova-avatar" aria-hidden="true">
           <svg viewBox="0 0 80 80" width="80" height="80">
@@ -25,20 +26,20 @@
             <circle cx="40" cy="12" r="3" fill="#ffb84c"/>
           </svg>
         </div>
-        <h1>City Planning Academy</h1>
-        <p class="nova-speech">Hi! I'm <strong>Nova</strong>, your guide. Today you'll learn the <strong>four recipes</strong> the city planner uses to make great decisions. The planner isn't magic — it follows the same rules every time, just like you're about to learn!</p>
-        <p class="sub">Complete all four training rooms to earn your <strong>Planner's License</strong>.</p>
-        <button id="btn-start" class="btn-primary" autofocus>Start Training</button>
+        <h1 data-i18n="pg.title">City Planning Academy</h1>
+        <p class="nova-speech" data-i18n-html="pg.intro.speech">Hi! I'm <strong>Nova</strong>, your guide. Today you'll learn the <strong>four recipes</strong> the city planner uses to make great decisions. The planner isn't magic — it follows the same rules every time, just like you're about to learn!</p>
+        <p class="sub" data-i18n-html="pg.intro.sub">Complete all four training rooms to earn your <strong>Planner's License</strong>.</p>
+        <button id="btn-start" class="btn-primary" data-i18n="pg.start" autofocus>Start Training</button>
       </div>
     </section>
 
     <!-- ═══ ROOMS (content injected by app.js) ═══ -->
-    <section id="screen-rooms" class="screen" aria-label="Training rooms">
+    <section id="screen-rooms" class="screen" data-i18n-aria="pg.rooms.aria" aria-label="Training rooms">
       <div id="room-wrap"></div>
     </section>
 
     <!-- ═══ GRADUATION ═══ -->
-    <section id="screen-finale" class="screen" aria-label="Graduation">
+    <section id="screen-finale" class="screen" data-i18n-aria="pg.finale.aria" aria-label="Graduation">
       <div class="grad-wrap">
         <div class="grad-seal" aria-hidden="true">
           <svg viewBox="0 0 120 120" width="120" height="120">
@@ -49,17 +50,17 @@
             <text x="60" y="90" text-anchor="middle" fill="#ffb84c" font-size="10">LICENSE</text>
           </svg>
         </div>
-        <h1>You're a Graduate Planner!</h1>
-        <p class="nova-speech">Congratulations, Junior Planner! You mastered four training rooms: <strong>weighted score</strong>, <strong>coverage radius</strong>, <strong>shortest path</strong> and <strong>hill-climbing</strong>. The planner follows fixed rules — it weighs, measures, adds road distances, and keeps better steps. It does not guess, and it is not magic.</p>
-        <button id="btn-unlock" class="btn-primary" disabled>✅ Unlock the planner →</button>
-        <button id="btn-download" class="btn-secondary" disabled>💾 Download my license file</button>
-        <p class="hint-line" id="download-hint">Finish all four rooms to unlock your file.</p>
-        <button id="btn-restart" class="btn-secondary">Start over</button>
+        <h1 data-i18n="pg.grad.title">You're a Graduate Planner!</h1>
+        <p class="nova-speech" data-i18n-html="pg.grad.speech">Congratulations, Junior Planner! You mastered four training rooms: <strong>weighted score</strong>, <strong>coverage radius</strong>, <strong>shortest path</strong> and <strong>hill-climbing</strong>. The planner follows fixed rules — it weighs, measures, adds road distances, and keeps better steps. It does not guess, and it is not magic.</p>
+        <button id="btn-unlock" class="btn-primary" data-i18n="pg.unlock" disabled>✅ Unlock the planner →</button>
+        <button id="btn-download" class="btn-secondary" data-i18n="pg.download" disabled>💾 Download my license file</button>
+        <p class="hint-line" id="download-hint" data-i18n="pg.downloadHint.locked">Finish all four rooms to unlock your file.</p>
+        <button id="btn-restart" class="btn-secondary" data-i18n="pg.restart">Start over</button>
       </div>
     </section>
 
     <!-- ═══ NAV ═══ -->
-    <nav id="room-nav" class="room-nav" aria-label="Room progress">
+    <nav id="room-nav" class="room-nav" data-i18n-aria="pg.nav.aria" aria-label="Room progress">
       <div class="nav-dot" data-room="1" role="button" tabindex="0" aria-label="Room 1"></div>
       <div class="nav-dot" data-room="2" role="button" tabindex="0" aria-label="Room 2"></div>
       <div class="nav-dot" data-room="3" role="button" tabindex="0" aria-label="Room 3"></div>
@@ -72,11 +73,11 @@
     <!-- ═══ RESTART CONFIRM ═══ -->
     <div id="modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-box">
-        <h2 id="modal-title">Start over?</h2>
-        <p>All training progress will be reset.</p>
+        <h2 id="modal-title" data-i18n="pg.modal.title">Start over?</h2>
+        <p data-i18n="pg.modal.body">All training progress will be reset.</p>
         <div class="modal-actions">
-          <button id="modal-cancel" class="btn-secondary">Cancel</button>
-          <button id="modal-ok" class="btn-danger">Reset</button>
+          <button id="modal-cancel" class="btn-secondary" data-i18n="pg.modal.cancel">Cancel</button>
+          <button id="modal-ok" class="btn-danger" data-i18n="pg.modal.reset">Reset</button>
         </div>
       </div>
     </div>
