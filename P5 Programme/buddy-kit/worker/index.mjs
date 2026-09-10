@@ -34,15 +34,14 @@ import { buildModel } from '../server/provider.js';
 import { effectiveRegistry, lockedRegistry, byokProviders } from '../server/model-registry.js';
 import { makeBrake, brakeCeilingFrom } from '../server/brake.js';
 import { httpError, meterFor, composeTurnContext, runTurn, runTidyUp } from '../server/turn.js';
+import { MAX_BODY_BYTES, NDJSON_HEADERS, BRAKE_REPLY } from '../server/shell-constants.js';
 import { MEM_SEED } from './mem-seed.mjs';
 // DEFAULT import of the CJS frame encoder — same interop note as server/turn.js's header.
 import streamFramesMod from '../logic/stream-frames.js';
 const { encodeFrame } = streamFramesMod;
 
-const MAX_BODY_BYTES = 256 * 1024; // same bound as the Node shell, same reasoning
-const NDJSON_HEADERS = { 'content-type': 'application/x-ndjson', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' };
-// Same kid-voiced braked-turn reply as the Node shell (gateway.js BRAKE_REPLY — keep in sync).
-const BRAKE_REPLY = "Our chat energy here is all used up for today! Your champion is safe and saved — we can keep building, and chat more tomorrow.";
+// MAX_BODY_BYTES / NDJSON_HEADERS / BRAKE_REPLY are shared with the Node shell via
+// ../server/shell-constants.js (one source, no drift — see that file).
 
 // ── Cloud save/load (Champion File backup across devices/lessons) ────────────
 // A student's city state is written to the SAVES KV namespace under a short,

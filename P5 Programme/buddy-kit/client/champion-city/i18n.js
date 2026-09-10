@@ -265,3 +265,13 @@ export function mountLangToggle() {
   hudRight.appendChild(_langBtn);
   return _langBtn;
 }
+
+// Keep THIS module's `_lang` in sync with the app-wide language toggle. The city HUD uses a
+// SEPARATE i18n module (city-builder/i18n.js) whose setLang() updates its OWN `_lang` and fires
+// `i18n:change` — but this module holds its own `_lang` copy, so without this listener the champion
+// sidebar (skins.js) would freeze in whatever language it booted in after a 中/EN toggle (found by
+// the Gemini pass-3 architecture review of the duplicated i18n modules). initI18n() re-reads the
+// persisted LANG_KEY, so this is idempotent when this module's own setLang dispatched the event.
+if (typeof window !== 'undefined') {
+  window.addEventListener('i18n:change', () => { initI18n(); });
+}

@@ -34,6 +34,7 @@ import { effectiveRegistry, lockedRegistry, byokProviders } from './model-regist
 import { loadConfigFromEnv } from './config.js';
 import { makeBrake, brakeCeilingFrom } from './brake.js';
 import { httpError, meterFor, composeTurnContext, runTurn, runTidyUp } from './turn.js';
+import { MAX_BODY_BYTES, NDJSON_HEADERS, BRAKE_REPLY } from './shell-constants.js';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { encodeFrame } = require('../logic/stream-frames.js');
@@ -74,14 +75,8 @@ const MIME = {
 // No cache headers → browsers use heuristic caching for the whole session, hiding
 // file edits from the user. Explicit no-store keeps every reload fresh.
 const NO_CACHE_ASSETS = { 'Cache-Control': 'no-cache, no-store, must-revalidate' };
-const MAX_BODY_BYTES = 256 * 1024; // an unauthenticated POST body should never need more than this
-const NDJSON_HEADERS = { 'content-type': 'application/x-ndjson', 'cache-control': 'no-cache', 'x-accel-buffering': 'no' };
-// Kid-friendly reply for a turn the DEPLOYMENT brake refused (brake.js — a runaway/curl loop, never a
-// child: the browser's own day budget sits ~15× lower). Kept inline (the gateway sends reply text
-// straight to the client, which owns its own STRINGS) and in the same warm English register as the
-// stub replies. Honest wording: the brake is per-DAY, so — unlike the retired per-lesson cap message —
-// this one promises tomorrow, and still never promises that anything the child taps restores it.
-const BRAKE_REPLY = "Our chat energy here is all used up for today! Your champion is safe and saved — we can keep building, and chat more tomorrow.";
+// MAX_BODY_BYTES / NDJSON_HEADERS / BRAKE_REPLY are shared with the Worker shell via
+// ./shell-constants.js (one source, no drift). See that file for the WHY of each.
 
 // ── Boot: the deployment scope, frozen (Scope Law §3 row 5) ───────────────────────────────────────
 // Read ONCE, straight from `process.env`, and never mutated afterwards. `loadConfigFromEnv` reads the
