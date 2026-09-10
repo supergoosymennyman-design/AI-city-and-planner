@@ -16,6 +16,10 @@ nothing to run locally:
 - native Gemini protocol: `/v1beta/...`  ← the gemini CLI speaks this
 - OpenAI-compatible:      `/v1/chat/completions`
 - model list:             `GET /v1/models` OR `/v1beta/models`
+- **web management panel / login: `https://catiecli.sukaka.top/login`** — the relay's OWN UI
+  (username/password → token, plus optional Discord OAuth + Cloudflare Turnstile; after login
+  `/dashboard`, admins also `/admin`). This web login is SEPARATE from the `sk-ant-…` API key in
+  `~/.cli-proxy-api/config.yaml`, which is what the gemini CLI uses for inference.
 
 Gemini CLI binary (on PATH): `/Users/kai/.local/bin/gemini` (v0.59.0)
 
