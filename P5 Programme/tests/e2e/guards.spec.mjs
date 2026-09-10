@@ -37,11 +37,16 @@ test('crash-guard and context-guard are wired and load', async ({ page }) => {
 
 test('crash-guard shows the friendly restart screen on a real uncaught error', async ({ page }) => {
   await bootCity(page);
+  await page.bringToFront();
   // Inject a genuine window-level error (inside setTimeout so it bubbles to window).
   await page.evaluate(() => {
     setTimeout(() => { throw new Error('__crash_guard_test__'); }, 50);
   });
-  await expect(page.locator('#crash-guard')).toBeVisible({ timeout: 10000 });
+  // Wait for the handler itself (set synchronously on the error event), then the
+  // overlay. Generous timeouts: under parallel workers the WebGL render loop can
+  // starve the main thread for seconds.
+  await page.waitForFunction(() => typeof window.__crashGuardLastCode === 'function' && !!window.__crashGuardLastCode(), null, { timeout: 30000 });
+  await expect(page.locator('#crash-guard')).toBeVisible({ timeout: 30000 });
   const text = await page.locator('#crash-guard').innerText();
   expect(text).toContain('Restart City');
   // The error code hook should be set (non-empty).
@@ -63,8 +68,9 @@ test('corrupt saved city falls back to the sample with an explanation', async ({
     const el = document.getElementById('entry-local');
     if (el) el.click();
   });
-  // The entry card explains the fallback…
-  await expect(page.locator('.entry-card p')).toContainText('could not be read', { timeout: 10000 });
+  // The entry card explains the fallback… (the card contains several <p>s incl.
+  // a hidden #entry-plan echo — assert on the card container, not a bare <p>.)
+  await expect(page.locator('.entry-card')).toContainText('could not be read', { timeout: 10000 });
   // …and the sample city still boots (canvas appears).
   await expect(page.locator('canvas')).toBeVisible({ timeout: 60000 });
   expect(errors, `unexpected errors:\n${errors.join('\n') || '(none)'}`).toEqual([]);

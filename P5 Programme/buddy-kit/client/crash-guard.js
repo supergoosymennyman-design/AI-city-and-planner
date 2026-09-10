@@ -72,11 +72,13 @@
     shown = true;
     lastCode = codeOf(fallback, e);
     var overlay = buildOverlay(lastCode);
-    requestAnimationFrame(function () {
-      if (document.getElementById('crash-guard')) return; // already present
-      if (document.body) document.body.appendChild(overlay);
-      else setTimeout(function () { document.body && document.body.appendChild(overlay); }, 50);
-    });
+    // Mount IMMEDIATELY (not in requestAnimationFrame): under heavy WebGL load
+    // rAF can be throttled for seconds, and a crash overlay must never wait on a
+    // frame. document.body exists by the time the app scripts run; fall back to
+    // a short defer only if the error fires before <body> is parsed.
+    if (document.getElementById('crash-guard')) return; // already present
+    if (document.body) document.body.appendChild(overlay);
+    else setTimeout(function () { document.body && document.body.appendChild(overlay); }, 50);
   }
 
   window.addEventListener('error', function (e) {
