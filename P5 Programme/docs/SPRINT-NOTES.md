@@ -119,3 +119,34 @@ zh-Hant, planner durable milestones + deterministic Optimise, hub journey links.
 (The MCP headless browser has no WebGL, so the 3D Logbook was smoke-tested via
 the e2e chromium instead.)
 
+---
+
+# Sprint notes — Invariant + data-loss audit cycle (2026-09-10, gemini-pro run)
+
+Client-only audit: let Gemini READ the code (not curated snippets). Mechanism
+that worked: `cat` the target source (with real line numbers) and pipe it to the
+CLI as ONE request (`cat ctx | gemini -p "<task>" -m pro`). The `@p5-auditor`
+subagent + multi-turn tools 429-storm the relay (10 req/min), so avoid it.
+Findings in `docs/invariant-audit.md`; every one re-read by hand before fixing.
+
+Confirmed: **no camera/mic, no telemetry, no eval/XSS, all algorithm invariants
+HOLD** (roads sacred, deterministic, never-worse, locks/specials, real walking).
+
+- **A1** `champion-file.js` `writeState` swallowed quota errors → a restore could
+  silently drop keys. Now returns `{wrote,total,ok,failed}`; planner + 3D city
+  warn on a partial restore. Unit-tested with a quota-throwing fake storage.
+- **A2** the Academy had **no Champion File save** (progress only travelled if
+  the child later saved from the planner/city). Added "Save my progress" to the
+  finale (EN + zh-Hant). Verified live: the downloaded file contains `pregame`.
+- **A3** `city-builder.js` hardcoded `'hk_ai_city_quests_v1'` → `saveQuestState()`.
+- **A4** `SAVE_NAME_KEY` / `CAPS_KEY` now alias `CF_KEYS` (were duplicated literals).
+- **A5** save copy no longer invites a real name (the label goes to the cloud KV).
+
+Open (documented, no code this cycle): buddy chat disclosure (A6), `/api/load`
+query param (A7, server-side), external quest origins (A8), BYOK payload (A9),
+and the evictable non-portable custom skin.
+
+Verify: unit **152 pass**, library audit PASS, built-bundle e2e **12/12 pass**
+(+ the new pregame Champion-File download assertion). Deploy: `p5-city-sim` +
+`p5-home`; live smoke — Academy save file, planner save copy, hub.
+
