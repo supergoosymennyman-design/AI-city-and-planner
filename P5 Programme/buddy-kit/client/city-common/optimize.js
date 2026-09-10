@@ -49,6 +49,65 @@ const MARGIN = 4;            // meters of clearance between buildings
 const MAX_ITERATIONS = 40;   // hard bound on hill-climb passes (runtime safety)
 const MAX_CANDIDATES = 160;  // candidate spots per placement search
 
+/**
+ * Canonical, order-independent JSON for a layout-ish value. Object keys are
+ * sorted; arrays of plain objects (buildings, roads, parks) are sorted by their
+ * canonical form so the SAME physical city always stringifies identically no
+ * matter what order the child added buildings in. Arrays of primitives/arrays
+ * (a road's `points` polyline, a footprint) keep their order because that order
+ * IS the shape.
+ */
+export function canonicalJSON(value) {
+  return JSON.stringify(canon(value));
+}
+
+function canon(v) {
+  if (Array.isArray(v)) {
+    const items = v.map(canon);
+    // Sort only arrays of plain objects (unordered collections). A polyline
+    // (array of [x,z] arrays) or a footprint (array of numbers) is ordered.
+    if (v.length && v.every((e) => e && typeof e === 'object' && !Array.isArray(e))) {
+      const keys = items.map((it) => JSON.stringify(it));
+      const order = items.map((_, i) => i).sort((a, b) => (keys[a] < keys[b] ? -1 : keys[a] > keys[b] ? 1 : a - b));
+      return order.map((i) => items[i]);
+    }
+    return items;
+  }
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const k of Object.keys(v).sort()) out[k] = canon(v[k]);
+    return out;
+  }
+  return v;
+}
+
+/**
+ * Stable 32-bit seed derived from arbitrary inputs (a layout, goal weights, …).
+ * FNV-1a over a CANONICAL JSON string: the SAME city + goals always produce the
+ * SAME seed, so Optimise/Explore are reproducible and directly comparable from
+ * one press to the next. (The planner used to seed with
+ * `Date.now() ^ Math.random()`, which made every press a fresh lottery and made
+ * Greedy-vs-Explore an unstable comparison.) Canonicalisation matters: a plain
+ * `JSON.stringify(layout)` changes when buildings are re-ordered even if the
+ * city is visually identical.
+ *
+ * Callers pass the SAME seed to greedy and explore. Explore's first restart
+ * reproduces the greedy run exactly — that is what guarantees Explore can never
+ * score below Greedy (see exploreLayout). Folding the strategy name into the
+ * seed would break that guarantee, so strategy is deliberately NOT an input.
+ */
+export function stableSeed(...parts) {
+  const str = parts
+    .map((p) => (typeof p === 'string' ? p : canonicalJSON(p ?? null)))
+    .join('|');
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0) || 1;
+}
+
 export function isNoisyType(t) { return NOISY.has(t); }
 export function isHousingType(t) { return t === HOUSING; }
 const isSpecialType = (t) => (catalogType(t)?.category === 'special');

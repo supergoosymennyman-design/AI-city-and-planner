@@ -18,7 +18,7 @@ import { CATALOG, CATALOG_ORDER, isSpecial } from '../city-common/catalog.js';
 import { defaultLayout, sanitizeLayout, validateLayout, ROAD_WIDTH, typeSpec } from '../city-common/layout.js';
 import { LIBRARY_CATEGORIES, libraryItem, libraryByCategory } from '../city-common/library.js';
 import { computeMetrics, METRIC_PARAMS, GOAL_KEYS, stars, normalizeWeights, defaultMetricWeights } from '../city-common/metrics.js';
-import { optimizeLayout, proposeMoves, applyMove } from '../city-common/optimize.js';
+import { optimizeLayout, proposeMoves, applyMove, stableSeed } from '../city-common/optimize.js';
 import { computeWalkReach, walkPath, homeReachRoutes, WALK_BUDGET } from '../city-common/walkability.js';
 import { ROAD_TEMPLATES, getRoadTemplate } from '../city-common/road-templates.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt } from '../city-common/champion-file.js';
@@ -1438,8 +1438,13 @@ async function askOptimise() {
   btn.textContent = t('planner.opt.checking');
   try {
     await new Promise((r) => setTimeout(r, 0));
-    const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
     const weights = effectiveWeights();
+    // Stable per-(city, goals) seed: the same city + goals always produce the
+    // same Greedy and Explore plans, so the two are directly comparable and a
+    // re-press is reproducible (was Date.now()^Math.random(), a fresh lottery
+    // every press). Both strategies share ONE seed so Explore's first restart
+    // reproduces Greedy exactly (Explore can never score below Greedy).
+    const seed = stableSeed(state.layout, weights);
     // Run BOTH strategies so the child can compare the plans side by side via
     // the strategy chips. Greedy is fast; Explore adds fresh-start restarts.
     const greedyRes = optimizeLayout(state.layout, { weights }, seed);
@@ -1512,8 +1517,10 @@ async function runMyMove() {
   btn.textContent = t('planner.mymove.thinking');
   try {
     await new Promise((r) => setTimeout(r, 0));
-    const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
     const weights = effectiveWeights();
+    // Stable seed: the same city + goals propose the same candidate moves, so
+    // "My move" is reproducible across presses (was Date.now()^Math.random()).
+    const seed = stableSeed(state.layout, weights);
     const moves = proposeMoves(state.layout, { weights }, 3, seed);
     if (!moves.length) {
       toast(t('planner.mymove.nothing'));

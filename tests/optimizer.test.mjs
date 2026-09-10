@@ -11,7 +11,7 @@ import { optimizeLayout } from '../P5 Programme/buddy-kit/client/city-common/opt
 import { computeMetrics, ratioTargets } from '../P5 Programme/buddy-kit/client/city-common/metrics.js';
 import { validateLayout, sanitizeLayout } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
 import { specialKeys } from '../P5 Programme/buddy-kit/client/city-common/catalog.js';
-import { proposeMoves, applyMove } from '../P5 Programme/buddy-kit/client/city-common/optimize.js';
+import { proposeMoves, applyMove, stableSeed } from '../P5 Programme/buddy-kit/client/city-common/optimize.js';
 
 const NOISY = new Set(['power', 'traffic_lab', 'traffic_emergency', 'delivery', 'recycling']);
 const SPECIAL_SET = new Set(specialKeys());
@@ -871,6 +871,111 @@ test('applyMove: add/move/remove/add_park each mutate correctly', () => {
   assert.equal(out.parks[0].cx, 500);
   // no-op on a missing target does not throw
   assert.doesNotThrow(() => applyMove(base, { action: 'move', what: 'nope', from: [0, 0], to: [1, 1] }));
+});
+
+// ── Deterministic Optimise seed (Sprint C) ──────────────────────────────
+// The planner used to seed with Date.now()^Math.random(), so every Optimise
+// press produced different plans and Greedy-vs-Explore was an unstable
+// comparison. stableSeed() makes the same city + goals reproduce the same two
+// plans. These tests pin that property and prove Explore can genuinely beat
+// Greedy on a realistic hand-placed town (not randomLayout noise).
+test('stableSeed: same city + goals → same seed; different input → different seed', () => {
+  const a = sanitizeLayout(randomLayout(3 * 7919));
+  const b = sanitizeLayout(randomLayout(3 * 7919));
+  assert.equal(stableSeed(a, null), stableSeed(b, null), 'same layout → same seed');
+  assert.equal(stableSeed(a, { happy: 0.5 }), stableSeed(a, { happy: 0.5 }), 'same weights → same seed');
+  assert.notEqual(stableSeed(a, null), stableSeed(a, { happy: 0.5 }), 'changing goals changes the seed');
+  assert.notEqual(stableSeed(a, null), stableSeed(sanitizeLayout(randomLayout(7 * 7919)), null), 'different city → different seed');
+  const s = stableSeed(a, null);
+  assert.ok(Number.isInteger(s) && s > 0 && s <= 0xffffffff, `seed must be a positive uint32 (got ${s})`);
+});
+
+test('stableSeed: building/road order does not change the seed (canonical JSON)', () => {
+  const a = childTown();
+  const b = JSON.parse(JSON.stringify(a));
+  b.buildings = b.buildings.slice().reverse();
+  assert.equal(stableSeed(a, null), stableSeed(b, null), 'reordering buildings must not change the seed');
+  const c = JSON.parse(JSON.stringify(a));
+  c.roads = c.roads.slice().reverse();
+  assert.equal(stableSeed(a, null), stableSeed(c, null), 'reordering roads must not change the seed');
+  // A real edit (nudging one building) MUST change the seed.
+  const d = JSON.parse(JSON.stringify(a));
+  d.buildings[0].pos = [d.buildings[0].pos[0] + 25, d.buildings[0].pos[1]];
+  assert.notEqual(stableSeed(a, null), stableSeed(d, null), 'moving a building must change the seed');
+});
+
+test('optimise is reproducible for a city + goals (same two plans every press)', () => {
+  const layout = sanitizeLayout(randomLayout(41 * 7919));
+  const weights = { happy: 0.4, walkable: 0.2, peaceful: 0.2, spread: 0.2 };
+  const seed = stableSeed(layout, weights);
+  const g1 = optimizeLayout(layout, { weights }, seed);
+  const g2 = optimizeLayout(layout, { weights }, stableSeed(layout, weights));
+  const e1 = optimizeLayout(layout, { weights, strategy: 'explore' }, seed);
+  const e2 = optimizeLayout(layout, { weights, strategy: 'explore' }, stableSeed(layout, weights));
+  assert.equal(JSON.stringify(g1.layout), JSON.stringify(g2.layout), 'Greedy must be stable across presses');
+  assert.equal(JSON.stringify(e1.layout), JSON.stringify(e2.layout), 'Explore must be stable across presses');
+  // Shared seed ⇒ Explore's first restart reproduces Greedy, so Explore can
+  // never score below the Greedy plan the child just saw.
+  assert.ok(e1.after.score >= g1.after.score - 1e-9, 'Explore never below Greedy on the shared seed');
+});
+
+/**
+ * A realistic hand-placed child town (NOT randomLayout noise): a main street
+ * with two cross streets, eight homes in a row, every service bunched at the
+ * west end (so the eastern homes are underserved), the mission buildings
+ * stacked in the centre, utilities stranded in corners, one noisy delivery
+ * beside a home, and a park far to the east. This is what a 10-year-old's
+ * first plan actually looks like.
+ */
+function childTown() {
+  return sanitizeLayout({
+    version: 2, scaleMeters: 2000,
+    roads: [
+      { points: [[150, 1000], [1850, 1000]], width: 14, class: 'primary' },
+      { points: [[700, 250], [700, 1750]], width: 12, class: 'secondary' },
+      { points: [[1300, 250], [1300, 1750]], width: 12, class: 'secondary' },
+    ],
+    parks: [{ cx: 1630, cz: 700, radius: 70 }],
+    buildings: [
+      { type: 'city_central', pos: [1000, 1030], footprint: [28, 28], height: 100 },
+      { type: 'finance_tower', pos: [1040, 1060], footprint: [24, 24], height: 80 },
+      { type: 'treasury', pos: [1080, 1090], footprint: [22, 22], height: 50 },
+      { type: 'sentiment_lab', pos: [1120, 1120], footprint: [22, 22], height: 45 },
+      { type: 'housing', pos: [400, 990], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [550, 990], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [700, 990], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [850, 990], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1000, 990], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1150, 990], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1300, 990], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1450, 990], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [380, 910], footprint: [26, 24], height: 20 },
+      { type: 'shop', pos: [520, 1150], footprint: [32, 32], height: 26 },
+      { type: 'hospital', pos: [300, 970], footprint: [30, 26], height: 34 },
+      { type: 'fire', pos: [760, 850], footprint: [22, 20], height: 16 },
+      { type: 'police', pos: [900, 1230], footprint: [22, 20], height: 18 },
+      { type: 'delivery', pos: [1300, 1000], footprint: [26, 22], height: 44 },
+      { type: 'water', pos: [200, 1800], footprint: [24, 24], height: 40 },
+      { type: 'power', pos: [1800, 300], footprint: [24, 24], height: 44 },
+      { type: 'bus', pos: [1800, 1700], footprint: [26, 20], height: 38 },
+    ],
+  });
+}
+
+test('explore honestly beats greedy on a realistic hand-placed child town', () => {
+  const layout = childTown();
+  const seed = stableSeed(layout, null);
+  const greedy = optimizeLayout(layout, {}, seed);
+  const explore = optimizeLayout(layout, { strategy: 'explore' }, seed);
+  // Documented fixture: Greedy stops at 86; Explore's fresh restarts reach 89.
+  assert.equal(greedy.after.score, 86, 'greedy fixture score changed');
+  assert.equal(explore.after.score, 89, 'explore fixture score changed');
+  assert.ok(explore.after.score > greedy.after.score + 0.5,
+    `Explore must strictly beat Greedy here (got ${greedy.after.score} vs ${explore.after.score})`);
+  // Invariants still hold in both strategies.
+  assert.ok(explore.after.score >= computeMetrics(layout).score - 1e-9, 'never worse than input');
+  assert.equal(JSON.stringify(layout.roads), JSON.stringify(explore.layout.roads), 'roads are sacred');
+  assert.ok(validateLayout(explore.layout).ok, 'explore output validates');
 });
 
 test('proposeMoves: optimal city proposes nothing (or very little)', () => {
