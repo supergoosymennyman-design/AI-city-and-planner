@@ -96,13 +96,22 @@ test('A5/A7: a save label that trips the safety screen or is over-long falls bac
   assert.equal(JSON.parse(kv._map.get(ok.data.code)).label, 'My Dragon City');
 });
 
-test('POST /api/save rejects bad bodies, missing KV (503), and oversized bodies (400)', async () => {
+test('POST /api/save rejects bad bodies and missing KV (503)', async () => {
   const kv = fakeKV();
   const noState = await fetchWith({ SAVES: kv }, '/api/save', { label: 'x' });
   assert.equal(noState.status, 400);
   const noKv = await fetchWith({}, '/api/save', { state: { a: 'b' } });
   assert.equal(noKv.status, 503);
-  // The worker's body gate (256KB) rejects a huge save before any KV write.
-  const big = await fetchWith({ SAVES: kv }, '/api/save', { state: { a: 'x'.repeat(400 * 1024) } });
+});
+
+test('F3: the save cap is reachable — a 256KB–1MB save succeeds, >1MB is refused', async () => {
+  const kv = fakeKV();
+  // Regression (Gemini pass 1, F3): MAX_SAVE_BYTES was 1MB but the generic body gate was 256KB, so
+  // any save over 256KB was rejected before the save cap was ever consulted. A 400KB save must work.
+  const mid = await fetchWith({ SAVES: kv }, '/api/save', { state: { blob: 'x'.repeat(400 * 1024) } });
+  assert.equal(mid.status, 200);
+  assert.ok(mid.data.code, 'expected a code for a 400KB save');
+  // Above MAX_SAVE_BYTES (1MB) the body gate still refuses.
+  const big = await fetchWith({ SAVES: kv }, '/api/save', { state: { blob: 'x'.repeat(1200 * 1024) } });
   assert.equal(big.status, 400);
 });

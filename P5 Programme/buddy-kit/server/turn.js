@@ -29,6 +29,34 @@ const { validateAction } = actionSchemaMod;
 /** Tags an Error with an HTTP status so the gateway's top-level handler can respond without leaking `e.message`. */
 export function httpError(status, message) { return Object.assign(new Error(message), { status }); }
 
+/**
+ * Every secret value worth scrubbing from a log line: this request's BYOK key PLUS any deployment
+ * credential configured on the boot env (any `*_API_KEY` / `*_KEY` / `*_TOKEN` / `*_SECRET` name).
+ * WHY both: an AI-SDK `APICallError`'s message (or `.url`) can embed the Authorization header it
+ * used, and the turn may have run on a DEPLOYER key — the boot default or a registry model's
+ * `keyEnv` — not only the child's BYOK key. Scrubbing `byokKey` alone left the deployment credential
+ * exposed (audit F1). Values shorter than 8 chars are ignored (too generic to replace safely).
+ * @param {Record<string,string|undefined>} env @param {string|null|undefined} byokKey
+ * @returns {string[]}
+ */
+export function secretValues(env, byokKey) {
+  const out = [];
+  if (typeof byokKey === 'string' && byokKey.length >= 8) out.push(byokKey);
+  for (const [k, v] of Object.entries(env || {})) {
+    if (!/(_API_KEY|_KEY|_TOKEN|_SECRET)$/i.test(k)) continue;
+    if (typeof v === 'string' && v.length >= 8) out.push(v);
+  }
+  return out;
+}
+
+/** Replace every secret with `[key]` and cap the result — the ONE rule every log line in this file
+ *  obeys (a deployment log must never carry a child's chat or a provider key). */
+export function scrubSecrets(text, secrets, cap = 200) {
+  let s = String(text ?? '');
+  for (const secret of secrets) s = s.split(secret).join('[key]');
+  return s.slice(0, cap);
+}
+
 /** Model ids a request may name on the BYOK path — OpenRouter slugs (`author/model`), alias forms
  *  (`~author/model-latest`), vendor ids (`deepseek-v4-pro`). Anything outside is a loud 400. */
 const MODEL_ID_RE = /^[\w./~:-]{1,128}$/;
@@ -329,13 +357,14 @@ export async function runTurn(ctx, boot, io) {
     // message). `console.error(…, e)` would pool children's chat content into the deployment log of a
     // product that promises no PII. Name/message/status/url is everything an operator needs to debug a
     // provider failure, and none of it is the child's.
-    // `message` may embed request context (some SDK error messages echo headers/keys). The turn's
-    // OWN key is the one string we can and must provably scrub before logging (spec §7.2); the
-    // 200-char cap bounds whatever else a provider dumps in. statusCode+url+name carry the debug value.
-    const keyToScrub = ctx.byokKey;
-    const raw = String(e?.message ?? '');
-    const safeMsg = (keyToScrub ? raw.split(keyToScrub).join('[key]') : raw).slice(0, 200);
-    console.error('[turn] engine turn failed', { name: e?.name, message: safeMsg, statusCode: e?.statusCode, url: e?.url });
+    // `message` may embed request context (some SDK error messages echo headers/keys). Scrub EVERY
+    // configured secret — this turn's BYOK key AND any deployment key the model ran on (audit F1:
+    // byokKey alone left the deployer credential exposed) — from the message AND the url, which can
+    // also carry a query-string key. The 200-char cap bounds whatever else a provider dumps in.
+    // statusCode+url+name carry the debug value.
+    const secrets = secretValues(boot.env, ctx.byokKey);
+    const safeMsg = scrubSecrets(e?.message, secrets);
+    console.error('[turn] engine turn failed', { name: e?.name, message: safeMsg, statusCode: e?.statusCode, url: scrubSecrets(e?.url, secrets, 300) });
     if (wroteTerminal) {
       // A terminal (cut, or the reconstructed done) already reached the wire before the throw —
       // emitting anything more would break the exactly-one-terminal contract. Just close.
@@ -430,11 +459,12 @@ export async function runTidyUp(body, boot, deps) {
     // same meter-only no-op the empty/braked branches return, so their transcript survives untouched.
     // Never the error object — an APICallError's `requestBodyValues` embeds the child's conversation
     // (this route posts their WHOLE transcript), so logging `e` would pool chat content into the
-    // deployment log. Fields only, same set as the runTurn catch above.
+    // deployment log. Fields only, same set as the runTurn catch above — including the same
+    // secretValues scrub of EVERY configured key (audit F1), not just the request's BYOK key.
     const bk = typeof body?.providerKey === 'string' ? body.providerKey : null;
-    const raw = String(e?.message ?? '');
-    const safeMsg = (bk ? raw.split(bk).join('[key]') : raw).slice(0, 200);
-    console.error('[turn] tidy-up summarize failed', { name: e?.name, message: safeMsg, statusCode: e?.statusCode, url: e?.url });
+    const secrets = secretValues(boot.env, bk);
+    const safeMsg = scrubSecrets(e?.message, secrets);
+    console.error('[turn] tidy-up summarize failed', { name: e?.name, message: safeMsg, statusCode: e?.statusCode, url: scrubSecrets(e?.url, secrets, 300) });
     return { meter: meterFor(null, fallback, model.contextLimit) };
   }
   // Same absent-totalTokens tolerance as runTurn's brake feeds — see the comment there.

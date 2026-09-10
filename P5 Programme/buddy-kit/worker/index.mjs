@@ -151,11 +151,14 @@ function bootFor(env) {
  * buffered the request, so this is a cap-check + parse, not stream plumbing; the byte count uses
  * the ENCODED length so the bound means the same thing it means on the Node side (wire bytes,
  * where CJK is 3 bytes/char — `text.length` alone would under-count exactly those bodies).
- * @param {Request} request @returns {Promise<object>} parsed body, `{}` for an empty one.
+ * @param {Request} request @param {number} [maxBytes] cap override (the save route passes the larger
+ *   MAX_SAVE_BYTES; everything else keeps the 256KB default). Audit F3: before this, the save cap of
+ *   1MB was unreachable because this 256KB gate rejected the body first.
+ * @returns {Promise<object>} parsed body, `{}` for an empty one.
  */
-async function bodyOf(request) {
+async function bodyOf(request, maxBytes = MAX_BODY_BYTES) {
   const text = await request.text();
-  if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) throw httpError(400, 'request body too large');
+  if (new TextEncoder().encode(text).length > maxBytes) throw httpError(400, 'request body too large');
   if (!text) return {};
   try { return JSON.parse(text); }
   catch { throw httpError(400, 'malformed JSON body'); }
@@ -212,7 +215,9 @@ export default {
       }
       // Cloud Champion-File save: POST { label?, code?, state } → { code }.
       if (request.method === 'POST' && path === '/api/save') {
-        const code = await savePayload(env, await bodyOf(request));
+        // A city state can be larger than a chat turn, so the save route gets the MAX_SAVE_BYTES
+        // cap; bodyOf's 256KB default still guards /api/turn, /api/tidy-up and /api/load (audit F3).
+        const code = await savePayload(env, await bodyOf(request, MAX_SAVE_BYTES));
         return json(200, { code });
       }
       // Cloud Champion-File load: POST { code } → { label, savedAt, state }. The code rides in the
