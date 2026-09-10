@@ -954,6 +954,38 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 }
 .save-input:focus { outline: 2px solid #00f2fe; outline-offset: 1px; }
 
+/* ── Auto-save status (topbar) ── */
+.autosave-status {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted, #9fb0c7);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 160ms linear;
+  pointer-events: none;
+}
+.autosave-status.show { opacity: 1; }
+.autosave-status.saved { color: var(--jade, #00ff9d); }
+
+/* ── Save modal: file vs cloud ── */
+.save-actions { gap: 10px; flex-wrap: wrap; }
+.plan-apply.cloud { background: #0f2c4a; color: #bfe9ff; border-color: rgba(0, 183, 255, 0.55); }
+.plan-apply.cloud:hover { border-color: #00b7ff; }
+.plan-apply.cloud:disabled { opacity: 0.6; cursor: wait; }
+.save-cloud-result {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  color: var(--text, #eaf2f8);
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.save-cloud-result b { color: var(--jade, #00ff9d); letter-spacing: 0.3px; }
+
 /* ── Live re-weighting preview (goals modal) ── */
 .goals-live {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;

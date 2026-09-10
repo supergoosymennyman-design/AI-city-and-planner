@@ -1068,6 +1068,9 @@ function updateMetrics() {
   }
   renderSelectedInfo();
   requestRender();
+  // Every layout/goal mutation funnels through updateMetrics(), so this is the
+  // one choke point that guarantees the auto-save sees each change.
+  scheduleAutosave();
 }
 
 function starHTML(n) {
@@ -1815,6 +1818,73 @@ function downloadLayout(json) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+// ── Auto-save (crash safety net) ────────────────────────────────────────────
+// The child's layout is persisted automatically a moment after every change, so
+// closing the tab (or a crash) never loses an afternoon of building. This writes
+// the SAME key the "🌆 View my city" handoff uses, so the 3D city always finds
+// the newest city — and the Champion File bundles that key too.
+//
+// Debounced: drawing a road fires updateMetrics() many times per gesture, and we
+// only want ONE write at the end. Deliberately silent on failure (quota / private
+// mode) — the explicit "💾 Save" still offers a file, and a scary error on every
+// keystroke would be worse than the risk.
+const AUTOSAVE_DELAY_MS = 1200;
+let _autosaveTimer = 0;
+let _statusTimer = 0;
+let _booted = false;   // suppress the status flash during the initial programmatic updateMetrics()
+
+/** Serialize + persist the current layout. Returns true when written. */
+function saveLayoutToStorage() {
+  try {
+    const layout = serializeLayout();
+    const v = validateLayout(layout);
+    if (!v.ok) return false;   // never persist an invalid city
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout, null, 2));
+    return true;
+  } catch (e) {
+    return false;              // quota / blocked storage — keep the in-memory city
+  }
+}
+
+/** Tiny topbar confirmation so the child (and teacher) can see work is kept. */
+function setAutosaveStatus(kind) {
+  if (!_booted) return;
+  const el = document.getElementById('autosave-status');
+  if (!el) return;
+  clearTimeout(_statusTimer);
+  if (kind === 'saving') {
+    el.textContent = t('planner.autosave.saving');
+    el.className = 'autosave-status show';
+  } else {
+    el.textContent = t('planner.autosave.saved');
+    el.className = 'autosave-status show saved';
+    _statusTimer = setTimeout(() => { el.className = 'autosave-status'; }, 2200);
+  }
+}
+
+/** Queue a save for just after the current burst of edits. */
+function scheduleAutosave() {
+  if (!_booted) return;   // the initial programmatic updateMetrics() is not a change
+  clearTimeout(_autosaveTimer);
+  setAutosaveStatus('saving');
+  _autosaveTimer = setTimeout(() => {
+    if (saveLayoutToStorage()) setAutosaveStatus('saved');
+  }, AUTOSAVE_DELAY_MS);
+}
+
+/** Write immediately (tab hidden / closing) so nothing pending is lost. */
+function flushAutosave() {
+  clearTimeout(_autosaveTimer);
+  if (saveLayoutToStorage()) setAutosaveStatus('saved');
+}
+
+// Mobile Safari does not reliably fire beforeunload; visibilitychange + pagehide
+// do. Flush pending edits when the tab is backgrounded or closed.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushAutosave();
+});
+window.addEventListener('pagehide', flushAutosave);
+
 // ── Champion File save (named download — the cross-device backup) ───────────
 // "💾 Save my city" bundles EVERYTHING (layout + quests + props + skin + flags)
 // into one file the student names, so they can restore it on any device next
@@ -1840,6 +1910,8 @@ function wireSaveModal() {
   const nameInput = document.getElementById('save-name');
   const saveBtn = document.getElementById('btn-save');
   const goBtn = document.getElementById('save-go');
+  const cloudBtn = document.getElementById('save-cloud');
+  const cloudResult = document.getElementById('save-cloud-result');
   if (!modal || !nameInput || !saveBtn || !goBtn) return;
   const open = () => {
     // Prefill from the last-used name, else a friendly default.
@@ -1847,14 +1919,17 @@ function wireSaveModal() {
       const last = localStorage.getItem('p5_city_save_name_v1');
       if (last) nameInput.value = last;
     } catch { /* ignore */ }
+    if (cloudResult) { cloudResult.hidden = true; cloudResult.textContent = ''; }
     modal.classList.remove('hidden');
     nameInput.focus();
     nameInput.select();
   };
   const close = () => modal.classList.add('hidden');
+  const readName = () => nameInput.value.trim() || 'my-ai-city';
+  const rememberName = (name) => { try { localStorage.setItem('p5_city_save_name_v1', name); } catch { /* ignore */ } };
   const doSave = () => {
-    const name = nameInput.value.trim() || 'my-ai-city';
-    try { localStorage.setItem('p5_city_save_name_v1', name); } catch { /* ignore */ }
+    const name = readName();
+    rememberName(name);
     downloadChampionFile(name);
     close();
   };
@@ -1862,6 +1937,125 @@ function wireSaveModal() {
   goBtn.addEventListener('click', doSave);
   nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSave(); });
   modal.querySelectorAll('[data-save-close]').forEach((el) => el.addEventListener('click', close));
+
+  // ☁️ Save to cloud — same worker endpoints the 3D city uses, so a code made
+  // here opens there and vice-versa.
+  if (cloudBtn) cloudBtn.addEventListener('click', async () => {
+    const name = readName();
+    rememberName(name);
+    cloudBtn.disabled = true;
+    cloudBtn.textContent = t('planner.cloud.saving');
+    try {
+      const code = await cloudSave(name);
+      if (cloudResult) {
+        cloudResult.hidden = false;
+        cloudResult.innerHTML = L('planner.cloud.savedCode', { code: escHTML(code) });
+      }
+    } catch (e) {
+      console.error('[planner] cloud save failed', e);
+      if (cloudResult) {
+        cloudResult.hidden = false;
+        // Kid-first copy: reassure first, then the concrete next step.
+        cloudResult.textContent = t('planner.cloud.saveFail');
+      }
+    } finally {
+      cloudBtn.disabled = false;
+      cloudBtn.textContent = t('planner.cloud.save');
+    }
+  });
+}
+
+// ── Cloud codes (cross-device backup; same worker as the 3D city) ───────────
+// The cloud code is the child's only key to their city, so it travels in the
+// POST body (never a query param) and is never logged or put in the URL.
+const CLOUD_CODE_KEY = 'p5_cloud_code_v1';   // device-local pointer; not in CF_KEYS
+
+function escHTML(s) {
+  return String(s).replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+async function cloudSave(label) {
+  const file = composeChampionFile(collectState(), label);
+  let lastCode = null;
+  try { lastCode = localStorage.getItem(CLOUD_CODE_KEY); } catch { /* ignore */ }
+  const res = await fetch('/api/save', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ label: file.label, state: file.state, code: lastCode || undefined }),
+  });
+  if (!res.ok) throw new Error('save failed (' + res.status + ')');
+  const data = await res.json();
+  try { localStorage.setItem(CLOUD_CODE_KEY, data.code); } catch { /* ignore */ }
+  rememberSavedAt();
+  return data.code;
+}
+
+async function cloudLoad(code) {
+  const res = await fetch('/api/load', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) {
+    const err = new Error('load failed (' + res.status + ')');
+    err.status = res.status;   // let the UI tell "wrong code" from "cloud is down"
+    throw err;
+  }
+  return await res.json();
+}
+
+/** Wire the "☁️ Open from cloud" item + its code-entry modal. */
+function wireCloudModal() {
+  const modal = document.getElementById('cloud-modal');
+  const openBtn = document.getElementById('import-cloud-open');
+  const codeInput = document.getElementById('cloud-code');
+  const loadBtn = document.getElementById('cloud-load');
+  const result = document.getElementById('cloud-load-result');
+  if (!modal || !openBtn || !codeInput || !loadBtn) return;
+  const open = () => {
+    try { const last = localStorage.getItem(CLOUD_CODE_KEY); if (last) codeInput.value = last; } catch { /* ignore */ }
+    if (result) result.textContent = '';
+    if (importMenu) importMenu.classList.add('hidden');
+    modal.classList.remove('hidden');
+    codeInput.focus();
+    codeInput.select();
+  };
+  const close = () => modal.classList.add('hidden');
+  const doLoad = async () => {
+    const code = codeInput.value.trim();
+    if (!code) { if (result) result.textContent = t('planner.cloud.needCode'); return; }
+    loadBtn.disabled = true;
+    loadBtn.textContent = t('planner.cloud.loading');
+    try {
+      const data = await cloudLoad(code);
+      const champ = sanitizeChampionFile(data);
+      if (!champ.ok) { if (result) result.textContent = '⚠️ ' + champ.error; return; }
+      const res = writeState(champ.file.state);
+      if (result) {
+        result.textContent = res.ok
+          ? L('planner.cloud.restored', { n: res.wrote })
+          : L('planner.cloud.partial', { n: res.failed.length });
+      }
+      try { localStorage.setItem(CLOUD_CODE_KEY, code); } catch { /* ignore */ }
+      setTimeout(() => window.location.reload(), 3000);
+    } catch (e) {
+      // "Wrong code" and "cloud unreachable" are different problems — say which.
+      if (result) {
+        result.textContent = (e && e.status === 404)
+          ? t('planner.cloud.notFound')
+          : t('planner.cloud.offline');
+      }
+    } finally {
+      loadBtn.disabled = false;
+      loadBtn.textContent = t('planner.cloud.load');
+    }
+  };
+  openBtn.addEventListener('click', open);
+  loadBtn.addEventListener('click', doLoad);
+  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLoad(); });
+  modal.querySelectorAll('[data-cloud-close]').forEach((el) => el.addEventListener('click', close));
 }
 
 /** Import a Champion File (restore everything) or a legacy layout JSON. Returns true if handled. */
@@ -2305,6 +2499,7 @@ function toast(msg) {
 (function init() {
   buildDrawer();
   wireSaveModal();
+  wireCloudModal();
   mountLangToggle('.actions');
   applyStatic();
   let saved = null;
@@ -2330,4 +2525,5 @@ function toast(msg) {
   } else {
     maybeShowCoach();
   }
+  _booted = true;   // from here on, auto-save changes announce themselves
 })();
