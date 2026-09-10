@@ -63,13 +63,17 @@ build_pregame() {
 # ── Home (Champion Hub — pure static launcher for all scenario links) ───────
 build_home() {
   echo "▶ Building home bundle…"
-  rm -rf home/index.html home/home.css home/home.js home/champion-illustration.svg home/fonts home/fonts.css
+  rm -rf home/index.html home/home.css home/home.js home/links.js home/champion.js home/champion.glb home/champion-illustration.svg home/fonts home/fonts.css home/vendor
   cp "$KIT/client/home/index.html"                  home/index.html
   cp "$KIT/client/home/home.css"                    home/home.css
   cp "$KIT/client/home/home.js"                     home/home.js
+  cp "$KIT/client/home/links.js"                    home/links.js
+  cp "$KIT/client/home/champion.js"                 home/champion.js
+  cp "$KIT/client/home/champion.glb"                home/champion.glb
   cp "$KIT/client/home/champion-illustration.svg"   home/champion-illustration.svg
   cp -r "$KIT/client/home/fonts"                    home/fonts
   cp "$KIT/client/home/fonts.css"                   home/fonts.css
+  cp -r "$KIT/client/home/vendor"                   home/vendor
   cp "$KIT/client/crash-guard.js"                   home/crash-guard.js
   write_headers home
   echo "  home bundle ready."
@@ -108,9 +112,11 @@ build_city_sim() {
   mkdir -p city-sim/planner city-sim/pregame
   cp "$KIT/client/city-planner/index.html"  city-sim/planner/index.html
   cp "$KIT/client/city-planner/planner.js"  city-sim/planner/planner.js
+  cp "$KIT/client/city-planner/i18n.js"     city-sim/planner/i18n.js
   cp "$KIT/client/city-planner/styles.css"  city-sim/planner/styles.css
   cp "$KIT/client/city-pregame/index.html"  city-sim/pregame/index.html
   cp "$KIT/client/city-pregame/app.js"      city-sim/pregame/app.js
+  cp "$KIT/client/city-pregame/lesson-core.js" city-sim/pregame/lesson-core.js
   cp "$KIT/client/city-pregame/styles.css"  city-sim/pregame/styles.css
   # Root landing → the 3D city. (The buddy worker owns the root today, which
   # would otherwise show the Recycle-Eye demo instead of the city.)
@@ -237,6 +243,21 @@ minify_app() {
   fi
 }
 
+# ── Import-graph gate ────────────────────────────────────────────────────────
+# After a build, walk each app's entry module graph and fail if any referenced
+# file is missing from the SOURCE tree or the freshly built bundle (catches the
+# planner/i18n.js class of "referenced but not shipped" 404s before they go
+# live). --deploy-dir scopes the check to one worker bundle (city-sim|home).
+run_imports() {
+  local deploy_dir="$1"
+  echo "▶ Import-graph check ($deploy_dir)…"
+  if ! node "$ROOT/scripts/check-imports.mjs" --deploy-dir "$deploy_dir"; then
+    echo "ERROR: import graph references a missing file — fix before deploying." >&2
+    exit 1
+  fi
+  echo "  import-graph OK."
+}
+
 # ── Deploy-or-skip helper (--build-only) ─────────────────────────────────────
 deploy_if() {
   [ "$BUILD_ONLY" = "1" ] && { echo "  (build-only: skipping deploy)"; return 0; }
@@ -261,13 +282,14 @@ done
 case "$ONLY" in
   --planner) run_audit; build_planner; minify_app planner; deploy_if planner ;;
   --pregame) run_audit; build_pregame; minify_app pregame; deploy_if pregame ;;
-  --home) run_audit; build_home; minify_app home; deploy_if home ;;
-  --city-sim) run_audit; build_city_sim; minify_app city-sim; deploy_if city-sim ;;
+  --home) run_audit; build_home; minify_app home; run_imports home; deploy_if home ;;
+  --city-sim) run_audit; build_city_sim; minify_app city-sim; run_imports city-sim; deploy_if city-sim ;;
   --fit-studio) run_audit; build_fit_studio; minify_app fit-studio; deploy_if fit-studio ;;
   *) run_audit; build_home; minify_app home; deploy_if home;
      build_planner; minify_app planner; deploy_if planner;
      build_pregame; minify_app pregame; deploy_if pregame;
      build_city_sim; minify_app city-sim; deploy_if city-sim;
-     build_fit_studio; minify_app fit-studio; deploy_if fit-studio ;;
+     build_fit_studio; minify_app fit-studio; deploy_if fit-studio;
+     run_imports city-sim; run_imports home ;;
 esac
 echo "✔ Done."

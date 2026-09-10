@@ -1,0 +1,740 @@
+// city-planner/i18n.js — en/zh-Hant dictionary for the 2D AI City Planner.
+//
+// Same pattern as city-builder/i18n.js (reusable + buildless, copy-verbatim).
+// Defaults to the saved choice, else the browser locale (zh → Traditional
+// Chinese, otherwise English). A small 中/EN toggle mounts in the planner's
+// topbar `.actions` and persists under the shared LANG_KEY so the 3D city,
+// hub and planner all agree.
+//
+// Usage:
+//   import { initI18n, applyStatic, mountLangToggle, t, currentLang } from './i18n.js';
+//   initI18n();             // once, before first paint
+//   applyStatic();          // localize [data-i18n] HTML chrome
+//   mountLangToggle('.actions');   // 中/EN button in the topbar
+//   t('planner.tool.place') // → "Place" / "放置"
+export const LANG_KEY = 'hk_ai_city_lang_v1';
+
+const DICT = {
+  en: {
+    // Topbar chrome
+    'planner.title.app': '🏙️ AI City Planner',
+    'planner.toolbar.aria': 'Planning tools',
+    'planner.tool.place': '🏗️ Place',
+    'planner.tool.road': '🛣️ Road',
+    'planner.tool.park': '🌳 Park',
+    'planner.tool.move': '👆 Move',
+    'planner.undo': '↩️ Undo',
+    'planner.undoTitle': 'Undo last change',
+    'planner.clear': '🗑️ Clear',
+    'planner.clearTitle': 'Clear the city',
+    'planner.roads': '🛤️ Roads',
+    'planner.roadsTitle': 'Start from a road template',
+    'planner.roadsMenuTitle': 'Start from a road layout',
+    'planner.roadsNote': 'Replaces the current city with a ready-made road network — you add the buildings!',
+    'planner.mymove': '🧠 My move',
+    'planner.mymoveTitle': 'Be the planner — predict the best change, then see the maths',
+    'planner.optimise': '🧮 Optimise',
+    'planner.optimiseTitle': 'Let the city optimiser improve your city in one pass',
+    'planner.open': '📂 Open',
+    'planner.openTitle': 'Open a saved city from a JSON file',
+    'planner.openMenuTitle': 'Open a saved city',
+    'planner.openFileBtn': '📁 Choose my-ai-city.json',
+    'planner.openPasteToggle': '📋 Paste JSON',
+    'planner.openPasteGo': '⬆️ Load pasted city',
+    'planner.openBackup': '💾 Download my-ai-city.json',
+    'planner.openNote': 'Replaces the current city (undoable). "🌆 View my city" saves + opens the 3D city — use 💾 Download to keep a file backup.',
+    'planner.save': '💾 Save',
+    'planner.saveTitle': 'Save a copy of your city to keep (download)',
+    'planner.viewCity': '🌆 View my city',
+    'planner.viewCityTitle': 'Save your city and see it in 3D',
+
+    // Drawer / map / metrics panel
+    'planner.drawer.aria': 'Building catalog',
+    'planner.drawer.title': 'Buildings',
+    'planner.drawer.mission': 'Mission buildings',
+    'planner.drawer.facilities': 'Facilities',
+    'planner.drawer.catNature': 'Nature',
+    'planner.drawer.catProps': 'Props',
+    'planner.drawer.catVehicles': 'Vehicles',
+    'planner.drawer.catScenarios': 'Themed',
+    'planner.map.aria': 'City map canvas',
+    'planner.metrics.aria': 'City score and goals',
+    'planner.score.label': 'City Score',
+    'planner.score.aria': 'City score, out of 100',
+    'planner.goals.heading': 'City goals',
+    'planner.goals.button': '⚙️ Goals',
+    'planner.goals.buttonTitle': 'Change what matters most',
+    'planner.view.homes': '😊 Homes',
+    'planner.view.homesTitle': 'Colour homes by how well they\'re served',
+    'planner.view.walk': '🚶 Walk',
+    'planner.view.walkTitle': 'Colour homes by how far people must walk',
+    'planner.view.ranges': '⭕ Ranges',
+    'planner.view.rangesTitle': 'Show how far people are willing to travel',
+    'planner.closeAria': 'Close',
+
+    // Goals modal
+    'planner.goals.aria': 'City goals',
+    'planner.goals.modalTitle': 'What kind of city do you want?',
+    'planner.goals.tabMayor': '🌳 Mayor',
+    'planner.goals.tabCustom': '🎚️ Custom goals',
+    'planner.goals.mayorIntro': 'Choose the mayor your council needs. Each mayor cares about different things — and the city optimizer will follow your lead.',
+    'planner.goals.balanced': '⚖️ Balanced — no favourite goal',
+    'planner.goals.customIntro': 'Drag the sliders to say how much each goal matters. The sliders are compared against each other — the numbers beside them always add up to 100%, and the optimizer works hardest on what has the biggest share.',
+    'planner.goals.done': '✅ Done',
+    'planner.goals.liveLabel': 'City score with these goals:',
+    'planner.goals.sliderAria': '{name} importance',
+    'planner.goalMeta.happy': 'Happy Homes',
+    'planner.goalMeta.walkable': 'Easy to get around',
+    'planner.goalMeta.peaceful': 'Peaceful',
+    'planner.goalMeta.spread': 'Balanced & spread out',
+
+    // Mayor personas
+    'planner.mayor.green.name': 'Green Mayor',
+    'planner.mayor.green.brief': 'Parks, walking, fresh air',
+    'planner.mayor.healthy.name': 'Healthy Mayor',
+    'planner.mayor.healthy.brief': 'Hospitals, fire, quiet homes',
+    'planner.mayor.busy.name': 'Busy Mayor',
+    'planner.mayor.busy.brief': 'Shops, offices, everywhere reachable',
+    'planner.mayor.quiet.name': 'Quiet Mayor',
+    'planner.mayor.quiet.brief': 'Peace and calm, spread out',
+
+    // Score receipt modal
+    'planner.receipt.aria': 'How your city score is calculated',
+    'planner.receipt.titlePre': 'Why is my score',
+    'planner.receipt.titlePost': '?',
+    'planner.receipt.introPre': 'Your City Score is a ',
+    'planner.receipt.introStrong': 'weighted sum',
+    'planner.receipt.introPost': ': each part is worth a share of 100, and they add up. Tap a row to see it on the map.',
+    'planner.receipt.noteCustom': 'These are <strong>your</strong> weights (your mayor or sliders). Changing a goal changes how the city is judged.',
+    'planner.receipt.noteDefault': 'These are the default weights — each part of a good city is worth a share. Tap 🎚️ Goals to change what matters most.',
+    'planner.receipt.done': '👍 Got it',
+    'planner.receipt.fastestLabel': 'Fastest way to raise your score?',
+    'planner.receipt.fastestNone': 'No single change would raise your score for these goals — try a different Mayor, or run 🧮 Optimise to rearrange the city.',
+    'planner.receiptMeta.accessibility.name': 'Easy to get around',
+    'planner.receiptMeta.accessibility.hint': 'Buildings within 60m of a road.',
+    'planner.receiptMeta.coverage.name': 'Homes have services',
+    'planner.receiptMeta.coverage.hint': 'Homes within 150m of school/shop/hospital/fire/police.',
+    'planner.receiptMeta.utilities.name': 'Water, power & buses',
+    'planner.receiptMeta.utilities.hint': 'Homes within 400m of water/power/bus.',
+    'planner.receiptMeta.zoning.name': 'Quiet & safe',
+    'planner.receiptMeta.zoning.hint': 'Noisy buildings kept away from homes.',
+    'planner.receiptMeta.spread.name': 'Spread out',
+    'planner.receiptMeta.spread.hint': 'Mission buildings not clustered together.',
+    'planner.receiptMeta.balance.name': 'Good mix',
+    'planner.receiptMeta.balance.hint': 'A sensible mix of different buildings.',
+
+    // First-run coach
+    'planner.coach.aria': 'How to plan your city',
+    'planner.coach.title': 'Plan your city like a planner',
+    'planner.coach.s1t': 'Understand',
+    'planner.coach.s1b': ' — tap the City Score to see the maths behind it.',
+    'planner.coach.s2t': 'See the distances',
+    'planner.coach.s2b': ' — tap ⭕ Ranges to show how far people will travel.',
+    'planner.coach.s3t': 'Be the planner',
+    'planner.coach.s3b': ' — tap 🧠 My move, guess which change helps most, then reveal the maths.',
+    'planner.coach.s4t': 'Check your work',
+    'planner.coach.s4b': ' — tap 🧮 Optimise when you\'re done. Greedy takes one careful climb; Explore restarts from fresh spots to climb even higher.',
+    'planner.coach.done': '✅ Let\'s build',
+
+    // Optimise plan modal
+    'planner.plan.aria': 'City optimisation plan',
+    'planner.plan.title': '🧮 City Optimiser',
+
+    // Save my city modal
+    'planner.saveModal.aria': 'Save my city',
+    'planner.saveModal.title': '💾 Save my city',
+    'planner.saveModal.intro': 'Name your city so you can find it later (your name, or a class code). Keep the file safe — it\'s your backup for next lesson!',
+    'planner.saveModal.nameAria': 'City name',
+
+    // Planner's License lock screen
+    'planner.lock.title': 'Earn your Planner\'s License to open this city',
+    'planner.lock.pre': 'Finish the ',
+    'planner.lock.academy': 'City Planning Academy',
+    'planner.lock.mid': ' and the planner opens by itself on this tablet. Going to a new tablet? Bring your ',
+    'planner.lock.file': 'license file',
+    'planner.lock.post': ' — the "Algorithm File" from the training, a tiny .json certificate.',
+    'planner.lock.goto': '🎓 Go to City Planning Academy',
+    'planner.lock.or': 'or',
+    'planner.lock.upload': '📁 Upload my license file',
+    'planner.lock.pasteToggle': '📋 Paste the file instead',
+    'planner.lock.pasteGo': '⬆️ Unlock with pasted file',
+
+    // Hint bar (tool tips + view overlays)
+    'planner.hint.place': 'Tap the map to place a building. Drag empty space to pan. Use the scroll wheel or pinch to zoom.',
+    'planner.hint.road': 'Drag on the map to draw a road — release to finish. Roads improve accessibility!',
+    'planner.hint.park': 'Drag on the map to paint a park circle — release to finish. Homes love parks!',
+    'planner.hint.select': 'Tap a building to select it, then drag to move it. Drag empty space to pan. 🗑️ removes it.',
+    'planner.hint.placeItem': 'Tap the map to place the {name}.',
+    'planner.hint.happy': '😊 Green homes have everything nearby. Amber homes are missing something — red homes are missing a lot!',
+    'planner.hint.walk': '🚶 People walk ALONG ROADS, not as-the-crow-flies — this counts the real walking distance to reach what they need. Green homes can reach everything within {budget}m; red ones can\'t. ({pct}% of needs reachable) Tip: tap a home with 👆 Move to draw its real walking routes.',
+    'planner.hint.ranges': '⭕ Green circles = 150m, how far people walk to a school/shop/park. Blue circles = 400m, how far to water/power/bus. Homes outside every circle are the ones to fix!',
+    'planner.hint.normal': 'Tap the map or use the tools — homes are back to normal.',
+    'planner.legend': '⭕ 150m = services & parks   |   400m = water / power / bus',
+
+    // Toasts + confirm sheet
+    'planner.toast.undo': '↩️ Undone',
+    'planner.toast.nothingUndo': 'Nothing to undo',
+    'planner.toast.cleared': '🗑️ City cleared',
+    'planner.toast.removed': '🗑️ Removed the {name}',
+    'planner.toast.roadShort': '⚠️ Road too short — drag a longer line to draw a road.',
+    'planner.toast.roadDrag': '⚠️ Drag on the map to draw a road — a tap doesn\'t make one.',
+    'planner.toast.keptAsIs': '👍 Kept your city as-is',
+    'planner.toast.locked': '🔒 {name} is kept in place — the optimizer won\'t move it.',
+    'planner.toast.unlocked': '🔓 Unlocked — the optimizer may move it again.',
+    'planner.confirm.keep': 'Keep my city',
+    'planner.confirm.clearTitle': 'Clear the whole map?',
+    'planner.confirm.clearMsg': 'This removes every building, road and park. You can press ↩️ Undo to bring it all back — but double-check first!',
+    'planner.confirm.clearYes': '🗑️ Clear it',
+
+    // Selected-building inspector
+    'planner.selected.lock': '🔒 Keep here',
+    'planner.selected.unlock': '🔓 Unlock',
+    'planner.selected.remove': '🗑️ Remove',
+    'planner.name.thisBuilding': 'This building',
+    'planner.type.housing': 'Housing',
+
+    // Goal list chips
+    'planner.homesNeed': 'Homes need:',
+    'planner.chipPlace': 'Place {name}',
+
+    // Road template menu
+    'planner.template.grid': 'City Grid',
+    'planner.template.radial': 'Radial Ring',
+    'planner.template.superblocks': 'Superblocks',
+    'planner.template.culdesacs': 'Cul-de-sacs',
+    'planner.template.twincenters': 'Twin Centres',
+    'planner.template.rivercity': 'River City',
+    'planner.template.coastal': 'Coastal City',
+    'planner.template.diagonal': 'Diagonal Boulevard',
+    'planner.template.forPrefix': 'for ',
+    'planner.template.goodFor.any': 'any mayor',
+    'planner.template.goodFor.busy': 'the Busy Mayor',
+    'planner.template.goodFor.quiet': 'the Quiet Mayor',
+    'planner.template.goodFor.healthy': 'the Healthy Mayor',
+    'planner.template.goodFor.walkable': 'the Walkable Mayor',
+    'planner.template.goodFor.green': 'the Green Mayor',
+    'planner.template.confirmTitle': 'Start from {name}?',
+    'planner.template.confirmMsg': 'This replaces your whole city with a ready-made road layout — you start fresh with roads, then add buildings. ↩️ Undo can bring your city back.',
+    'planner.template.replaceYes': '🛤️ Replace my city',
+    'planner.toast.templateLoaded': '🛤️ Loaded the {name} roads — now place your buildings!',
+
+    // Optimise flow
+    'planner.buddy.optimiser': 'City Optimiser',
+    'planner.buddy.nova': 'Nova',
+    'planner.opt.checking': '🧮 Checking…',
+    'planner.opt.nothing': '✅ Your city is already well balanced — nothing to change!',
+    'planner.opt.countAdd': '{n} added',
+    'planner.opt.countMove': '{n} moved',
+    'planner.opt.countRemove': '{n} removed',
+    'planner.opt.countPark': '{n} parks',
+    'planner.opt.countPark1': '{n} park',
+    'planner.opt.few': 'a few small tweaks',
+    'planner.opt.found': '🧮 I found {parts} — review and apply!',
+    'planner.opt.error': 'Hmm, I couldn\u2019t check your city right now — try again!',
+    'planner.plan.intro': 'I checked your city and here\'s what I found.',
+    'planner.plan.introExplore': '🔍 This plan used Explore — several fresh starts, keeping the best one.',
+    'planner.plan.scorePrefix': 'City Score: ',
+    'planner.plan.stays': 'stays ',
+    'planner.plan.nothing': 'Nothing to change — your city is already well balanced! 🌟',
+    'planner.plan.apply': '✅ Apply changes',
+    'planner.plan.applied': '✅ Applied — {parts}! ↩️ Undo to revert.',
+    'planner.strategy.aria': 'Compare optimisation strategies',
+    'planner.strategy.greedy': 'Greedy',
+    'planner.strategy.greedyDesc': 'One careful climb — keeps every step that helps',
+    'planner.strategy.explore': 'Explore',
+    'planner.strategy.exploreDesc': 'Fresh starts — can climb past small hills',
+    'planner.plan.ctAdd1': '{n} building added',
+    'planner.plan.ctAddN': '{n} buildings added',
+    'planner.plan.ctMove': '{n} moved',
+    'planner.plan.ctRemove': '{n} removed',
+    'planner.plan.ctPark1': '{n} park',
+    'planner.plan.ctParkN': '{n} parks',
+    'planner.plan.aiDone': 'Done! Your city is smarter now. 🌟',
+    'planner.plan.aiKept': 'No problem — your city stays exactly as you built it! 🌟',
+    'planner.planTheme.add': '🏠 Homes & facilities',
+    'planner.planTheme.move': '↔️ Better placement',
+    'planner.planTheme.remove': '🧹 Less clutter',
+    'planner.planTheme.addPark': '🌳 Parks',
+    'planner.metric.accessibility': 'closer to a road',
+    'planner.metric.coverage': 'nearer schools/shops/help',
+    'planner.metric.utilities': 'water, power & buses',
+    'planner.metric.spread': 'mission buildings spread out',
+    'planner.metric.zoning': 'quieter for homes',
+    'planner.metric.balance': 'better building mix',
+    'planner.metric.green': 'parks & green space',
+
+    // My move flow
+    'planner.mymove.aria': 'Be the planner',
+    'planner.mymove.thinking': '🧠 Thinking…',
+    'planner.mymove.nothing': '✅ Nothing more to improve — your city is well balanced! Try 🧮 Optimise to confirm.',
+    'planner.mymove.error': 'Hmm, I couldn\u2019t come up with a move right now — try again!',
+    'planner.mymove.introPre': 'The planner can make a few different changes. ',
+    'planner.mymove.introStrong': 'You\'re in charge',
+    'planner.mymove.introPost': ' — first guess which one will help most.',
+    'planner.mymove.questionPre': 'Which move will raise ',
+    'planner.mymove.questionPost': ' the most? Tap one.',
+    'planner.mymove.reasonLabel': 'And why? Pick the best reason.',
+    'planner.reason.coverage': 'More homes within 150m of a service',
+    'planner.reason.accessibility': 'Shorter walk to a road',
+    'planner.reason.zoning': 'Quieter for homes',
+    'planner.reason.spread': 'Buildings more spread out',
+    'planner.reason.utilities': 'Water / power / bus closer',
+    'planner.reason.balance': 'Better mix of buildings',
+    'planner.reason.green': 'More green space near homes',
+    'planner.mymove.reveal': '🔍 Reveal',
+    'planner.mymove.cancel': '🙅 Keep my city',
+    'planner.mymove.goodSpot': '🎉 Spot on! You picked the best move and the right reason.',
+    'planner.mymove.mehBest': '😮 You picked the best move, but the reason was off — look at which part actually changed.',
+    'planner.mymove.goodNear': '👍 Great eye — your move scored within a whisker of the best, and the reason was right.',
+    'planner.mymove.mehNear': '😮 Your move scored within a whisker of the best, but the reason was off — look at which part actually changed.',
+    'planner.mymove.mehReason': '👍 Good reason, but not the best move. Compare below.',
+    'planner.mymove.mehNone': '🤔 Not quite — here\u2019s what actually helped. Look at the numbers!',
+    'planner.mymove.changedFor': 'How the maths changed for ',
+    'planner.mymove.changedForPost': ':',
+    'planner.mymove.greedyPick': 'The computer would have picked:',
+    'planner.mymove.greedyWhy': ' It works like a hill-climber — it only looks one step ahead and grabs the biggest gain now.',
+    'planner.mymove.ruleTitle': 'Hill-climbing rule:',
+    'planner.mymove.ruleBody': 'try one change, and keep it if the score goes up (the full plan may also keep a change that dips the score a little to fix something important). Then try again — one step at a time.',
+    'planner.mymove.apply': '✅ Apply my move',
+    'planner.mymove.skip': '🙅 Skip this round',
+    'planner.mymove.finish': '🧮 Let Optimise finish',
+    'planner.toast.skipped': '👌 Skipped — tap 🧠 My move again for the next round.',
+    'planner.toast.applied': '✅ Applied: {label} — score {before} → {after}. Tap 🧠 My move for the next step.',
+    'planner.scoreDelta': '{n} points',
+    'planner.movelabel.add': '➕ Add {name}',
+    'planner.movelabel.move': '↔️ Move {name}',
+    'planner.movelabel.remove': '➖ Remove {name}',
+    'planner.movelabel.addPark': '🌳 Add a park',
+    'planner.movelabel.other': 'Change',
+    'planner.movelabel.homeName': 'a Home',
+    'planner.mm.metric.accessibility': 'walk to a road',
+    'planner.mm.metric.coverage': 'schools/shops/help nearby',
+    'planner.mm.metric.utilities': 'water/power/bus',
+    'planner.mm.metric.zoning': 'quiet for homes',
+    'planner.mm.metric.spread': 'spread out',
+    'planner.mm.metric.balance': 'building mix',
+    'planner.mm.metric.green': 'parks',
+    'planner.mm.improved': '↑ improved',
+    'planner.mm.yourReason': 'Your reason: {label}',
+    'planner.mm.right': '✓ right!',
+    'planner.mm.wrong': '✗ not the change',
+
+    // Import / save / export flows
+    'planner.import.notJson': '⚠️ That file is not valid JSON.',
+    'planner.import.opened': '📂 Opened your saved city — {b} buildings, {r} roads, {p} parks.',
+    'planner.import.downloaded': '💾 Downloaded my-ai-city.json',
+    'planner.import.restored': '📂 Restored your Champion File{label} ({n} saved items). Reloading…',
+    'planner.save.champion': '💾 Saved "{label}" — keep this file as your backup!',
+    'planner.export.saved': '💾 Saved! {b} buildings, {r} roads, {p} parks.{note}',
+    'planner.export.noRoads': ' ⚠️ No roads — the 3D city won\'t have streets or lights.',
+    'planner.export.storageFull': '⚠️ Could not save to this browser (storage full) — downloaded my-ai-city.json instead. Upload it in the 3D city.',
+
+    // Unlock (Planner's License)
+    'planner.unlock.toast': '🔓 Unlocked! Your city awaits, Junior Planner.',
+    'planner.unlock.nova': 'Well done! You earned the Planner\u2019s License. Let\u2019s build your city. 🌟',
+    'planner.unlock.error': 'That doesn\u2019t look like a license file. Fastest fix: tap \u201CGo to City Planning Academy\u201D and finish the training (\u224810 min) \u2014 it opens the planner on this tablet.',
+
+    // Optimiser / planner reason lines (from shared city-common/optimize.js;
+    // the EN strings above are the canonical templates — kept verbatim).
+    'planner.reason.addHousing': 'Added a home — a city needs somewhere for people to live!',
+    'planner.reason.addService': 'Added a {name} so homes nearby have one to reach — services improved.',
+    'planner.reason.addUtility': 'Added the {name} so homes nearby have {name} — utilities improved.',
+    'planner.reason.moveAccess': 'Moved the {name} closer to a road so people can reach it — road access improved.',
+    'planner.reason.moveZoning': 'Moved the {name} away from nearby homes — quieter streets, better zoning.',
+    'planner.reason.moveSpread': 'Moved the {name} farther from the other special buildings so they\'re not squeezed together.',
+    'planner.reason.moveUtility': 'Moved the {name} closer to homes that were too far away — utilities improved.',
+    'planner.reason.movePower': 'Moved the Smart Power Grid a bit farther from that home to cut the noisy hum — quieter homes win here.',
+    'planner.reason.addPark': 'Added a park near homes that had no green space close by — now they have somewhere green to walk to.',
+    'planner.reason.removeSpecial': 'Removed an extra {name} — this city only needs one; the rest were clutter.',
+    'planner.reason.removeExtra': 'Removed an extra {name} — one is enough. This may trade away a point or two, but a leaner city was worth it.',
+  },
+  'zh-Hant': {
+    // Topbar chrome
+    'planner.title.app': '🏙️ AI 城市規劃器',
+    'planner.toolbar.aria': '規劃工具',
+    'planner.tool.place': '🏗️ 放置',
+    'planner.tool.road': '🛣️ 道路',
+    'planner.tool.park': '🌳 公園',
+    'planner.tool.move': '👆 移動',
+    'planner.undo': '↩️ 復原',
+    'planner.undoTitle': '復原上一次改動',
+    'planner.clear': '🗑️ 清除',
+    'planner.clearTitle': '清空整座城市',
+    'planner.roads': '🛤️ 道路模板',
+    'planner.roadsTitle': '從道路模板開始',
+    'planner.roadsMenuTitle': '從現成道路佈局開始',
+    'planner.roadsNote': '會以現成的道路網絡取代目前城市 — 建築物由你來放！',
+    'planner.mymove': '🧠 我的決定',
+    'planner.mymoveTitle': '當一回規劃師 — 先猜測最佳改動，再看看當中的數學',
+    'planner.optimise': '🧮 優化',
+    'planner.optimiseTitle': '讓城市優化器一次過改善你的城市',
+    'planner.open': '📂 開啟',
+    'planner.openTitle': '開啟已儲存城市的 JSON 檔案',
+    'planner.openMenuTitle': '開啟已儲存的城市',
+    'planner.openFileBtn': '📁 選擇 my-ai-city.json',
+    'planner.openPasteToggle': '📋 貼上 JSON',
+    'planner.openPasteGo': '⬆️ 載入貼上的城市',
+    'planner.openBackup': '💾 下載 my-ai-city.json',
+    'planner.openNote': '會取代目前城市（可復原）。「🌆 查看我的城市」會儲存並開啟 3D 城市 — 可按 💾 下載保留檔案備份。',
+    'planner.save': '💾 儲存',
+    'planner.saveTitle': '儲存一份你的城市備份（下載）',
+    'planner.viewCity': '🌆 查看我的城市',
+    'planner.viewCityTitle': '儲存你的城市並以 3D 觀看',
+
+    // Drawer / map / metrics panel
+    'planner.drawer.aria': '建築物目錄',
+    'planner.drawer.title': '建築物',
+    'planner.drawer.mission': '任務建築',
+    'planner.drawer.facilities': '社區設施',
+    'planner.drawer.catNature': '大自然',
+    'planner.drawer.catProps': '道具',
+    'planner.drawer.catVehicles': '車輛',
+    'planner.drawer.catScenarios': '主題',
+    'planner.map.aria': '城市地圖畫布',
+    'planner.metrics.aria': '城市得分與目標',
+    'planner.score.label': '城市得分',
+    'planner.score.aria': '城市得分，滿分為 100',
+    'planner.goals.heading': '城市目標',
+    'planner.goals.button': '⚙️ 目標',
+    'planner.goals.buttonTitle': '改變你最重視的目標',
+    'planner.view.homes': '😊 住宅',
+    'planner.view.homesTitle': '按住宅獲得服務的情況顯示顏色',
+    'planner.view.walk': '🚶 步行',
+    'planner.view.walkTitle': '按居民要步行多遠顯示顏色',
+    'planner.view.ranges': '⭕ 範圍',
+    'planner.view.rangesTitle': '顯示人們願意走多遠',
+    'planner.closeAria': '關閉',
+
+    // Goals modal
+    'planner.goals.aria': '城市目標',
+    'planner.goals.modalTitle': '你想要一座怎樣的城市？',
+    'planner.goals.tabMayor': '🌳 市長',
+    'planner.goals.tabCustom': '🎚️ 自訂目標',
+    'planner.goals.mayorIntro': '為你的市議會挑選一位市長。每位市長重視的事情都不同 — 城市優化器會跟隨你的選擇。',
+    'planner.goals.balanced': '⚖️ 均衡 — 沒有特別偏好的目標',
+    'planner.goals.customIntro': '拖動滑桿，設定每個目標的重要程度。滑桿會互相比較 — 旁邊的數字加起來永遠是 100%，優化器會在最花心思在佔比最大的目標上。',
+    'planner.goals.done': '✅ 完成',
+    'planner.goals.liveLabel': '以這些目標計算的城市得分：',
+    'planner.goals.sliderAria': '{name} 的重要程度',
+    'planner.goalMeta.happy': '快樂家園',
+    'planner.goalMeta.walkable': '出入方便',
+    'planner.goalMeta.peaceful': '寧靜平和',
+    'planner.goalMeta.spread': '平均分佈',
+
+    // Mayor personas
+    'planner.mayor.green.name': '綠色市長',
+    'planner.mayor.green.brief': '公園、步行、清新空氣',
+    'planner.mayor.healthy.name': '健康市長',
+    'planner.mayor.healthy.brief': '醫院、消防、安靜的家',
+    'planner.mayor.busy.name': '繁忙市長',
+    'planner.mayor.busy.brief': '商店、辦公室、四通八達',
+    'planner.mayor.quiet.name': '安靜市長',
+    'planner.mayor.quiet.brief': '寧靜平和、建築分散開揚',
+
+    // Score receipt modal
+    'planner.receipt.aria': '你的城市得分是怎樣計算',
+    'planner.receipt.titlePre': '為甚麼我的分數是',
+    'planner.receipt.titlePost': '？',
+    'planner.receipt.introPre': '你的城市得分是一個',
+    'planner.receipt.introStrong': '加權總和',
+    'planner.receipt.introPost': '：每一部分各佔 100 分中的一部分，把它們加起來就是總分。點擊任何一行，可在地圖上查看。',
+    'planner.receipt.noteCustom': '這些是<strong>你</strong>的權重（你所選的市長或滑桿）。改變目標，就會改變城市被評分的方式。',
+    'planner.receipt.noteDefault': '這些是預設權重 — 一座好城市的每一部分都佔一份。點擊 🎚️ 目標，改變你最重視的事情。',
+    'planner.receipt.done': '👍 知道了',
+    'planner.receipt.fastestLabel': '最快提升分數的方法？',
+    'planner.receipt.fastestNone': '以這些目標而言，單一改變無法提升分數 — 試試另一位市長，或執行 🧮 優化來重新編排城市。',
+    'planner.receiptMeta.accessibility.name': '出入方便',
+    'planner.receiptMeta.accessibility.hint': '建築物在道路 60 米範圍內。',
+    'planner.receiptMeta.coverage.name': '住宅有齊所需設施',
+    'planner.receiptMeta.coverage.hint': '住宅在學校／商店／醫院／消防局／警局 150 米範圍內。',
+    'planner.receiptMeta.utilities.name': '自來水、電力與巴士',
+    'planner.receiptMeta.utilities.hint': '住宅在自來水／電力／巴士站 400 米範圍內。',
+    'planner.receiptMeta.zoning.name': '寧靜與安全',
+    'planner.receiptMeta.zoning.hint': '嘈吵的建築物遠離住宅。',
+    'planner.receiptMeta.spread.name': '平均分佈',
+    'planner.receiptMeta.spread.hint': '任務建築不會聚集在一起。',
+    'planner.receiptMeta.balance.name': '配搭均衡',
+    'planner.receiptMeta.balance.hint': '不同建築物有合適的配搭。',
+
+    // First-run coach
+    'planner.coach.aria': '怎樣規劃你的城市',
+    'planner.coach.title': '像規劃師一樣規劃你的城市',
+    'planner.coach.s1t': '了解',
+    'planner.coach.s1b': ' — 點擊城市得分，看看背後的分數是怎樣算的。',
+    'planner.coach.s2t': '查看距離',
+    'planner.coach.s2b': ' — 點擊 ⭕ 範圍，看看人們願意走多遠。',
+    'planner.coach.s3t': '當一回規劃師',
+    'planner.coach.s3b': ' — 點擊 🧠 我的決定，猜猜哪個改動最有幫助，然後揭曉當中的數學。',
+    'planner.coach.s4t': '檢查你的成果',
+    'planner.coach.s4b': ' — 完成後點擊 🧮 優化。「貪婪」會小心攀爬一次；「探索」會從新地點重新開始，可以爬得更高。',
+    'planner.coach.done': '✅ 開始建設吧',
+
+    // Optimise plan modal
+    'planner.plan.aria': '城市優化方案',
+    'planner.plan.title': '🧮 城市優化器',
+
+    // Save my city modal
+    'planner.saveModal.aria': '儲存我的城市',
+    'planner.saveModal.title': '💾 儲存我的城市',
+    'planner.saveModal.intro': '為你的城市改個名字，方便日後找回（可用你的名字或班別代號）。好好保存檔案 — 這是下堂課的備份！',
+    'planner.saveModal.nameAria': '城市名稱',
+
+    // Planner's License lock screen
+    'planner.lock.title': '考取規劃師執照，開啟這座城市',
+    'planner.lock.pre': '先完成',
+    'planner.lock.academy': '城市規劃學院',
+    'planner.lock.mid': '訓練，規劃器便會自動在這個平板電腦上開啟。想用新的平板電腦？帶上你的',
+    'planner.lock.file': '執照檔案',
+    'planner.lock.post': ' — 即訓練中的「演算法檔案」，一份小小的 .json 證書。',
+    'planner.lock.goto': '🎓 前往城市規劃學院',
+    'planner.lock.or': '或',
+    'planner.lock.upload': '📁 上載我的執照檔案',
+    'planner.lock.pasteToggle': '📋 改為貼上檔案',
+    'planner.lock.pasteGo': '⬆️ 以貼上的檔案解鎖',
+
+    // Hint bar (tool tips + view overlays)
+    'planner.hint.place': '點擊地圖放置建築物。拖動空白處移動畫面，用滾輪或兩指縮放。',
+    'planner.hint.road': '在地圖上拖動畫道路 — 放手完成。道路能提升可達性！',
+    'planner.hint.park': '在地圖上拖動畫出公園圓圈 — 放手完成。住宅最愛公園！',
+    'planner.hint.select': '點擊建築物選取它，然後拖動移動。拖動空白處可移動畫面。🗑️ 可移除它。',
+    'planner.hint.placeItem': '點擊地圖，放置 {name}。',
+    'planner.hint.happy': '😊 綠色的住宅附近甚麼都有。琥珀色的住宅缺了點東西 — 紅色的住宅缺了很多！',
+    'planner.hint.walk': '🚶 人們是「沿著道路」走，不是直線飛過去 — 這裡計算的是真正走到目的地所需的步行距離。綠色的住宅在 {budget} 米內甚麼都能到；紅色的不能。（{pct}% 需求可步行到達）提示：用 👆 移動點選一間住宅，就能畫出它真實的步行路線。',
+    'planner.hint.ranges': '⭕ 綠色圓圈 = 150 米，是人們步行到學校／商店／公園的距離。藍色圓圈 = 400 米，是到自來水／電力／巴士的距離。落在所有圓圈外的住宅，就是需要改善的！',
+    'planner.hint.normal': '點擊地圖或使用工具 — 住宅已回復正常顯示。',
+    'planner.legend': '⭕ 150米 = 設施與公園　|　400米 = 自來水／電力／巴士',
+
+    // Toasts + confirm sheet
+    'planner.toast.undo': '↩️ 已復原',
+    'planner.toast.nothingUndo': '沒有可以復原的',
+    'planner.toast.cleared': '🗑️ 已清空城市',
+    'planner.toast.removed': '🗑️ 已移除 {name}',
+    'planner.toast.roadShort': '⚠️ 道路太短 — 拖長一點的線才能畫出道路。',
+    'planner.toast.roadDrag': '⚠️ 請在地圖上拖動來畫道路 — 點一下是不會畫出來的。',
+    'planner.toast.keptAsIs': '👍 已保留你的城市',
+    'planner.toast.locked': '🔒 {name} 已固定原位 — 優化器不會移動它。',
+    'planner.toast.unlocked': '🔓 已解除固定 — 優化器可以再移動它。',
+    'planner.confirm.keep': '保留我的城市',
+    'planner.confirm.clearTitle': '清空整個地圖？',
+    'planner.confirm.clearMsg': '這會移除所有建築物、道路和公園。你可以按 ↩️ 復原把它們全部找回 — 但先檢查清楚吧！',
+    'planner.confirm.clearYes': '🗑️ 清空吧',
+
+    // Selected-building inspector
+    'planner.selected.lock': '🔒 固定在此',
+    'planner.selected.unlock': '🔓 解除固定',
+    'planner.selected.remove': '🗑️ 移除',
+    'planner.name.thisBuilding': '這座建築物',
+    'planner.type.housing': '住宅',
+
+    // Goal list chips
+    'planner.homesNeed': '住宅需要：',
+    'planner.chipPlace': '放置 {name}',
+
+    // Road template menu
+    'planner.template.grid': '城市方格',
+    'planner.template.radial': '放射環路',
+    'planner.template.superblocks': '超級街區',
+    'planner.template.culdesacs': '掘頭路社區',
+    'planner.template.twincenters': '雙市中心',
+    'planner.template.rivercity': '河畔城市',
+    'planner.template.coastal': '沿海城市',
+    'planner.template.diagonal': '斜向大道',
+    'planner.template.forPrefix': '適合',
+    'planner.template.goodFor.any': '任何市長',
+    'planner.template.goodFor.busy': '繁忙市長',
+    'planner.template.goodFor.quiet': '安靜市長',
+    'planner.template.goodFor.healthy': '健康市長',
+    'planner.template.goodFor.walkable': '步行市長',
+    'planner.template.goodFor.green': '綠色市長',
+    'planner.template.confirmTitle': '由「{name}」開始？',
+    'planner.template.confirmMsg': '這會用一套現成的道路佈局取代你的整個城市 — 你先有一份道路，再自行加入建築物。按 ↩️ 復原可找回你的城市。',
+    'planner.template.replaceYes': '🛤️ 取代我的城市',
+    'planner.toast.templateLoaded': '🛤️ 已載入「{name}」的道路 — 現在放置你的建築物吧！',
+
+    // Optimise flow
+    'planner.buddy.optimiser': '城市優化器',
+    'planner.buddy.nova': 'Nova',
+    'planner.opt.checking': '🧮 檢查中…',
+    'planner.opt.nothing': '✅ 你的城市已經很均衡 — 沒有需要改動的地方！',
+    'planner.opt.countAdd': '新增 {n} 座',
+    'planner.opt.countMove': '移動 {n} 座',
+    'planner.opt.countRemove': '移除 {n} 座',
+    'planner.opt.countPark': '新增 {n} 個公園',
+    'planner.opt.countPark1': '新增 {n} 個公園',
+    'planner.opt.few': '幾個小調整',
+    'planner.opt.found': '🧮 我找到 {parts} — 看看並套用吧！',
+    'planner.opt.error': '嗯，我暫時無法檢查你的城市 — 再試一次！',
+    'planner.plan.intro': '我檢查過你的城市，這些是我發現的。',
+    'planner.plan.introExplore': '🔍 這個計劃使用了「探索」— 從新地點重新開始幾次，保留最好的結果。',
+    'planner.plan.scorePrefix': '城市得分：',
+    'planner.plan.stays': '保持 ',
+    'planner.plan.nothing': '沒有需要改動 — 你的城市已經很均衡！🌟',
+    'planner.plan.apply': '✅ 套用改動',
+    'planner.plan.applied': '✅ 已套用 — {parts}！↩️ 復原即可還原。',
+    'planner.strategy.aria': '比較優化策略',
+    'planner.strategy.greedy': '貪婪',
+    'planner.strategy.greedyDesc': '一次小心攀爬 — 保留每個有幫助的步驟',
+    'planner.strategy.explore': '探索',
+    'planner.strategy.exploreDesc': '重新開始 — 可以越過小山丘',
+    'planner.plan.ctAdd1': '新增 {n} 座建築物',
+    'planner.plan.ctAddN': '新增 {n} 座建築物',
+    'planner.plan.ctMove': '移動 {n} 座',
+    'planner.plan.ctRemove': '移除 {n} 座',
+    'planner.plan.ctPark1': '新增 {n} 個公園',
+    'planner.plan.ctParkN': '新增 {n} 個公園',
+    'planner.plan.aiDone': '完成了！你的城市變得更聰明。🌟',
+    'planner.plan.aiKept': '沒問題 — 你的城市保持原狀！🌟',
+    'planner.planTheme.add': '🏠 住宅與設施',
+    'planner.planTheme.move': '↔️ 更佳位置',
+    'planner.planTheme.remove': '🧹 減少雜物',
+    'planner.planTheme.addPark': '🌳 公園',
+    'planner.metric.accessibility': '更接近道路',
+    'planner.metric.coverage': '更接近學校／商店／醫療',
+    'planner.metric.utilities': '自來水、電力與巴士',
+    'planner.metric.spread': '任務建築分佈開揚',
+    'planner.metric.zoning': '住宅更安靜',
+    'planner.metric.balance': '建築物配搭更佳',
+    'planner.metric.green': '公園與綠化空間',
+
+    // My move flow
+    'planner.mymove.aria': '當一回規劃師',
+    'planner.mymove.thinking': '🧠 思考中…',
+    'planner.mymove.nothing': '✅ 沒有更多需要改善 — 你的城市已很均衡！按 🧮 優化確認一下。',
+    'planner.mymove.error': '嗯，我暫時想不出改動 — 再試一次！',
+    'planner.mymove.introPre': '規劃器可以作出幾個不同的改動。',
+    'planner.mymove.introStrong': '由你話事',
+    'planner.mymove.introPost': ' — 先猜猜哪一個幫助最大。',
+    'planner.mymove.questionPre': '哪個改動最能提升',
+    'planner.mymove.questionPost': '？點擊選一個。',
+    'planner.mymove.reasonLabel': '為甚麼？選一個最合適的理由。',
+    'planner.reason.coverage': '更多住宅在設施 150 米範圍內',
+    'planner.reason.accessibility': '步行到道路的距離更短',
+    'planner.reason.zoning': '住宅更安靜',
+    'planner.reason.spread': '建築物分佈更開揚',
+    'planner.reason.utilities': '自來水／電力／巴士站更近',
+    'planner.reason.balance': '建築物配搭更佳',
+    'planner.reason.green': '住宅附近更多綠化空間',
+    'planner.mymove.reveal': '🔍 揭曉',
+    'planner.mymove.cancel': '🙅 保留我的城市',
+    'planner.mymove.goodSpot': '🎉 完全正確！你選中了最佳改動，理由也正確。',
+    'planner.mymove.mehBest': '😮 你選中了最佳改動，但理由不對 — 看看實際改變了哪一部分。',
+    'planner.mymove.goodNear': '👍 好眼力！你的選擇與最佳只差一點點，理由也正確。',
+    'planner.mymove.mehNear': '😮 你的選擇與最佳只差一點點，但理由不對 — 看看實際改變了哪一部分。',
+    'planner.mymove.mehReason': '👍 理由很好，但不是最佳改動。看看下面的比較。',
+    'planner.mymove.mehNone': '🤔 不太對 — 看看下面甚麼才真正有幫助。留意數字！',
+    'planner.mymove.changedFor': '看看 ',
+    'planner.mymove.changedForPost': ' 的數學是怎樣變：',
+    'planner.mymove.greedyPick': '電腦會選擇：',
+    'planner.mymove.greedyWhy': ' 它就像爬山演算法 — 每次只向前看一步，馬上拿走目前最大的一步收益。',
+    'planner.mymove.ruleTitle': '爬山演算法規則：',
+    'planner.mymove.ruleBody': '每次只試一個改動，分數上升就保留它（完整方案也可能保留一些令分數略降的改動，去修正重要的事）。然後再試 — 一步一步來。',
+    'planner.mymove.apply': '✅ 套用我的決定',
+    'planner.mymove.skip': '🙅 跳過這回合',
+    'planner.mymove.finish': '🧮 交給優化器完成',
+    'planner.toast.skipped': '👌 已跳過 — 再按 🧠 我的決定開始下一回合。',
+    'planner.toast.applied': '✅ 已套用：{label} — 分數 {before} → {after}。按 🧠 我的決定進行下一步。',
+    'planner.scoreDelta': '{n} 分',
+    'planner.movelabel.add': '➕ 新增 {name}',
+    'planner.movelabel.move': '↔️ 移動 {name}',
+    'planner.movelabel.remove': '➖ 移除 {name}',
+    'planner.movelabel.addPark': '🌳 加一個公園',
+    'planner.movelabel.other': '改動',
+    'planner.movelabel.homeName': '一座住宅',
+    'planner.mm.metric.accessibility': '步行到道路',
+    'planner.mm.metric.coverage': '學校／商店／醫療設施在附近',
+    'planner.mm.metric.utilities': '自來水／電力／巴士',
+    'planner.mm.metric.zoning': '住宅環境安靜',
+    'planner.mm.metric.spread': '平均分佈',
+    'planner.mm.metric.balance': '建築物配搭',
+    'planner.mm.metric.green': '公園綠化',
+    'planner.mm.improved': '↑ 有改善',
+    'planner.mm.yourReason': '你的理由：{label}',
+    'planner.mm.right': '✓ 正確！',
+    'planner.mm.wrong': '✗ 不是這個改動',
+
+    // Import / save / export flows
+    'planner.import.notJson': '⚠️ 這個檔案不是有效的 JSON。',
+    'planner.import.opened': '📂 已開啟你儲存的城市 — {b} 座建築物、{r} 條道路、{p} 個公園。',
+    'planner.import.downloaded': '💾 已下載 my-ai-city.json',
+    'planner.import.restored': '📂 已還原你的城市檔案{label}（{n} 項已儲存）。重新載入中…',
+    'planner.save.champion': '💾 已儲存「{label}」— 保存這份檔案作為備份！',
+    'planner.export.saved': '💾 已儲存！{b} 座建築物、{r} 條道路、{p} 個公園。{note}',
+    'planner.export.noRoads': ' ⚠️ 沒有道路 — 3D 城市不會有街道或燈光。',
+    'planner.export.storageFull': '⚠️ 無法儲存到這個瀏覽器（儲存空間已滿）— 已改為下載 my-ai-city.json。請在 3D 城市上載它。',
+
+    // Unlock (Planner's License)
+    'planner.unlock.toast': '🔓 已解鎖！你的城市正等著你，小小規劃師。',
+    'planner.unlock.nova': '做得好！你取得了規劃師執照。一起建設你的城市吧。🌟',
+    'planner.unlock.error': '這看起來不是執照檔案。最快的解決方法：點「前往城市規劃學院」並完成訓練（約 10 分鐘）— 規劃器便會在這個平板電腦上開啟。',
+
+    // Optimiser / planner reason lines (from shared city-common/optimize.js)
+    'planner.reason.addHousing': '加了一座住宅 — 城市需要有地方讓居民入住！',
+    'planner.reason.addService': '加了 {name}，讓附近住宅有設施可到達 — 設施覆蓋改善了。',
+    'planner.reason.addUtility': '加了 {name}，讓附近的住宅有 {name} 可用 — 公用設施改善了。',
+    'planner.reason.moveAccess': '把 {name} 移到離道路更近、人們真正能到達的位置 — 道路可達性改善了。',
+    'planner.reason.moveZoning': '把 {name} 移離附近的住宅 — 街道更安靜，分區更理想。',
+    'planner.reason.moveSpread': '把 {name} 移離其他任務建築，不再擠在一起。',
+    'planner.reason.moveUtility': '把 {name} 移到離住宅更近的位置 — 公用設施改善了。',
+    'planner.reason.movePower': '把智慧電網稍微移離那座住宅，減少嘈吵的嗡嗡聲 — 寧靜的住宅更重要。',
+    'planner.reason.addPark': '在附近沒有綠化空間的住宅旁加了一座公園 — 現在它們有綠地可去了。',
+    'planner.reason.removeSpecial': '移走一座多餘的 {name} — 這座城市只需要一座，其餘都是雜物。',
+    'planner.reason.removeExtra': '移走一座多餘的 {name} — 有一座便足夠了。',
+  },
+};
+
+let _lang = 'en';
+let _langBtn = null;
+
+export function currentLang() { return _lang; }
+
+export function t(key) {
+  const table = DICT[_lang] || DICT.en;
+  return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : (DICT.en[key] || key);
+}
+
+export function setLang(lang) {
+  _lang = lang === 'zh-Hant' ? 'zh-Hant' : 'en';
+  try { localStorage.setItem(LANG_KEY, _lang); } catch (e) { /* ignore */ }
+  applyStatic();
+  if (_langBtn) _langBtn.textContent = _lang === 'zh-Hant' ? 'EN' : '中';
+  window.dispatchEvent(new CustomEvent('i18n:change'));
+}
+
+export function initI18n() {
+  let saved = null;
+  try { saved = localStorage.getItem(LANG_KEY); } catch (e) { /* ignore */ }
+  const browserZh = typeof navigator !== 'undefined' && /^zh/i.test(navigator.language || '');
+  _lang = saved === 'zh-Hant' || saved === 'en' ? saved : (browserZh ? 'zh-Hant' : 'en');
+}
+
+/** Localize static HTML chrome: any element carrying data-i18n (textContent),
+ *  data-i18n-title (title attr), data-i18n-aria (aria-label) or data-i18n-ph
+ *  (placeholder) gets the active language's value. Also syncs <html lang>. */
+export function applyStatic() {
+  if (typeof document === 'undefined') return;
+  document.documentElement.lang = _lang === 'zh-Hant' ? 'zh-Hant' : 'en';
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.setAttribute('title', t(el.getAttribute('data-i18n-title'))); });
+  document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'))); });
+  document.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
+}
+
+/** Mount a small 中/EN toggle into a container (default: `.actions`). */
+export function mountLangToggle(containerSel = '.actions') {
+  if (_langBtn) return _langBtn;
+  const container = document.querySelector(containerSel);
+  if (!container) return null;
+  _langBtn = document.createElement('button');
+  _langBtn.id = 'lang-toggle';
+  _langBtn.type = 'button';
+  _langBtn.setAttribute('aria-label', 'Language / 語言');
+  _langBtn.textContent = _lang === 'zh-Hant' ? 'EN' : '中';
+  _langBtn.style.cssText =
+    'margin-left:8px;height:44px;min-width:44px;padding:0 10px;border-radius:10px;' +
+    'border:1px solid var(--panel-border,rgba(0,242,254,0.35));background:transparent;' +
+    'color:var(--text,#f8fafc);font-size:14px;font-weight:800;cursor:pointer;' +
+    'font-family:inherit;';
+  _langBtn.addEventListener('click', () => setLang(_lang === 'zh-Hant' ? 'en' : 'zh-Hant'));
+  container.appendChild(_langBtn);
+  return _langBtn;
+}

@@ -429,6 +429,117 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
   outline: 2px solid var(--cyan); outline-offset: 2px;
 }
 
+/* ─── Journey strip (top of each room) ─── */
+.room-path-wrap { margin-bottom: 20px; }
+.room-path {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.path-step {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 10px 6px; border-radius: var(--r-md);
+  background: var(--panel); border: 2px solid var(--line);
+  min-height: 84px; transition: all 0.15s;
+}
+.path-step .path-emoji { font-size: 1.5rem; line-height: 1; }
+.path-step .path-name {
+  font-size: 0.72rem; color: var(--text-dim); font-weight: 600;
+  text-align: center; line-height: 1.15;
+}
+.path-step .path-flag { font-size: 0.8rem; min-height: 1.1em; }
+.path-step.done { border-color: var(--jade); }
+.path-step.done .path-flag { color: var(--jade); }
+.path-step.current { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,242,254,0.25); }
+.path-step.current .path-flag { color: var(--cyan); }
+.path-step:disabled { cursor: default; opacity: 0.55; }
+.path-step:not(:disabled):hover, .path-step:not(:disabled):focus-visible { border-color: var(--amber); }
+@media (max-width: 560px) {
+  .path-name { font-size: 0.62rem; }
+  .path-emoji { font-size: 1.2rem; }
+}
+
+/* ─── Bridge box: why this matters in the planner ─── */
+.bridge-box {
+  background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.35);
+  border-radius: var(--r-md); padding: 12px 16px;
+  font-size: var(--fs-sm); color: var(--text); line-height: 1.5;
+}
+.bridge-box strong { color: var(--cyan); }
+
+/* ─── Room 1: Weight lab ─── */
+.lab-card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 18px; margin-bottom: 20px;
+}
+.lab-card h3 { font-size: var(--fs-md); margin-bottom: 6px; color: var(--amber); }
+.lab-card p { font-size: var(--fs-sm); color: var(--text-dim); margin-bottom: 10px; }
+.lab-card .lab-note { color: var(--text); margin-top: 12px; }
+.lab-track {
+  display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center;
+  margin: 12px 0;
+}
+.lab-half { text-align: center; padding: 10px; border-radius: var(--r-md); background: var(--bg-2); }
+.lab-left { border: 2px solid rgba(0,242,254,0.5); }
+.lab-right { border: 2px solid rgba(0,255,157,0.5); }
+.lab-name { font-weight: 800; font-size: var(--fs-sm); }
+.lab-score { font-size: var(--fs-xs); color: var(--text-dim); }
+.lab-share { font-size: var(--fs-xl); font-weight: 800; color: var(--cyan); }
+.lab-right .lab-share { color: var(--jade); }
+.lab-slider {
+  width: 120px; height: 48px; margin: 0; cursor: pointer;
+  accent-color: var(--cyan); touch-action: manipulation;
+}
+.lab-total {
+  display: flex; align-items: baseline; justify-content: center; gap: 12px;
+  background: var(--bg-2); border-radius: var(--r-md); padding: 10px;
+  font-size: var(--fs-sm); color: var(--text-dim);
+}
+.lab-total strong {
+  font-size: var(--fs-xl); font-weight: 800; color: var(--amber);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+@media (max-width: 560px) {
+  .lab-track { grid-template-columns: 1fr; }
+  .lab-slider { width: 100%; }
+}
+
+/* ─── Room 3: Dijkstra search stage ─── */
+.search-stage {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 16px; margin-bottom: 20px;
+}
+.search-stage h3 { font-size: var(--fs-md); margin-bottom: 6px; color: var(--cyan); }
+.search-stage > p { font-size: var(--fs-sm); color: var(--text-dim); margin-bottom: 10px; }
+.search-map { border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--line); }
+.search-map svg { width: 100%; height: auto; display: block; }
+.dj-node .dj-ring { opacity: 0; }
+.dj-node.marked .dj-ring { opacity: 1; animation: djPulse 1s ease infinite; }
+@keyframes djPulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.7; }
+}
+.dj-node.settled .dj-name { fill: #0b132b; }
+.dj-node.settled .dj-dist { fill: #0b132b; }
+.dj-node.settled circle { stroke: var(--jade); }
+.dj-node.bus-final circle { stroke: var(--amber); stroke-width: 3; }
+.search-status {
+  min-height: 3.2em; margin-top: 10px; padding: 10px 12px;
+  background: var(--bg-2); border-radius: var(--r-md);
+  font-size: var(--fs-sm); color: var(--text); line-height: 1.45;
+}
+.search-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.search-actions .btn-secondary { min-height: 44px; min-width: 0; padding: 8px 18px; font-size: var(--fs-sm); }
+
+/* ─── Room 4: Escape beat ─── */
+.hc-escape {
+  margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line);
+}
+.hc-escape > p:first-child { color: var(--amber); }
+.escape-reveal {
+  background: var(--ok-bg); border: 1px solid rgba(0,255,157,0.4);
+  border-radius: var(--r-md); padding: 12px 14px; color: var(--text);
+}
+.btn-stuck.escape { flex-basis: 200px; }
+
 /* ─── Reduced motion ─── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

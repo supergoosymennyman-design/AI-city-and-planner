@@ -1,6 +1,7 @@
 // My AI City — Champion Hub launcher (dark dashboard).
 // Renders scenario cards with accent-tinted SVG line icons and navigates to
 // each app's own link. The portal is a pure launcher — identity stays per-app.
+import { WORKSHOP_URL, FIT_STUDIO_URL, citySim } from './links.js';
 const ICONS = {
   planner: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>',
   city: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>',
@@ -13,48 +14,48 @@ const ICONS = {
   scenarios: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
 };
 
-const SCENARIOS = [
+// The AI Journey trail — the honest spine of the programme (docs/ai-concept-map.md).
+// These are the REAL, live steps a child takes: learn the recipes in the
+// Academy, design + optimise in the Planner, walk the result in the 3D City.
+// (The old scenario apps were removed from the product; this accordion no
+// longer promises SOON content that does not exist.)
+const AI_JOURNEY = [
   {
-    id: 'lab', name: 'Tech Lab', icon: 'lab', accent: '#2979FF',
-    url: 'https://p5-city-sim.clover-marquis.workers.dev/lab/',
-    blurb: 'Experiment in the lab',
+    id: 'academy', name: 'City Planning Academy', icon: 'workshop', accent: '#00E5FF',
+    url: citySim('pregame/'),
+    blurb: 'Learn the 4 recipes the planner uses',
   },
   {
-    id: 'spaceship', name: 'Spaceship', icon: 'ship', accent: '#FF9100',
-    url: 'https://p5-city-sim.clover-marquis.workers.dev/spaceship/',
-    blurb: 'Engine to cockpit — walk the ship',
+    id: 'planner', name: 'City Planner', icon: 'planner', accent: '#00F2FE',
+    url: citySim('planner/'),
+    blurb: 'Design your city — then watch the AI improve it',
   },
   {
-    id: 'station', name: 'Space Station', icon: 'station', accent: '#3FA7A0',
-    url: 'https://p5-city-sim.clover-marquis.workers.dev/station/',
-    blurb: 'Make the habitat cosy',
-  },
-  {
-    id: 'hospital', name: 'Hospital', icon: 'hospital', accent: '#FF5C7A',
-    url: 'https://p5-city-sim.clover-marquis.workers.dev/hospital/',
-    blurb: 'Keep everyone healthy in the ward',
+    id: 'city', name: '3D AI City', icon: 'city', accent: '#00FF9D',
+    url: citySim('city-builder/'),
+    blurb: 'Walk your own city as the champion',
   },
 ];
 
 const CARDS = [
   {
     id: 'planner', name: 'City Planner', icon: 'planner', accent: '#00E5FF',
-    url: 'https://p5-city-sim.clover-marquis.workers.dev/planner/',
+    url: citySim('planner/'),
     status: 'live', blurb: 'Design your city on the map',
   },
   {
     id: 'city', name: '3D AI City', icon: 'city', accent: '#00FF9D',
-    url: 'https://p5-city-sim.clover-marquis.workers.dev/city-builder/',
+    url: citySim('city-builder/'),
     status: 'live', blurb: 'Walk your city as the champion',
   },
   {
-    id: 'fit', name: 'Fit Studio', icon: 'fit', accent: '#FB7185',
-    url: 'https://p5-fit-studio.clover-marquis.workers.dev/',
+    id: 'fit', name: 'Fit and Rig Studio', icon: 'fit', accent: '#FB7185',
+    url: FIT_STUDIO_URL,
     status: 'live', blurb: 'Dress up your champion',
   },
   {
     id: 'workshop', name: 'AI Workshop', icon: 'workshop', accent: '#FF9100',
-    url: 'https://workshop.ai-education.workers.dev/',
+    url: WORKSHOP_URL,
     status: 'live', blurb: 'Build AI skills for your city',
   },
 ];
@@ -83,9 +84,10 @@ for (const card of CARDS) {
   grid.appendChild(el);
 }
 
-// The Scenarios accordion — ONE card that expands in place to reveal the four
-// scenario sub-links (Tech Lab / Spaceship / Space Station / Hospital). Keeps
-// the hub tidy; each scenario is a <a> that becomes live as it is rebuilt.
+// The AI Journey accordion — ONE card that expands in place to reveal the
+// programme's real learning path: Academy → Planner → 3D AI City. Each entry is
+// a LIVE link to the same-origin app. This replaces the old "Scenarios"
+// accordion whose four scenario apps were removed from the product.
 function buildScenariosCard() {
   const wrap = document.createElement('div');
   wrap.className = 'scen-wrap';
@@ -93,12 +95,12 @@ function buildScenariosCard() {
   const header = document.createElement('button');
   header.className = 'card scen-head';
   header.setAttribute('aria-expanded', 'false');
-  header.style.setProperty('--accent', '#8de2ff');
+  header.style.setProperty('--accent', '#00F2FE');
   header.innerHTML = `
     <div class="icon-zone" aria-hidden="true">${ICONS.scenarios}</div>
     <div class="text-zone">
-      <div class="card-name">Scenarios</div>
-      <div class="card-blurb">Explore the example places</div>
+      <div class="card-name">AI Journey</div>
+      <div class="card-blurb">Academy → Planner → 3D City</div>
     </div>
     <span class="scen-caret" aria-hidden="true">▾</span>
   `;
@@ -108,25 +110,27 @@ function buildScenariosCard() {
   });
 
   const body = document.createElement('div');
-  body.className = 'scen-body';
-  for (const s of SCENARIOS) {
-    // Dead cards for now: the scenario apps aren't rebuilt yet, so each entry
-    // is a non-clickable placeholder (same treatment as a "SOON" card). When a
-    // scenario goes live, flip it to a live <a href="{url}">.
-    const card = document.createElement('div');
-    card.className = 'scen-link scen-dead';
+  body.className = 'scen-body scen-journey';
+  for (const s of AI_JOURNEY) {
+    const card = document.createElement('a');
+    card.className = 'scen-link';
+    card.href = s.url;
     card.style.setProperty('--accent', s.accent);
-    card.setAttribute('aria-hidden', 'true');
+    card.setAttribute('aria-label', `Open ${s.name}`);
     card.innerHTML = `
       <div class="icon-zone" aria-hidden="true">${ICONS[s.icon]}</div>
       <div class="text-zone">
         <div class="card-name">${s.name}</div>
         <div class="card-blurb">${s.blurb}</div>
       </div>
-      <span class="soon-badge">SOON</span>
     `;
     body.appendChild(card);
   }
+  // The four recipes, plainly named (no fake AI claims).
+  const recipes = document.createElement('p');
+  recipes.className = 'journey-recipes';
+  recipes.textContent = 'The recipes the planner really runs: weighted score · coverage radius · shortest path · hill-climbing + Explore.';
+  body.appendChild(recipes);
 
   wrap.appendChild(header);
   wrap.appendChild(body);

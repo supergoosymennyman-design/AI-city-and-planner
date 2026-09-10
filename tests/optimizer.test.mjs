@@ -601,6 +601,76 @@ test('weights: output still validates + score never decreases under a mayor', ()
   }
 });
 
+// ── Explore strategy (multi-restart) ────────────────────────────────────
+test('explore: never worse than greedy on the same seed, often better', () => {
+  let better = 0;
+  for (const seed of SEEDS) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const greedy = optimizeLayout(layout, {}, seed * 104729);
+    const explore = optimizeLayout(layout, { strategy: 'explore' }, seed * 104729);
+    assert.equal(explore.strategy, 'explore');
+    assert.ok(explore.after.score >= greedy.after.score - 1e-9,
+      `seed ${seed}: explore (${explore.after.score}) below greedy (${greedy.after.score})`);
+    if (explore.after.score > greedy.after.score + 1e-9) better++;
+  }
+  assert.ok(better >= 5, `explore should beat greedy on several random cities (got ${better})`);
+});
+
+test('explore: deterministic for a given seed + roads byte-identical', () => {
+  for (const seed of [3, 17, 41, 101]) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const a = optimizeLayout(layout, { strategy: 'explore' }, seed * 104729);
+    const b = optimizeLayout(layout, { strategy: 'explore' }, seed * 104729);
+    assert.equal(JSON.stringify(a.layout), JSON.stringify(b.layout), `seed ${seed}: nondeterministic`);
+    assert.equal(JSON.stringify(a.diff), JSON.stringify(b.diff), `seed ${seed}: nondeterministic diff`);
+    assert.equal(JSON.stringify(layout.roads), JSON.stringify(a.layout.roads), `seed ${seed}: explore must never touch roads`);
+    assert.ok(validateLayout(a.layout).ok, `seed ${seed}`);
+  }
+});
+
+test('explore: output never worse than input + never removes last special', () => {
+  for (const seed of SEEDS.slice(0, 12)) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const before = computeMetrics(layout);
+    const { layout: out } = optimizeLayout(layout, { strategy: 'explore' }, seed * 104729);
+    const after = computeMetrics(out);
+    assert.ok(after.score >= before.score - 1e-9, `seed ${seed}: explore made the city worse`);
+    for (const b of layout.buildings.filter((x) => SPECIAL_SET.has(x.type))) {
+      const outCount = out.buildings.filter((x) => x.type === b.type).length;
+      assert.ok(outCount >= 1, `seed ${seed}: special ${b.type} vanished`);
+    }
+  }
+});
+
+test('explore: respects goal weights (green mayor still gets a park)', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [900, 1000], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1100, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
+      { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const green = { happy: 0.6, walkable: 0.15, peaceful: 0.15, spread: 0.10 };
+  const res = optimizeLayout(layout, { strategy: 'explore', weights: green }, 3);
+  assert.ok(res.diff.some((d) => d.action === 'add_park'), 'green mayor + explore should add a park');
+  assert.ok(validateLayout(res.layout).ok);
+});
+
+test('explore: restarts option bounds runtime (respects a small restart cap)', () => {
+  const layout = sanitizeLayout(randomLayout(17 * 7919));
+  const t0 = performance.now();
+  const res = optimizeLayout(layout, { strategy: 'explore', restarts: 2 }, 99);
+  const ms = performance.now() - t0;
+  assert.ok(validateLayout(res.layout).ok);
+  assert.ok(ms < 900, `explore(restarts:2) took ${ms.toFixed(0)}ms`);
+  assert.ok(res.after.score >= computeMetrics(layout).score - 1e-9);
+});
+
 // ── Locks ───────────────────────────────────────────────────────────────
 test('locked buildings are never moved or removed', () => {
   const raw = {

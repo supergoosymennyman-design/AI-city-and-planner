@@ -17,11 +17,21 @@
  *     force a fixed minimum town size;
  *   - everything is deterministic for a given seed (reproducible, testable).
  *
+ * Two search strategies (opts.strategy):
+ *   - 'greedy' (default): ONE measured hill-climb. Fast and reviewable, but
+ *     stops at the first local optimum it reaches.
+ *   - 'explore': MULTI-RESTART — several independent greedy climbs from the
+ *     SAME input with different deterministic seeds; the best result wins.
+ *     This is the Academy's "restart from a brand-new spot and climb again"
+ *     lesson made real: each restart samples candidate moves differently, so
+ *     it explores a different path up the hill and can escape local optima.
+ *
  * Every accepted move carries a measured `improved` list (which sub-metrics
  * rose) + before/after scores so the UI can explain the WHY in kid terms.
  *
  * Usage:
- *   const { layout, diff, before, after } = optimizeLayout(layout, opts);
+ *   const { layout, diff, before, after, strategy } = optimizeLayout(layout, opts);
+ *   // strategy: 'greedy' | 'explore'
  *   // diff = [{ action:'add'|'move'|'remove'|'add_park', what?, count?,
  *   //           from?, to?, reason, improved:[...], fromScore, toScore }]
  */
@@ -278,11 +288,60 @@ function spreadCandidates(layout, b, rng, segs) {
 
 /**
  * Build an optimised layout via measured hill-climbing.
+ *
+ * `opts.strategy` chooses the search:
+ *   - 'greedy' (default) — ONE measured greedy hill-climb (the original). Fast,
+ *     reviewable, but stops at the first local optimum it reaches.
+ *   - 'explore' — MULTI-RESTART: run several independent greedy climbs from the
+ *     SAME input with different deterministic seeds (each seeds the candidate
+ *     sampling differently, so each follows a different path up the hill), and
+ *     return the best result. Genuinely escapes local optima — this is exactly
+ *     the "restart from a brand-new spot and climb again" idea the Academy
+ *     teaches. Roads stay sacred in BOTH strategies.
+ *
+ * Everything else is unchanged: deterministic per seed, never worse than the
+ * input, reviewable diff, locks + specials respected.
+ *
  * @param {object} layout - a validated layout (not mutated)
- * @param {{housing?:number, maxAdd?:number, maxIter?:number}} opts
- * @returns {{layout, diff, before, after}}
+ * @param {{housing?:number, maxAdd?:number, maxIter?:number, strategy?:string, restarts?:number}} opts
+ * @returns {{layout, diff, before, after, strategy}}
  */
 export function optimizeLayout(layout, opts = {}, seed = 1) {
+  const strategy = opts?.strategy === 'explore' ? 'explore' : 'greedy';
+  if (strategy === 'explore') return exploreLayout(layout, opts, seed);
+  const r = greedyLayout(layout, opts, seed);
+  return { ...r, strategy };
+}
+
+/**
+ * Multi-restart local search. Runs `restarts` (default 3) independent greedy
+ * climbs from the same input; each restart uses a seed derived from the input
+ * seed so candidate sampling differs (different routes up the hill). Keeps the
+ * run with the best final score; ties → leaner city (fewer buildings added).
+ * Deterministic for a given seed. Never worse than the input because every
+ * greedy run is already non-decreasing and we keep the best of them.
+ */
+function exploreLayout(layout, opts = {}, seed = 1) {
+  const restarts = Math.min(6, Math.max(2, opts?.restarts ?? 3));
+  const seedMul = opts?.seedStep ?? 1009;   // spread derived seeds apart
+  let best = null;
+  for (let i = 0; i < restarts; i++) {
+    // Restart 0 uses the caller's exact seed, so the plain greedy result is
+    // ALWAYS one candidate: Explore can never score below Greedy on the same
+    // seed (only ever equal or better) — a child trying both never sees
+    // Explore "do worse" than the Greedy they just ran.
+    const rs = i === 0 ? (seed >>> 0 || 1) : ((Math.imul(seed >>> 0, seedMul) + i * 977) >>> 0 || (i + 1));
+    const r = greedyLayout(layout, opts, rs);
+    if (!best) { best = r; continue; }
+    const better = r.after.score > best.after.score + 1e-9;
+    const tiedLeaner = Math.abs(r.after.score - best.after.score) <= 1e-9
+      && r.layout.buildings.length < best.layout.buildings.length;
+    if (better || tiedLeaner) best = r;
+  }
+  return { ...best, strategy: 'explore' };
+}
+
+function greedyLayout(layout, opts = {}, seed = 1) {
   const rng = seedRng(seed);
   // Goal weights (mayor / custom sliders) change the optimizer's objective —
   // passed through to every trial score. When null the fixed default blend is

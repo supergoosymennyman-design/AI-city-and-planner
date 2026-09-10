@@ -15,14 +15,16 @@ import { extname, resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-// Default: tests/e2e → P5 Programme → buddy-kit/client (canonical source).
+// HERE = P5 Programme/tests/e2e → P5 Programme → repo root.
+// Default docroot: P5 Programme/buddy-kit/client (the canonical source).
 // E2E_DOCROOT is repo-root-relative (e.g. "P5 Programme/deploy/city-sim") and is
 // resolved from the repo root, NOT this file's cwd (playwright runs the webServer
 // with cwd = the config dir).
-const REPO_ROOT = resolve(HERE, '../../..');
+const P5_ROOT = resolve(HERE, '../..');
+const REPO_ROOT = resolve(P5_ROOT, '..');
 const ROOT = process.env.E2E_DOCROOT
   ? resolve(REPO_ROOT, process.env.E2E_DOCROOT)
-  : join(REPO_ROOT, 'buddy-kit/client');
+  : join(P5_ROOT, 'buddy-kit/client');
 const PORT = Number(process.argv[2] || process.env.E2E_PORT || 8377);
 
 const MIME = {

@@ -19,9 +19,60 @@ import { defaultLayout, sanitizeLayout, validateLayout, ROAD_WIDTH, typeSpec } f
 import { LIBRARY_CATEGORIES, libraryItem, libraryByCategory } from '../city-common/library.js';
 import { computeMetrics, METRIC_PARAMS, GOAL_KEYS, stars, normalizeWeights, defaultMetricWeights } from '../city-common/metrics.js';
 import { optimizeLayout, proposeMoves, applyMove } from '../city-common/optimize.js';
-import { computeWalkReach, walkPath, WALK_BUDGET } from '../city-common/walkability.js';
+import { computeWalkReach, walkPath, homeReachRoutes, WALK_BUDGET } from '../city-common/walkability.js';
 import { ROAD_TEMPLATES, getRoadTemplate } from '../city-common/road-templates.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt } from '../city-common/champion-file.js';
+import { initI18n, currentLang, t, mountLangToggle, applyStatic } from './i18n.js';
+
+// Language must be resolved BEFORE the first module-scope render: renderTemplates()
+// (below) reads currentLang() to pick the template names, and initI18n() lives at
+// module scope so a saved/browser zh-Hant choice applies from the very first paint
+// (previously it ran in the bottom init IIFE, after this first render).
+initI18n();
+
+// ─── i18n helpers ────────────────────────────────────────
+// L() interpolates {placeholders} in a dictionary value.
+function L(key, vars) {
+  let s = t(key);
+  if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : ''));
+  return s;
+}
+function goalDisplayName(key) { return t('planner.goalMeta.' + key); }
+function mayorName(id) { return t('planner.mayor.' + id + '.name'); }
+function mayorBrief(id) { return t('planner.mayor.' + id + '.brief'); }
+function receiptName(key) { return t('planner.receiptMeta.' + key + '.name'); }
+function receiptHint(key) { return t('planner.receiptMeta.' + key + '.hint'); }
+function templateName(id) {
+  if (currentLang() !== 'zh-Hant') {
+    const tpl = getRoadTemplate(id);
+    return tpl ? tpl.name : id;
+  }
+  return t('planner.template.' + id);
+}
+const GOOD_FOR_KEY = {
+  'any mayor': 'any',
+  'the Busy Mayor': 'busy',
+  'the Quiet Mayor': 'quiet',
+  'the Healthy Mayor': 'healthy',
+  'the Walkable Mayor': 'walkable',
+  'the Green Mayor': 'green',
+};
+function templateGoodFor(raw) {
+  if (currentLang() !== 'zh-Hant') return 'for ' + raw;   // byte-for-byte today
+  const k = GOOD_FOR_KEY[raw];
+  return t('planner.template.forPrefix') + (k ? t('planner.template.goodFor.' + k) : raw);
+}
+function planThemeLabel(action) {
+  if (currentLang() !== 'zh-Hant') return THEME_LABEL[action] || action;
+  return t('planner.planTheme.' + action);
+}
+function metricLabelFor(m) {
+  if (currentLang() !== 'zh-Hant') return METRIC_LABEL[m] || m;
+  return t('planner.metric.' + m);
+}
+function buddyMsg(nameKey, msgKey) {
+  return '<span class="ai-buddy">' + t(nameKey) + '</span> ' + t(msgKey);
+}
 
 const SCALE = 2000;                  // plan meters per side
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
@@ -63,10 +114,13 @@ const state = {
   sliderVals: { happy: 30, walkable: 30, peaceful: 20, spread: 20 },
   viewMode: 'normal',     // 'normal' | 'happy' | 'walk' | 'ranges'
   walkCache: null,
+  homeRoutes: [],         // homeReachRoutes for the selected home (drawn in Walk view)
   homeHappy: [],          // per-building index: 0..1 served share (null = not housing)
   homeWalk: [],           // per-building index: walk reach 0..1 (null = not housing)
   lastMetrics: null,      // most recent computeMetrics result (for receipt + deltas)
   mymove: null,           // active "My move" state (moves + student picks)
+  lastPlans: null,        // { greedy:{...}, explore:{...}, active:'greedy'|'explore' }
+  activeStrategy: 'greedy',
 };
 
 // ─── DOM ────────────────────────────────────────────────
@@ -141,6 +195,7 @@ function render() {
   drawParks(w, h);
   drawRoads(w, h);
   if (state.viewMode === 'ranges') drawRanges(w, h);
+  drawWalkRoutes(w, h);
   drawBuildings(w, h);
   drawGesture(w, h);
 }
@@ -231,6 +286,64 @@ function drawRoads(w, h) {
   }
 }
 
+/**
+ * Draw the selected home's real walking routes (the VISIBLE Dijkstra). In Walk
+ * view, when a home is selected, show each need's actual road path: green when
+ * it is within the walk budget, red when the nearest instance is too far — so a
+ * child sees WHY a home is unserved instead of just a red square. Roads that
+ * lead nowhere or cities without a selected home draw nothing.
+ */
+function drawWalkRoutes(w, h) {
+  if (state.viewMode !== 'walk') return;
+  const routes = state.homeRoutes;
+  if (!routes.length) return;
+
+  const colorFor = (r) => (r.ok ? 'rgba(0,255,157,0.9)' : 'rgba(255,92,122,0.9)');
+  const nameFor = (type) => {
+    if (type === 'park') return t('planner.type.park') || 'Park';
+    const spec = typeSpec(type);
+    return spec?.name || type;
+  };
+
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const r of routes) {
+    if (r.path.length < 2) continue;
+    // Path glow (readability over dark roads) + solid line.
+    ctx.strokeStyle = colorFor(r);
+    ctx.lineWidth = Math.max(3, 7 * state.view.px) + 4;
+    ctx.globalAlpha = 0.22;
+    ctx.beginPath();
+    r.path.forEach((pt, i) => {
+      const s = planToScreen(pt.x, pt.z);
+      if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+    });
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = colorFor(r);
+    ctx.lineWidth = Math.max(2.5, 5 * state.view.px);
+    ctx.setLineDash(r.ok ? [] : [6, 6]);
+    ctx.beginPath();
+    r.path.forEach((pt, i) => {
+      const s = planToScreen(pt.x, pt.z);
+      if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Distance label at the route midpoint.
+    const mid = r.path[Math.floor(r.path.length / 2)];
+    const ms = planToScreen(mid.x, mid.z);
+    ctx.font = '800 13px Nunito, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const label = `${nameFor(r.type)} ${r.dist}m`;
+    ctx.fillStyle = 'rgba(7,13,32,0.85)';
+    const tw = ctx.measureText(label).width;
+    ctx.fillRect(ms.x - tw / 2 - 5, ms.y - 10, tw + 10, 20);
+    ctx.fillStyle = r.ok ? '#0f3a28' : '#5a1622';
+    ctx.fillText(label, ms.x, ms.y + 0.5);
+  }
+}
+
 function buildingFootprint(b) {
   return b.footprint || typeSpec(b.type)?.footprint || [20, 20];
 }
@@ -276,7 +389,7 @@ function drawRanges(w, h) {
   ctx.font = '700 12px Nunito, sans-serif';
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillStyle = '#9fe8b0';
-  ctx.fillText('⭕ 150m = services & parks   |   400m = water / power / bus', 14, 14);
+  ctx.fillText(t('planner.legend'), 14, 14);
 }
 
 function drawBuildings(w, h) {
@@ -381,11 +494,16 @@ function drawGesture(w, h) {
 const LIB_DRAWER_CATEGORIES = ['nature', 'props', 'vehicles', 'scenarios'];
 const LIB_CATEGORY_LABEL = { nature: 'Nature', props: 'Props', vehicles: 'Vehicles', scenarios: 'Themed' };
 
+function drawerCatLabel(cat) {
+  if (currentLang() !== 'zh-Hant') return LIB_CATEGORY_LABEL[cat] || cat;
+  return t('planner.drawer.cat' + cat.charAt(0).toUpperCase() + cat.slice(1));
+}
+
 function buildDrawer() {
   catalogList.innerHTML = '';
   const groups = [
-    { label: 'Mission buildings', keys: CATALOG_ORDER.filter((k) => isSpecial(k)) },
-    { label: 'Facilities', keys: CATALOG_ORDER.filter((k) => !isSpecial(k)) },
+    { label: t('planner.drawer.mission'), keys: CATALOG_ORDER.filter((k) => isSpecial(k)) },
+    { label: t('planner.drawer.facilities'), keys: CATALOG_ORDER.filter((k) => !isSpecial(k)) },
   ];
   for (const grp of groups) {
     const label = document.createElement('div');
@@ -403,7 +521,7 @@ function buildDrawer() {
         state.selectedIdx = -1;
         setTool('place');
         selectCatalogBtn(key);
-        hint('Tap the map to place the ' + spec.name + '.');
+        hint(L('planner.hint.placeItem', { name: spec.name }));
       });
       catalogList.appendChild(btn);
     }
@@ -415,7 +533,7 @@ function buildDrawer() {
     if (!items.length) continue;
     const label = document.createElement('div');
     label.className = 'drawer-title';
-    label.textContent = LIB_CATEGORY_LABEL[cat] || cat;
+    label.textContent = drawerCatLabel(cat);
     catalogList.appendChild(label);
     for (const item of items) {
       const btn = document.createElement('button');
@@ -427,7 +545,7 @@ function buildDrawer() {
         state.selectedIdx = -1;
         setTool('place');
         selectCatalogBtn('lib:' + item.id);
-        hint('Tap the map to place the ' + item.name + '.');
+        hint(L('planner.hint.placeItem', { name: item.name }));
       });
       catalogList.appendChild(btn);
     }
@@ -442,6 +560,13 @@ function selectCatalogBtn(key) {
 }
 
 // ─── Tools ──────────────────────────────────────────────
+const TOOL_HINT_KEY = {
+  place: 'planner.hint.place',
+  road: 'planner.hint.road',
+  park: 'planner.hint.park',
+  select: 'planner.hint.select',
+};
+
 function setTool(tool) {
   state.tool = tool;
   state.selectedIdx = -1;
@@ -451,20 +576,21 @@ function setTool(tool) {
     b.classList.toggle('active', on);
     b.setAttribute('aria-pressed', String(on));
   });
-  hint(TIPS[tool]);
+  hint(t(TOOL_HINT_KEY[tool] || 'planner.hint.place'));
   render();
 }
-
-const TIPS = {
-  place: 'Tap the map to place a building. Drag empty space to pan. Use the scroll wheel or pinch to zoom.',
-  road: 'Drag on the map to draw a road — release to finish. Roads improve accessibility!',
-  park: 'Drag on the map to paint a park circle — release to finish. Homes love parks!',
-  select: 'Tap a building to select it, then drag to move it. Drag empty space to pan. 🗑️ removes it.',
-};
 
 function hint(msg) {
   hintBar.textContent = msg;
 }
+
+// Live language toggle: refresh the parts the static pass can't reach.
+window.addEventListener('i18n:change', () => {
+  if (state.viewMode === 'normal') hint(t(TOOL_HINT_KEY[state.tool] || 'planner.hint.place'));
+  buildDrawer();
+  renderTemplates();   // template names + good-for blurbs switch language live
+  updateMetrics();
+});
 
 // ─── Pointer interaction ────────────────────────────────
 function rectOf(canvas) { return canvas.getBoundingClientRect(); }
@@ -609,10 +735,10 @@ function endPointer(e) {
           // Non-blocking feedback: a road that's too short is dropped silently
           // otherwise, and a child may think it saved (leading to roadless
           // cities in the 3D view). Warn, never block.
-          toast('⚠️ Road too short — drag a longer line to draw a road.');
+          toast(t('planner.toast.roadShort'));
         }
       } else {
-        toast('⚠️ Drag on the map to draw a road — a tap doesn\'t make one.');
+        toast(t('planner.toast.roadDrag'));
       }
       break;
     }
@@ -714,9 +840,9 @@ function undo() {
     state.selectedIdx = -1;
     updateMetrics();
     render();
-    toast('↩️ Undone');
+    toast(t('planner.toast.undo'));
   } else {
-    toast('Nothing to undo');
+    toast(t('planner.toast.nothingUndo'));
   }
 }
 function clearAll() {
@@ -725,7 +851,7 @@ function clearAll() {
   state.selectedIdx = -1;
   updateMetrics();
   render();
-  toast('🗑️ City cleared');
+  toast(t('planner.toast.cleared'));
 }
 
 // Delete the currently SELECTED building (or the whole city when none is
@@ -742,16 +868,16 @@ function deleteSelectedOrClear() {
     updateMetrics();
     render();
     const name = typeSpec(b.type)?.name || b.type;
-    toast(`🗑️ Removed the ${name}`);
+    toast(L('planner.toast.removed', { name }));
     return;
   }
   if (cityIsEmpty()) {
     clearAll();
   } else {
     confirmCityAction({
-      title: 'Clear the whole map?',
-      message: 'This removes every building, road and park. You can press ↩️ Undo to bring it all back — but double-check first!',
-      yesLabel: '🗑️ Clear it',
+      title: t('planner.confirm.clearTitle'),
+      message: t('planner.confirm.clearMsg'),
+      yesLabel: t('planner.confirm.clearYes'),
       onYes: clearAll,
     });
   }
@@ -781,7 +907,7 @@ function confirmCityAction({ title, message, yesLabel, onYes }) {
       <div class="modal-body">
         <p class="confirm-text">${message}</p>
         <div class="goals-actions confirm-actions">
-          <button class="confirm-cancel" id="confirm-no" type="button">Keep my city</button>
+          <button class="confirm-cancel" id="confirm-no" type="button">${t('planner.confirm.keep')}</button>
           <button class="plan-apply" id="confirm-yes" type="button">${yesLabel}</button>
         </div>
       </div>
@@ -807,7 +933,7 @@ function renderTemplates() {
     const item = document.createElement('button');
     item.className = 'template-item';
     item.dataset.template = t.id;
-    item.innerHTML = `<span class="tpl-emoji">${t.emoji}</span> <span class="tpl-name">${t.name}</span><span class="tpl-good">for ${t.goodFor}</span>`;
+    item.innerHTML = `<span class="tpl-emoji">${t.emoji}</span> <span class="tpl-name">${templateName(t.id)}</span><span class="tpl-good">${templateGoodFor(t.goodFor)}</span>`;
     item.addEventListener('click', () => {
       const apply = () => {
         loadRoadTemplate(t.id);
@@ -818,9 +944,9 @@ function renderTemplates() {
       } else {
         templateMenu.classList.add('hidden');
         confirmCityAction({
-          title: `Start from ${t.name}?`,
-          message: 'This replaces your whole city with a ready-made road layout — you start fresh with roads, then add buildings. ↩️ Undo can bring your city back.',
-          yesLabel: '🛤️ Replace my city',
+          title: L('planner.template.confirmTitle', { name: templateName(t.id) }),
+          message: t('planner.template.confirmMsg'),
+          yesLabel: t('planner.template.replaceYes'),
           onYes: apply,
         });
       }
@@ -843,7 +969,7 @@ function loadRoadTemplate(key) {
   state.selectedIdx = -1;
   updateMetrics();
   render();
-  toast(`🛤️ Loaded the ${tpl.name} roads — now place your buildings!`);
+  toast(L('planner.toast.templateLoaded', { name: templateName(key) }));
 }
 
 // ─── Metrics panel ──────────────────────────────────────
@@ -855,18 +981,65 @@ function computeWalkState() {
   return state.walkCache;
 }
 
+/** Refresh the selected home's real walking routes (Walk view visual). Reads
+ * the walk cache if present; computes it when stale WITHOUT recursion. */
+function refreshHomeRoutes() {
+  const idx = state.selectedIdx;
+  const b = idx >= 0 ? state.layout.buildings[idx] : null;
+  if (!b || b.type !== 'housing') { state.homeRoutes = []; return; }
+  let walk = state.walkCache;
+  if (!walk || _walkDirty) {
+    _walkDirty = false;
+    walk = state.walkCache = computeWalkReach(state.layout);
+  }
+  if (!walk) { state.homeRoutes = []; return; }
+  state.homeRoutes = homeReachRoutes(state.layout, walk, idx);
+}
+
 function effectiveWeights() {
   return state.goalWeights;   // null = Balanced (default fixed blend)
+}
+
+// ─── Milestones (recognition, NEVER gates) ──────────────
+// Small retroactive "you did this" toasts, consistent with docs/badges-and-tiers.md:
+// they celebrate a demonstrated state of the city, never gate anything, and
+// never repeat (a ratchet in localStorage, like a badge that can't be lost).
+const MILESTONE_KEY = 'p5_city_milestones_v1';
+const MILESTONES = [
+  { id: 'first_home', test: (m) => state.layout.buildings.some((b) => b.type === 'housing'), msg: '🏠 First home placed — a city needs somewhere to live!' },
+  { id: 'served', test: (m) => m.coverage >= 0.999, msg: '🏘️ Every home can reach a school, shop, hospital, fire & police station!' },
+  { id: 'walkable', test: (m, w) => w && w.reach >= 0.999, msg: '🚶 Every home can walk to everything it needs along real roads!' },
+  { id: 'quiet', test: (m) => m.zoning >= 0.999, msg: '🤫 Peaceful — every home is away from the noise!' },
+  { id: 'spread', test: (m) => m.spread >= 0.999, msg: '🧩 Mission buildings are spread across the city!' },
+  { id: 'great_city', test: (m) => m.score >= 80, msg: '🌟 A great city — score 80+!' },
+  { id: 'brilliant_city', test: (m) => m.score >= 95, msg: '💎 Brilliant! Score 95+ — a masterpiece of planning.' },
+];
+function loadMilestones() {
+  try { return new Set(JSON.parse(localStorage.getItem(MILESTONE_KEY) || '[]')); } catch { return new Set(); }
+}
+function checkMilestones(m, walk) {
+  const won = loadMilestones();
+  for (const ms of MILESTONES) {
+    if (won.has(ms.id)) continue;
+    let pass = false;
+    try { pass = ms.test(m, walk); } catch { pass = false; }
+    if (!pass) continue;
+    won.add(ms.id);
+    toast(ms.msg);
+  }
+  try { localStorage.setItem(MILESTONE_KEY, JSON.stringify([...won])); } catch { /* ignore */ }
 }
 
 function updateMetrics() {
   const weights = effectiveWeights();
   const walk = computeWalkState();
-  const m = computeMetrics(state.layout, undefined, weights, walk);
+  const m = computeMetrics(state.layout, undefined, weights, walk, currentLang());
   state.lastMetrics = m;
   const scoreNum = scoreEl.querySelector('.score-num');
   if (scoreNum) scoreNum.textContent = m.score;
   scoreEl.style.setProperty('--pct', String(m.score));
+  updateGoalsLive(m);
+  checkMilestones(m, walk);
 
   // Per-home happiness (services + utilities + park within straight range).
   state.homeHappy = state.layout.buildings.map((b) => {
@@ -925,18 +1098,18 @@ function renderGoalList(m) {
     const missingKeys = missing ? Object.keys(missing).filter((k) => missing[k] > 0) : [];
     const chips = (missingKeys.length && s < 3) ? missingKeys.map((k) => {
       const spec = CATALOG[k];
-      return `<button class="goal-chip" type="button" data-type="${k}" title="Place ${spec?.name || k}">${spec?.emoji || '🏗️'} <b>${missing[k]}</b></button>`;
+      return `<button class="goal-chip" type="button" data-type="${k}" title="${L('planner.chipPlace', { name: spec?.name || k })}">${spec?.emoji || '🏗️'} <b>${missing[k]}</b></button>`;
     }).join('') : '';
     const row = document.createElement('div');
     row.className = 'goal-row';
     row.innerHTML = `
       <div class="goal-line">
         <span class="goal-emoji">${meta.emoji}</span>
-        <span class="goal-name">${meta.name}</span>
+        <span class="goal-name">${goalDisplayName(g)}</span>
         <span class="goal-stars" title="${Math.round(val * 100)}%">${starHTML(s)}</span>
       </div>
       ${hint && s < 3 && !chips ? `<div class="goal-hint">💡 ${hint}</div>` : ''}
-      ${chips ? `<div class="goal-chips"><span class="goal-chips-label">Homes need:</span>${chips}</div>` : ''}
+      ${chips ? `<div class="goal-chips"><span class="goal-chips-label">${t('planner.homesNeed')}</span>${chips}</div>` : ''}
     `;
     // Tap a chip → select that facility by clicking the drawer's own button
     // (single source of truth — the same handler the child uses on the
@@ -956,15 +1129,16 @@ function renderGoalList(m) {
 function renderSelectedInfo() {
   const idx = state.selectedIdx;
   const b = idx >= 0 ? state.layout.buildings[idx] : null;
-  if (!b) { selectedInfo.innerHTML = ''; return; }
+  if (!b) { selectedInfo.innerHTML = ''; state.homeRoutes = []; return; }
+  refreshHomeRoutes();
   const spec = typeSpec(b.type);
   const name = spec?.name || b.type;
   const locked = !!b.locked;
   selectedInfo.innerHTML = `
     <div class="sel-title">${spec?.emoji || ''} ${name}${locked ? ' 🔒' : ''}</div>
     <div class="sel-actions">
-      <button id="sel-lock" class="sel-btn ${locked ? 'locked' : ''}">${locked ? '🔓 Unlock' : '🔒 Keep here'}</button>
-      <button id="sel-delete" class="sel-btn">🗑️ Remove</button>
+      <button id="sel-lock" class="sel-btn ${locked ? 'locked' : ''}">${locked ? t('planner.selected.unlock') : t('planner.selected.lock')}</button>
+      <button id="sel-delete" class="sel-btn">${t('planner.selected.remove')}</button>
     </div>`;
   document.getElementById('sel-lock').addEventListener('click', toggleLock);
   document.getElementById('sel-delete').addEventListener('click', () => deleteSelectedOrClear());
@@ -979,8 +1153,8 @@ function toggleLock() {
   updateMetrics();
   render();
   toast(b.locked
-    ? `🔒 ${typeSpec(b.type)?.name || 'This building'} is kept in place — the optimizer won't move it.`
-    : '🔓 Unlocked — the optimizer may move it again.');
+    ? L('planner.toast.locked', { name: typeSpec(b.type)?.name || t('planner.name.thisBuilding') })
+    : t('planner.toast.unlocked'));
 }
 
 // ─── Goals modal (mayor personas + custom sliders) ─────
@@ -989,6 +1163,30 @@ function openGoalsModal() {
   renderSliders();
   updateGoalsTabs();
   goalsModal.classList.remove('hidden');
+  updateGoalsLive(state.lastMetrics);
+}
+
+/**
+ * Live re-weighting feedback inside the Goals modal: as the child drags a
+ * slider or picks a mayor, show the City Score they would get right now (not
+ * after closing the modal). A short pulse on change makes the consequence
+ * visible — this is "changing the weight changes the judgement" made tangible.
+ */
+function updateGoalsLive(m) {
+  const liveValue = document.getElementById('goals-live-value');
+  if (!liveValue) return;
+  const metric = m || state.lastMetrics;
+  if (!metric) { liveValue.textContent = '—'; return; }
+  const prev = liveValue.dataset.score;
+  const score = String(metric.score);
+  liveValue.textContent = score;
+  if (prev && prev !== score) {
+    liveValue.classList.remove('pulse');
+    // force reflow so the animation restarts on consecutive changes
+    void liveValue.offsetWidth;
+    liveValue.classList.add('pulse');
+  }
+  liveValue.dataset.score = score;
 }
 
 function updateGoalsTabs() {
@@ -1007,8 +1205,8 @@ function renderMayorCards() {
     card.dataset.mayor = id;
     card.innerHTML = `
       <div class="mayor-emoji">${m.emoji}</div>
-      <div class="mayor-name">${m.name}</div>
-      <div class="mayor-brief">${m.brief}</div>`;
+      <div class="mayor-name">${mayorName(id)}</div>
+      <div class="mayor-brief">${mayorBrief(id)}</div>`;
     card.addEventListener('click', () => {
       state.goalMode = 'mayor';
       state.mayorId = id;
@@ -1023,6 +1221,29 @@ function renderMayorCards() {
   if (balanced) balanced.classList.toggle('selected', state.mayorId === null);
 }
 
+// Sliders are RELATIVE importance, not four independent 0–100% toggles: the
+// goal weights are re-normalised before scoring (normalizeWeights), so only the
+// proportions matter. Showing the raw 0–100 value next to each slider misleads
+// a child into thinking "Happy = 100" means the whole score is Happy, when it
+// is really Happy ≈ 100/total. We therefore display each goal's live SHARE of
+// the total (they always add up to 100%), while the slider position keeps its
+// familiar 0–100 "how much this matters" range.
+function sliderShares() {
+  const sum = GOAL_KEYS.reduce((s, g) => s + (state.sliderVals[g] || 0), 0);
+  if (!(sum > 0)) return GOAL_KEYS.reduce((o, g) => { o[g] = 0; return o; }, {});
+  const out = {};
+  for (const g of GOAL_KEYS) out[g] = Math.round(((state.sliderVals[g] || 0) / sum) * 100);
+  return out;
+}
+
+function updateSliderShareLabels() {
+  const shares = sliderShares();
+  sliderList.querySelectorAll('.slider-val').forEach((el) => {
+    const g = el.dataset.val;
+    el.textContent = (shares[g] || 0) + '%';
+  });
+}
+
 function renderSliders() {
   sliderList.innerHTML = '';
   const base = state.goalWeights || state.sliderVals;
@@ -1035,20 +1256,21 @@ function renderSliders() {
     const wrap = document.createElement('div');
     wrap.className = 'slider-row';
     wrap.innerHTML = `
-      <div class="slider-label"><span class="slider-emoji">${meta.emoji}</span> ${meta.name}</div>
-      <input type="range" min="0" max="100" value="${vals[g]}" class="goal-slider" data-goal="${g}" aria-label="${meta.name} importance">
-      <span class="slider-val" data-val="${g}">${vals[g]}</span>`;
+      <div class="slider-label"><span class="slider-emoji">${meta.emoji}</span> ${goalDisplayName(g)}</div>
+      <input type="range" min="0" max="100" value="${vals[g]}" class="goal-slider" data-goal="${g}" aria-label="${L('planner.goals.sliderAria', { name: goalDisplayName(g) })}">
+      <span class="slider-val" data-val="${g}">…</span>`;
     wrap.querySelector('.goal-slider').addEventListener('input', (e) => {
       const goal = e.target.dataset.goal;
       state.sliderVals[goal] = Number(e.target.value);
-      wrap.querySelector('.slider-val').textContent = e.target.value;
       state.goalMode = 'custom';
       state.goalWeights = { ...state.sliderVals };
+      updateSliderShareLabels();
       updateGoalsTabs();
       updateMetrics();
     });
     sliderList.appendChild(wrap);
   }
+  updateSliderShareLabels();
 }
 
 function closeGoalsModal() {
@@ -1066,7 +1288,7 @@ const RECEIPT_META = [
 ];
 
 function openReceipt() {
-  const m = state.lastMetrics || computeMetrics(state.layout, undefined, effectiveWeights(), computeWalkState());
+  const m = state.lastMetrics || computeMetrics(state.layout, undefined, effectiveWeights(), computeWalkState(), currentLang());
   const weights = effectiveWeights();
   // Resolve the metric-level weights actually used (default blend or mayor/custom).
   const mw = weights ? normalizeWeights(weights) : defaultMetricWeights();
@@ -1076,7 +1298,7 @@ function openReceipt() {
     const points = raw * w * 100;
     return `<button class="receipt-row" data-metric="${r.key}">
       <span class="receipt-emoji">${r.emoji}</span>
-      <span class="receipt-name">${r.name}</span>
+      <span class="receipt-name">${receiptName(r.key)}</span>
       <span class="receipt-math">${Math.round(raw * 100)}% × ${Math.round(w * 100)}%</span>
       <span class="receipt-points">${points.toFixed(1)}</span>
     </button>`;
@@ -1084,9 +1306,12 @@ function openReceipt() {
   document.getElementById('receipt-total').textContent = m.score;
   document.getElementById('receipt-list').innerHTML = rows;
   const note = weights
-    ? 'These are <strong>your</strong> weights (your mayor or sliders). Changing a goal changes how the city is judged.'
-    : 'These are the default weights — each part of a good city is worth a share. Tap 🎚️ Goals to change what matters most.';
+    ? t('planner.receipt.noteCustom')
+    : t('planner.receipt.noteDefault');
   document.getElementById('receipt-note').innerHTML = note;
+  // "What raises my score fastest?" — the same greedy single-move search behind
+  // My move, surfaced in the receipt so the score breakdown becomes a plan.
+  renderReceiptFastest(weights);
   const modal = document.getElementById('receipt-modal');
   modal.classList.remove('hidden');
   modal.querySelectorAll('[data-receipt-close]').forEach((el) => el.addEventListener('click', closeReceipt));
@@ -1097,13 +1322,59 @@ function openReceipt() {
       if (metric === 'coverage' || metric === 'utilities') setViewMode('ranges');
       else if (metric === 'accessibility') setViewMode('ranges');
       else setViewMode('happy');
-      toast(`💡 ${RECEIPT_META.find((r) => r.key === metric)?.hint || ''}`);
+      toast(`💡 ${receiptHint(metric)}`);
     });
   });
 }
 
 function closeReceipt() {
   document.getElementById('receipt-modal').classList.add('hidden');
+}
+
+/**
+ * Receipt → predictor: run the SAME greedy proposeMoves search that powers
+ * "My move", take the single best move, and offer it. If nothing improves the
+ * score, say so honestly (the city may already be at a good place for these
+ * goals — or stuck, which the Optimise/Explore step in Sprint 3 handles).
+ */
+function renderReceiptFastest(weights) {
+  const host = document.getElementById('receipt-fastest');
+  if (!host) return;
+  host.innerHTML = '';
+  if (!state.layout.buildings.length) return;
+  let best = null;
+  try {
+    const seed = 7;   // deterministic — the exact move is illustrative, not unique
+    const moves = proposeMoves(state.layout, { weights }, 1, seed);
+    best = moves[0] || null;
+  } catch (e) { best = null; }
+  if (!best) {
+    host.classList.remove('hidden');
+    host.innerHTML = `<div class="ff-line">${t('planner.receipt.fastestNone')}</div>`;
+    return;
+  }
+  const delta = best.deltaScore > 0 ? `+${best.deltaScore}` : String(best.deltaScore);
+  host.classList.remove('hidden');
+  host.innerHTML = `
+    <div class="ff-line"><span>🚀 ${t('planner.receipt.fastestLabel')}</span></div>
+    <button class="ff-move" id="receipt-fastest-btn" type="button">
+      <span class="ff-emoji">${moveEmoji(best)}</span>
+      <span class="ff-text">${localizedReason(best)}</span>
+      <span class="ff-delta">${delta}</span>
+    </button>`;
+  const btn = document.getElementById('receipt-fastest-btn');
+  if (btn) btn.addEventListener('click', () => {
+    closeReceipt();
+    runMyMove();
+  });
+}
+
+/** Emoji hint for a proposed move (add/move/remove/add_park). */
+function moveEmoji(m) {
+  if (m.action === 'add_park') return '🌳';
+  if (m.action === 'remove') return '🗑️';
+  if (m.action === 'move') return '🚚';
+  return '🏗️';
 }
 
 // ─── First-run coach ────────────────────────────────────
@@ -1124,6 +1395,38 @@ function dismissCoach() {
 
 // ─── Optimise flow (full auto) ──────────────────────────
 /**
+ * Localize an optimizer "reason" sentence (diff row or proposed move). These
+ * originate in shared city-common/optimize.js as English templates; we map each
+ * one back to its category and re-render it in zh-Hant at display time, falling
+ * back to the original English text for anything unrecognised (so EN is always
+ * byte-for-byte the string the app shows today).
+ */
+function localizedReason(item) {
+  if (currentLang() !== 'zh-Hant') return item.reason;
+  const what = item.what;
+  const name = what === 'housing' ? t('planner.type.housing') : (typeSpec(what)?.name || what);
+  const useName = (k) => L(k, { name });
+  if (item.action === 'add_park') return t('planner.reason.addPark');
+  if (item.action === 'add') {
+    if (what === 'housing') return t('planner.reason.addHousing');
+    if (METRIC_PARAMS.utilityTypes.includes(what)) return useName('planner.reason.addUtility');
+    return useName('planner.reason.addService');
+  }
+  if (item.action === 'remove') {
+    return isSpecial(what) ? useName('planner.reason.removeSpecial') : useName('planner.reason.removeExtra');
+  }
+  if (item.action === 'move') {
+    if (what === 'power') return t('planner.reason.movePower');
+    const metric = item.reasonMetric || (Array.isArray(item.improved) && item.improved.length ? item.improved[0] : null);
+    if (metric === 'accessibility' || metric === 'coverage') return useName('planner.reason.moveAccess');
+    if (metric === 'zoning') return useName('planner.reason.moveZoning');
+    if (metric === 'spread') return useName('planner.reason.moveSpread');
+    if (metric === 'utilities') return useName('planner.reason.moveUtility');
+  }
+  return item.reason;
+}
+
+/**
  * Run the full optimizer. It proposes a complete plan; the student reviews and
  * applies. This is the "check my work" assistant — never auto-applies.
  */
@@ -1132,39 +1435,56 @@ async function askOptimise() {
   state.aiBusy = true;
   const btn = document.getElementById('btn-ai');
   btn.disabled = true;
-  btn.textContent = '🧮 Checking…';
+  btn.textContent = t('planner.opt.checking');
   try {
     await new Promise((r) => setTimeout(r, 0));
     const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
     const weights = effectiveWeights();
-    const res = optimizeLayout(state.layout, { weights }, seed);
-    _pendingPlan = { layout: res.layout, diff: res.diff, before: res.before, after: res.after, weights };
+    // Run BOTH strategies so the child can compare the plans side by side via
+    // the strategy chips. Greedy is fast; Explore adds fresh-start restarts.
+    const greedyRes = optimizeLayout(state.layout, { weights }, seed);
+    const exploreRes = optimizeLayout(state.layout, { weights, strategy: 'explore' }, seed);
+    state.lastPlans = {
+      greedy: { layout: greedyRes.layout, diff: greedyRes.diff, before: greedyRes.before, after: greedyRes.after, strategy: 'greedy' },
+      explore: { layout: exploreRes.layout, diff: exploreRes.diff, before: exploreRes.before, after: exploreRes.after, strategy: 'explore' },
+    };
+    state.activeStrategy = 'greedy';   // show the familiar plan first
+    _pendingPlan = state.lastPlans.greedy;
+    renderPlan(state.lastPlans.greedy.before, state.lastPlans.greedy.after, state.lastPlans.greedy.diff, 'greedy');
 
-    renderPlan(res.before, res.after, res.diff, false);
-
-    if (!res.diff.length) {
-      toast('✅ Your city is already well balanced — nothing to change!');
+    if (!greedyRes.diff.length && !exploreRes.diff.length) {
+      toast(t('planner.opt.nothing'));
     } else {
-      const addN = res.diff.filter((d) => d.action === 'add').length;
-      const moveN = res.diff.filter((d) => d.action === 'move').length;
-      const remN = res.diff.filter((d) => d.action === 'remove').length;
-      const parkN = res.diff.filter((d) => d.action === 'add_park').length;
+      const active = state.lastPlans[state.activeStrategy];
+      const addN = active.diff.filter((d) => d.action === 'add').length;
+      const moveN = active.diff.filter((d) => d.action === 'move').length;
+      const remN = active.diff.filter((d) => d.action === 'remove').length;
+      const parkN = active.diff.filter((d) => d.action === 'add_park').length;
       const parts = [];
-      if (addN) parts.push(`${addN} added`);
-      if (moveN) parts.push(`${moveN} moved`);
-      if (remN) parts.push(`${remN} removed`);
-      if (parkN) parts.push(`${parkN} park${parkN > 1 ? 's' : ''}`);
-      toast(`🧮 I found ${parts.length ? parts.join(', ') : 'a few small tweaks'} — review and apply!`);
+      if (addN) parts.push(L('planner.opt.countAdd', { n: addN }));
+      if (moveN) parts.push(L('planner.opt.countMove', { n: moveN }));
+      if (remN) parts.push(L('planner.opt.countRemove', { n: remN }));
+      if (parkN) parts.push(L(parkN > 1 ? 'planner.opt.countPark' : 'planner.opt.countPark1', { n: parkN }));
+      toast(L('planner.opt.found', { parts: parts.length ? parts.join(', ') : t('planner.opt.few') }));
     }
   } catch (e) {
     console.error('[planner] optimise failed:', e);
-    aiOutput.innerHTML = '<span class="ai-buddy">City Optimiser</span> Hmm, I couldn\u2019t check your city right now — try again!';
+    aiOutput.innerHTML = buddyMsg('planner.buddy.optimiser', 'planner.opt.error');
     _pendingPlan = null;
   } finally {
     state.aiBusy = false;
     btn.disabled = false;
-    btn.textContent = '🧮 Optimise';
+    btn.textContent = t('planner.optimise');
   }
+}
+
+/** Child picks Greedy or Explore from the plan modal chips — re-show that plan. */
+function showStrategy(strategy) {
+  if (!state.lastPlans || !state.lastPlans[strategy]) return;
+  state.activeStrategy = strategy;
+  _pendingPlan = state.lastPlans[strategy];
+  const p = state.lastPlans[strategy];
+  renderPlan(p.before, p.after, p.diff, strategy);
 }
 
 // ─── My move flow (be the planner) ──────────────────────
@@ -1189,47 +1509,47 @@ async function runMyMove() {
   state.aiBusy = true;
   const btn = document.getElementById('btn-step');
   btn.disabled = true;
-  btn.textContent = '🧠 Thinking…';
+  btn.textContent = t('planner.mymove.thinking');
   try {
     await new Promise((r) => setTimeout(r, 0));
     const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
     const weights = effectiveWeights();
     const moves = proposeMoves(state.layout, { weights }, 3, seed);
     if (!moves.length) {
-      toast('✅ Nothing more to improve — your city is well balanced! Try 🧮 Optimise to confirm.');
+      toast(t('planner.mymove.nothing'));
       return;
     }
     state.mymove = { moves, chosenMove: -1, chosenReason: null, revealed: false, weights };
     renderMyMovePredict();
   } catch (e) {
     console.error('[planner] my move failed:', e);
-    toast('Hmm, I couldn\u2019t come up with a move right now — try again!');
+    toast(t('planner.mymove.error'));
   } finally {
     state.aiBusy = false;
     btn.disabled = false;
-    btn.textContent = '🧠 My move';
+    btn.textContent = t('planner.mymove');
   }
 }
 
 function renderMyMovePredict() {
   const body = document.getElementById('mymove-body');
   const { moves } = state.mymove;
-  const meta = goalMetaForWeights();
+  const goalKey = topGoalKey();
   body.innerHTML = `
-    <div class="mymove-intro">The planner can make a few different changes. <strong>You're in charge</strong> — first guess which one will help most.</div>
-    <div class="mymove-question">Which move will raise <strong>${meta.name}</strong> the most? Tap one.</div>
+    <div class="mymove-intro">${t('planner.mymove.introPre')}<strong>${t('planner.mymove.introStrong')}</strong>${t('planner.mymove.introPost')}</div>
+    <div class="mymove-question">${t('planner.mymove.questionPre')}<strong>${goalDisplayName(goalKey)}</strong>${t('planner.mymove.questionPost')}</div>
     ${moves.map((m, i) => `
       <button class="move-card" data-move="${i}">
         <div>${moveLabel(m)}</div>
-        <div class="move-reason">${m.reason}</div>
+        <div class="move-reason">${localizedReason(m)}</div>
       </button>`).join('')}
-    <div class="reason-label">And why? Pick the best reason.</div>
+    <div class="reason-label">${t('planner.mymove.reasonLabel')}</div>
     <div class="reason-chips">
-      ${REASON_CHIPS.map((r) => `<button class="reason-chip" data-reason="${r.id}">${r.label}</button>`).join('')}
+      ${REASON_CHIPS.map((r) => `<button class="reason-chip" data-reason="${r.id}">${reasonChipLabel(r.id)}</button>`).join('')}
     </div>
     <div class="goals-actions">
-      <button id="mymove-reveal" class="plan-apply" disabled>🔍 Reveal</button>
-      <button id="mymove-cancel" class="plan-keep">🙅 Keep my city</button>
+      <button id="mymove-reveal" class="plan-apply" disabled>${t('planner.mymove.reveal')}</button>
+      <button id="mymove-cancel" class="plan-keep">${t('planner.mymove.cancel')}</button>
     </div>`;
   body.querySelectorAll('.move-card').forEach((el) => {
     el.addEventListener('click', () => {
@@ -1249,7 +1569,7 @@ function renderMyMovePredict() {
   document.getElementById('mymove-cancel').addEventListener('click', () => {
     state.mymove = null;
     closeMyMove();
-    toast('👍 Kept your city as-is');
+    toast(t('planner.toast.keptAsIs'));
   });
   const modal = document.getElementById('mymove-modal');
   modal.classList.remove('hidden');
@@ -1277,39 +1597,37 @@ function renderMyMoveReveal() {
   // question always has an answerable path.
   const reasonTarget = chosen.improved.length ? chosen.improved : (chosen.reasonMetric ? [chosen.reasonMetric] : []);
   const reasonCorrect = reasonTarget.includes(REASON_METRIC[chosenReason]);
-  const meta = goalMetaForWeights();
 
   let banner, bannerCls;
-  if (strictBest && reasonCorrect) { banner = '🎉 Spot on! You picked the best move and the right reason.'; bannerCls = 'good'; }
-  else if (strictBest) { banner = '😮 You picked the best move, but the reason was off — look at which part actually changed.'; bannerCls = 'meh'; }
-  else if (nearBest && reasonCorrect) { banner = '👍 Great eye — your move scored within a whisker of the best, and the reason was right.'; bannerCls = 'good'; }
-  else if (nearBest) { banner = '😮 Your move scored within a whisker of the best, but the reason was off — look at which part actually changed.'; bannerCls = 'meh'; }
-  else if (reasonCorrect) { banner = '👍 Good reason, but not the best move. Compare below.'; bannerCls = 'meh'; }
-  else { banner = '🤔 Not quite — here\u2019s what actually helped. Look at the numbers!'; bannerCls = 'meh'; }
+  if (strictBest && reasonCorrect) { banner = t('planner.mymove.goodSpot'); bannerCls = 'good'; }
+  else if (strictBest) { banner = t('planner.mymove.mehBest'); bannerCls = 'meh'; }
+  else if (nearBest && reasonCorrect) { banner = t('planner.mymove.goodNear'); bannerCls = 'good'; }
+  else if (nearBest) { banner = t('planner.mymove.mehNear'); bannerCls = 'meh'; }
+  else if (reasonCorrect) { banner = t('planner.mymove.mehReason'); bannerCls = 'meh'; }
+  else { banner = t('planner.mymove.mehNone'); bannerCls = 'meh'; }
 
   body.innerHTML = `
     <div class="reveal-correct ${bannerCls}">
       ${banner}
     </div>
-    <div class="mymove-question">How the maths changed for <strong>${moveLabel(chosen)}</strong>:</div>
+    <div class="mymove-question">${t('planner.mymove.changedFor')}<strong>${moveLabel(chosen)}</strong>${t('planner.mymove.changedForPost')}</div>
     <div class="reveal-receipt">${receiptDeltaHTML(chosen, chosenReason, reasonCorrect)}</div>
     ${chosenMove !== 0 ? `<div class="reveal-greedy">
-      <strong>The computer would have picked:</strong> ${moveLabel(best)} (${best.deltaScore > 0 ? '+' : ''}${best.deltaScore} points).
-      It works like a hill-climber — it only looks one step ahead and grabs the biggest gain now.
+      <strong>${t('planner.mymove.greedyPick')}</strong> ${moveLabel(best)} (${L('planner.scoreDelta', { n: (best.deltaScore > 0 ? '+' : '') + best.deltaScore })}).${t('planner.mymove.greedyWhy')}
     </div>` : ''}
     <div class="reveal-greedy">
-      <strong>Hill-climbing rule:</strong> try one change, and keep it if the score goes up (the full plan may also keep a change that dips the score a little to fix something important). Then try again — one step at a time.
+      <strong>${t('planner.mymove.ruleTitle')}</strong> ${t('planner.mymove.ruleBody')}
     </div>
     <div class="goals-actions">
-      <button id="mymove-apply" class="plan-apply">✅ Apply my move</button>
-      <button id="mymove-skip" class="plan-keep">🙅 Skip this round</button>
-      <button id="mymove-finish" class="plan-finish">🧮 Let Optimise finish</button>
+      <button id="mymove-apply" class="plan-apply">${t('planner.mymove.apply')}</button>
+      <button id="mymove-skip" class="plan-keep">${t('planner.mymove.skip')}</button>
+      <button id="mymove-finish" class="plan-finish">${t('planner.mymove.finish')}</button>
     </div>`;
   document.getElementById('mymove-apply').addEventListener('click', applyMyMove);
   document.getElementById('mymove-skip').addEventListener('click', () => {
     state.mymove = null;
     closeMyMove();
-    toast('👌 Skipped — tap 🧠 My move again for the next round.');
+    toast(t('planner.toast.skipped'));
   });
   document.getElementById('mymove-finish').addEventListener('click', () => {
     state.mymove = null;
@@ -1331,8 +1649,11 @@ function applyMyMove() {
   render();
   flashOneMove(move);
   closeMyMove();
-  const name = move.what === 'housing' ? 'a home' : typeSpec(move.what)?.name || move.what;
-  toast(`✅ Applied: ${moveLabel(move)} — score ${move.beforeScore} → ${move.afterScore}. Tap 🧠 My move for the next step.`);
+  toast(L('planner.toast.applied', {
+    label: moveLabel(move),
+    before: move.beforeScore,
+    after: move.afterScore,
+  }));
   state.mymove = null;
 }
 
@@ -1362,39 +1683,48 @@ function flashOneMove(move) {
 }
 
 function moveLabel(m) {
-  const name = m.what === 'housing' ? 'a Home' : typeSpec(m.what)?.name || m.what;
-  if (m.action === 'add') return `➕ Add ${name}`;
-  if (m.action === 'move') return `↔️ Move ${name}`;
-  if (m.action === 'remove') return `➖ Remove ${name}`;
-  if (m.action === 'add_park') return '🌳 Add a park';
-  return 'Change';
+  const name = m.what === 'housing' ? t('planner.movelabel.homeName') : (typeSpec(m.what)?.name || m.what);
+  if (m.action === 'add') return L('planner.movelabel.add', { name });
+  if (m.action === 'move') return L('planner.movelabel.move', { name });
+  if (m.action === 'remove') return L('planner.movelabel.remove', { name });
+  if (m.action === 'add_park') return t('planner.movelabel.addPark');
+  return t('planner.movelabel.other');
 }
 
 function receiptDeltaHTML(move, chosenReason, reasonCorrect) {
-  const metricLabel = { accessibility: 'walk to a road', coverage: 'schools/shops/help nearby', utilities: 'water/power/bus', zoning: 'quiet for homes', spread: 'spread out', balance: 'building mix', green: 'parks' };
+  const metricLabelEn = { accessibility: 'walk to a road', coverage: 'schools/shops/help nearby', utilities: 'water/power/bus', zoning: 'quiet for homes', spread: 'spread out', balance: 'building mix', green: 'parks' };
   const metricEmoji = { accessibility: '🛣️', coverage: '🏘️', utilities: '💧', zoning: '🤫', spread: '🧩', balance: '⚖️', green: '🌳' };
+  const metricLabel = (m) => (currentLang() !== 'zh-Hant' ? (metricLabelEn[m] || m) : t('planner.mm.metric.' + m));
   const lines = move.improved.length ? move.improved.map((m) => {
-    return `<div class="rr-line"><span>${metricEmoji[m] || ''} ${metricLabel[m] || m}</span><span class="rr-up">↑ improved</span></div>`;
+    return `<div class="rr-line"><span>${metricEmoji[m] || ''} ${metricLabel(m)}</span><span class="rr-up">${t('planner.mm.improved')}</span></div>`;
   }) : [];
   // The ✓/✗ badge must use the SAME correctness answer as the banner above
   // (which falls back to reasonMetric when `improved` is empty).
   const reasonBadge = chosenReason
-    ? `<div class="rr-line"><span>Your reason: ${REASON_CHIPS.find((r) => r.id === chosenReason)?.label || ''}</span><span class="${reasonCorrect ? 'rr-up' : 'rr-down'}">${reasonCorrect ? '✓ right!' : '✗ not the change'}</span></div>`
+    ? `<div class="rr-line"><span>${L('planner.mm.yourReason', { label: reasonChipLabel(chosenReason) })}</span><span class="${reasonCorrect ? 'rr-up' : 'rr-down'}">${reasonCorrect ? t('planner.mm.right') : t('planner.mm.wrong')}</span></div>`
     : '';
   return `
-    <div class="rr-line"><strong>City Score</strong><strong>${move.beforeScore} → ${move.afterScore} (+${move.deltaScore})</strong></div>
+    <div class="rr-line"><strong>${t('planner.score.label')}</strong><strong>${move.beforeScore} → ${move.afterScore} (+${move.deltaScore})</strong></div>
     ${reasonBadge}
     ${lines.join('')}`;
 }
 
-function goalMetaForWeights() {
+function topGoalKey() {
   // The student's most-weighted goal is the "target" for the prediction question.
   const w = state.goalWeights || null;
   if (w) {
     const top = GOAL_KEYS.slice().sort((a, b) => (w[b] || 0) - (w[a] || 0))[0];
-    return GOAL_META[top] || GOAL_META.happy;
+    return top || 'happy';
   }
-  return GOAL_META.happy;
+  return 'happy';
+}
+
+function reasonChipLabel(id) {
+  if (currentLang() !== 'zh-Hant') {
+    const found = REASON_CHIPS.find((r) => r.id === id);
+    return found ? found.label : id;
+  }
+  return t('planner.reason.' + id);
 }
 
 function closeMyMove() {
@@ -1403,6 +1733,27 @@ function closeMyMove() {
 
 // ─── Export ─────────────────────────────────────────────
 function serializeLayout() {
+  // The 3D city used to receive only static geometry. Since the planner is the
+  // place the child actually "does AI" (weighs goals, picks a mayor, watches the
+  // optimiser), we now carry that context forward so the 3D city and the Coding
+  // Buddy can talk about the child's own AI choices. Extra keys are ignored by
+  // older sanitizers — fully backward compatible.
+  let goals = null;
+  if (state.goalWeights) {
+    const persona = state.goalMode === 'mayor' && state.mayorId && MAYORS[state.mayorId]
+      ? MAYORS[state.mayorId]
+      : null;
+    goals = {
+      weights: normalizeWeights(state.goalWeights),
+      label: persona ? persona.name : 'Custom goals',
+      emoji: persona ? persona.emoji : '⚖️',
+    };
+  }
+  const plannerScore =
+    state.lastMetrics && Number.isFinite(state.lastMetrics.score)
+      ? Math.round(state.lastMetrics.score)
+      : null;
+
   return {
     version: 2,
     scaleMeters: SCALE,
@@ -1415,6 +1766,8 @@ function serializeLayout() {
       height: b.height,
       ...(b.locked ? { locked: true } : {}),
     })),
+    ...(goals ? { goals } : {}),
+    ...(plannerScore !== null ? { plannerScore } : {}),
   };
 }
 
@@ -1434,14 +1787,19 @@ function exportCity() {
     // Storage full / blocked — fall back to a download so the student can still
     // reach the 3D city by uploading the file there.
     downloadLayout(json);
-    toast('⚠️ Could not save to this browser (storage full) — downloaded my-ai-city.json instead. Upload it in the 3D city.');
+    toast(t('planner.export.storageFull'));
     return;
   }
   const roadsCount = state.layout.roads.length;
   const noRoadsNote = roadsCount === 0
-    ? ' ⚠️ No roads — the 3D city won\'t have streets or lights.'
+    ? t('planner.export.noRoads')
     : '';
-  toast(`💾 Saved! ${state.layout.buildings.length} buildings, ${roadsCount} roads, ${state.layout.parks.length} parks.${noRoadsNote}`);
+  toast(L('planner.export.saved', {
+    b: state.layout.buildings.length,
+    r: roadsCount,
+    p: state.layout.parks.length,
+    note: noRoadsNote,
+  }));
   // Primary CTA: the 3D city auto-loads the saved layout (?from=planner).
   window.location.href = '/city-builder/?from=planner';
 }
@@ -1476,7 +1834,7 @@ function downloadChampionFile(label) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   rememberSavedAt();   // resume surface: "last saved …"
-  toast(`💾 Saved "${label}" — keep this file as your backup!`);
+  toast(L('planner.save.champion', { label }));
 }
 
 function wireSaveModal() {
@@ -1516,7 +1874,8 @@ function importAny(raw) {
   const champ = sanitizeChampionFile(parsed);
   if (champ.ok) {
     const n = writeState(champ.file.state);
-    toast(`📂 Restored your Champion File${champ.file.label ? ' — ' + champ.file.label : ''} (${n} saved items). Reloading…`);
+    const labelSuffix = champ.file.label ? ' — ' + champ.file.label : '';
+    toast(L('planner.import.restored', { label: labelSuffix, n }));
     setTimeout(() => window.location.reload(), 600);
     return true;
   }
@@ -1533,7 +1892,7 @@ function importCity(raw) {
   try {
     parsed = JSON.parse(raw);
   } catch (e) {
-    toast('⚠️ That file is not valid JSON.');
+    toast(t('planner.import.notJson'));
     return false;
   }
   const v = validateLayout(parsed);
@@ -1549,7 +1908,7 @@ function importCity(raw) {
   render();
   // Close the open menu so the student sees the city, not the menu.
   if (importMenu) importMenu.classList.add('hidden');
-  toast(`📂 Opened your saved city — ${next.buildings.length} buildings, ${next.roads.length} roads, ${next.parks.length} parks.`);
+  toast(L('planner.import.opened', { b: next.buildings.length, r: next.roads.length, p: next.parks.length }));
   return true;
 }
 
@@ -1579,17 +1938,17 @@ const METRIC_ICON = {
 function metricBadges(improved) {
   if (!improved || !improved.length) return '';
   return ' <span class="metric-badges">' +
-    improved.map((m) => `<span class="metric-badge">${METRIC_ICON[m] || ''} ${METRIC_LABEL[m] || m} ↑</span>`).join('') +
+    improved.map((m) => `<span class="metric-badge">${METRIC_ICON[m] || ''} ${metricLabelFor(m)} ↑</span>`).join('') +
     '</span>';
 }
 
-function renderPlan(before, after, diff) {
+function renderPlan(before, after, diff, strategy = 'greedy') {
   // Group reasons by theme, preserving order.
   const order = ['add', 'move', 'remove', 'add_park'];
   const groups = order
     .map((action) => ({
       action,
-      label: THEME_LABEL[action] || action,
+      label: planThemeLabel(action),
       items: diff.filter((d) => d.action === action),
     }))
     .filter((g) => g.items.length);
@@ -1597,29 +1956,50 @@ function renderPlan(before, after, diff) {
   const gain = after.score - before.score;
   const scoreLine = gain > 0
     ? `<strong>${before.score}</strong> → <strong>${after.score}</strong> <span class="score-gain">(+${gain})</span>`
-    : `stays <strong>${before.score}</strong>`;
+    : `${t('planner.plan.stays')}<strong>${before.score}</strong>`;
+
+  const chips = (state.lastPlans ? `
+    <div class="strategy-chips" role="radiogroup" aria-label="${t('planner.strategy.aria')}">
+      <button class="strategy-chip ${strategy === 'greedy' ? 'active' : ''}" data-strategy="greedy" type="button">
+        <span class="sc-emoji">⚡</span>
+        <span class="sc-name">${t('planner.strategy.greedy')}</span>
+        <span class="sc-desc">${t('planner.strategy.greedyDesc')}</span>
+        <span class="sc-score">${state.lastPlans.greedy.after.score}</span>
+      </button>
+      <button class="strategy-chip ${strategy === 'explore' ? 'active' : ''}" data-strategy="explore" type="button">
+        <span class="sc-emoji">🔍</span>
+        <span class="sc-name">${t('planner.strategy.explore')}</span>
+        <span class="sc-desc">${t('planner.strategy.exploreDesc')}</span>
+        <span class="sc-score">${state.lastPlans.explore.after.score}</span>
+      </button>
+    </div>` : '');
 
   const groupsHtml = groups.map((g) => `
     <div class="plan-group">
       <div class="plan-group-title">${g.label}</div>
       <ul class="plan-list">
-        ${g.items.map((d) => `<li>${d.reason}${metricBadges(d.improved)}</li>`).join('')}
+        ${g.items.map((d) => `<li>${localizedReason(d)}${metricBadges(d.improved)}</li>`).join('')}
       </ul>
     </div>`).join('');
 
   const body = document.getElementById('plan-modal-body');
   body.innerHTML = `
-    <div class="plan-intro">I checked your city and here's what I found.</div>
-    <div class="plan-score">City Score: ${scoreLine}</div>
-    ${groupsHtml || '<div class="plan-note">Nothing to change — your city is already well balanced! 🌟</div>'}
+    ${chips}
+    <div class="plan-intro">${t('planner.plan.intro')} ${strategy === 'explore' ? t('planner.plan.introExplore') : ''}</div>
+    <div class="plan-score">${t('planner.plan.scorePrefix')}${scoreLine}</div>
+    ${groupsHtml || `<div class="plan-note">${t('planner.plan.nothing')}</div>`}
     ${diff.length ? `
       <div class="plan-actions">
-        <button class="plan-apply" id="plan-apply">✅ Apply changes</button>
-        <button class="plan-keep" id="plan-keep">🙅 Keep my city</button>
-      </div>` : '<div class="plan-actions"><button class="plan-keep" id="plan-keep">👍 Got it</button></div>'}`;
+        <button class="plan-apply" id="plan-apply">${t('planner.plan.apply')}</button>
+        <button class="plan-keep" id="plan-keep">${t('planner.mymove.cancel')}</button>
+      </div>` : `<div class="plan-actions"><button class="plan-keep" id="plan-keep">${t('planner.receipt.done')}</button></div>`}`;
 
   const modal = document.getElementById('plan-modal');
   modal.classList.remove('hidden');
+  // Strategy chips: switch which plan is shown (Apply always commits the ACTIVE one).
+  modal.querySelectorAll('.strategy-chip').forEach((chip) => {
+    chip.addEventListener('click', () => showStrategy(chip.dataset.strategy));
+  });
   // Focus the primary action so the student can Apply with one tap.
   const applyBtn = document.getElementById('plan-apply');
   if (applyBtn) applyBtn.focus();
@@ -1637,8 +2017,8 @@ function renderPlan(before, after, diff) {
   if (keepBtn) keepBtn.addEventListener('click', () => {
     _pendingPlan = null;
     closePlanModal();
-    aiOutput.innerHTML = '<span class="ai-buddy">City Optimiser</span> No problem — your city stays exactly as you built it! 🌟';
-    toast('👍 Kept your city as-is');
+    aiOutput.innerHTML = buddyMsg('planner.buddy.optimiser', 'planner.plan.aiKept');
+    toast(t('planner.toast.keptAsIs'));
   });
 }
 
@@ -1663,12 +2043,12 @@ function applyPlan() {
   const remN = diff.filter((d) => d.action === 'remove').length;
   const parkN = diff.filter((d) => d.action === 'add_park').length;
   const parts = [];
-  if (addN) parts.push(`${addN} building${addN > 1 ? 's' : ''} added`);
-  if (moveN) parts.push(`${moveN} moved`);
-  if (remN) parts.push(`${remN} removed`);
-  if (parkN) parts.push(`${parkN} park${parkN > 1 ? 's' : ''}`);
-  toast(`✅ Applied — ${parts.join(', ')}! ↩️ Undo to revert.`);
-  aiOutput.innerHTML = '<span class="ai-buddy">City Optimiser</span> Done! Your city is smarter now. 🌟';
+  if (addN) parts.push(L(addN > 1 ? 'planner.plan.ctAddN' : 'planner.plan.ctAdd1', { n: addN }));
+  if (moveN) parts.push(L('planner.plan.ctMove', { n: moveN }));
+  if (remN) parts.push(L('planner.plan.ctRemove', { n: remN }));
+  if (parkN) parts.push(L(parkN > 1 ? 'planner.plan.ctParkN' : 'planner.plan.ctPark1', { n: parkN }));
+  toast(L('planner.plan.applied', { parts: parts.join(', ') }));
+  aiOutput.innerHTML = buddyMsg('planner.buddy.optimiser', 'planner.plan.aiDone');
   _pendingPlan = null;
 }
 
@@ -1758,14 +2138,13 @@ function setViewMode(mode) {
   viewWalk.classList.toggle('active', mode === 'walk');
   viewRanges.classList.toggle('active', mode === 'ranges');
   if (mode === 'happy') {
-    hint('😊 Green homes have everything nearby. Amber homes are missing something — red homes are missing a lot!');
+    hint(t('planner.hint.happy'));
   } else if (mode === 'walk') {
     const w = computeWalkState();
-    hint(`🚶 People can walk ${WALK_BUDGET}m to reach what they need. Green homes can reach everything; red ones can't. (${Math.round((w.reach || 0) * 100)}% of needs reachable)`);
-  } else if (mode === 'ranges') {
-    hint('⭕ Green circles = 150m, how far people walk to a school/shop/park. Blue circles = 400m, how far to water/power/bus. Homes outside every circle are the ones to fix!');
+    hint(L('planner.hint.walk', { budget: WALK_BUDGET, pct: Math.round((w.reach || 0) * 100) }));
+  } else if (mode === 'ranges') {    hint(t('planner.hint.ranges'));
   } else {
-    hint('Tap the map or use the tools — homes are back to normal.');
+    hint(t('planner.hint.normal'));
   }
   render();
 }
@@ -1837,7 +2216,7 @@ if (importBackupBtn) {
     if (!v.ok) { toast('⚠️ ' + v.errors[0]); return; }
     downloadLayout(JSON.stringify(layout, null, 2));
     importMenu.classList.add('hidden');
-    toast('💾 Downloaded my-ai-city.json');
+    toast(t('planner.import.downloaded'));
   });
 }
 
@@ -1868,13 +2247,13 @@ function tryUnlock(raw) {
   if (hasKey) {
     try { localStorage.setItem(UNLOCK_STORAGE_KEY, '1'); } catch (e) { /* ignore */ }
     document.getElementById('lock-overlay').classList.add('hidden');
-    toast('🔓 Unlocked! Your city awaits, Junior Planner.');
-    aiOutput.innerHTML = '<span class="ai-buddy">Nova</span> Well done! You earned the Planner\u2019s License. Let\u2019s build your city. 🌟';
+    toast(t('planner.unlock.toast'));
+    aiOutput.innerHTML = buddyMsg('planner.buddy.nova', 'planner.unlock.nova');
     updateMetrics();
     render();
     return;
   }
-  errEl.textContent = 'That doesn\u2019t look like a license file. Fastest fix: tap \u201CGo to City Planning Academy\u201D and finish the training (\u224810 min) \u2014 it opens the planner on this tablet.';
+  errEl.textContent = t('planner.unlock.error');
 }
 
 (function wireLock() {
@@ -1925,6 +2304,8 @@ function toast(msg) {
 (function init() {
   buildDrawer();
   wireSaveModal();
+  mountLangToggle('.actions');
+  applyStatic();
   let saved = null;
   try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* ignore */ }
   if (saved) {

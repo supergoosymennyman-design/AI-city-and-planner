@@ -3,7 +3,7 @@
 // Run: node --test tests/walkability.test.mjs   (from the repo root)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeWalkReach, buildWalkGraph, walkPath, WALK_BUDGET } from '../P5 Programme/buddy-kit/client/city-common/walkability.js';
+import { computeWalkReach, buildWalkGraph, walkPath, homeReachRoutes, WALK_BUDGET } from '../P5 Programme/buddy-kit/client/city-common/walkability.js';
 import { sanitizeLayout } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
 import { computeMetrics } from '../P5 Programme/buddy-kit/client/city-common/metrics.js';
 
@@ -144,4 +144,85 @@ test('all homes: mean reach is deterministic and bounded', () => {
   assert.equal(a.reach, b.reach, 'deterministic');
   assert.ok(a.reach >= 0 && a.reach <= 1);
   assert.equal(a.homes.length, 2);
+});
+
+// ── homeReachRoutes (the planner's visible Dijkstra paths) ──────────────
+test('homeReachRoutes returns a real route to a school on the same road', () => {
+  const layout = sanitizeLayout({
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [900, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1100, 1000], footprint: [26, 24], height: 20 },
+    ],
+  });
+  const w = computeWalkReach(layout);
+  const routes = homeReachRoutes(layout, w, 0);
+  const school = routes.find((r) => r.type === 'school');
+  assert.ok(school, 'expected a school route');
+  assert.ok(school.ok, 'school within budget should be ok');
+  assert.ok(school.path.length >= 2, 'path should have at least 2 nodes');
+  assert.ok(school.dist <= WALK_BUDGET);
+});
+
+test('homeReachRoutes marks an out-of-budget need as NOT ok (red)', () => {
+  const layout = sanitizeLayout({
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [200, 1000], footprint: [20, 20], height: 24 },
+      { type: 'hospital', pos: [1800, 1000], footprint: [30, 26], height: 34 },
+    ],
+  });
+  const w = computeWalkReach(layout);
+  const routes = homeReachRoutes(layout, w, 0);
+  const hospital = routes.find((r) => r.type === 'hospital');
+  assert.ok(hospital, 'hospital route should exist (there is a hospital)');
+  assert.equal(hospital.ok, false, '1600m walk must be outside the 400m budget');
+  assert.ok(hospital.dist > WALK_BUDGET);
+  assert.ok(hospital.path.length >= 2, 'still draws the path — so the child sees WHY');
+});
+
+test('homeReachRoutes route path distances match the walk engine distances', () => {
+  const layout = sanitizeLayout({
+    version: 2, scaleMeters: 2000,
+    roads: [
+      { points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' },
+      { points: [[1000, 100], [1000, 1900]], width: 14, class: 'primary' },
+    ],
+    parks: [{ cx: 1000, cz: 700, radius: 60 }],
+    buildings: [
+      { type: 'housing', pos: [1000, 1200], footprint: [20, 20], height: 24 },
+      { type: 'shop', pos: [1000, 900], footprint: [32, 32], height: 26 },
+    ],
+  });
+  const w = computeWalkReach(layout);
+  const routes = homeReachRoutes(layout, w, 0);
+  // Sum the drawn path's segment lengths — must be ~ the reported dist.
+  for (const r of routes) {
+    let sum = 0;
+    for (let i = 0; i < r.path.length - 1; i++) {
+      sum += Math.hypot(r.path[i + 1].x - r.path[i].x, r.path[i + 1].z - r.path[i].z);
+    }
+    assert.ok(Math.abs(sum - r.dist) < 8, `${r.type}: drawn path ${Math.round(sum)}m vs reported ${r.dist}m`);
+  }
+});
+
+test('homeReachRoutes returns [] for a non-home or no-road city', () => {
+  const noRoad = sanitizeLayout({
+    version: 2, scaleMeters: 2000, roads: [], parks: [],
+    buildings: [{ type: 'housing', pos: [1000, 1000], footprint: [20, 20], height: 24 }],
+  });
+  const wNo = computeWalkReach(noRoad);
+  assert.deepEqual(homeReachRoutes(noRoad, wNo, 0), []);
+
+  const nonHome = sanitizeLayout({
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [], buildings: [{ type: 'school', pos: [1000, 1000], footprint: [26, 24], height: 20 }],
+  });
+  const wS = computeWalkReach(nonHome);
+  assert.deepEqual(homeReachRoutes(nonHome, wS, 0), []);
 });

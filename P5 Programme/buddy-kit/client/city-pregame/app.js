@@ -6,14 +6,19 @@
  * whose key unlocks the planner. No server, no AI — pure client-side.
  *
  * Rooms:
- *   1. Weighted Score   (report card — weighted sum)
+ *   1. Weighted Score   (report card — weighted sum + a draggable weight lab)
  *   2. Coverage Radius  (leash garden — 150m/400m distance rules)
- *   3. Shortest Path    (ant trail — shortest walk along a road network)
- *   4. Hill-Climbing    (foggy mountain — greedy local search)
+ *   3. Shortest Path    (ant trail — Dijkstra shown expanding, then shortest walk)
+ *   4. Hill-Climbing    (foggy mountain — greedy local search + Explore restart)
  * Each room teaches the concept with a visual, then CHECKS understanding with
  * a multi-step challenge. All four must be completed before the download
  * unlocks.
+ *
+ * Algorithm maths lives in lesson-core.js (pure + unit-tested); app.js only
+ * renders it.
  */
+
+import { WEIGHT_LAB, weightLabTotal, DIJKSTRA_LESSON, DIJKSTRA_BUS_DIST, dijkstraReveal, dijkstraWinner } from './lesson-core.js';
 
 // ── The Planner's License ───────────────────────────────
 // Shared with the 2D planner's lock gate (soft gate, not security).
@@ -40,6 +45,7 @@ const ROOMS = {
       'Quiet (15%) matters because living beside a noisy factory is unpleasant, but it doesn\u2019t stop a city from working.',
       'Spread, mix and utilities (10% each) make a city nicer to live in, but the city still works even if they aren\u2019t perfect.',
     ],
+    bridge: 'In the planner, the City Score is exactly this report card: every part gets a sub-score, you multiply by its weight, and add it all up. Pick a Mayor and the weights change — that\u2019s the whole trick.',
   },
   2: {
     title: 'Leash Garden',
@@ -54,6 +60,7 @@ const ROOMS = {
       'You use a school or shop every day, so it must be really close — 150m.',
       'Water, power and buses you need less often (or they reach you through pipes and wires), so 400m is fine.',
     ],
+    bridge: 'In the planner, tap ⭕ Ranges and you\u2019ll see these circles drawn around every building. A home is only \u201cserved\u201d when a school, shop, hospital, fire or police station sits inside its circle.',
   },
   3: {
     title: 'Ant Trail Room',
@@ -65,6 +72,7 @@ const ROOMS = {
     ],
     whyTitle: null,
     why: null,
+    bridge: 'When you tap 🚶 Walk in the planner, it runs exactly this search on YOUR roads — it finds the real walking route to school, shop and park, never a straight line through buildings.',
   },
   4: {
     title: 'Foggy Mountain Room',
@@ -76,6 +84,7 @@ const ROOMS = {
     ],
     whyTitle: null,
     why: null,
+    bridge: 'The planner\u2019s 🧮 Optimise button is this hiker — it keeps every step that improves the score. Now you know why it can stop early on a small hill, and that a fresh start (Explore) can climb higher.',
   },
 };
 
@@ -92,7 +101,16 @@ function loadProgress() {
   try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); } catch { return {}; }
 }
 function saveProgress() {
-  try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(state.completed)); } catch { /* ignore */ }
+  // Merge with what's already stored instead of blind-overwriting: two
+  // same-origin tabs finishing different rooms must not lose each other's
+  // progress (a refresh/tab that completed Room 2 earlier still has Room 2
+  // marked after this tab completes Room 4).
+  try {
+    let prev = {};
+    try { prev = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); } catch { prev = {}; }
+    if (!prev || typeof prev !== 'object' || Array.isArray(prev)) prev = {};
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ ...prev, ...state.completed }));
+  } catch { /* ignore */ }
 }
 
 // ── DOM helpers ─────────────────────────────────────────
@@ -143,7 +161,15 @@ function feedback(container, msg, good) {
 
 function parseTotal(raw) {
   if (typeof raw !== 'string') return NaN;
-  const v = parseFloat(raw.replace(/[^0-9.]/g, ''));
+  // Accept both dot-decimal ("78.5") and comma-decimal ("78,5") input without
+  // misreading thousands separators: a comma is only a decimal point when the
+  // string has NO dot (so "1,000" stays one thousand, and "78,5" → 78.5).
+  let s = raw.replace(/[^0-9.,]/g, '');
+  const hasDot = s.indexOf('.') !== -1;
+  const hasComma = s.indexOf(',') !== -1;
+  if (hasComma && hasDot) s = s.replace(/,/g, '');        // "1,000.5" → 1000.5
+  else if (hasComma) s = s.replace(',', '.');             // "78,5" → 78.5
+  const v = parseFloat(s);
   return Number.isFinite(v) ? v : NaN;
 }
 
@@ -190,6 +216,28 @@ function completeRoom(room) {
 }
 
 // ── Room renderer ───────────────────────────────────────
+function roomPathHTML(current) {
+  // A visual journey strip: 4 rooms in order, marked done/current/next.
+  return `<div class="room-path" role="list" aria-label="Your training journey">
+    ${ROOM_ORDER.map((r) => {
+    const rinfo = ROOMS[r];
+    const done = !!state.completed[r];
+    const cur = r === current;
+    // Reachable = completed, current, OR the next room after a completed one
+    // (same gating as the bottom nav dots — a child can always go back to a
+    // finished room or forward to the next unlocked one).
+    const prevDone = r === 1 || !!state.completed[r - 1];
+    const reachable = done || cur || prevDone;
+    return `<button class="path-step ${done ? 'done' : ''} ${cur ? 'current' : ''}"
+        data-room="${r}" role="listitem" aria-label="Room ${r}: ${rinfo.title}" ${reachable ? '' : 'aria-disabled="true" disabled'}>
+        <span class="path-emoji">${rinfo.emoji}</span>
+        <span class="path-name">${rinfo.title}</span>
+        <span class="path-flag">${done ? '✓' : cur ? '▶' : ''}</span>
+      </button>`;
+  }).join('')}
+  </div>`;
+}
+
 function renderRoom(room) {
   state.currentRoom = room;
   updateNav();
@@ -197,12 +245,14 @@ function renderRoom(room) {
   const el = document.createElement('div');
   el.className = 'room';
   el.innerHTML = `
+    <div class="room-path-wrap">${roomPathHTML(room)}</div>
     <div class="room-header">
       <span class="room-tag">Training Room ${room} of 4</span>
       <h2>${r.emoji} ${r.title}</h2>
       <p class="room-intro">${r.story}</p>
     </div>
     <div class="room-body">
+      ${r.bridge ? `<div class="bridge-box">🔗 <strong>Why this matters in the planner:</strong> ${r.bridge}</div>` : ''}
       ${r.math.map((m) => `<div class="math-block">${m}</div>`).join('')}
       ${r.why ? `<div class="why-box"><strong>${r.whyTitle || 'Why?'}</strong><ul>${r.why.map((w) => `<li>${w}</li>`).join('')}</ul></div>` : ''}
       <div id="challenge-${room}" class="challenge-box"></div>
@@ -211,6 +261,16 @@ function renderRoom(room) {
   `;
   roomWrap.innerHTML = '';
   roomWrap.appendChild(el);
+  // Journey strip taps: allow revisiting a completed room OR the next unlocked one.
+  $$('.path-step', el).forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = Number(btn.dataset.room);
+      if (state.completed[target] || target === state.currentRoom) {
+        renderRoom(target);
+        window.scrollTo({ top: 0 });
+      }
+    });
+  });
   const target = document.getElementById(`challenge-${room}`);
   CHALLENGES[room](target, room);
   hintButton(room, target);
@@ -241,6 +301,26 @@ function challenge1(container) {
   const fills = Array(rows.length).fill(null);
 
   container.innerHTML = `
+    <div class="lab-card" id="rc-lab">
+      <h3>🎛️ Try it: what does a weight DO?</h3>
+      <p>Two subjects, two sub-scores. Slide the divider to give <strong>${WEIGHT_LAB.left.name}</strong> more or less of the 100%. Watch the total move — a weight is how much a part is allowed to matter.</p>
+      <div class="lab-track" id="lab-track">
+        <div class="lab-half lab-left">
+          <div class="lab-name">${WEIGHT_LAB.left.name}</div>
+          <div class="lab-score">score ${WEIGHT_LAB.left.score}</div>
+          <div class="lab-share" id="lab-left-share">50%</div>
+        </div>
+        <input type="range" class="lab-slider" id="lab-slider" min="0" max="100" value="50" step="1"
+          aria-label="Weight split between ${WEIGHT_LAB.left.name} and ${WEIGHT_LAB.right.name}">
+        <div class="lab-half lab-right">
+          <div class="lab-name">${WEIGHT_LAB.right.name}</div>
+          <div class="lab-score">score ${WEIGHT_LAB.right.score}</div>
+          <div class="lab-share" id="lab-right-share">50%</div>
+        </div>
+      </div>
+      <div class="lab-total"><span>Weighted total</span><strong id="lab-total">${weightLabTotal(0.5, [WEIGHT_LAB.left.score, WEIGHT_LAB.right.score])}</strong></div>
+      <p class="lab-note">See it? Give ${WEIGHT_LAB.left.name} (score ${WEIGHT_LAB.left.score}) more weight and the total climbs toward ${WEIGHT_LAB.left.score}. Give ${WEIGHT_LAB.right.name} (score ${WEIGHT_LAB.right.score}) more and it falls toward ${WEIGHT_LAB.right.score}.</p>
+    </div>
     <p><strong>Challenge:</strong> Complete the city report card. Tap a number tile, then tap the box for the part it belongs to. Then type the total.</p>
     <div class="report-card" id="rc-rows"></div>
     <div class="tile-tray" id="rc-tiles" aria-label="Number tiles"></div>
@@ -253,6 +333,22 @@ function challenge1(container) {
       <button class="btn-primary" id="rc-check">✅ Check</button>
     </div>
   `;
+
+  // Weight lab: the slider divides 100% between the two subjects.
+  const slider = document.getElementById('lab-slider');
+  const labTotal = document.getElementById('lab-total');
+  const leftShare = document.getElementById('lab-left-share');
+  const rightShare = document.getElementById('lab-right-share');
+  const setSplit = (val) => {
+    const split = Number(val) / 100;
+    leftShare.textContent = Math.round(split * 100) + '%';
+    rightShare.textContent = Math.round((1 - split) * 100) + '%';
+    labTotal.textContent = weightLabTotal(split, [WEIGHT_LAB.left.score, WEIGHT_LAB.right.score]);
+  };
+  if (slider) {
+    slider.addEventListener('input', () => setSplit(slider.value));
+    setSplit(50);
+  }
 
   const rowsEl = document.getElementById('rc-rows');
   const barColors = ['#00f2fe', '#00e0a0', '#00c060', '#40a040', '#80b040', '#ffb84c'];
@@ -497,6 +593,158 @@ function challenge2(container) {
 // ════════════════════════════════════════════════════════════
 // ROOM 3 — Shortest Path
 // ════════════════════════════════════════════════════════════
+
+// Search-schematic node positions (self-contained SVG, clean layout). The three
+// corridors are Route A (top), Route C (middle) and Route B (bottom), all
+// running HOME → BUS — same graph as lesson-core DIJKSTRA_LESSON.
+const SEARCH_POS = {
+  H: { x: 70, y: 120 },
+  A1: { x: 190, y: 55 },
+  A2: { x: 310, y: 55 },
+  C1: { x: 190, y: 135 },
+  C2: { x: 310, y: 135 },
+  B1: { x: 190, y: 220 },
+  BUS: { x: 440, y: 120 },
+};
+
+/** Draw the search schematic skeleton into `svg` (edges + node circles). */
+function buildSearchSvg(svg, graph) {
+  svg.setAttribute('viewBox', '0 0 520 260');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Road network diagram from HOME to BUS');
+  let inner = '<rect width="520" height="260" fill="#0b132b" rx="10"/>';
+  for (const [a, b, len] of graph.edges) {
+    const pa = SEARCH_POS[a], pb = SEARCH_POS[b];
+    inner += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="#334478" stroke-width="6" stroke-linecap="round"/>`;
+    const mx = (pa.x + pb.x) / 2, my = (pa.y + pb.y) / 2;
+    inner += `<text x="${mx}" y="${my - 8}" text-anchor="middle" fill="#8899cc" font-size="11" paint-order="stroke" stroke="#0b132b" stroke-width="4">${len}m</text>`;
+  }
+  for (const id of Object.keys(graph.nodes)) {
+    const p = SEARCH_POS[id];
+    const isBus = id === 'BUS';
+    inner += `<g class="dj-node" data-node="${id}" transform="translate(${p.x}, ${p.y})">
+      <circle r="16" fill="#0b132b" stroke="#334478" stroke-width="2"/>
+      <circle class="dj-ring" r="21" fill="none" stroke="#ffb84c" stroke-width="2" opacity="0" style="transform-origin:0 0"/>
+      <text class="dj-name" y="4" text-anchor="middle" fill="#8899cc" font-size="10">${isBus ? '🏁' : ''}${graph.nodes[id].label}</text>
+      <text class="dj-dist" y="-24" text-anchor="middle" fill="#ffb84c" font-size="13" font-weight="bold"></text>
+    </g>`;
+  }
+  svg.innerHTML = inner;
+}
+
+/**
+ * Run the Room 3 "watch the planner search" stage inside `container`.
+ * Animates dijkstraReveal() from lesson-core so the child SEES the algorithm:
+ * mark neighbours with tentative distances, confirm the closest crossing, and
+ * keep going until BUS is reached — honest, deterministic, replayable.
+ */
+function runSearchStage(container, onDone) {
+  const stage = document.createElement('div');
+  stage.className = 'search-stage';
+  stage.innerHTML = `
+    <h3>🔍 First, watch the planner SEARCH</h3>
+    <p>It can\u2019t guess. From HOME it marks every crossing it can reach, then confirms the <strong>closest one first</strong>, spreads out, and updates if it finds a shorter way. Watch the distances appear:</p>
+    <div class="search-map" aria-hidden="true"><svg id="c3-search-svg"></svg></div>
+    <div class="search-status" id="c3-search-status" aria-live="polite">Starting the search…</div>
+    <div class="search-actions">
+      <button class="btn-secondary" id="c3-search-replay">↻ Replay</button>
+      <button class="btn-secondary" id="c3-search-skip">⏭ Skip to the challenge</button>
+    </div>
+  `;
+  container.prepend(stage);
+
+  const svg = stage.querySelector('#c3-search-svg');
+  const status = stage.querySelector('#c3-search-status');
+  buildSearchSvg(svg, DIJKSTRA_LESSON);
+
+  const { reveals } = dijkstraReveal(DIJKSTRA_LESSON, 'H');
+  const tentative = {};
+  let gen = 0;
+
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function distText(node, d) {
+    const el = svg.querySelector(`.dj-node[data-node="${node}"] .dj-dist`);
+    if (el) el.textContent = d === Infinity ? '—' : `${d}m`;
+  }
+  function nodeState(id, kind) {
+    const g = svg.querySelector(`.dj-node[data-node="${id}"]`);
+    if (!g) return;
+    g.classList.remove('settled', 'marked', 'bus-final');
+    if (kind) g.classList.add(kind);
+    if (kind === 'settled') {
+      const c = g.querySelector('circle');
+      if (c) c.setAttribute('fill', '#00e0a0');
+    } else {
+      const c = g.querySelector('circle');
+      if (c) c.setAttribute('fill', '#0b132b');
+    }
+  }
+  let done = false;
+
+  function play() {
+    const my = ++gen;
+    let i = 0;
+    status.textContent = 'Starting the search…';
+
+    // Instant-complete under prefers-reduced-motion.
+    if (reduceMotion) { finish(my); return; }
+
+    const step = () => {
+      if (my !== gen || !stage.isConnected) return;
+      if (i >= reveals.length) { finish(my); return; }
+      const ev = reveals[i];
+      i++;
+      if (ev.kind === 'mark') {
+        const had = ev.node in tentative;
+        const old = tentative[ev.node];
+        tentative[ev.node] = ev.dist;
+        distText(ev.node, ev.dist);
+        nodeState(ev.node, 'marked');
+        status.textContent = had && Number.isFinite(old)
+          ? `Shorter way to ${ev.node} found — update ${old}m → ${ev.dist}m!`
+          : `The ant can reach ${ev.node} — mark ${ev.dist}m.`;
+      } else {
+        nodeState(ev.node, 'settled');
+        status.textContent = ev.node === 'H'
+          ? `HOME is 0m — the ant starts here.`
+          : `Confirm ${ev.node}: it\u2019s the closest marked crossing (${ev.dist}m). Now spread out from ${ev.node}.`;
+      }
+      setTimeout(step, 720);
+    };
+    setTimeout(step, 300);
+  }
+
+  function finish(my) {
+    if (my !== gen || !stage.isConnected) return;
+    done = true;
+    const winner = dijkstraWinner({ BUS: DIJKSTRA_BUS_DIST });
+    distText('BUS', DIJKSTRA_BUS_DIST);
+    nodeState('BUS', 'settled');
+    const busG = svg.querySelector('.dj-node[data-node="BUS"]');
+    if (busG) busG.classList.add('bus-final');
+    status.innerHTML = `🏁 BUS reached at <strong>${DIJKSTRA_BUS_DIST}m</strong> — that\u2019s Route ${winner}, inside the 400m budget. The planner never took a straight line; it walked real roads and kept the shortest legal route. Now it\u2019s YOUR turn below.`;
+    stage.querySelector('#c3-search-replay').disabled = false;
+    if (onDone) onDone();
+  }
+
+  stage.querySelector('#c3-search-replay').addEventListener('click', () => {
+    gen++;
+    svg.querySelectorAll('.dj-node').forEach((g) => {
+      g.classList.remove('settled', 'marked', 'bus-final');
+      const c = g.querySelector('circle');
+      if (c) c.setAttribute('fill', '#0b132b');
+      const d = g.querySelector('.dj-dist');
+      if (d) d.textContent = '';
+    });
+    play();
+  });
+  stage.querySelector('#c3-search-skip').addEventListener('click', () => { gen++; finish(gen); });
+
+  play();
+  return stage;
+}
+
 function challenge3(container) {
   const routes = [
     { id: 'A', total: 350, segs: [150, 100, 100], pts: [[90, 62], [240, 62], [240, 152], [392, 152]] },
@@ -569,15 +817,30 @@ function challenge3(container) {
     <div class="input-row"><button class="btn-primary" id="rc3-check">✅ Check</button></div>
   `;
 
+  // "Watch the planner SEARCH" beat — prepended above the ant challenge. Its
+  // Skip button reveals the challenge; it never blocks room completion.
+  runSearchStage(container, () => {
+    const hint = document.querySelector('.room-tag');
+    if (hint) hint.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
   // Route selection + ant animation + running total + budget meter.
   const fill = document.getElementById('bm-fill');
   const value = document.getElementById('bm-value');
   const ant = document.getElementById('ant');
-  let animCancel = false;
+  // Generation token + stored timeout: each animateRoute() cancels any previous
+  // loop's frames and its final-total timeout, so mashing route buttons can
+  // never leave concurrent requestAnimationFrame loops fighting over the ant /
+  // running-total / budget meter (the old `animCancel` was never set true).
+  let animGen = 0;
+  let animTimeout = 0;
 
   function animateRoute(route, total) {
+    const gen = ++animGen;
+    clearTimeout(animTimeout);
     $$('.route-path').forEach((g) => g.classList.remove('selected'));
     const g = document.querySelector(`.route-path[data-route="${route}"]`);
+    if (!g) return;
     g.classList.add('selected');
     const walk = g.querySelector('.road-walk');
     const len = walk.getTotalLength();
@@ -589,7 +852,7 @@ function challenge3(container) {
     const steps = 90;
     let i = 0;
     const animate = () => {
-      if (animCancel) return;
+      if (gen !== animGen) return;   // superseded by a newer route selection
       if (i > steps) { ant.setAttribute('opacity', '0'); return; }
       const pt = walk.getPointAtLength((len * i) / steps);
       ant.setAttribute('transform', `translate(${pt.x}, ${pt.y})`);
@@ -604,7 +867,8 @@ function challenge3(container) {
     };
     animate();
     // Final total.
-    setTimeout(() => {
+    animTimeout = setTimeout(() => {
+      if (gen !== animGen) return;   // superseded by a newer route selection
       value.textContent = `${total} m / 400 m`;
       fill.style.width = Math.min(100, (total / BUDGET) * 100) + '%';
       fill.classList.toggle('over', total > BUDGET);
@@ -707,6 +971,15 @@ function challenge4(container) {
         <button class="btn-stuck" data-answer="yes">Yes — 80 is bigger</button>
         <button class="btn-stuck" data-answer="no">No — it only accepts upward steps</button>
       </div>
+      <div class="hc-escape" id="hc-escape" hidden>
+        <p>Right! The greedy planner is <strong>stuck on the small hill</strong>. It will never walk downhill, so it can\u2019t reach the 80 peak on its own.</p>
+        <p><strong>What can a smarter planner do to reach the 80 plan?</strong></p>
+        <div class="hc-options">
+          <button class="btn-stuck escape" data-escape="restart">↻ Restart from a brand-new spot and climb again</button>
+          <button class="btn-stuck escape" data-escape="tryagain">🔁 Keep trying the same small steps</button>
+        </div>
+        <p class="escape-reveal" id="hc-escape-reveal" hidden>🎉 Exactly! A fresh start lands somewhere new — sometimes on a taller hill. In the planner you\u2019ll meet this as the <strong>Explore</strong> strategy: when Optimise gets stuck, Explore restarts and climbs again, so it can beat the greedy planner\u2019s best score.</p>
+      </div>
     </div>
     <div class="input-row"><button class="btn-primary" id="rc4-check">✅ Check</button></div>
   `;
@@ -769,15 +1042,40 @@ function challenge4(container) {
   let last = null;
   $$('.btn-stuck').forEach((btn) => {
     btn.addEventListener('click', () => {
-      last = btn.dataset.answer;
-      $$('.btn-stuck').forEach((b) => b.classList.toggle('selected', b === btn));
+      if (btn.dataset.answer) {
+        last = btn.dataset.answer;
+        $$('.btn-stuck').forEach((b) => b.classList.toggle('selected', b === btn));
+        // Reveal the escape question only after the child answers the greedy question.
+        const escape = document.getElementById('hc-escape');
+        if (escape) escape.hidden = false;
+        if (last === 'no') {
+          const r = document.getElementById('hc-escape-reveal');
+          if (r) r.hidden = true;
+        }
+      }
+    });
+  });
+
+  let escapePick = null;
+  $$('.btn-stuck.escape').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      escapePick = btn.dataset.escape;
+      $$('.btn-stuck.escape').forEach((b) => b.classList.toggle('selected', b === btn));
+      if (escapePick === 'restart') {
+        const reveal = document.getElementById('hc-escape-reveal');
+        if (reveal) reveal.hidden = false;
+      } else {
+        const reveal = document.getElementById('hc-escape-reveal');
+        if (reveal) reveal.hidden = true;
+      }
     });
   });
 
   document.getElementById('rc4-check').addEventListener('click', () => {
     if (picks[1] !== 'A' || picks[2] !== 'D') { feedback(container, 'Keep the change whose score goes UP the most. Round 1: 58 → ? Round 2: 60 → ?', false); return; }
     if (last !== 'no') { feedback(container, 'Remember the rule: the algorithm never accepts a downhill step, so it cannot reach that distant plan.', false); return; }
-    feedback(container, '🎉 You climbed: 58 → 60 → 62. And from 62, every step down is rejected — that is a local optimum.', true);
+    if (escapePick !== 'restart') { feedback(container, 'Same small steps stay on the same small hill. The escape is a fresh start somewhere new — then climb again.', false); return; }
+    feedback(container, '🎉 You climbed: 58 → 60 → 62 — that is a local optimum. And you know the escape: restart somewhere new (Explore) to climb even higher!', true);
     completeRoom(4);
   });
 }
@@ -795,12 +1093,12 @@ ROOMS[2].hints = {
   2: 'Shop: Spot A has a 200m home (too far), Spot C has a 250m home (too far) — only Spot B fits. Bus: Stop X has a 500m home, Stop Z has a 450m home — only Stop Y fits.',
 };
 ROOMS[3].hints = {
-  1: 'Only add road pieces the ant actually uses. Ignore the straight-line distance across the map.',
+  1: 'Only add road pieces the ant actually uses. Ignore the straight-line distance across the map. (The search up top already found it: BUS = 350m.)',
   2: 'Route A: 150 + 100 = 250, then + 100 = 350. Compare with 400. Routes B (450) and C (420) are over the budget.',
 };
 ROOMS[4].hints = {
   1: 'Ask: is the new score BIGGER than the old score? If yes, keep. If no, undo.',
-  2: 'For the last question, remember the rule: no downhill step is accepted — so the planner is stuck at 62 and cannot reach 80.',
+  2: 'The greedy planner is stuck at 62 and cannot reach 80 by itself. To climb the taller peak it must start over somewhere new — that is the Explore trick.',
 };
 
 // ── Graduation / download ───────────────────────────────
@@ -809,9 +1107,9 @@ function graduate() {
   showScreen('finale');
   updateNav();
   const allDone = ROOM_ORDER.every((r) => state.completed[r]);
-  unlockBtn.disabled = !allDone;
-  downloadBtn.disabled = !allDone;
-  downloadHint.textContent = allDone
+  if (unlockBtn) unlockBtn.disabled = !allDone;
+  if (downloadBtn) downloadBtn.disabled = !allDone;
+  if (downloadHint) downloadHint.textContent = allDone
     ? 'Your planner is ready! Hit "Unlock the planner" to open it — or keep your license file as a backup.'
     : 'Finish all four rooms to earn your license file.';
 }
@@ -864,11 +1162,13 @@ function restart() {
 
 // ── Init ────────────────────────────────────────────────
 document.getElementById('btn-start').addEventListener('click', () => {
-  state.currentRoom = ROOM_ORDER[0];
+  // Resume returning students at the first room they haven't finished yet
+  // (a refresh/tab that completed earlier rooms shouldn't redo Room 1).
+  state.currentRoom = ROOM_ORDER.find((r) => !state.completed[r]) || ROOM_ORDER[0];
   showScreen('rooms');
   window.scrollTo({ top: 0 });
 });
-downloadBtn.addEventListener('click', downloadLicense);
+if (downloadBtn) downloadBtn.addEventListener('click', downloadLicense);
 if (unlockBtn) unlockBtn.addEventListener('click', unlockPlanner);
 document.getElementById('btn-restart').addEventListener('click', openRestartModal);
 document.getElementById('modal-cancel').addEventListener('click', closeRestartModal);

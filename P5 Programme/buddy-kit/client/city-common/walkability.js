@@ -341,3 +341,59 @@ export function walkPath(graph, fromIdx, toIdx) {
   if (!Number.isFinite(dist[toIdx])) return null;
   return reconstruct(prev, toIdx).map((i) => ({ x: graph.nodes[i].x, z: graph.nodes[i].z }));
 }
+
+/**
+ * Per-home routes for the planner's Walk view — the VISIBLE algorithm.
+ *
+ * Given a walk result and a HOME building index, return the real walking route
+ * from that home to the nearest reachable instance of each need (service /
+ * utility / park) INSIDE the walk budget:
+ *
+ *   [{ type:'school', dist: 320, ok: true, path:[{x,z}, …] }, …]
+ *
+ * `ok` is true when the nearest instance is within WALK_BUDGET (the route is
+ * drawn green) and false when the closest is too far (drawn red — the child
+ * sees WHY the home is unserved). Deterministic; null when the home has no
+ * road attachment or there is no instance of that need at all.
+ */
+export function homeReachRoutes(layout, walk, homeIdx) {
+  const graph = walk && walk.graph;
+  const buildings = layout.buildings || [];
+  const parks = layout.parks || [];
+  const home = buildings[homeIdx];
+  if (!home || home.type !== 'housing' || !graph) return [];
+  const acc = graph.access.buildings[homeIdx];
+  if (!acc) return [];
+
+  const needs = [...SERVICE_TYPES, ...UTILITY_TYPES, 'park'];
+  // Node index of every instance of each need (so we can find the nearest).
+  const targetNodes = {};
+  for (const t of needs) targetNodes[t] = [];
+  buildings.forEach((b, i) => {
+    const a = graph.access.buildings[i];
+    // Only target actual need types (never another home).
+    if (a && b.type !== 'housing' && Object.prototype.hasOwnProperty.call(targetNodes, b.type)) {
+      targetNodes[b.type].push(a.node);
+    }
+  });
+  parks.forEach((p, i) => {
+    const a = graph.access.parks[i];
+    if (a) targetNodes.park.push(a.node);
+  });
+
+  const { dist, prev } = dijkstra(graph, acc.node);
+  const routes = [];
+  for (const t of needs) {
+    const nodes = targetNodes[t];
+    if (!nodes.length) continue;
+    let bestIdx = -1;
+    let best = Infinity;
+    for (const n of nodes) {
+      if (dist[n] < best) { best = dist[n]; bestIdx = n; }
+    }
+    if (bestIdx < 0 || !Number.isFinite(best)) continue;
+    const path = reconstruct(prev, bestIdx).map((i) => ({ x: graph.nodes[i].x, z: graph.nodes[i].z }));
+    routes.push({ type: t, dist: Math.round(best), ok: best <= WALK_BUDGET, path });
+  }
+  return routes;
+}

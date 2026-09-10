@@ -42,11 +42,21 @@ body {
   margin-bottom: 36px;
 }
 .hub-champion {
-  width: 84px;
-  height: 84px;
+  position: relative;
+  width: 96px;
+  height: 96px;
   flex: none;
   filter: drop-shadow(0 6px 18px rgba(0, 229, 255, 0.25));
 }
+.hub-champion img,
+.hub-champion canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.hub-champion img { display: block; }
+.hub-champion canvas { border-radius: 12px; }
 .hub-title {
   font-family: var(--font-display);
   font-weight: 600;
@@ -216,6 +226,23 @@ a.card:active {
 .scen-body .icon-zone svg { width: 18px; height: 18px; }
 .scen-body .card-name { font-size: 16px; }
 .scen-body .card-blurb { font-size: 12.5px; }
+
+/* ── AI Journey accordion ──
+   Live path (Academy → Planner → 3D City). The journey links are real <a>s;
+   this is the honest spine of the programme, replacing the removed scenarios. */
+.scen-body.scen-journey .scen-link {
+  border-left-width: 4px;
+  border-left-color: var(--accent, #00F2FE);
+}
+.journey-recipes {
+  margin: 4px 2px 2px;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  color: var(--muted, #94A3B8);
+  border: 1px dashed var(--border, #1E293B);
+  border-radius: 8px;
+  line-height: 1.45;
+}
 .soon-badge {
   position: absolute;
   top: 14px;
@@ -234,7 +261,7 @@ a.card:active {
 .hub-footer {
   margin-top: 48px;
   font-size: 12px;
-  color: #475569;
+  color: var(--muted);
   letter-spacing: 0.3px;
 }
 

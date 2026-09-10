@@ -9,12 +9,13 @@ Studio and the Rigger live on separate origins/teams. Last updated 2026-09.
 | Tool | Role | Where it lives | Status |
 |---|---|---|---|
 | **AI Workshop** | dataflow ML instrument — *the brain* | `workshop.ai-education.workers.dev` (external team) | built; capability export NOT wired (see below) |
-| **2D Planner** | design the city (buildings/roads/parks + score + hill-climb optimise) | `/planner/` on p5-city-sim (ours) | ✅ built |
+| **2D Planner** | design the city (buildings/roads/parks + score + Greedy/Explore optimise + visible walk routes) | `/planner/` on p5-city-sim (ours) | ✅ built |
 | **3D AI City** | walkable city, missions, champion, prop library | `/city-builder/` on p5-city-sim (ours) | ✅ built |
 | **Fit Studio** | dress pre-made gear onto the base champion, bake + export GLB | `p5-fit-studio.*.workers.dev` (separate) | built |
 | **Rigger ("3D Studio")** | build a creature from primitives → auto-rig skeleton → procedural gaits → export | `floral-bread-9885.prestonip005.workers.dev` (separate) | built (will integrate with Fit Studio) |
 | **Coding Buddy** | chat agent; 7 verbs; "Do it" approval card | same-origin widget inside city/planner (ours) | built |
 | **Champion** | the robot/creature the child authors | lives in the 3D city | built |
+| **City Planning Academy** | pregame teaching the 4 algorithms; unlocks the planner | `/pregame/` on p5-city-sim (ours) | ✅ built (AI-depth cycle 2026-09) |
 
 ## Inter-app links
 
@@ -42,6 +43,23 @@ The chat widget must never claim to BE the Champion creature.
 3. **Buddy verbs are the old paradigm** — need a v2 vocabulary to supervise Workshop builds (split/evaluate/diagnose).
 4. **Data persistence is still fragmented** — the Champion File covers the city origin's keys; the Workshop saves its own file; Fit Studio keeps its own IndexedDB wardrobe. One "Passiona save" is the eventual goal.
 5. **The 3D city's quest AI is baked-in old p5-01 content**, not tied to the child's actual builds (see #1).
+
+## AI-depth cycle (2026-09) — what changed on our side
+
+- **Planner optimisation is no longer one linear pass.** `optimize.js` now has two
+  strategies: `greedy` (the original single measured hill-climb) and `explore`
+  (multi-restart: several greedy climbs from the same input, best kept). The
+  Optimise plan modal offers both as chips and shows both plans. Roads remain
+  sacred in both (a hard, tested invariant).
+- **The algorithms are visible.** Walk view draws a selected home's real Dijkstra
+  routes (green in-budget, red too-far); the Academy now animates Dijkstra and
+  the local-optimum escape; the Goals modal shows a live score as weights change.
+- **Honesty pass.** The hub's dead "Scenarios" accordion (4 removed apps) is
+  replaced by a live **AI Journey** trail (Academy → Planner → 3D City). Mission
+  buildings whose minigame is not deployed show an honest "⏳". See
+  `ai-concept-map.md` for the full gap matrix and the L1–L4 ladder.
+- **Recognition, never gates.** Planner milestone toasts (first home, all homes
+  served/walkable, quiet, spread, score 80+/95+), ratcheted in localStorage.
 
 ## Architecture notes (for agents)
 
