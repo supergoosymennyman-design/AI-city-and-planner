@@ -38,11 +38,12 @@ import { scatterStreetDeco } from './street-deco.js';
 import { createStreetFurniture } from './street-furniture.js';
 import { createMinimap } from './minimap.js';
 import { mountCityBuddy } from './buddy.js';
+import { mountCityAiNodes } from './ai-nodes.js';
 import { createLabelRenderer, updateLabels } from '../champion-city/labels.js';
 import { mountSkinSidebar, equipCustomDefault } from '../champion-city/skins.js';
 import { preloadAccessories } from '../champion-city/accessories.js';
 import { saveCustomSkin, loadCustomSkinBlob, blobToObjectUrl, revokeObjectUrl, looksLikeGlb } from '../champion-city/custom-skin.js';
-import { playTap } from '../champion-city/sound.js';
+import { playTap, armAudioGestureUnlock } from '../champion-city/sound.js';
 import { attachContextLossGuard } from '../champion-city/context-guard.js';
 import { ParticlePool } from '../champion-city/particles.js';
 import { catalogType, isSpecial } from '../city-common/catalog.js';
@@ -52,11 +53,13 @@ import { buildSampleCity } from '../city-common/sample-city.js';
 import { isRoadVehicle, vehicleTargetLength } from '../city-common/vehicle-scale.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt, lastSavedAt } from '../city-common/champion-file.js';
 import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
+import { readMilestones, milestoneSectionHTML } from '../city-common/milestones.js';
 import { parseCapability, capabilityDescriptor, stage1Note, runInference } from '../city-common/cap-runtime.js';
 import { mountPropLibrary } from './prop-library.js';
 import { createGrabSystem } from '../shared/grab.js';
 import { createDrivableCar } from './drive.js';
 import { initI18n, applyStatic, mountLangToggle, t } from './i18n.js';
+import { HOME_URL, WORKSHOP_URL } from '../shared/links.js';
 
 const ASSET_BASE = '../champion-city/assets/';
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
@@ -68,7 +71,7 @@ let _customSkinUrl = null;
 // The recycling centre opens the Workshop platform (where the student builds
 // the recycling-sorting AI) instead of the shared P3 waste-sorters demo.
 const QUEST_GAME_URL_OVERRIDES = {
-  14: 'https://workshop.ai-education.workers.dev/', // Recycling Lab → Workshop platform
+  14: WORKSHOP_URL, // Recycling Lab → Workshop platform
 };
 
 // Resolve the playable game URL for a quest id (override wins, else the
@@ -2067,6 +2070,9 @@ async function spawnChampion() {
   // Grow the champion with the densified buildings so proportions stay right.
   if (growScale && growScale !== 1) champion.group.scale.multiplyScalar(growScale);
   scene.add(champion.group);
+  // Plant the champion on the spawn surface immediately (spawn may sit on a
+  // raised plaza/sidewalk) so the first rendered frame is never a hover.
+  if (champion.landAt) champion.landAt(spawn.x, spawn.z);
   orbit.target.copy(city.spawnWorld);
   // Start the idle-camera timer from spawn so the camera doesn't snap on boot.
   orbit.lastOrbitTs = performance.now();
@@ -2674,14 +2680,25 @@ const pointer = new THREE.Vector2();
 const dragState = { on: false, sx: 0, sy: 0, moved: 0 };
 
 // Must be called AFTER setupScene() (renderer/camera exist then).
+// Multi-touch guard: only the FIRST pointer (the primary finger/mouse) drives the
+// orbit drag and can fire a tap. Extra fingers are ignored so a resting second
+// finger can't reset dragState.moved and turn the first finger's release into a
+// stray tapAt() (accidental quest/entry or node tap while orbiting).
+let _primaryPointerId = null;
 function wireRendererInteraction() {
   renderer.domElement.addEventListener('pointerdown', (e) => {
+    if (_primaryPointerId !== null) return;   // a second pointer must not steal the drag
+    _primaryPointerId = e.pointerId;
     dragState.on = true;
     dragState.sx = e.clientX; dragState.sy = e.clientY;
     dragState.moved = 0;
   });
   window.addEventListener('pointermove', (e) => {
-    if (!dragState.on) return;
+    if (e.pointerId !== _primaryPointerId) return;
+    if (!dragState.on) {
+      setNodeHoverCursor(e);   // guarded: fine pointers, not grabbing
+      return;
+    }
     const dx = e.clientX - dragState.sx, dy = e.clientY - dragState.sy;
     dragState.sx = e.clientX; dragState.sy = e.clientY;
     dragState.moved += Math.abs(dx) + Math.abs(dy);
@@ -2692,16 +2709,25 @@ function wireRendererInteraction() {
     }
   });
   window.addEventListener('pointerup', (e) => {
-    if (!dragState.on) return;
+    if (e.pointerId !== _primaryPointerId) return;
+    const wasOn = dragState.on;
+    _primaryPointerId = null;
     dragState.on = false;
+    if (!wasOn) return;
     if (dragState.moved <= 6) tapAt(e.clientX, e.clientY);
+  });
+  window.addEventListener('pointercancel', (e) => {
+    // A gesture-cancelled primary (or a second finger that grabbed the gesture)
+    // must never leave a stale drag that fires tapAt() on a later pointerup.
+    if (e.pointerId !== _primaryPointerId) return;
+    _primaryPointerId = null;
+    dragState.on = false;
   });
 }
 
 /** Register a placed library prop with the grab system so it can be selected,
  *  picked up and moved (🎯 button). Persists the new position on drop. */
-function registerGrabbableProp(mesh, item) {
-  if (!grab || !mesh) return;
+function registerGrabbableProp(mesh, item) {  if (!grab || !mesh) return;
   const fp = (item && item.footprint) || [1.5, 1.5];
   grab.register(mesh, {
     footprint: fp,
@@ -2717,7 +2743,26 @@ function registerGrabbableProp(mesh, item) {
   mesh.userData.uid = mesh.userData.uid || (item ? item.id : (mesh.userData.uid || null));
 }
 
-function tapAt(clientX, clientY) {  const rect = renderer.domElement.getBoundingClientRect();
+/** Desktop affordance: show a pointer cursor while hovering an AI machine node
+ *  (the tap target that opens its "Try it" panel). No-op on touch — the pulsing
+ *  light column is the affordance there. Guarded: fine pointer only, and never
+ *  while the user is dragging the orbit camera. */
+function setNodeHoverCursor(e) {
+  if (typeof matchMedia === 'function' && !matchMedia('(pointer: fine)').matches) return;
+  if (!_aiNodes || typeof _aiNodes.tapMeshes !== 'function') return;
+  let hit = false;
+  try {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    hit = raycaster.intersectObjects(_aiNodes.tapMeshes(), false).length > 0;
+  } catch { hit = false; }
+  renderer.domElement.style.cursor = hit ? 'pointer' : '';
+}
+
+function tapAt(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
   const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
   const ndcY = -((clientY - rect.top) / rect.height) * 2 + 1;
   // Grab takes priority: while carrying → place; in select mode → pick a model.
@@ -2732,6 +2777,24 @@ function tapAt(clientX, clientY) {  const rect = renderer.domElement.getBounding
   if (hits.length && hits[0].object.userData.kind === 'quest') {
     const data = hits[0].object.userData;
     openMinigame(data);
+    return;
+  }
+  // AI machine nodes (ai-nodes.js): tap a pulsing machine node → open THAT
+  // machine's "Try it" panel. Runs after the quest check so mission buildings
+  // stay the priority tap target.
+  if (_aiNodes && typeof _aiNodes.tapMeshes === 'function') {
+    const nMeshes = _aiNodes.tapMeshes();
+    if (nMeshes.length) {
+      raycaster.setFromCamera(pointer, camera);
+      const nHits = raycaster.intersectObjects(nMeshes, false);
+      if (nHits.length) {
+        let g = nHits[0].object;
+        while (g && g.userData && g.userData.capId == null) g = g.parent;
+        const capId = g && g.userData && g.userData.capId;
+        const cap = capId ? readPlantedCaps().find((c) => c.id === capId) : null;
+        if (cap) { openTryPanel(cap); return; }
+      }
+    }
   }
 }
 
@@ -3104,7 +3167,7 @@ function showToast(msg) {
   el.className = 'toast show';
   el.textContent = msg;
   document.getElementById('toasts').appendChild(el);
-  setTimeout(() => el.remove(), 2600);
+  setTimeout(() => el.remove(), Math.min(8000, 2600 + msg.length * 30));
 }
 
 // ─── Input wiring ─────────────────────────────────────────────────────────
@@ -3162,7 +3225,7 @@ function wireInput() {
 
   // Small button back to the master site (hub / portal).
   document.getElementById('btn-hub').addEventListener('click', () => {
-    window.location.href = 'https://p5-home.clover-marquis.workers.dev/';
+    window.location.href = HOME_URL;
   });
 
   // 🎯 button — select / pick-up / move placed library models (single-button
@@ -3211,6 +3274,9 @@ function wireInput() {
 
   // sample city / controls sound
   document.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { try { playTap(); } catch (e) { /* no audio */ } }));
+  // Defensive: unlock the AudioContext on the first real tap so any beep fired
+  // a moment later (e.g. after an async load) is not blocked by autoplay rules.
+  try { armAudioGestureUnlock(); } catch (e) { /* no audio */ }
 }
 
 function readInput() {
@@ -3236,7 +3302,37 @@ function loadLayout(raw) {
   layout = dense.layout;
   growScale = dense.grow;
   cityBounds = dense.bounds;
+
+  // Planner AI context survives sanitizeLayout/densifyLayout (which rebuild the
+  // layout from known geometry fields and would drop extras). Attached to the
+  // final layout object so the entry overlay + Coding Buddy can echo the plan.
+  if (raw && typeof raw === 'object') {
+    const g = raw.goals && typeof raw.goals === 'object' ? raw.goals : null;
+    layout.goals = g && (g.label || g.weights)
+      ? { label: String(g.label || 'Balanced'), weights: g.weights && typeof g.weights === 'object' ? g.weights : null }
+      : null;
+    layout.plannerScore = Number.isFinite(+raw.plannerScore) ? Math.round(+raw.plannerScore) : null;
+  } else {
+    layout.goals = null;
+    layout.plannerScore = null;
+  }
+  applyPlanChip();
   return true;
+}
+
+/** Echo the planner's AI goals + score in the HUD chip (hidden when absent). */
+function applyPlanChip() {
+  const chip = document.getElementById('plan-ai-chip');
+  if (!chip) return;
+  const gl = layout && layout.goals && layout.goals.label ? String(layout.goals.label) : null;
+  const sc = layout && layout.plannerScore != null ? Math.round(layout.plannerScore) : null;
+  if (!gl && sc === null) { chip.hidden = true; return; }
+  const zh = (() => { try { return localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant'; } catch { return false; } })();
+  const name = gl || (zh ? '均衡目標' : 'Balanced');
+  const scorePart = sc !== null ? ' · ' + sc : '';
+  chip.textContent = '🌆 ' + name + scorePart;
+  chip.title = (zh ? '規劃師 AI 的目標與得分' : 'Planner AI goals + score') + (sc !== null ? ' · ' + sc : '');
+  chip.hidden = false;
 }
 
 function showEntryError(msg) {
@@ -3295,7 +3391,7 @@ function importChampionFile(raw) {
   if (!champ.ok) return false;
   const n = writeState(champ.file.state);
   showToast(`📂 Restored your Champion File${champ.file.label ? ' — ' + champ.file.label : ''} (${n} saved items). Reloading…`);
-  setTimeout(() => window.location.reload(), 600);
+  setTimeout(() => window.location.reload(), 3500);
   return true;
 }
 
@@ -3380,7 +3476,7 @@ function wireSaveUi() {
         const n = writeState(champ.file.state);
         cloudLoadResult.textContent = '✅ Restored (' + n + ' saved items). Reloading…';
         try { localStorage.setItem(CLOUD_CODE_KEY, code); } catch { /* ignore */ }
-        setTimeout(() => window.location.reload(), 700);
+        setTimeout(() => window.location.reload(), 3500);
       } catch (e) {
         cloudLoadResult.textContent = '⚠️ Could not load (' + e.message + '). Check the code.';
       } finally {
@@ -3429,7 +3525,8 @@ function mountBadgeUi() {
     body.innerHTML = rows
       + `<div class="logbook-note">${zh
         ? '你的徽章會在你證明你的機器後亮起 — 用留出的資料測試，並在「不確定」時說出來。'
-        : 'Your badges will light up as you prove your machines — test on data they have never seen, and say "not sure" when you should.'}</div>`;
+        : 'Your badges will light up as you prove your machines — test on data they have never seen, and say "not sure" when you should.'}</div>`
+      + milestoneSectionHTML(readMilestones(), zh ? 'zh-Hant' : 'en');
     modal.classList.remove('hidden');
   });
   modal.querySelectorAll('[data-logbook-close]').forEach((el) => el.addEventListener('click', close));
@@ -3438,6 +3535,36 @@ function mountBadgeUi() {
 // ── Planted machines: Capability Panel (Stage 1 — display only, honest) ──────
 const CAPS_KEY = 'p5_city_capabilities_v1';
 const CAP_MAX_BYTES = 200 * 1024; // a numeric .cap is KBs; guard against bloat
+// Last "Try my machine" verdict per planted machine id — lets the cap card and
+// the Coding Buddy talk about what the machine last decided.
+const CAP_LAST_DEC_KEY = 'p5_city_cap_lastdec_v1';
+
+function readLastDecisions() {
+  try { const m = JSON.parse(localStorage.getItem(CAP_LAST_DEC_KEY) || '{}'); return (m && typeof m === 'object') ? m : {}; }
+  catch { return {}; }
+}
+function rememberLastDecision(capId, label) {
+  if (!capId || !label) return;
+  try {
+    const m = readLastDecisions();
+    m[capId] = { label: String(label).slice(0, 40), at: Date.now() };
+    const keys = Object.keys(m);
+    if (keys.length > 8) for (const k of keys.slice(0, keys.length - 8)) delete m[k];
+    localStorage.setItem(CAP_LAST_DEC_KEY, JSON.stringify(m));
+  } catch { /* ignore */ }
+}
+
+let _aiNodes = null;   // visible in-world AI machine nodes (ai-nodes.js)
+
+/** (Re)build the in-world nodes for planted machines. Cheap, additive, safe. */
+function refreshAiNodes() {
+  try {
+    if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose();
+    _aiNodes = mountCityAiNodes(scene, city, layout);
+  } catch (e) {
+    console.warn('[city-builder] ai-nodes refresh failed', e);
+  }
+}
 
 function readPlantedCaps() {
   try { const a = JSON.parse(localStorage.getItem(CAPS_KEY) || '[]'); return Array.isArray(a) ? a : []; }
@@ -3451,14 +3578,17 @@ function renderCapPanel() {
   if (!body) return;
   const zh = (() => { try { return localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant'; } catch { return false; } })();
   const caps = readPlantedCaps();
+  const lastDec = readLastDecisions();
   const cards = caps.map((cap) => {
     const d = capabilityDescriptor(cap);
     const s = d.scores;
     const scoreLine = `study ${s.study ?? '—'} · check ${s.check ?? '—'} · sealed ${s.sealed ?? '—'}`;
+    const ld = lastDec[d.id];
     return `<div class="cap-card">
       <div class="cap-name">${esc(d.name)}</div>
       <div class="cap-meta">${esc(d.algorithm)} · ${d.labels.length} labels · threshold ${d.threshold}</div>
       <div class="cap-scores">${scoreLine}</div>
+      ${ld ? `<div class="cap-last">${zh ? '上次它說：' : 'Last time it said: '}<b>${esc(ld.label)}</b></div>` : ''}
       <div class="cap-note">${esc(stage1Note(zh))}</div>
       <button class="cap-try" data-try-cap="${esc(d.id)}">🧪 ${zh ? '試試它' : 'Try it'}</button>
     </div>`;
@@ -3476,6 +3606,69 @@ function renderCapPanel() {
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
+/**
+ * Open the "Try my machine" modal for a planted capability. Shared by the 📦
+ * panel's cap cards and the in-world AI node taps (tap a pulsing node → watch
+ * THAT machine decide). Feeds the planted capability a real input and runs the
+ * honest inference: confident → decision, low confidence/missing input → 🤔.
+ */
+function openTryPanel(cap) {
+  if (!cap) return;
+  const zh = (() => { try { return localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant'; } catch { return false; } })();
+  const tryModal = document.getElementById('cap-try-modal');
+  const tryBody = document.getElementById('cap-try-body');
+  if (!tryModal || !tryBody) return;
+  const fields = (cap.input && cap.input.fields) || [];
+  const norm = (cap.input && cap.input.normalization) || {};
+  const mid = (i) => { const lo = norm.min && norm.min[i] != null ? norm.min[i] : 0; const hi = norm.max && norm.max[i] != null ? norm.max[i] : 1; return Math.round(((lo + hi) / 2) * 100) / 100; };
+  const inputs = fields.map((f, i) => `
+    <label class="try-field">${esc(f.name)}
+      <input type="number" step="any" id="try-in-${i}" value="${mid(i)}" aria-label="${esc(f.name)}">
+    </label>`).join('');
+  tryBody.innerHTML = `
+    <p class="try-machine-name">${zh ? '🧪 測試：' : '🧪 Testing: '}<b>${esc(cap.name || cap.id || '')}</b></p>
+    <p class="save-intro">${zh ? '給機器一些真實輸入，看看它會怎麼想。' : 'Give the machine a real input and watch what it decides.'}</p>
+    <div class="try-inputs">${inputs || (zh ? '（沒有輸入欄位）' : '(no input fields)')}</div>
+    <div class="goals-actions"><button id="try-run" class="plan-apply">⚙️ ${zh ? '讓機器思考' : 'Run the machine'}</button></div>
+    <div id="try-result" class="try-result" aria-live="polite"></div>
+    <div class="cap-note">${zh ? '「不確定」也是正確答案 — 當信心不足時，機器不猜。' : 'Saying "not sure" is a correct answer — when confidence is too low, the machine does not guess.'}</div>`;
+  const run = document.getElementById('try-run');
+  if (run) run.addEventListener('click', () => {
+    const event = {};
+    let blank = 0;
+    fields.forEach((f, i) => {
+      const el = document.getElementById('try-in-' + i);
+      const raw = el ? el.value.trim() : '';
+      // Blank input = the field was NOT given → runInference reports it as
+      // "missing fields" and abstains honestly, instead of silently treating
+      // an empty box as the number 0 and skewing the decision.
+      if (raw === '') { blank++; return; }
+      event[f.name] = Number(raw);
+    });
+    const res = runInference(cap, event);
+    rememberLastDecision(cap.id, res.abstained
+      ? (zh ? '🤔 不確定' : '🤔 Not sure')
+      : String(res.decision));
+    refreshAiNodes();
+    const out = document.getElementById('try-result');
+    if (!out) return;
+    if (blank > 0) {
+      out.innerHTML = `<div class="try-decision abstain">${zh ? '🤔 不確定' : '🤔 Not sure'}</div>
+        <div class="try-detail">${zh ? '還有一個輸入欄位是空的' : 'One of the inputs is still empty'} — ${zh ? '機器選擇不猜' : 'the machine chose not to guess'}</div>`;
+      return;
+    }
+    if (res.abstained) {
+      out.innerHTML = `<div class="try-decision abstain">${zh ? '🤔 不確定' : '🤔 Not sure'}</div>
+        <div class="try-detail">${zh ? '信心' : 'Confidence'} ${Math.round(res.confidence * 100)}%${res.abstainReason === 'missing-fields' ? ' — ' + (zh ? '輸入不完整' : 'incomplete input') : ' — ' + (zh ? '機器選擇不猜' : 'the machine chose not to guess')}</div>`;
+    } else {
+      out.innerHTML = `<div class="try-decision">${zh ? '它說' : 'It says'}: <b>${esc(res.decision)}</b></div>
+        <div class="try-detail">${zh ? '信心' : 'Confidence'} ${Math.round(res.confidence * 100)}% · ${zh ? '門檻' : 'threshold'} ${Math.round((cap.model && cap.model.threshold || 0) * 100)}%</div>
+        ${res.evidence && res.evidence.length ? '<div class="try-evidence">' + (zh ? '最近的例子' : 'Nearest examples') + ':</div>' + res.evidence.map((ev) => `<div class="try-evidence-row">• ${esc(ev.label)} — ${zh ? '距離' : 'distance'} ${ev.distance}</div>`).join('') : ''}`;
+    }
+  });
+  tryModal.classList.remove('hidden');
+}
+
 function mountCapabilityUi() {
   const btn = document.getElementById('cap-btn');
   const modal = document.getElementById('cap-modal');
@@ -3487,60 +3680,22 @@ function mountCapabilityUi() {
   btn.addEventListener('click', () => { renderCapPanel(); modal.classList.remove('hidden'); });
   modal.querySelectorAll('[data-cap-close]').forEach((el) => el.addEventListener('click', close));
 
-  // "Try my machine" — feed a planted capability a real input, see the honest answer.
+  // "Try my machine" — feed a planted capability a real input, see the honest
+  // answer. The modal rendering lives in the module-scope openTryPanel() so cap
+  // cards AND in-world AI node taps share one code path.
   const tryModal = document.getElementById('cap-try-modal');
-  const tryBody = document.getElementById('cap-try-body');
-  const tryClose = () => tryModal && tryModal.classList.add('hidden');
-  if (tryModal && tryBody) {
-    tryModal.querySelectorAll('[data-captry-close]').forEach((el) => el.addEventListener('click', tryClose));
-    // delegate "Try it" clicks from freshly-rendered cap cards.
-    document.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-try-cap]');
-      if (!t) return;
-      const caps = readPlantedCaps();
-      const cap = caps.find((c) => c.id === t.getAttribute('data-try-cap'));
-      if (!cap) return;
-      openTry(cap);
-    });
+  if (tryModal) {
+    tryModal.querySelectorAll('[data-captry-close]').forEach((el) => el.addEventListener('click', () => tryModal.classList.add('hidden')));
   }
-
-  function openTry(cap) {
-    const fields = (cap.input && cap.input.fields) || [];
-    const labels = (cap.output && cap.output.labels) || [];
-    const norm = (cap.input && cap.input.normalization) || {};
-    if (!tryModal || !tryBody) return;
-    const mid = (i) => { const lo = norm.min && norm.min[i] != null ? norm.min[i] : 0; const hi = norm.max && norm.max[i] != null ? norm.max[i] : 1; return Math.round(((lo + hi) / 2) * 100) / 100; };
-    const inputs = fields.map((f, i) => `
-      <label class="try-field">${esc(f.name)}
-        <input type="number" step="any" id="try-in-${i}" value="${mid(i)}" aria-label="${esc(f.name)}">
-      </label>`).join('');
-    tryBody.innerHTML = `
-      <p class="save-intro">${zh ? '給機器一些真實輸入，看看它會怎麼想。' : 'Give the machine a real input and watch what it decides.'}</p>
-      <div class="try-inputs">${inputs || (zh ? '（沒有輸入欄位）' : '(no input fields)')}</div>
-      <div class="goals-actions"><button id="try-run" class="plan-apply">⚙️ ${zh ? '讓機器思考' : 'Run the machine'}</button></div>
-      <div id="try-result" class="try-result" aria-live="polite"></div>
-      <div class="cap-note">${zh ? '「不確定」也是正確答案 — 當信心不足時，機器不猜。' : 'Saying "not sure" is a correct answer — when confidence is too low, the machine does not guess.'}</div>`;
-    const run = document.getElementById('try-run');
-    if (run) run.addEventListener('click', () => {
-      const event = {};
-      fields.forEach((f, i) => {
-        const el = document.getElementById('try-in-' + i);
-        event[f.name] = el ? Number(el.value) : NaN;
-      });
-      const res = runInference(cap, event);
-      const out = document.getElementById('try-result');
-      if (!out) return;
-      if (res.abstained) {
-        out.innerHTML = `<div class="try-decision abstain">${zh ? '🤔 不確定' : '🤔 Not sure'}</div>
-          <div class="try-detail">${zh ? '信心' : 'Confidence'} ${Math.round(res.confidence * 100)}%${res.abstainReason === 'missing-fields' ? ' — ' + (zh ? '輸入不完整' : 'incomplete input') : ' — ' + (zh ? '機器選擇不猜' : 'the machine chose not to guess')}</div>`;
-      } else {
-        out.innerHTML = `<div class="try-decision">${zh ? '它說' : 'It says'}: <b>${esc(res.decision)}</b></div>
-          <div class="try-detail">${zh ? '信心' : 'Confidence'} ${Math.round(res.confidence * 100)}% · ${zh ? '門檻' : 'threshold'} ${Math.round((cap.model && cap.model.threshold || 0) * 100)}%</div>
-          ${res.evidence && res.evidence.length ? '<div class="try-evidence">' + (zh ? '最近的例子' : 'Nearest examples') + ':</div>' + res.evidence.map((ev) => `<div class="try-evidence-row">• ${esc(ev.label)} — ${zh ? '距離' : 'distance'} ${ev.distance}</div>`).join('') : ''}`;
-      }
-    });
-    tryModal.classList.remove('hidden');
-  }
+  // Delegate "Try it" clicks from freshly-rendered cap cards (cards re-render
+  // every panel open, so a single document-level listener is required).
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-try-cap]');
+    if (!t) return;
+    const caps = readPlantedCaps();
+    const cap = caps.find((c) => c.id === t.getAttribute('data-try-cap'));
+    if (cap) openTryPanel(cap);
+  });
 
   const plant = (raw) => {
     if (!raw) return;
@@ -3561,6 +3716,7 @@ function mountCapabilityUi() {
       writePlantedCaps(caps);
     }
     if (err) err.textContent = '';
+    refreshAiNodes();
     renderCapPanel();
   };
   fileInput.addEventListener('change', () => {
@@ -3600,6 +3756,21 @@ function startEntryFlow() {
       if (dateStr) {
         resumeNote.textContent = `↩ ${t('entry.resumeLabel')}: ${dateStr}`;
         resumeNote.hidden = false;
+      }
+    }
+    // Echo the planner's AI choices (goals + score) that travel with the layout.
+    const planLine = document.getElementById('entry-plan');
+    if (planLine) {
+      let peek = null;
+      try { peek = JSON.parse(saved); } catch { /* not json */ }
+      const gl = peek && peek.goals && peek.goals.label ? String(peek.goals.label) : null;
+      const sc = peek && Number.isFinite(+peek.plannerScore) ? Math.round(+peek.plannerScore) : null;
+      if (gl || sc !== null) {
+        const zh = (() => { try { return localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant'; } catch { return false; } })();
+        const name = gl || (zh ? '均衡目標' : 'Balanced');
+        const line = (zh ? '🌆 規劃師 AI：' : '🌆 Planner AI: ') + name + (sc !== null ? (zh ? ' · 得分 ' : ' · score ') + sc : '');
+        planLine.textContent = line;
+        planLine.hidden = false;
       }
     }
   }
@@ -3839,11 +4010,21 @@ async function bootInner() {
         position:fixed; left:50%; bottom:96px; transform:translateX(-50%);
         display:flex; align-items:center; gap:10px; z-index:40;
         background:rgba(8,14,24,.9); border:1px solid rgba(255,255,255,.16);
-        border-radius:10px; padding:8px 14px; font:12px/1 system-ui,sans-serif; color:#f8fafc;
+        border-radius:12px; padding:10px 16px; font:14px/1.2 system-ui,sans-serif; color:#f8fafc;
         box-shadow:0 6px 24px rgba(0,0,0,.35); pointer-events:auto;
       }
       .resize-panel[hidden]{ display:none !important; }
-      .resize-panel input[type=range]{ width:150px; accent-color:#00f2fe; }
+      .resize-panel label{ font-weight:700; color:#cfe9ff; }
+      .resize-panel input[type=range]{ width:150px; height:44px; accent-color:#00f2fe; margin:0; }
+      .resize-panel input[type=range]::-webkit-slider-thumb{
+        -webkit-appearance:none; appearance:none;
+        width:28px; height:28px; border-radius:50%;
+        background:#00f2fe; border:2px solid #06233a; cursor:pointer;
+      }
+      .resize-panel input[type=range]::-moz-range-thumb{
+        width:28px; height:28px; border-radius:50%;
+        background:#00f2fe; border:2px solid #06233a; cursor:pointer;
+      }
       .resize-panel span{ min-width:42px; text-align:right; color:#9fd8ff; font-weight:600; }
     `;
     document.head.appendChild(style);
@@ -3885,6 +4066,7 @@ async function bootInner() {
   safe('badges', mountBadgeUi);
   safe('capabilities', mountCapabilityUi);
   safe('skins', mountSkins);
+  safe('ai-nodes', () => { try { if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose(); _aiNodes = mountCityAiNodes(scene, city, layout); } catch (e) { console.warn('[city-builder] ai-nodes mount failed', e); } });
   safe('input', wireInput);
   safe('quest-prompt', wireQuestPrompt);
 

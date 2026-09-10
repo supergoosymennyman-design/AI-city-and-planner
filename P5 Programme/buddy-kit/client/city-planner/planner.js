@@ -19,6 +19,7 @@ import { defaultLayout, sanitizeLayout, validateLayout, ROAD_WIDTH, typeSpec } f
 import { LIBRARY_CATEGORIES, libraryItem, libraryByCategory } from '../city-common/library.js';
 import { computeMetrics, METRIC_PARAMS, GOAL_KEYS, stars, normalizeWeights, defaultMetricWeights } from '../city-common/metrics.js';
 import { optimizeLayout, proposeMoves, applyMove, stableSeed } from '../city-common/optimize.js';
+import { readMilestones, writeMilestones, evaluateMilestones, awardMilestone, milestone } from '../city-common/milestones.js';
 import { computeWalkReach, walkPath, homeReachRoutes, WALK_BUDGET } from '../city-common/walkability.js';
 import { ROAD_TEMPLATES, getRoadTemplate } from '../city-common/road-templates.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt } from '../city-common/champion-file.js';
@@ -1001,33 +1002,23 @@ function effectiveWeights() {
 }
 
 // ─── Milestones (recognition, NEVER gates) ──────────────
-// Small retroactive "you did this" toasts, consistent with docs/badges-and-tiers.md:
-// they celebrate a demonstrated state of the city, never gate anything, and
-// never repeat (a ratchet in localStorage, like a badge that can't be lost).
-const MILESTONE_KEY = 'p5_city_milestones_v1';
-const MILESTONES = [
-  { id: 'first_home', test: (m) => state.layout.buildings.some((b) => b.type === 'housing'), msg: '🏠 First home placed — a city needs somewhere to live!' },
-  { id: 'served', test: (m) => m.coverage >= 0.999, msg: '🏘️ Every home can reach a school, shop, hospital, fire & police station!' },
-  { id: 'walkable', test: (m, w) => w && w.reach >= 0.999, msg: '🚶 Every home can walk to everything it needs along real roads!' },
-  { id: 'quiet', test: (m) => m.zoning >= 0.999, msg: '🤫 Peaceful — every home is away from the noise!' },
-  { id: 'spread', test: (m) => m.spread >= 0.999, msg: '🧩 Mission buildings are spread across the city!' },
-  { id: 'great_city', test: (m) => m.score >= 80, msg: '🌟 A great city — score 80+!' },
-  { id: 'brilliant_city', test: (m) => m.score >= 95, msg: '💎 Brilliant! Score 95+ — a masterpiece of planning.' },
-];
-function loadMilestones() {
-  try { return new Set(JSON.parse(localStorage.getItem(MILESTONE_KEY) || '[]')); } catch { return new Set(); }
-}
+// Durable "you did this" recognition: capability-based (never a score chase),
+// never lost, and stored under a key the Champion File owns so it follows the
+// child across devices/lessons. Taxonomy + storage live in
+// city-common/milestones.js; this function only evaluates + celebrates.
 function checkMilestones(m, walk) {
-  const won = loadMilestones();
-  for (const ms of MILESTONES) {
-    if (won.has(ms.id)) continue;
-    let pass = false;
-    try { pass = ms.test(m, walk); } catch { pass = false; }
-    if (!pass) continue;
-    won.add(ms.id);
-    toast(ms.msg);
+  let store = readMilestones();
+  const hits = evaluateMilestones({ layout: state.layout, metrics: m, walk, params: METRIC_PARAMS }, store);
+  if (!hits.length) return;
+  const zh = currentLang() === 'zh-Hant';
+  for (const hit of hits) {
+    const res = awardMilestone(store, hit.id, hit.evidence);
+    if (!res.ok) continue;
+    store = res.state;
+    const meta = milestone(hit.id);
+    if (meta) toast(zh && meta.msgZh ? meta.msgZh : meta.msg);
   }
-  try { localStorage.setItem(MILESTONE_KEY, JSON.stringify([...won])); } catch { /* ignore */ }
+  writeMilestones(store);
 }
 
 function updateMetrics() {

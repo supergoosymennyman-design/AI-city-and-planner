@@ -725,6 +725,20 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible {
 #orbit-toggle, #skin-toggle { border-radius: 12px; }
 #orbit-toggle:hover, #skin-toggle:hover { border-color: var(--accent); background: rgba(0, 242, 254, 0.1); }
 
+/* ── Icon buttons: bright + centred glyphs ──
+   The monochrome SVG icons paint with currentColor, but <button> does NOT
+   inherit body colour — it uses the UA ButtonText (near-black) unless told
+   otherwise. Emojis never needed this; the Wave-3C SVGs do, or they read too
+   dark against the scene. Same treatment for the top-right HUD chips. */
+#orbit-toggle, #skin-toggle, #btn-home, #btn-next, #btn-hub,
+#btn-save-hud, #cap-btn, #badge-emblem {
+  color: #f8fafc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#btn-hub { color: #ffd9a3; }  /* keep the "exit to hub" glyph warm-toned */
+
 /* ── Skin panel: horizontal chip strip with a cyan equipped ring ── */
 #skin-list { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .skin-card { min-width: 150px; flex-shrink: 0; }
@@ -810,6 +824,23 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible {
 .logbook-tier .tier-blurb { font-size: 12px; color: #9fb0c7; line-height: 1.45; }
 .logbook-tier.locked .tier-name, .logbook-tier.locked .tier-blurb { opacity: 0.45; }
 .logbook-note { margin-top: 12px; font-size: 12px; color: #6b7a93; line-height: 1.5; }
+.logbook-section-title {
+  margin-top: 18px; padding-top: 14px; font-weight: 800; font-size: 14px;
+  color: #eaf2f8; letter-spacing: 0.3px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+.logbook-ms-intro { margin: 6px 0 10px; font-size: 12px; color: #9fb0c7; line-height: 1.5; }
+.logbook-ms { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; }
+.logbook-ms .ms-stamp {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.14); color: #6b7a93;
+}
+.logbook-ms.earned .ms-stamp { color: #ffd700; border-color: rgba(255,215,0,0.55); background: rgba(255,215,0,0.12); }
+.logbook-ms .ms-name { font-weight: 700; font-size: 13px; color: #eaf2f8; }
+.logbook-ms .ms-blurb { font-size: 12px; color: #9fb0c7; line-height: 1.45; }
+.logbook-ms.locked .ms-name, .logbook-ms.locked .ms-blurb { opacity: 0.5; }
 
 /* ── Capability panel (planted machines, Stage 1) ── */
 .hud-chip {
@@ -826,6 +857,7 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible {
 .cap-card .cap-name { font-weight: 800; font-size: 15px; color: #eaf2f8; }
 .cap-card .cap-meta { font-size: 12px; color: #8de2ff; margin: 2px 0 6px; }
 .cap-card .cap-scores { font-size: 12px; color: #9fb0c7; line-height: 1.5; }
+.cap-card .cap-last { font-size: 14px; color: #00ff9d; margin-top: 6px; }
 .cap-card .cap-note { font-size: 12px; color: #ffb84c; margin-top: 6px; }
 .cap-empty { color: #9fb0c7; font-size: 14px; line-height: 1.5; margin-bottom: 12px; }
 .cap-actions { display: flex; gap: 8px; margin-top: 12px; }
@@ -837,8 +869,8 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible {
 
 /* ── Try my machine (Stage 2 honest demo) ── */
 .cap-try {
-  margin-top: 8px; min-height: 38px; border-radius: 9px; border: 1px solid rgba(0,242,254,0.35);
-  background: rgba(18,32,60,0.9); color: #8de2ff; font-size: 13px; font-weight: 700; cursor: pointer;
+  margin-top: 8px; min-height: 44px; border-radius: 9px; border: 1px solid rgba(0,242,254,0.35);
+  background: rgba(18,32,60,0.9); color: #8de2ff; font-size: 14px; font-weight: 700; cursor: pointer;
 }
 .try-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0; font-size: 13px; color: #cfe0f0; }
 .try-field input { width: 130px; padding: 8px 10px; border-radius: 9px; border: 1px solid #33406e; background: #0b132b; color: #eaf2f8; font-size: 15px; }
