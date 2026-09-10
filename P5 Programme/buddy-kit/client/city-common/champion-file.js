@@ -52,15 +52,25 @@ export function collectState(storage = defaultStorage()) {
   return state;
 }
 
-/** Write every raw string back (best-effort; never throws). */
+/**
+ * Write every raw string back (best-effort; never throws).
+ * Returns `{ wrote, total, ok, failed }` so the UI can WARN on a partial
+ * restore (e.g. a storage quota hit mid-loop) instead of silently dropping
+ * state and leaving the child with a fragmented city.
+ */
 export function writeState(state, storage = defaultStorage()) {
+  const entries = Object.entries(state || {}).filter(([key, raw]) => CF_KEYS[key] && typeof raw === 'string');
+  const failed = [];
   let wrote = 0;
-  for (const [key, raw] of Object.entries(state || {})) {
-    const storageKey = CF_KEYS[key];
-    if (!storageKey || typeof raw !== 'string') continue;
-    try { storage.setItem(storageKey, raw); wrote++; } catch { /* quota — ignore */ }
+  if (storage) {
+    for (const [key, raw] of entries) {
+      try { storage.setItem(CF_KEYS[key], raw); wrote++; }
+      catch { failed.push(key); }
+    }
+  } else {
+    for (const [key] of entries) failed.push(key);
   }
-  return wrote;
+  return { wrote, total: entries.length, ok: failed.length === 0, failed };
 }
 
 /** Build the versioned, kind-tagged file object. */

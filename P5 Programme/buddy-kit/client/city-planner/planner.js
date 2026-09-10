@@ -1871,9 +1871,12 @@ function importAny(raw) {
   try { parsed = JSON.parse(raw); } catch { return false; }
   const champ = sanitizeChampionFile(parsed);
   if (champ.ok) {
-    const n = writeState(champ.file.state);
+    const res = writeState(champ.file.state);
     const labelSuffix = champ.file.label ? ' — ' + champ.file.label : '';
-    toast(L('planner.import.restored', { label: labelSuffix, n }));
+    // Warn (don't silently drop) if a quota hit left the restore partial.
+    toast(res.ok
+      ? L('planner.import.restored', { label: labelSuffix, n: res.wrote })
+      : L('planner.import.partial', { n: res.failed.length }));
     setTimeout(() => window.location.reload(), 600);
     return true;
   }

@@ -24,7 +24,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { design as questDesign } from '../hong-kong-real/quest-buildings.js';
-import { QUESTS, loadQuestState, questStatus, questTheme, questComplete, invalidateQuestState } from '../hong-kong-real/quests.js';
+import { QUESTS, loadQuestState, questStatus, questTheme, questComplete, saveQuestState } from '../hong-kong-real/quests.js';
 import { createChampion, WALK_SPEED } from '../hong-kong-real/champion-real.js';
 import { createDrones } from '../hong-kong-real/drones.js';
 import { createDecoTaxis } from '../hong-kong-real/deco-taxis.js';
@@ -51,7 +51,7 @@ import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout, typeSpec } f
 import { LIBRARY, libraryUrl, libraryItem } from '../city-common/library.js';
 import { buildSampleCity } from '../city-common/sample-city.js';
 import { isRoadVehicle, vehicleTargetLength } from '../city-common/vehicle-scale.js';
-import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt, lastSavedAt } from '../city-common/champion-file.js';
+import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt, lastSavedAt, CF_KEYS } from '../city-common/champion-file.js';
 import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
 import { readMilestones, milestoneSectionHTML } from '../city-common/milestones.js';
 import { parseCapability, capabilityDescriptor, stage1Note, runInference } from '../city-common/cap-runtime.js';
@@ -2817,8 +2817,7 @@ function openMinigame(data) {
     const st = loadQuestState();
     if (!st.completed.includes(data.questId)) {
       st.completed.push(data.questId);
-      try { localStorage.setItem('hk_ai_city_quests_v1', JSON.stringify(st)); } catch (err) { /* ignore */ }
-      invalidateQuestState();
+      saveQuestState(st);            // writes QUEST_STATE_KEY + refreshes the shared cache
       refreshQuestStateCache();
     }
     showToast(`✅ ${data.name} complete!`);
@@ -3341,8 +3340,8 @@ function showEntryError(msg) {
 }
 
 // ── Champion File: save / cloud / restore (cross-device backup) ─────────────
-const CLOUD_CODE_KEY = 'p5_cloud_code_v1';
-const SAVE_NAME_KEY = 'p5_city_save_name_v1';
+const CLOUD_CODE_KEY = 'p5_cloud_code_v1';   // device-local pointer; not in CF_KEYS by design
+const SAVE_NAME_KEY = CF_KEYS.cityName;      // single source of truth (was a duplicated literal)
 
 function downloadChampionFile(label) {
   const file = composeChampionFile(collectState(), label);
@@ -3389,8 +3388,10 @@ function importChampionFile(raw) {
   try { parsed = JSON.parse(raw); } catch { return false; }
   const champ = sanitizeChampionFile(parsed);
   if (!champ.ok) return false;
-  const n = writeState(champ.file.state);
-  showToast(`📂 Restored your Champion File${champ.file.label ? ' — ' + champ.file.label : ''} (${n} saved items). Reloading…`);
+  const res = writeState(champ.file.state);
+  showToast(res.ok
+    ? `📂 Restored your Champion File${champ.file.label ? ' — ' + champ.file.label : ''} (${res.wrote} saved items). Reloading…`
+    : `⚠️ Restored most of your Champion File, but ${res.failed.length} item(s) would not fit. Free some space and try again.`);
   setTimeout(() => window.location.reload(), 3500);
   return true;
 }
@@ -3473,8 +3474,10 @@ function wireSaveUi() {
         const data = await cloudLoad(code);
         const champ = sanitizeChampionFile(data);
         if (!champ.ok) { cloudLoadResult.textContent = '⚠️ ' + champ.error; return; }
-        const n = writeState(champ.file.state);
-        cloudLoadResult.textContent = '✅ Restored (' + n + ' saved items). Reloading…';
+        const res = writeState(champ.file.state);
+        cloudLoadResult.textContent = res.ok
+          ? '✅ Restored (' + res.wrote + ' saved items). Reloading…'
+          : '⚠️ Restored most, but ' + res.failed.length + ' item(s) would not fit. Free some space and try again.';
         try { localStorage.setItem(CLOUD_CODE_KEY, code); } catch { /* ignore */ }
         setTimeout(() => window.location.reload(), 3500);
       } catch (e) {
@@ -3533,7 +3536,7 @@ function mountBadgeUi() {
 }
 
 // ── Planted machines: Capability Panel (Stage 1 — display only, honest) ──────
-const CAPS_KEY = 'p5_city_capabilities_v1';
+const CAPS_KEY = CF_KEYS.caps;       // single source of truth (was a duplicated literal)
 const CAP_MAX_BYTES = 200 * 1024; // a numeric .cap is KBs; guard against bloat
 // Last "Try my machine" verdict per planted machine id — lets the cap card and
 // the Coding Buddy talk about what the machine last decided.

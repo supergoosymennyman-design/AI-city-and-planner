@@ -143,7 +143,7 @@ const DICT = {
     // Save my city modal
     'planner.saveModal.aria': 'Save my city',
     'planner.saveModal.title': '💾 Save my city',
-    'planner.saveModal.intro': 'Name your city so you can find it later (your name, or a class code). Keep the file safe — it\'s your backup for next lesson!',
+    'planner.saveModal.intro': 'Give your city a name so you can find it later — a fun city name is perfect (no need for your real name). Keep the file safe — it\'s your backup for next lesson!',
     'planner.saveModal.nameAria': 'City name',
 
     // Planner's License lock screen
@@ -324,6 +324,7 @@ const DICT = {
     'planner.import.opened': '📂 Opened your saved city — {b} buildings, {r} roads, {p} parks.',
     'planner.import.downloaded': '💾 Downloaded my-ai-city.json',
     'planner.import.restored': '📂 Restored your Champion File{label} ({n} saved items). Reloading…',
+    'planner.import.partial': '⚠️ Restored most of your city, but this browser ran out of space for {n} item(s). Free some space, then open the file again.',
     'planner.save.champion': '💾 Saved "{label}" — keep this file as your backup!',
     'planner.export.saved': '💾 Saved! {b} buildings, {r} roads, {p} parks.{note}',
     'planner.export.noRoads': ' ⚠️ No roads — the 3D city won\'t have streets or lights.',
@@ -476,7 +477,7 @@ const DICT = {
     // Save my city modal
     'planner.saveModal.aria': '儲存我的城市',
     'planner.saveModal.title': '💾 儲存我的城市',
-    'planner.saveModal.intro': '為你的城市改個名字，方便日後找回（可用你的名字或班別代號）。好好保存檔案 — 這是下堂課的備份！',
+    'planner.saveModal.intro': '為你的城市改個名字，方便日後找回 — 用有趣的城市名就好（不用真名）。好好保存檔案 — 這是下堂課的備份！',
     'planner.saveModal.nameAria': '城市名稱',
 
     // Planner's License lock screen
@@ -657,6 +658,7 @@ const DICT = {
     'planner.import.opened': '📂 已開啟你儲存的城市 — {b} 座建築物、{r} 條道路、{p} 個公園。',
     'planner.import.downloaded': '💾 已下載 my-ai-city.json',
     'planner.import.restored': '📂 已還原你的城市檔案{label}（{n} 項已儲存）。重新載入中…',
+    'planner.import.partial': '⚠️ 已還原大部分城市，但這個瀏覽器空間不足，有 {n} 項無法寫入。請清出一些空間，再開啟檔案一次。',
     'planner.save.champion': '💾 已儲存「{label}」— 保存這份檔案作為備份！',
     'planner.export.saved': '💾 已儲存！{b} 座建築物、{r} 條道路、{p} 個公園。{note}',
     'planner.export.noRoads': ' ⚠️ 沒有道路 — 3D 城市不會有街道或燈光。',

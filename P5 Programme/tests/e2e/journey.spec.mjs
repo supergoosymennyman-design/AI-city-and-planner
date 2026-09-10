@@ -74,6 +74,16 @@ test('pregame graduation unlocks the planner same-origin (no file round-trip)', 
   await page.waitForTimeout(1200);
   await expect(page.locator('#btn-unlock')).toBeEnabled({ timeout: 10000 });
 
+  // The Academy also offers a Champion File backup of its own progress (so a
+  // child who only finishes the Academy can still carry their work to a new
+  // device). This is the data-loss fix, exercised end to end.
+  await expect(page.locator('#btn-save-progress')).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.click('#btn-save-progress'),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.champion\.json$/);
+
   await page.click('#btn-unlock');
   await page.waitForURL(/\/planner\/$/, { timeout: 15000 });
 

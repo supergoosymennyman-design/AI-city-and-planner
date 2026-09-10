@@ -80,6 +80,33 @@ test('round-trip: compose → sanitize → writeState restores every key', () =>
   for (const [k, v] of Object.entries(seed)) assert.equal(restored.getItem(k), v, `key ${k}`);
 });
 
+test('writeState reports a partial restore instead of silently dropping keys', () => {
+  const full = { layout: '{"a":1}', quests: '{"b":2}', skin: '"nova"' };
+  // A storage that accepts the first key then throws (quota) — the old version
+  // swallowed this and the child silently lost the rest.
+  const flaky = {
+    n: 0, map: {},
+    setItem(k, v) { this.n++; if (this.n > 1) throw new Error('quota'); this.map[k] = v; },
+    getItem(k) { return this.map[k] ?? null; },
+  };
+  const res = writeState(full, flaky);
+  assert.equal(res.total, 3);
+  assert.equal(res.wrote, 1);
+  assert.equal(res.ok, false);
+  assert.equal(res.failed.length, 2);
+  // All-good case.
+  const okStore = { map: {}, setItem(k, v) { this.map[k] = v; }, getItem(k) { return this.map[k] ?? null; } };
+  const ok = writeState(full, okStore);
+  assert.equal(ok.wrote, 3);
+  assert.equal(ok.ok, true);
+  assert.deepEqual(ok.failed, []);
+  // Null storage → nothing written, all failed, never throws.
+  const none = writeState(full, null);
+  assert.equal(none.wrote, 0);
+  assert.equal(none.ok, false);
+  assert.equal(none.failed.length, 3);
+});
+
 test('sanitizeChampionFile rejects wrong kind / wrong version / bad state — never throws', () => {
   assert.equal(sanitizeChampionFile(null).ok, false);
   assert.equal(sanitizeChampionFile('garbage').ok, false);

@@ -29,6 +29,7 @@ export const DICT = {
     'pg.grad.speech': 'Congratulations, Junior Planner! You mastered four training rooms: <strong>weighted score</strong>, <strong>coverage radius</strong>, <strong>shortest path</strong> and <strong>hill-climbing</strong>. The planner follows fixed rules — it weighs, measures, adds road distances, and keeps better steps. It does not guess, and it is not magic.',
     'pg.unlock': '\u2705 Unlock the planner \u2192',
     'pg.download': '\ud83d\udcbe Download my license file',
+    'pg.saveProgress': '\ud83d\udcbe Save my progress',
     'pg.restart': 'Start over',
     'pg.downloadHint.locked': 'Finish all four rooms to unlock your file.',
     'pg.downloadHint.ready': 'Your planner is ready! Hit \u201cUnlock the planner\u201d to open it — or keep your license file as a backup.',
@@ -220,6 +221,8 @@ export const DICT = {
     'pg.toast.unlockFail': '\u26a0\ufe0f Could not save the unlock on this browser — use the download instead.',
     'pg.toast.unlocked': '\ud83d\udd13 Unlocked! Opening the planner\u2026',
     'pg.toast.downloaded': '\ud83d\udcbe Downloaded planner-license.json — your license file! Upload it in the 2D city planner on a new tablet.',
+    'pg.toast.progressSaved': '\ud83d\udcbe Saved your Champion File — keep it safe! Open it in the planner or 3D city on a new device.',
+    'pg.toast.progressFail': '\u26a0\ufe0f Could not save your progress on this browser — try again.',
     'pg.toast.reset': 'Progress reset. Let\u2019s start fresh!',
   },
   'zh-Hant': {
@@ -234,6 +237,7 @@ export const DICT = {
       "pg.grad.speech": "恭喜你，小小規劃師！你已經精通了四個訓練室：<strong>加權分數</strong>、<strong>覆蓋半徑</strong>、<strong>最短路徑</strong>和<strong>爬山演算法</strong>。規劃工具遵循固定的規則——它會計算權重、測量範圍、把街道距離加起來，並保留更好的結果。它不會靠猜，也不是魔法。",
       "pg.unlock": "✅ 解鎖規劃工具 →",
       "pg.download": "💾 下載我的執照檔案",
+      "pg.saveProgress": "💾 儲存我的進度",
       "pg.restart": "重新開始",
       "pg.downloadHint.locked": "完成全部四個訓練室來解鎖你的檔案。",
       "pg.downloadHint.ready": "你的規劃工具準備好了！點擊「解鎖規劃工具」打開它——或者保留執照檔案作為備份。",
@@ -403,6 +407,8 @@ export const DICT = {
       "pg.toast.unlockFail": "⚠️ 無法在這個瀏覽器上儲存解鎖進度——請改用下載功能。",
       "pg.toast.unlocked": "🔓 已解鎖！正在打開規劃工具…",
       "pg.toast.downloaded": "💾 已下載 planner-license.json——你的執照檔案！請在新平板電腦的 2D 城市規劃工具中上傳它。",
+      "pg.toast.progressSaved": "💾 已儲存你的城市檔案 — 好好保存！在新裝置的規劃工具或 3D 城市中開啟即可還原。",
+      "pg.toast.progressFail": "⚠️ 無法在這個瀏覽器儲存進度 — 請再試一次。",
       "pg.toast.reset": "進度已重設。我們重新開始吧！"
   },
 };

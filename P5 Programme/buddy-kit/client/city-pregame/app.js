@@ -20,6 +20,7 @@
 
 import { WEIGHT_LAB, weightLabTotal, DIJKSTRA_LESSON, DIJKSTRA_BUS_DIST, dijkstraReveal, dijkstraWinner } from './lesson-core.js';
 import { initI18n, currentLang, t, tf, applyStatic, mountLangToggle } from './i18n.js';
+import { collectState, composeChampionFile, championFilename } from '../city-common/champion-file.js';
 
 initI18n();
 
@@ -1079,6 +1080,29 @@ function unlockPlanner() {
   window.location.href = '/planner/';
 }
 
+/**
+ * Save the child's Academy progress as a portable Champion File. The Academy's
+ * progress key is owned by the Champion File, so this is the child's backup even
+ * if they never open the planner or 3D city on this device.
+ */
+function saveProgressFile() {
+  try {
+    const file = composeChampionFile(collectState(), 'My Academy progress');
+    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = championFilename(file.label);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast(t('pg.toast.progressSaved'));
+  } catch (e) {
+    toast(t('pg.toast.progressFail'));
+  }
+}
+
 function downloadLicense() {
   const file = {
     title: "City Planner's License",
@@ -1143,6 +1167,8 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 if (downloadBtn) downloadBtn.addEventListener('click', downloadLicense);
 if (unlockBtn) unlockBtn.addEventListener('click', unlockPlanner);
+const saveProgressBtn = document.getElementById('btn-save-progress');
+if (saveProgressBtn) saveProgressBtn.addEventListener('click', saveProgressFile);
 document.getElementById('btn-restart').addEventListener('click', openRestartModal);
 document.getElementById('modal-cancel').addEventListener('click', closeRestartModal);
 document.getElementById('modal-ok').addEventListener('click', () => { closeRestartModal(); restart(); });
