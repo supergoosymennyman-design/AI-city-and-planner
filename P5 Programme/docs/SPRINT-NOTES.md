@@ -150,3 +150,39 @@ Verify: unit **152 pass**, library audit PASS, built-bundle e2e **12/12 pass**
 (+ the new pregame Champion-File download assertion). Deploy: `p5-city-sim` +
 `p5-home`; live smoke — Academy save file, planner save copy, hub.
 
+---
+
+# Sprint notes — Server/worker + PII hardening cycle (2026-09-10)
+
+Follow-up to the client-only invariant audit, now covering the surfaces it
+excluded: `buddy-kit/worker` + `buddy-kit/server`. Verdict + data-flow map in
+`docs/server-pii-audit.md`. Confirmed: no server-side retention, logs never carry
+child content, no hardcoded secrets, `server/.env` gitignored + excluded from the
+deploy bundle.
+
+- **A7 — cloud load → POST body.** `worker/index.mjs` `GET /api/load?code=` became
+  `POST /api/load {code}`; `city-builder.js` `cloudLoad()` sends the body. The code
+  no longer lands in history/logs/Referer. Tests pin `GET → 404`.
+- **A5+ — save label hardening.** `savePayload` now screens + caps `label` (64
+  chars) and falls back to `"My AI City"`, so a child cannot park a name in KV
+  even if they ignore the copy.
+- **A6 — bilingual chat disclosure.** The buddy core renders a disclosure line
+  under the composer (`opts.disclosure`, EN fallback); `city-builder/buddy.js`
+  passes `t('buddy.disclosure')` (EN + zh-Hant). New key + parity test.
+- **A8 — iframe hardening.** `#game-frame` is now `sandbox`ed and
+  `openMinigame()` refuses any origin outside the programme-owned allowlist
+  (`*.ai-education`, `*.clover-marquis`, `*.supergoosymennyman`). Camera + mic stay
+  allowed because the Workshop minigames use them.
+- **A9 — BYOK verdict: clean.** `providerKey` rides as the provider Authorization
+  header for one call; logs scrub it; never stored. Documented, no code change.
+- **A11 — custom-skin note.** The custom-champion card now says the skin is saved
+  on this device only and won't travel to a new tablet (EN + zh-Hant).
+- **i18n sweep.** Champion preset/accessory names + in-play toasts moved into the
+  two dictionaries (EN + zh-Hant); new `tf()` interpolator; new
+  `tests/p5-i18n-parity.test.mjs` pins key parity.
+
+Verify: unit **160 pass**, library audit PASS, built-bundle e2e **12/12 pass**,
+import-graph OK. Follow-ups: migrate the three `*.supergoosymennyman.workers.dev`
+quest URLs to `*.ai-education`; continue the residual HUD-string sweep.
+
+

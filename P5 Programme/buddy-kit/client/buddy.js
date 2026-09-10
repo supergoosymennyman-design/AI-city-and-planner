@@ -36,6 +36,10 @@
     "app.title": "Recycle-Eye Lab", "name.prompt": "First, give your buddy a name!",
     "name.placeholder": "type a name…", "name.go": "Meet my buddy", "chat.placeholder": "Talk with your AI champion…",
     "chat.send": "Send", "action.do": "Do it", "action.no": "No thanks", "panel.title": "Your Champion",
+    // Audit A6: the child-facing disclosure that their messages go to a model. A host can override
+    // this with its own localized string via opts.disclosure (see buildDom/boot); this EN line is the
+    // zero-config fallback for hosts with no i18n.
+    "chat.disclosure": "Messages go to an AI brain to help me reply — please don't type private things.",
     "panel.accuracy": "Accuracy", "panel.threshold": "Unsure line",
     "chat.error": "Oops — I lost my train of thought! Try again?",
     "meter.label": "Buddy memory", "meter.cost": "cost",
@@ -408,7 +412,10 @@
       refs.send = el('button');
       refs.form.append(refs.input, refs.send);
       refs.composer.append(refs.palette, refs.form);
-      refs.chat.append(refs.log, refs.composer);
+      // A6 disclosure line — sits just under the composer so it is visible while the child types.
+      // Text is filled in boot() (host override via opts.disclosure, else the EN fallback).
+      refs.disclosure = el('p', 'buddy-disclosure');
+      refs.chat.append(refs.log, refs.composer, refs.disclosure);
       refs.lab.append(refs.hud, refs.chat);
       refs.picker = el('div', 'model-picker'); refs.picker.hidden = true;
       refs.keySheet = el('div', 'model-picker'); refs.keySheet.hidden = true;
@@ -421,6 +428,11 @@
       refs.nameGo.textContent = T('name.go');
       refs.input.placeholder = T('chat.placeholder');
       refs.send.textContent = T('chat.send');
+      // A6: prefer the host's localized disclosure (opts.disclosure), else our EN fallback. An empty
+      // host string hides the line entirely.
+      const disclosureText = (typeof opts.disclosure === 'string') ? opts.disclosure.trim() : T('chat.disclosure');
+      refs.disclosure.textContent = disclosureText;
+      refs.disclosure.hidden = !disclosureText;
       refs.meterLabel.textContent = T('meter.label');
       refs.btnFresh.textContent = T('control.fresh');
       refs.btnTidy.textContent = T('control.tidy');

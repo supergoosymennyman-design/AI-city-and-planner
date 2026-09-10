@@ -40,7 +40,7 @@ import { createMinimap } from './minimap.js';
 import { mountCityBuddy } from './buddy.js';
 import { mountCityAiNodes } from './ai-nodes.js';
 import { createLabelRenderer, updateLabels } from '../champion-city/labels.js';
-import { mountSkinSidebar, equipCustomDefault } from '../champion-city/skins.js';
+import { mountSkinSidebar, equipCustomDefault, skinLabel } from '../champion-city/skins.js';
 import { preloadAccessories } from '../champion-city/accessories.js';
 import { saveCustomSkin, loadCustomSkinBlob, blobToObjectUrl, revokeObjectUrl, looksLikeGlb } from '../champion-city/custom-skin.js';
 import { playTap, armAudioGestureUnlock } from '../champion-city/sound.js';
@@ -58,7 +58,7 @@ import { parseCapability, capabilityDescriptor, stage1Note, runInference } from 
 import { mountPropLibrary } from './prop-library.js';
 import { createGrabSystem } from '../shared/grab.js';
 import { createDrivableCar } from './drive.js';
-import { initI18n, applyStatic, mountLangToggle, t } from './i18n.js';
+import { initI18n, applyStatic, mountLangToggle, t, tf } from './i18n.js';
 import { HOME_URL, WORKSHOP_URL } from '../shared/links.js';
 
 const ASSET_BASE = '../champion-city/assets/';
@@ -87,6 +87,32 @@ function questHasGameForType(type) {
   const spec = catalogType(type);
   if (!spec || !spec.questId) return false;
   return !!questGameUrl(spec.questId);
+}
+
+// ── Minigame origin allowlist (audit A8) ─────────────────────────────────────
+// Every quest `gameUrl` (and the Workshop override) must be a programme-owned
+// Cloudflare Workers host before it is allowed into the #game-frame iframe. A
+// relative path ("/project/…") is same-origin and always allowed. Anything else
+// is refused by openMinigame() and shows the same friendly "no game yet" toast —
+// so a tampered layout/link can never silently load an arbitrary third-party
+// frame inside the city.
+const MINIGAME_ORIGIN_SUFFIXES = [
+  '.ai-education.workers.dev',        // quest minigames + the Workshop platform
+  '.clover-marquis.workers.dev',      // p5-home / p5-city-sim
+  // Owner-confirmed (2026-09-10) but not a professional public domain; kept so the
+  // three legacy quests keep working. Migrate these gameUrls to *.ai-education and
+  // delete this suffix when the quests move.
+  '.supergoosymennyman.workers.dev',
+];
+
+function isAllowedMinigameUrl(rawUrl) {
+  if (typeof rawUrl !== 'string' || !rawUrl) return false;
+  if (rawUrl.startsWith('/')) return true; // same-origin relative route
+  let u;
+  try { u = new URL(rawUrl, window.location.href); } catch { return false; }
+  if (u.origin === window.location.origin) return true;
+  if (u.protocol !== 'https:') return false;
+  return MINIGAME_ORIGIN_SUFFIXES.some((suffix) => u.hostname.endsWith(suffix));
 }
 
 const IS_MOBILE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || window.innerWidth <= 768;
@@ -2120,7 +2146,7 @@ async function spawnChampion() {
       // Get out of the car before auto-walking.
       if (drivingCar && drivingCar.isActive()) { drivingCar.exit(); updateDriveButtons(); }
       walkNav = { x: building.pos[0], z: building.pos[1] };
-      showToast(`🚶 Walking to ${buildingName(building)}…`);
+      showToast(tf('toast.walking', { name: buildingName(building) }));
     },
     flyTo(building) {
       if (!champion || !building || !taxi) return;
@@ -2131,7 +2157,7 @@ async function spawnChampion() {
       taxiNav = { x: building.pos[0], z: building.pos[1], y: h + 14 };
       taxi.setAutoNav(true);
       updateFlyButtons();
-      showToast(`🚀 Flying to ${buildingName(building)}…`);
+      showToast(tf('toast.flying', { name: buildingName(building) }));
     },
     // Enter the quest building the champion is standing near (used by the
     // buddy chat's /enter command + Enter buttons — same path as the floating
@@ -2330,7 +2356,7 @@ function toggleTaxi() {
     taxi.exit();
   } else {
     taxi.board(champion);
-    showToast('🚕 Flying! Use ⬆️ ⬇️ to climb, exit with 🚕 again.');
+    showToast(t('toast.flyControls'));
   }
   updateFlyButtons();
 }
@@ -2362,7 +2388,7 @@ function toggleDrive() {
   if (drivingCar && drivingCar.isActive()) {
     // Driving → exit the current car (it stays parked where it stopped).
     drivingCar.exit();
-    showToast('🚗 Parked! Walk back and press 🚗 to drive it again.');
+    showToast(t('toast.parked'));
     updateDriveButtons();
     return;
   }
@@ -2370,7 +2396,7 @@ function toggleDrive() {
   const near = parkedCarNearChampion();
   if (near) {
     near.board(champion);
-    showToast(`🚗 Driving the ${near.name || 'car'} again!`);
+    showToast(tf('toast.drivingAgain', { name: near.name || 'car' }));
     updateDriveButtons();
     return;
   }
@@ -2547,7 +2573,7 @@ async function spawnDriveCar(item) {
   const model = await loadDriveModel(item);
   // A newer car pick superseded this one while its GLB was loading — drop it.
   if (req !== _driveReqSeq) return;
-  if (!model) { showToast('⚠️ Could not load that car — try another!'); return; }
+  if (!model) { showToast(t('toast.carLoadFail')); return; }
 
   // If we already had a car, remove it (fresh spawn each time).
   if (drivingCar && drivingCar.group && drivingCar.group.parent) {
@@ -2577,7 +2603,7 @@ async function spawnDriveCar(item) {
 
   // Board: snap the car just in front of the champion.
   car.board(champion);
-  showToast(`🚗 Driving the ${item.name}! Use 🚶/🏃 to go, 🚗 to exit.`);
+  showToast(tf('toast.drivingCar', { name: item.name }));
   updateDriveButtons();
 }
 
@@ -2800,9 +2826,10 @@ function tapAt(clientX, clientY) {
 
 function openMinigame(data) {
   // Guard: a quest with no deployed game (traffic_lab, monitoring, water,
-  // power…) must never open a blank overlay. Show a friendly toast instead.
-  if (!data || !data.gameUrl) {
-    showToast(`⏳ ${data?.name || 'This building'} doesn't have a game yet — try a mission building!`);
+  // power…) must never open a blank overlay. Same for an origin outside the
+  // programme-owned allowlist (audit A8) — show a friendly toast instead.
+  if (!data || !data.gameUrl || !isAllowedMinigameUrl(data.gameUrl)) {
+    showToast(tf('toast.noGame', { name: data?.name || t('hud.mission') }));
     return;
   }
   const overlay = document.getElementById('game-overlay');
@@ -2820,7 +2847,7 @@ function openMinigame(data) {
       saveQuestState(st);            // writes QUEST_STATE_KEY + refreshes the shared cache
       refreshQuestStateCache();
     }
-    showToast(`✅ ${data.name} complete!`);
+    showToast(tf('toast.questComplete', { name: data.name }));
   };
   document.getElementById('game-overlay-close').onclick = () => {
     frame.src = '';
@@ -2838,8 +2865,8 @@ function mountSkins() {
   if (!champion) return;   // champion failed to load — skip skin sidebar
   // Preload Hunyuan accessory GLBs so equipping doesn't silently no-op.
   preloadAccessories(ASSET_BASE);
-  mountSkinSidebar(ASSET_BASE, champion, (skin) => showToast(`👑 ${skin.name} ${t('toast.skinEquipped')}`),
-    _customSkinUrl ? { url: _customSkinUrl, name: 'My Champion' } : null);
+  mountSkinSidebar(ASSET_BASE, champion, (skin) => showToast(`👑 ${skinLabel(skin)} ${t('toast.skinEquipped')}`),
+    _customSkinUrl ? { url: _customSkinUrl } : null);
 }
 
 // ─── Main loop ────────────────────────────────────────────────────────────
@@ -2893,7 +2920,7 @@ function loop(now) {
       if (dist < 16) {
         taxiNav = null;
         taxi.setAutoNav(false);
-        showToast('📍 Arrived! Tap 🚕 to land.');
+        showToast(t('toast.arrived'));
       } else {
         const len = dist || 1;
         tx = dx / len; tz = dz / len;
@@ -3219,7 +3246,7 @@ function wireInput() {
       updateFlyButtons();
     } else if (champion) {
       walkNav = { x: city.spawnWorld.x, z: city.spawnWorld.z };
-    }    showToast('🏠 Heading home…');
+    }    showToast(t('toast.headingHome'));
   });
 
   // Small button back to the master site (hub / portal).
@@ -3238,11 +3265,11 @@ function wireInput() {
     if (selectMode) {
       const sel = grab.getSelected();
       if (sel) grab.grabOrPlace();  // selected → pick up
-      else showToast('👀 Tap a model to select it, then 🎯 to pick it up.');
+      else showToast(t('toast.selectToMove'));
       return;
     }
     selectMode = true;
-    showToast('👉 Select mode: tap a model, then 🎯 to pick it up and move it.');
+    showToast(t('toast.selectMode'));
   });
   // Tap-away to clear selection.
   document.addEventListener('pointerdown', (e) => {
@@ -3356,7 +3383,7 @@ function downloadChampionFile(label) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   rememberSavedAt();   // resume surface: "last saved …"
-  showToast(`💾 Saved "${championFilename(label)}" — it's in your tablet's Files app › Downloads. Next lesson: start screen → 📁 Open my city file.`);
+  showToast(tf('toast.saved', { file: championFilename(label) }));
 }
 
 async function cloudSave(label) {
@@ -3376,7 +3403,13 @@ async function cloudSave(label) {
 }
 
 async function cloudLoad(code) {
-  const res = await fetch('/api/load?code=' + encodeURIComponent(code));
+  // POST body, not a query param (audit A7): the cloud code is the child's only key to their city,
+  // so it must never land in browser history / request logs / Referer headers.
+  const res = await fetch('/api/load', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
   if (!res.ok) throw new Error('load failed (' + res.status + ')');
   return await res.json();
 }
@@ -3390,8 +3423,8 @@ function importChampionFile(raw) {
   if (!champ.ok) return false;
   const res = writeState(champ.file.state);
   showToast(res.ok
-    ? `📂 Restored your Champion File${champ.file.label ? ' — ' + champ.file.label : ''} (${res.wrote} saved items). Reloading…`
-    : `⚠️ Restored most of your Champion File, but ${res.failed.length} item(s) would not fit. Free some space and try again.`);
+    ? tf(champ.file.label ? 'toast.restoredNamed' : 'toast.restored', { label: champ.file.label, n: res.wrote })
+    : tf('toast.restorePartial', { n: res.failed.length }));
   setTimeout(() => window.location.reload(), 3500);
   return true;
 }
@@ -4098,7 +4131,7 @@ async function bootInner() {
   // of leaving them confused — pure toast, never blocks or traps.
   if (!(layout.roads || []).length) {
     setTimeout(() => {
-      showToast('⚠️ This city has no roads — streets, lights and cars won\'t appear. Open the planner, draw roads (or use 🛤️ Roads), then Generate again.');
+      showToast(t('toast.noRoads'));
     }, 1200);
   }
   window.addEventListener('resize', () => city.resize());

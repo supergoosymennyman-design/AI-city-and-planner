@@ -56,6 +56,11 @@ const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no I/L/O/0/1
 const CODE_LEN = 6;
 const CODE_PREFIX = 'NOVA-';
 const MAX_SAVE_BYTES = 1024 * 1024; // 1 MB — a city state is a few KB; GLBs are never in the file
+// The save label is free text a child types, so it is SCREENED + length-capped before it is stored
+// in KV (PII hardening, audit A5/A7 follow-up): a child who ignores the "no real name" copy must not
+// be able to park a name in the cloud. Anything flagged or over-long falls back to the neutral
+// default rather than erroring — a save must never fail because of its label.
+const MAX_LABEL_CHARS = 64;
 
 const WORDS = ('tiger bamboo river umbrella cloud robot rocket star sun moon apple tree lion fox '
   + 'dragon turtle monkey rabbit dolphin whale eagle castle island ocean garden forest planet '
@@ -104,7 +109,9 @@ async function savePayload(env, body) {
   if (!body || typeof body !== 'object' || !body.state || typeof body.state !== 'object' || Array.isArray(body.state)) {
     throw httpError(400, 'bad save body');
   }
-  const raw = JSON.stringify({ label: String(body.label || 'My AI City'), savedAt: new Date().toISOString(), state: body.state });
+  const rawLabel = String(body.label || '').trim();
+  const label = (rawLabel && rawLabel.length <= MAX_LABEL_CHARS && screen(rawLabel).ok) ? rawLabel : 'My AI City';
+  const raw = JSON.stringify({ label, savedAt: new Date().toISOString(), state: body.state });
   if (new TextEncoder().encode(raw).length > MAX_SAVE_BYTES) throw httpError(413, 'save too large');
   let code = normalizeCode(body.code);
   if (!code) {
@@ -208,11 +215,14 @@ export default {
         const code = await savePayload(env, await bodyOf(request));
         return json(200, { code });
       }
-      // Cloud Champion-File load: GET /api/load?code=NOVA-K7M2P3 → { label, savedAt, state }.
-      if (request.method === 'GET' && path === '/api/load') {
+      // Cloud Champion-File load: POST { code } → { label, savedAt, state }. The code rides in the
+      // BODY, never the query string (audit A7): a URL param lands in browser history, edge/CDN
+      // request logs and Referer headers, and the cloud code is the child's only key to their city —
+      // it must not be harvestable from an access log. (Was GET /api/load?code=….)
+      if (request.method === 'POST' && path === '/api/load') {
         const kv = env.SAVES;
         if (!kv) throw httpError(503, 'cloud saves are not available');
-        const code = normalizeCode(new URL(request.url).searchParams.get('code'));
+        const code = normalizeCode((await bodyOf(request)).code);
         if (!code) return json(400, { error: 'bad code' });
         const raw = await kv.get(code);
         if (!raw) return json(404, { error: 'no save with that code' });

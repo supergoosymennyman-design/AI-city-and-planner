@@ -355,7 +355,11 @@
       <button id="game-overlay-close">↩ 返回城市 Return to City</button>
     </div>
   </div>
-  <iframe id="game-frame" title="Minigame" allow="microphone; camera"></iframe>
+  <!-- Audit A8: the minigame/Workshop frame is SANDBOXED and only programme-owned
+       origins may load here (enforced in openMinigame()). Camera + mic stay allowed
+       because the Workshop games use them; sandbox still blocks top-navigation,
+       popups-by-default and same-origin escapes. -->
+  <iframe id="game-frame" title="Minigame" allow="microphone; camera" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock"></iframe>
 </div>
 
 <div id="controls">

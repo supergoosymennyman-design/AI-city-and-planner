@@ -138,6 +138,10 @@
 .buddy-chat form { display:flex; gap:.5rem; margin-top:.5rem; }
 .buddy-chat form input { flex:1; }
 .composer { position:relative; }
+/* A6 disclosure: a quiet, always-visible line under the composer. Structure only (type scale +
+   spacing); its colour is skin and lives in buddy-theme.css. */
+.buddy-disclosure { margin:.45rem 0 0; font-size:.78rem; line-height:1.35; text-align:center; }
+.buddy-disclosure[hidden] { display:none; }
 .palette { position:absolute; left:0; right:0; bottom:100%; margin-bottom:.4rem; border-radius:var(--buddy-radius-sm); border-width:1px; border-style:solid; padding:.3rem; display:flex; flex-direction:column; gap:.15rem; max-height:14rem; overflow:auto; z-index:5; }
 .palette[hidden] { display:none; }
 .palette-item { display:flex; align-items:baseline; gap:.6rem; padding:.55rem .7rem; border-radius:.45rem; cursor:pointer; }

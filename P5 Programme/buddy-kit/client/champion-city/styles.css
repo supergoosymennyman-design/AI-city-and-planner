@@ -526,6 +526,15 @@ html, body {
 }
 .skin-card.equipped { border-color: var(--jade); background: rgba(0,255,157,0.08); }
 .skin-name { font-size: 13px; font-weight: 600; }
+/* A11: the "this custom champion stays on this device" note wraps under the card row. */
+.skin-card.custom-skin { flex-wrap: wrap; }
+.skin-note {
+  flex-basis: 100%;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-muted, #9aa7bd);
+}
 .skin-equip {
   padding: 6px 12px;
   border: none; border-radius: 8px;

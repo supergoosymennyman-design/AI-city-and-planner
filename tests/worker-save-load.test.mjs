@@ -50,10 +50,10 @@ test('POST /api/save with an existing word code UPSERTS (no new code)', async ()
   assert.equal(JSON.parse(kv._map.get('tiger-bamboo-river-umbrella')).state.layout, 'y');
 });
 
-test('GET /api/load accepts messy word-code input (uppercase, spaces) and restores', async () => {
+test('POST /api/load accepts messy word-code input (uppercase, spaces) and restores', async () => {
   const kv = fakeKV();
   await fetchWith({ SAVES: kv }, '/api/save', { code: 'tiger-bamboo-river-umbrella', state: { layout: 'L' } });
-  const { status, data } = await fetchWith({ SAVES: kv }, '/api/load?code=Tiger Bamboo River Umbrella', null, 'GET');
+  const { status, data } = await fetchWith({ SAVES: kv }, '/api/load', { code: 'Tiger Bamboo River Umbrella' });
   assert.equal(status, 200);
   assert.equal(data.state.layout, 'L');
 });
@@ -61,17 +61,39 @@ test('GET /api/load accepts messy word-code input (uppercase, spaces) and restor
 test('legacy NOVA-XXXXXX codes still load (backward compatible)', async () => {
   const kv = fakeKV();
   await fetchWith({ SAVES: kv }, '/api/save', { code: 'NOVA-K7M2P3', state: { layout: 'legacy' } });
-  const { status, data } = await fetchWith({ SAVES: kv }, '/api/load?code=k7m2p3', null, 'GET');
+  const { status, data } = await fetchWith({ SAVES: kv }, '/api/load', { code: 'k7m2p3' });
   assert.equal(status, 200);
   assert.equal(data.state.layout, 'legacy');
 });
 
-test('GET /api/load: bad code → 400, unknown code → 404', async () => {
+test('POST /api/load: bad code → 400, unknown code → 404', async () => {
   const kv = fakeKV();
-  const bad = await fetchWith({ SAVES: kv }, '/api/load?code=NOPE', null, 'GET');
+  const bad = await fetchWith({ SAVES: kv }, '/api/load', { code: 'NOPE' });
   assert.equal(bad.status, 400);
-  const missing = await fetchWith({ SAVES: kv }, '/api/load?code=NOVA-XXXXXX', null, 'GET');
+  const missing = await fetchWith({ SAVES: kv }, '/api/load', { code: 'NOVA-XXXXXX' });
   assert.equal(missing.status, 404);
+});
+
+test('A7: GET /api/load is gone — the code must ride in the body, never the query string', async () => {
+  const kv = fakeKV();
+  await fetchWith({ SAVES: kv }, '/api/save', { code: 'tiger-bamboo-river-umbrella', state: { layout: 'L' } });
+  const res = await worker.fetch(new Request('http://worker.test/api/load?code=tiger-bamboo-river-umbrella', { method: 'GET' }), { SAVES: kv });
+  assert.equal(res.status, 404, 'GET /api/load must not resolve (A7)');
+});
+
+test('A5/A7: a save label that trips the safety screen or is over-long falls back to the default', async () => {
+  const kv = fakeKV();
+  // An email is PII the filter flags — it must never reach KV, even though the copy asks kids not to.
+  const pii = await fetchWith({ SAVES: kv }, '/api/save', { label: 'me@example.com', state: { layout: 'x' } });
+  assert.equal(pii.status, 200);
+  assert.equal(JSON.parse(kv._map.get(pii.data.code)).label, 'My AI City');
+  // Over-long labels are neutralised rather than stored (or rejected).
+  const long = await fetchWith({ SAVES: kv }, '/api/save', { label: 'x'.repeat(200), state: { layout: 'y' } });
+  assert.equal(long.status, 200);
+  assert.equal(JSON.parse(kv._map.get(long.data.code)).label, 'My AI City');
+  // A normal kid city name is kept as-is.
+  const ok = await fetchWith({ SAVES: kv }, '/api/save', { label: 'My Dragon City', state: { layout: 'z' } });
+  assert.equal(JSON.parse(kv._map.get(ok.data.code)).label, 'My Dragon City');
 });
 
 test('POST /api/save rejects bad bodies, missing KV (503), and oversized bodies (400)', async () => {

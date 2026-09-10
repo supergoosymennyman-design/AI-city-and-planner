@@ -13,7 +13,7 @@
 //   t('props.title')       // → "Model library" or "模型庫"
 export const LANG_KEY = 'hk_ai_city_lang_v1';
 
-const DICT = {
+export const DICT = {
   en: {
     'common.gotIt': 'Got it',
     'common.skip': 'Skip',
@@ -85,6 +85,25 @@ const DICT = {
     'entry.hint': 'Tip: build a city in the 2D planner, then press "🌆 View my city" — it lands here automatically.',
     'toast.skinEquipped': 'equipped!',
     'toast.missionComplete': 'complete!',
+    // In-play toasts (were hardcoded English in city-builder.js). {name}/{file} are interpolated by tf().
+    'toast.walking': '\ud83d\udeb6 Walking to {name}\u2026',
+    'toast.flying': '\ud83d\ude80 Flying to {name}\u2026',
+    'toast.flyControls': '\ud83d\ude95 Flying! Use \u2b06\ufe0f \u2b07\ufe0f to climb, exit with \ud83d\ude95 again.',
+    'toast.parked': '\ud83d\ude97 Parked! Walk back and press \ud83d\ude97 to drive it again.',
+    'toast.drivingAgain': '\ud83d\ude97 Driving the {name} again!',
+    'toast.carLoadFail': '\u26a0\ufe0f Could not load that car \u2014 try another!',
+    'toast.drivingCar': '\ud83d\ude97 Driving the {name}! Use \ud83d\udeb6/\ud83c\udfc3 to go, \ud83d\ude97 to exit.',
+    'toast.noGame': '\u23f3 {name} doesn\u2019t have a game yet \u2014 try a mission building!',
+    'toast.questComplete': '\u2705 {name} complete!',
+    'toast.arrived': '\ud83d\udccd Arrived! Tap \ud83d\ude95 to land.',
+    'toast.headingHome': '\ud83c\udfe0 Heading home\u2026',
+    'toast.selectToMove': '\ud83d\udc40 Tap a model to select it, then \ud83c\udfaf to pick it up.',
+    'toast.selectMode': '\ud83d\udc49 Select mode: tap a model, then \ud83c\udfaf to pick it up and move it.',
+    'toast.noRoads': '\u26a0\ufe0f This city has no roads \u2014 streets, lights and cars won\u2019t appear. Open the planner, draw roads (or use \ud83d\udee4\ufe0f Roads), then Generate again.',
+    'toast.saved': '\ud83d\udcbe Saved \u201c{file}\u201d \u2014 it\u2019s in your tablet\u2019s Files app \u203a Downloads. Next lesson: start screen \u2192 \ud83d\udcc1 Open my city file.',
+    'toast.restored': '\ud83d\udcc2 Restored your Champion File ({n} saved items). Reloading\u2026',
+    'toast.restoredNamed': '\ud83d\udcc2 Restored your Champion File \u2014 {label} ({n} saved items). Reloading\u2026',
+    'toast.restorePartial': '\u26a0\ufe0f Restored most of your Champion File, but {n} item(s) would not fit. Free some space and try again.',
     // Interior scenarios
     'scenario.techlab': 'Tech Lab',
     'scenario.spaceship': 'Spaceship',
@@ -97,6 +116,8 @@ const DICT = {
     'scenario.coach2b': 'Ask your AI buddy anything — tap the speech bubble!',
     'scenario.coach3t': 'Decorate the space',
     'scenario.coach3b': 'Open the 🧰 model library to place gadgets and furniture!',
+    // A6 disclosure shown under the buddy composer (host-supplied, so it is bilingual).
+    'buddy.disclosure': 'Messages go to an AI brain to help me reply — please don\u2019t type private things.',
   },
   'zh-Hant': {
     'common.gotIt': '知道了',
@@ -169,6 +190,24 @@ const DICT = {
     'entry.hint': '小提示：在2D規劃器建立城市，然後按「🌆 查看我的城市」就會自動帶到這裡。',
     'toast.skinEquipped': '已穿戴！',
     'toast.missionComplete': '完成！',
+    'toast.walking': '\ud83d\udeb6 正步行前往{name}\u2026',
+    'toast.flying': '\ud83d\ude80 正飛往{name}\u2026',
+    'toast.flyControls': '\ud83d\ude95 起飛了！用 \u2b06\ufe0f \u2b07\ufe0f 升降，再按 \ud83d\ude95 離開。',
+    'toast.parked': '\ud83d\ude97 已停車！走回去再按 \ud83d\ude97 即可再駕駛。',
+    'toast.drivingAgain': '\ud83d\ude97 再次駕駛{name}！',
+    'toast.carLoadFail': '\u26a0\ufe0f 無法載入這輛車，請試另一輛！',
+    'toast.drivingCar': '\ud83d\ude97 正在駕駛{name}！用 \ud83d\udeb6/\ud83c\udfc3 前進，按 \ud83d\ude97 離開。',
+    'toast.noGame': '\u23f3 {name}還沒有遊戲 \u2014 試試任務建築吧！',
+    'toast.questComplete': '\u2705 {name}完成！',
+    'toast.arrived': '\ud83d\udccd 到達了！按 \ud83d\ude95 降落。',
+    'toast.headingHome': '\ud83c\udfe0 正在回家\u2026',
+    'toast.selectToMove': '\ud83d\udc40 點一下模型選取它，再按 \ud83c\udfaf 拿起。',
+    'toast.selectMode': '\ud83d\udc49 選取模式：點一下模型，再按 \ud83c\udfaf 拿起並移動。',
+    'toast.noRoads': '\u26a0\ufe0f 這座城市沒有道路 \u2014 街道、燈光和車輛都不會出現。請打開規劃器畫道路（或用 \ud83d\udee4\ufe0f 道路），然後再次生成。',
+    'toast.saved': '\ud83d\udcbe 已儲存「{file}」\u2014 檔案在平板的「檔案」App \u203a「下載項目」。下一課：開始畫面 \u2192 \ud83d\udcc1 開啟城市檔案。',
+    'toast.restored': '\ud83d\udcc2 已還原你的冠軍檔案（{n} 個項目）。正在重新載入\u2026',
+    'toast.restoredNamed': '\ud83d\udcc2 已還原你的冠軍檔案 \u2014 {label}（{n} 個項目）。正在重新載入\u2026',
+    'toast.restorePartial': '\u26a0\ufe0f 已還原大部分冠軍檔案，但有 {n} 個項目放不下。請清出空間後再試。',
     // Interior scenarios
     'scenario.techlab': '科技實驗室',
     'scenario.spaceship': '太空船',
@@ -181,6 +220,7 @@ const DICT = {
     'scenario.coach2b': '點擊對話氣泡，問你的AI夥伴任何問題！',
     'scenario.coach3t': '佈置這個空間',
     'scenario.coach3b': '打開🧰模型庫，放置小工具和傢具！',
+    'buddy.disclosure': '訊息會傳送給 AI 大腦來幫我回覆 — 請不要輸入私人資料。',
   },
 };
 
@@ -192,6 +232,13 @@ export function currentLang() { return _lang; }
 export function t(key) {
   const table = DICT[_lang] || DICT.en;
   return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : (DICT.en[key] || key);
+}
+
+/** Translate + interpolate `{token}` placeholders: tf('toast.walking', { name }) */
+export function tf(key, vars) {
+  const s = t(key);
+  if (!vars) return s;
+  return s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
 }
 
 export function setLang(lang) {
@@ -246,7 +293,7 @@ export function mountLangToggle() {
   _langBtn.style.cssText =
     'margin-left:8px;height:44px;min-width:44px;padding:0 10px;border-radius:10px;' +
     'border:1px solid var(--panel-border,rgba(0,242,254,0.35));background:transparent;' +
-    'color:var(--text,#f8fafc);font-size:13px;font-weight:800;cursor:pointer;' +
+    'color:var(--text,#f8fafc);font-size:14px;font-weight:800;cursor:pointer;' +
     'font-family:var(--font-body,inherit);';
   _langBtn.addEventListener('click', () => setLang(_lang === 'zh-Hant' ? 'en' : 'zh-Hant'));
   hudRight.appendChild(_langBtn);

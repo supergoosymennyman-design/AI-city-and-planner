@@ -115,6 +115,7 @@
 
 /* ── chat core: agent console (command echo, tool lines, palette, model chip) ───────────────────── */
 .cmd-echo { font-family:var(--buddy-font-mono); font-size:.85rem; color:var(--buddy-ink-faint); }
+.buddy-disclosure { color:var(--buddy-ink-faint); }
 .tool-line { font-family:var(--buddy-font-mono); font-size:.85rem; color:var(--buddy-tool); background:var(--buddy-tool-bg); }
 .tool-line.done { color:var(--buddy-accent); background:var(--buddy-accent-faint); }
 .tool-line.skipped { color:var(--buddy-ink-muted); background:transparent; text-decoration:line-through; }

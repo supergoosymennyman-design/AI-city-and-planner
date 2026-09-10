@@ -34,12 +34,16 @@ function saveUnlocked(ids) { try { localStorage.setItem(SKIN_UNLOCK_KEY, JSON.st
 export const SKIN_REWARDS = {};   // { questId: skinId, ... }
 
 export const SKINS = [
-  { id: 'crimson',    name: 'Crimson Guardian',  glb: 'clips/idle.glb' },
-  { id: 'dragon',     name: 'Dragon Emperor',    glb: 'clips/idle_dragon.glb' },
-  { id: 'neondragon', name: 'Neon Dragon Mech',  glb: 'clips/idle_neondragon.glb' },
-  { id: 'bunny',      name: 'Pastel Bunny Bot',  glb: 'clips/idle_bunny.glb' },
-  { id: 'sentinel',   name: 'Neon Sentinel',     glb: 'clips/idle_sentinel.glb' },
+  { id: 'crimson',    name: 'Crimson Guardian',  labelKey: 'skins.crimson',    glb: 'clips/idle.glb' },
+  { id: 'dragon',     name: 'Dragon Emperor',    labelKey: 'skins.dragon',     glb: 'clips/idle_dragon.glb' },
+  { id: 'neondragon', name: 'Neon Dragon Mech',  labelKey: 'skins.neondragon', glb: 'clips/idle_neondragon.glb' },
+  { id: 'bunny',      name: 'Pastel Bunny Bot',  labelKey: 'skins.bunny',      glb: 'clips/idle_bunny.glb' },
+  { id: 'sentinel',   name: 'Neon Sentinel',     labelKey: 'skins.sentinel',   glb: 'clips/idle_sentinel.glb' },
 ];
+
+/** Localized display name for a skin (falls back to its English `name`). Exported so hosts can
+ *  label an equip toast with the same string the sidebar shows. */
+export function skinLabel(skin) { return skin.labelKey ? t(skin.labelKey) : skin.name; }
 
 // Unlock a reward skin when a mission is completed (called by questComplete).
 export function unlockSkinForQuest(questId) {
@@ -77,9 +81,12 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
 
   const saved = loadSavedSkin();
   const savedIsPreset = saved && SKINS.some(s => s.id === saved);
-  // A saved preset wins; otherwise the uploaded champion is the default; bunny last.
-  let current = savedIsPreset ? saved : (customSkin && customSkin.url ? CUSTOM_SKIN_ID : 'bunny');
-  if (saved === CUSTOM_SKIN_ID && !(customSkin && customSkin.url)) { saveSkin('bunny'); current = 'bunny'; }
+  // The child's OWN fitted champion ("My Champion") is the DEFAULT whenever one
+  // exists — it is the centrepiece of the programme and stands correctly
+  // grounded. A previously-saved preset only wins when there is no uploaded
+  // champion; the bunny is the last resort.
+  let current = (customSkin && customSkin.url) ? CUSTOM_SKIN_ID : (savedIsPreset ? saved : 'bunny');
+  if (current === CUSTOM_SKIN_ID && !(customSkin && customSkin.url)) { saveSkin('bunny'); current = 'bunny'; }
   const state = {
     current,
     busy: false,
@@ -112,7 +119,7 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
     list.innerHTML = '';
     // Uploaded "fitted champion" card (Fit Studio) — always shown first when present.
     if (state.custom && state.custom.url) {
-      const skin = { id: CUSTOM_SKIN_ID, name: state.custom.name || 'My Champion', glb: state.custom.url };
+      const skin = { id: CUSTOM_SKIN_ID, name: state.custom.name || t('skins.myChampion'), glb: state.custom.url };
       const card = document.createElement('div');
       card.className = 'skin-card custom-skin' + (state.current === CUSTOM_SKIN_ID ? ' equipped' : '');
       const name = document.createElement('div');
@@ -128,7 +135,7 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
         btn2.addEventListener('click', async () => {
           if (state.busy) return;
           state.busy = true;
-          btn2.textContent = 'Loading…';
+          btn2.textContent = t('skins.loading');
           try {
             await champion.swapSkin(skin.glb, CUSTOM_SKIN_ID);
             state.current = CUSTOM_SKIN_ID;
@@ -157,7 +164,12 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
         catch (e) { console.warn('revert to bunny failed:', e); }
         render();
       });
-      card.append(name, btn2, rm);
+      // A11: the custom GLB lives in THIS device's IndexedDB — say so plainly, so a child who
+      // switches tablet is not surprised when their champion reverts to the default.
+      const note = document.createElement('div');
+      note.className = 'skin-note';
+      note.textContent = t('skins.customNote');
+      card.append(name, btn2, rm, note);
       list.appendChild(card);
     }
     for (const skin of SKINS) {
@@ -166,7 +178,7 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
       card.className = 'skin-card' + (skin.id === state.current ? ' equipped' : '') + (unlocked ? '' : ' locked');
       const name = document.createElement('div');
       name.className = 'skin-name';
-      name.textContent = unlocked ? skin.name : `🔒 ${skin.name}`;
+      name.textContent = unlocked ? skinLabel(skin) : `🔒 ${skinLabel(skin)}`;
       const btn2 = document.createElement('button');
       btn2.className = 'skin-equip';
       if (!unlocked) {
@@ -180,7 +192,7 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
         btn2.addEventListener('click', async () => {
           if (state.busy) return;
           state.busy = true;
-          btn2.textContent = 'Loading…';
+          btn2.textContent = t('skins.loading');
           try {
             await champion.swapSkin(assetBase + skin.glb, skin.id);
             state.current = skin.id;
@@ -222,7 +234,7 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
 
       const slotHeader = document.createElement('div');
       slotHeader.className = 'acc-slot-title';
-      slotHeader.textContent = `${slot.icon} ${slot.label}`;
+      slotHeader.textContent = `${slot.icon} ${slot.labelKey ? t(slot.labelKey) : slot.label}`;
       accList.appendChild(slotHeader);
 
       for (const item of items) {
@@ -231,7 +243,7 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
         card.className = 'skin-card acc-card' + (isOn ? ' equipped' : '');
         const name = document.createElement('div');
         name.className = 'skin-name';
-        name.textContent = item.name;
+        name.textContent = item.nameKey ? t(item.nameKey) : item.name;
         const btn2 = document.createElement('button');
         btn2.className = 'skin-equip';
         if (isOn) {

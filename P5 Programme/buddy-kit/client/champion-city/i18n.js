@@ -13,7 +13,7 @@
 //   t('props.title')       // → "Model library" or "模型庫"
 export const LANG_KEY = 'hk_ai_city_lang_v1';
 
-const DICT = {
+export const DICT = {
   en: {
     'common.gotIt': 'Got it',
     'common.skip': 'Skip',
@@ -41,6 +41,22 @@ const DICT = {
     'skins.locked': '🔒 Mission locked',
     'skins.empty': 'No items yet in this slot.',
     'skins.removeCustom': 'Remove uploaded champion',
+    // Preset skin names (were hardcoded in skins.js) + the custom-champion card.
+    'skins.crimson': 'Crimson Guardian',
+    'skins.dragon': 'Dragon Emperor',
+    'skins.neondragon': 'Neon Dragon Mech',
+    'skins.bunny': 'Pastel Bunny Bot',
+    'skins.sentinel': 'Neon Sentinel',
+    'skins.myChampion': 'My Champion',
+    'skins.loading': 'Loading\u2026',
+    // A11: the custom skin lives in this device's IndexedDB and does not travel.
+    'skins.customNote': 'Your custom champion is saved on this device only \u2014 it won\u2019t travel to a new tablet.',
+    // Accessory slot headers + item names (were hardcoded in accessories.js).
+    'acc.slot.head': 'Head', 'acc.slot.face': 'Face', 'acc.slot.ears': 'Ears',
+    'acc.slot.chest': 'Chest', 'acc.slot.back': 'Back',
+    'acc.head_crown': 'Royal Crown', 'acc.head_vr': 'VR Headset', 'acc.head_hardhat': 'Smart Hard Hat',
+    'acc.face_glasses': 'Smart Glasses', 'acc.face_monocle': 'Gold Monocle', 'acc.face_visor': 'Holo Visor',
+    'acc.back_wings': 'Cyber Wings', 'acc.back_jetpack': 'Rocket Pack', 'acc.back_backpack': 'Tech Backpack',
     'props.title': 'Model library',
     'props.catNature': 'Nature 🌳',
     'props.catPark': 'Park & Play 🛝',
@@ -117,6 +133,19 @@ const DICT = {
     'skins.locked': '🔒 完成任務解鎖',
     'skins.empty': '此欄位暫無配件',
     'skins.removeCustom': '移除上傳的冠軍機械人',
+    'skins.crimson': '赤紅守衛',
+    'skins.dragon': '龍皇',
+    'skins.neondragon': '霓虹龍機甲',
+    'skins.bunny': '粉彩兔機械人',
+    'skins.sentinel': '霓虹哨兵',
+    'skins.myChampion': '我的冠軍',
+    'skins.loading': '載入中…',
+    'skins.customNote': '你的自訂冠軍只儲存在這部裝置上 — 換新平板時不會一起帶過去。',
+    'acc.slot.head': '頭部', 'acc.slot.face': '面部', 'acc.slot.ears': '耳朵',
+    'acc.slot.chest': '胸口', 'acc.slot.back': '背部',
+    'acc.head_crown': '皇冠', 'acc.head_vr': 'VR 頭戴裝置', 'acc.head_hardhat': '智能安全帽',
+    'acc.face_glasses': '智能眼鏡', 'acc.face_monocle': '黃金單片眼鏡', 'acc.face_visor': '全息面罩',
+    'acc.back_wings': '賽博翅膀', 'acc.back_jetpack': '火箭背包', 'acc.back_backpack': '科技背包',
     'props.title': '模型庫',
     'props.catNature': '大自然 🌳',
     'props.catPark': '公園遊樂 🛝',

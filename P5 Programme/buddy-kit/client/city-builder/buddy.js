@@ -8,6 +8,7 @@
  */
 
 import { catalogType } from '../city-common/catalog.js';
+import { t } from './i18n.js';
 
 function buildingName(b) {
   const spec = catalogType(b.type);
@@ -17,16 +18,36 @@ function buildingName(b) {
 export function mountCityBuddy(city, champion, sim, layout) {
   const buildings = layout.buildings || [];
 
+  // Planted AI machines (.cap files) + their last "Try it" verdicts + the plan's
+  // AI goals/score — carried from the 2D planner or planted in this app.
+  const planted = (() => {
+    try {
+      const caps = JSON.parse(localStorage.getItem('p5_city_capabilities_v1') || '[]');
+      const list = Array.isArray(caps) ? caps.map((c) => (c && (c.name || c.id)) || '').filter(Boolean) : [];
+      const dec = (() => { try { return JSON.parse(localStorage.getItem('p5_city_cap_lastdec_v1') || '{}'); } catch { return {}; } })();
+      return {
+        names: list,
+        summary: list.length ? `${list.length} planted AI machine${list.length > 1 ? 's' : ''}: ${list.join(', ')}` : 'no planted AI machines yet',
+        lastDecisions: (dec && typeof dec === 'object') ? dec : {},
+      };
+    } catch { return { names: [], summary: 'no planted AI machines yet', lastDecisions: {} }; }
+  })();
+  const goalLabel = (layout.goals && layout.goals.label) || 'Balanced';
+  const plannerScore = layout.plannerScore != null ? String(layout.plannerScore) : null;
+
   const recycling = buildings.find((b) => b.type === 'recycling');
   const firstStepPhrase = recycling
     ? `Let's fly to the ♻️ Recycling Lab first — the recycling centre needs your help!`
     : buildings.length
       ? `Walk around and find the ${buildingName(buildings[0])} you placed first!`
       : 'Start by placing some buildings in the planner, then come back to explore them!';
+  const machinePhrase = planted.names.length
+    ? ` I can see your ${planted.summary}. Open the 📦 panel to feed one of them real inputs and watch what it decides!`
+    : '';
 
   const greeting = buildings.length
-    ? `Hi! I'm your Coding Buddy! I'm here to help you in YOUR city — you designed every building here yourself! ${firstStepPhrase}`
-    : `Hi! I'm your Coding Buddy! I'm here to help you in your city — right now it's still empty. Go add buildings in the planner and come back!`;
+    ? `Hi! I'm your Coding Buddy! I'm here to help you in YOUR city — you designed every building here yourself! ${firstStepPhrase}${machinePhrase}`
+    : `Hi! I'm your Coding Buddy! I'm here to help you in your city — right now it's still empty. Go add buildings in the planner and come back!${machinePhrase}`;
 
   const getState = () => {
     const p = champion ? champion.state.pos : { x: 1000, z: 1000 };
@@ -49,6 +70,9 @@ export function mountCityBuddy(city, champion, sim, layout) {
         roads: String(layout.roads.length),
         parks: String(layout.parks.length),
         championName: 'Champion',
+        planGoals: `${goalLabel}${plannerScore ? ` (planner score ${plannerScore})` : ''}`,
+        plantedMachines: planted.summary,
+        hasPlantedMachines: planted.names.length ? 'yes' : 'no',
       },
     };
   };
@@ -159,6 +183,9 @@ export function mountCityBuddy(city, champion, sim, layout) {
     commands: [enterCommand],
     buddyName: 'Coding Buddy',
     greeting,
+    // Audit A6: the child-facing disclosure, localized by the host (EN + zh-Hant). The buddy core
+    // renders this under the composer; without it the core falls back to its own EN line.
+    disclosure: t('buddy.disclosure'),
     persona: 'You are the child\'s Coding Buddy — an AI agent helper who works in the AI City they designed '
       + 'in the 2D planner. You are NOT the Champion: the child builds, dresses and animates the Champion '
       + 'themselves (in the Fit Studio / 3D Studio), and you are a separate helper who talks to them. '

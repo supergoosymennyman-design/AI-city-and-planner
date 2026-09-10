@@ -16,11 +16,11 @@ import { createGLTFLoader } from '../shared/gltf.js';
 export const ACC_STORAGE_KEY = 'hk_ai_city_accessories_v1';
 
 export const ACC_SLOTS = [
-  { id: 'head', label: 'Head', icon: '🧢' },
-  { id: 'face', label: 'Face', icon: '👓' },
-  { id: 'ears', label: 'Ears', icon: '👂' },
-  { id: 'chest', label: 'Chest', icon: '🛡️' },
-  { id: 'back', label: 'Back', icon: '🎒' },
+  { id: 'head', label: 'Head', labelKey: 'acc.slot.head', icon: '🧢' },
+  { id: 'face', label: 'Face', labelKey: 'acc.slot.face', icon: '👓' },
+  { id: 'ears', label: 'Ears', labelKey: 'acc.slot.ears', icon: '👂' },
+  { id: 'chest', label: 'Chest', labelKey: 'acc.slot.chest', icon: '🛡️' },
+  { id: 'back', label: 'Back', labelKey: 'acc.slot.back', icon: '🎒' },
 ];
 
 // ---- Item geometry builders (placeholders; return THREE.Group) ----
@@ -125,15 +125,15 @@ function buildBackpack() {
 // bones WITHOUT the colon (mixamorigHead, mixamorigSpine2, …).
 // Items use `build` placeholder procedural geometry.
 export const ACCESSORIES = [
-  { id: 'head_crown',    name: 'Royal Crown',    slot: 'head', bone: 'mixamorigHead',   off: [0, 0.35, 0],      tags: ['lesson1'], build: buildCrown },
-  { id: 'head_vr',       name: 'VR Headset',     slot: 'head', bone: 'mixamorigHead',   off: [0, 0.22, 0],      tags: ['lesson3'], build: buildVRHeadset },
-  { id: 'head_hardhat',  name: 'Smart Hard Hat', slot: 'head', bone: 'mixamorigHead',   off: [0, 0.28, 0],      tags: [],          build: buildHardHat },
-  { id: 'face_glasses',  name: 'Smart Glasses',  slot: 'face', bone: 'mixamorigHead',   off: [0, 0.24, 0.06],   tags: ['lesson5'], build: buildGlasses },
-  { id: 'face_monocle',  name: 'Gold Monocle',   slot: 'face', bone: 'mixamorigHead',   off: [0.12, 0.22, 0.06], tags: [],          build: buildMonocle },
-  { id: 'face_visor',    name: 'Holo Visor',     slot: 'face', bone: 'mixamorigHead',   off: [0, 0.24, 0.06],   tags: ['lesson3'], build: buildVisor },
-  { id: 'back_wings',    name: 'Cyber Wings',    slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.15, -0.05],  tags: [],          build: buildWings },
-  { id: 'back_jetpack',  name: 'Rocket Pack',    slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.12, -0.1],   tags: ['lesson7'], build: buildJetpack },
-  { id: 'back_backpack', name: 'Tech Backpack',  slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.15, -0.12],  tags: [],          build: buildBackpack },
+  { id: 'head_crown',    name: 'Royal Crown',    nameKey: 'acc.head_crown',    slot: 'head', bone: 'mixamorigHead',   off: [0, 0.35, 0],      tags: ['lesson1'], build: buildCrown },
+  { id: 'head_vr',       name: 'VR Headset',     nameKey: 'acc.head_vr',       slot: 'head', bone: 'mixamorigHead',   off: [0, 0.22, 0],      tags: ['lesson3'], build: buildVRHeadset },
+  { id: 'head_hardhat',  name: 'Smart Hard Hat', nameKey: 'acc.head_hardhat',  slot: 'head', bone: 'mixamorigHead',   off: [0, 0.28, 0],      tags: [],          build: buildHardHat },
+  { id: 'face_glasses',  name: 'Smart Glasses',  nameKey: 'acc.face_glasses',  slot: 'face', bone: 'mixamorigHead',   off: [0, 0.24, 0.06],   tags: ['lesson5'], build: buildGlasses },
+  { id: 'face_monocle',  name: 'Gold Monocle',   nameKey: 'acc.face_monocle',  slot: 'face', bone: 'mixamorigHead',   off: [0.12, 0.22, 0.06], tags: [],          build: buildMonocle },
+  { id: 'face_visor',    name: 'Holo Visor',     nameKey: 'acc.face_visor',    slot: 'face', bone: 'mixamorigHead',   off: [0, 0.24, 0.06],   tags: ['lesson3'], build: buildVisor },
+  { id: 'back_wings',    name: 'Cyber Wings',    nameKey: 'acc.back_wings',    slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.15, -0.05],  tags: [],          build: buildWings },
+  { id: 'back_jetpack',  name: 'Rocket Pack',    nameKey: 'acc.back_jetpack',  slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.12, -0.1],   tags: ['lesson7'], build: buildJetpack },
+  { id: 'back_backpack', name: 'Tech Backpack',  nameKey: 'acc.back_backpack', slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.15, -0.12],  tags: [],          build: buildBackpack },
 ];
 
 export function accessoriesForSlot(slot) { return ACCESSORIES.filter(a => a.slot === slot); }
