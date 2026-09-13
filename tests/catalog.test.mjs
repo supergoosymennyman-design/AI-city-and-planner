@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG, CATALOG_ORDER, catalogType, isSpecial, specialKeys } from '../P5 Programme/buddy-kit/client/city-common/catalog.js';
+import { QUESTS, questComplete } from '../P5 Programme/buddy-kit/client/hong-kong-real/quests.js';
 
 test('catalog has exactly 18 special mission buildings with unique quest ids 1..18', () => {
   const specials = Object.entries(CATALOG).filter(([, v]) => v.category === 'special');
@@ -33,4 +34,25 @@ test('catalogType / isSpecial handle unknown keys safely', () => {
   assert.equal(isSpecial('not_a_building'), false);
   assert.equal(isSpecial('city_central'), true);
   assert.equal(isSpecial('housing'), false);
+});
+
+test('mission catalog, lessons, themes and game availability form one truthful join', () => {
+  const specials = Object.entries(CATALOG).filter(([, v]) => v.category === 'special');
+  assert.equal(new Set(QUESTS.map((q) => q.id)).size, QUESTS.length, 'quest ids are unique');
+  for (const [type, spec] of specials) {
+    const quest = QUESTS.find((q) => q.id === spec.questId);
+    assert.ok(quest, `${type} maps to a quest`);
+    assert.equal(quest.labelEn, spec.name, `${type} uses the same child-facing name`);
+    assert.ok(Number.isInteger(quest.lesson) && quest.lesson >= 1 && quest.lesson <= 20, `${type} has a P5 lesson`);
+    assert.ok(quest.gameUrl === null || typeof quest.gameUrl === 'string', `${type} is playable or honestly coming soon`);
+  }
+  assert.equal(QUESTS.find((q) => q.id === 1).name, 'AI & Gov Finances');
+  assert.equal(QUESTS.find((q) => q.id === 2).name, 'Tokenomics');
+});
+
+test('quest completion uses the shared progression transition', () => {
+  const state = { completed: [], unlocked: [1] };
+  const next = questComplete(state, 1);
+  assert.deepEqual(next.completed, [1]);
+  assert.ok(!next.unlocked.includes(1), 'completed quest leaves unlocked list');
 });

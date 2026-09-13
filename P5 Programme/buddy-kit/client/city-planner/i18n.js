@@ -18,6 +18,8 @@ const DICT = {
   en: {
     // Topbar chrome
     'planner.title.app': '🏙️ AI City Planner',
+    'planner.academy': '🎓 Learn',
+    'planner.academyTitle': 'Learn how the planner works',
     'planner.toolbar.aria': 'Planning tools',
     'planner.tool.place': '🏗️ Place',
     'planner.tool.road': '🛣️ Road',
@@ -171,11 +173,11 @@ const DICT = {
     'planner.lock.pre': 'Finish the ',
     'planner.lock.academy': 'City Planning Academy',
     'planner.lock.mid': ' and the planner opens by itself on this tablet. Going to a new tablet? Bring your ',
-    'planner.lock.file': 'license file',
-    'planner.lock.post': ' — the "Algorithm File" from the training, a tiny .json certificate.',
+    'planner.lock.file': 'saved city file',
+    'planner.lock.post': ' — the one file you saved in the Academy. It unlocks the planner and brings your city back.',
     'planner.lock.goto': '🎓 Go to City Planning Academy',
     'planner.lock.or': 'or',
-    'planner.lock.upload': '📁 Upload my license file',
+    'planner.lock.upload': '📁 Upload my saved city file',
     'planner.lock.pasteToggle': '📋 Paste the file instead',
     'planner.lock.pasteGo': '⬆️ Unlock with pasted file',
 
@@ -349,11 +351,14 @@ const DICT = {
     'planner.export.saved': '💾 Saved! {b} buildings, {r} roads, {p} parks.{note}',
     'planner.export.noRoads': ' ⚠️ No roads — the 3D city won\'t have streets or lights.',
     'planner.export.storageFull': '⚠️ Could not save to this browser (storage full) — downloaded my-ai-city.json instead. Upload it in the 3D city.',
+    'planner.export.storageFullHint': '⚠️ This tablet is full, so your city downloaded as my-ai-city.json (Files ▸ Downloads). Open the 3D city and tap “📁 Open my city file” to load it.',
 
     // Unlock (Planner's License)
     'planner.unlock.toast': '🔓 Unlocked! Your city awaits, Junior Planner.',
     'planner.unlock.nova': 'Well done! You earned the Planner\u2019s License. Let\u2019s build your city. 🌟',
     'planner.unlock.error': 'That doesn\u2019t look like a license file. Fastest fix: tap \u201CGo to City Planning Academy\u201D and finish the training (\u224810 min) \u2014 it opens the planner on this tablet.',
+    'planner.unlock.championRestored': '\ud83d\udcc2 Restored your Champion File ({n} saved items). Opening the planner\u2026',
+    'planner.unlock.championPartial': '\u26a0\ufe0f Restored most of your Champion File, but {n} item(s) would not fit. Opening the planner\u2026',
 
     // Optimiser / planner reason lines (from shared city-common/optimize.js;
     // the EN strings above are the canonical templates — kept verbatim).
@@ -372,6 +377,8 @@ const DICT = {
   'zh-Hant': {
     // Topbar chrome
     'planner.title.app': '🏙️ AI 城市規劃器',
+    'planner.academy': '🎓 學習',
+    'planner.academyTitle': '了解城市規劃工具怎樣運作',
     'planner.toolbar.aria': '規劃工具',
     'planner.tool.place': '🏗️ 放置',
     'planner.tool.road': '🛣️ 道路',
@@ -525,11 +532,11 @@ const DICT = {
     'planner.lock.pre': '先完成',
     'planner.lock.academy': '城市規劃學院',
     'planner.lock.mid': '訓練，規劃器便會自動在這個平板電腦上開啟。想用新的平板電腦？帶上你的',
-    'planner.lock.file': '執照檔案',
-    'planner.lock.post': ' — 即訓練中的「演算法檔案」，一份小小的 .json 證書。',
+    'planner.lock.file': '已儲存的城市檔案',
+    'planner.lock.post': ' — 即你在學院儲存的那一個檔案。它能解鎖規劃器，並帶回你的城市。',
     'planner.lock.goto': '🎓 前往城市規劃學院',
     'planner.lock.or': '或',
-    'planner.lock.upload': '📁 上載我的執照檔案',
+    'planner.lock.upload': '📁 上載我儲存的城市檔案',
     'planner.lock.pasteToggle': '📋 改為貼上檔案',
     'planner.lock.pasteGo': '⬆️ 以貼上的檔案解鎖',
 
@@ -703,11 +710,14 @@ const DICT = {
     'planner.export.saved': '💾 已儲存！{b} 座建築物、{r} 條道路、{p} 個公園。{note}',
     'planner.export.noRoads': ' ⚠️ 沒有道路 — 3D 城市不會有街道或燈光。',
     'planner.export.storageFull': '⚠️ 無法儲存到這個瀏覽器（儲存空間已滿）— 已改為下載 my-ai-city.json。請在 3D 城市上載它。',
+    'planner.export.storageFullHint': '⚠️ 這部平板空間不足，城市已下載為 my-ai-city.json（檔案 ▸ 下載項目）。開啟 3D 城市並點「📁 開啟城市檔案」載入它。',
 
     // Unlock (Planner's License)
     'planner.unlock.toast': '🔓 已解鎖！你的城市正等著你，小小規劃師。',
     'planner.unlock.nova': '做得好！你取得了規劃師執照。一起建設你的城市吧。🌟',
     'planner.unlock.error': '這看起來不是執照檔案。最快的解決方法：點「前往城市規劃學院」並完成訓練（約 10 分鐘）— 規劃器便會在這個平板電腦上開啟。',
+    'planner.unlock.championRestored': '\ud83d\udcc2 已還原你的冠軍檔案（{n} 個項目）。正在開啟規劃器\u2026',
+    'planner.unlock.championPartial': '\u26a0\ufe0f 已還原大部分冠軍檔案，但有 {n} 個項目放不下。正在開啟規劃器\u2026',
 
     // Optimiser / planner reason lines (from shared city-common/optimize.js)
     'planner.reason.addHousing': '加了一座住宅 — 城市需要有地方讓居民入住！',

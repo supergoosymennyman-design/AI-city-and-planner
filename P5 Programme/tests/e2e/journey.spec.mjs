@@ -8,7 +8,6 @@ import { test, expect } from '@playwright/test';
 
 test.skip(!process.env.E2E_DOCROOT, 'journey spec needs the built bundle (E2E_DOCROOT=deploy/city-sim)');
 
-const UNLOCK_KEY = 'p5_planner_unlocked';
 const LAYOUT_KEY = 'p5_city_planner_layout_v1';
 const PROGRESS_KEY = 'p5_pregame_progress';
 const COACH_KEY = 'p5_city_planner_coach_v1';
@@ -22,17 +21,16 @@ const TINY_LAYOUT = {
 };
 
 test('planner → "View my city" → 3D city auto-loads the layout', async ({ page }) => {
-  // Same-origin seed: unlocked + a saved city + coach dismissed (as the planner
-  // would leave them) so the first-run coach modal can't block the toolbar.
-  await page.addInitScript(({ UNLOCK_KEY, LAYOUT_KEY, COACH_KEY, layout }) => {
-    localStorage.setItem(UNLOCK_KEY, '1');
+  // Same-origin seed: a saved city + coach dismissed (as the planner would
+  // leave them) so the first-run coach modal can't block the toolbar.
+  await page.addInitScript(({ LAYOUT_KEY, COACH_KEY, layout }) => {
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
     localStorage.setItem(COACH_KEY, '1');
-  }, { UNLOCK_KEY, LAYOUT_KEY, COACH_KEY, layout: TINY_LAYOUT });
+  }, { LAYOUT_KEY, COACH_KEY, layout: TINY_LAYOUT });
 
   await page.goto('/planner/', { waitUntil: 'load' });
   await page.waitForTimeout(1500);
-  await expect(page.locator('#lock-overlay')).not.toBeVisible();
+  await expect(page.locator('#lock-overlay')).toHaveCount(0);
   await expect(page.locator('canvas')).toBeVisible({ timeout: 15000 });
 
   // The CTA: save + walk into the 3D city.
@@ -51,21 +49,17 @@ test('planner → "View my city" → 3D city auto-loads the layout', async ({ pa
   expect(entryVisible, 'entry overlay should be skipped on auto-load').toBe(false);
 });
 
-test('planner is locked without the license, unlocked with the same-origin flag', async ({ page }) => {
-  // Fresh context — no unlock flag → locked.
+test('planner opens directly — Academy is a companion, not a lock', async ({ page }) => {
+  // Fresh context, no flags → the planner is usable immediately.
   await page.goto('/planner/', { waitUntil: 'load' });
   await page.waitForTimeout(800);
-  await expect(page.locator('#lock-overlay')).toBeVisible();
-
-  // Same-origin unlock flag (what the pregame graduation sets) → reload → open.
-  await page.evaluate((k) => localStorage.setItem(k, '1'), UNLOCK_KEY);
-  await page.reload();
-  await page.waitForTimeout(800);
-  await expect(page.locator('#lock-overlay')).not.toBeVisible();
+  await expect(page.locator('#lock-overlay')).toHaveCount(0);
+  await expect(page.locator('#btn-academy')).toBeVisible();
+  await expect(page.locator('canvas')).toBeVisible({ timeout: 15000 });
 });
 
-test('pregame graduation unlocks the planner same-origin (no file round-trip)', async ({ page }) => {
-  // All four rooms complete → the finale shows with the unlock button enabled.
+test('pregame finale saves a portable progress file and opens the planner', async ({ page }) => {
+  // All four rooms complete → the finale shows with the planner button enabled.
   await page.addInitScript(({ PROGRESS_KEY }) => {
     localStorage.setItem(PROGRESS_KEY, JSON.stringify({ 1: true, 2: true, 3: true, 4: true }));
   }, { PROGRESS_KEY });
@@ -87,7 +81,8 @@ test('pregame graduation unlocks the planner same-origin (no file round-trip)', 
   await page.click('#btn-unlock');
   await page.waitForURL(/\/planner\/$/, { timeout: 15000 });
 
-  // The planner is now unlocked — the flag was set before navigation.
+  // The planner is open (no gate exists any more).
   await page.waitForTimeout(800);
-  await expect(page.locator('#lock-overlay')).not.toBeVisible();
+  await expect(page.locator('#lock-overlay')).toHaveCount(0);
+  await expect(page.locator('#btn-academy')).toBeVisible();
 });

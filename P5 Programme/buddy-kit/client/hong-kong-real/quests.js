@@ -7,6 +7,12 @@
 //   completed: [ids...]      — beacon turns jade green
 //   unlocked:  [ids...]      — beacon glows cyan (playable)
 //   all other quests locked   — beacon dim grey
+//
+// Game URLs are PER-QUEST DATA and deliberately stay inline: each minigame
+// origin appears exactly once, so a central map would add indirection without
+// removing duplication. Shared origins (hub home, workshop, city-sim) are
+// canonical in `shared/links.js` — import those constants instead of re-typing
+// a `.workers.dev` literal when a quest needs a shared origin.
 
 export const QUEST_STATE_KEY = 'hk_ai_city_quests_v1';
 
@@ -18,8 +24,8 @@ export const QUESTS = [
   // suggestion and the "next unlocked" quest both follow this array order.
   // ---- Central cluster (arrive here first) ----
   { id: 4, lesson: 18,  name: 'AI Smart City',         labelZh: '人工智能城市中心', labelEn: 'AI City Central',          pos: [-40, -120], height: 80, gameUrl: '/project/p3-18-3d-city/' },
-  { id: 1, lesson: 17,  name: 'Tokenomics',            labelZh: '人工智能金融中心', labelEn: 'AI Finance Tower',          pos: [140, -60],  height: 34, gameUrl: 'https://falling-tooth-552b.supergoosymennyman.workers.dev/' },
-  { id: 2, lesson: 15,  name: 'AI & Gov Finances',     labelZh: '智慧財政署',       labelEn: 'Smart Treasury',           pos: [100, 40],   height: 30, gameUrl: 'https://divine-sky-d18f.supergoosymennyman.workers.dev/' },
+  { id: 1, lesson: 17,  name: 'AI & Gov Finances',     labelZh: '人工智能金融中心', labelEn: 'AI Finance Tower',          pos: [140, -60],  height: 34, gameUrl: 'https://falling-tooth-552b.supergoosymennyman.workers.dev/' },
+  { id: 2, lesson: 15,  name: 'Tokenomics',            labelZh: '智慧財政署',       labelEn: 'Smart Treasury',           pos: [100, 40],   height: 30, gameUrl: 'https://divine-sky-d18f.supergoosymennyman.workers.dev/' },
   { id: 3, lesson: 16,  name: 'Sentiment Analysis',    labelZh: '民情分析站',       labelEn: 'Public Sentiment Lab',     pos: [-120, 80],  height: 24, gameUrl: 'https://orange-dawn-3ec5.supergoosymennyman.workers.dev/' },
   { id: 5, lesson: 12,  name: 'Traffic Light Optimisation', labelZh: '交通優化實驗室', labelEn: 'Traffic Optimization Lab', pos: [60, 180],  height: 22, gameUrl: null },
   { id: 6, lesson: 13,  name: 'Traffic Wave Prediction', labelZh: '交通預測及應急中心', labelEn: 'Traffic & Emergency AI', pos: [150, 140], height: 26, gameUrl: null },

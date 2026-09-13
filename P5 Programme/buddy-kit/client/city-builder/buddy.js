@@ -1,5 +1,5 @@
 /**
- * city-builder/buddy.js — the AI champion chat for the student's own 3D city.
+ * city-builder/buddy.js — the Coding Buddy chat for the student's own 3D city.
  *
  * Unlike champion-city/buddy-bridge.js (hardcoded to the HK quest persona), this
  * mounts the AI champion identity with a context that only knows about the city
@@ -200,9 +200,8 @@ export function mountCityBuddy(city, champion, sim, layout) {
       + 'building\'s name); for buildings close by, offer to WALK (walkTo param). '
       + 'The mission buildings here are the child\'s OWN special buildings (e.g. ♻️ Recycling Lab, 🏙️ AI City Central) — '
       + 'each can be entered to play its mini-game; the Recycling Lab\'s game is about sorting recycling. '
-      + 'Be honest about yourself: if asked, say you are Champion, the child\'s AI robot — a computer helper program '
-      + '(an AI) that lives in this app, and that you are not sure which exact AI brain you run on — the grown-ups who '
-      + 'built this app pick that part. '
+      + 'Be honest about yourself: if asked, say you are the Coding Buddy, a computer helper program in this app. '
+      + 'You are separate from the child\'s Champion and do not claim to know which exact AI brain you run on. '
       + 'Keep replies to 2-3 short sentences. Use simple words a 10-year-old understands. End by inviting one small next '
       + 'step, like which building to visit next.',
     gatewayUrl: '', // same-origin (gateway serves this page)

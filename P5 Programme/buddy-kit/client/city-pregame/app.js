@@ -2,17 +2,16 @@
  * city-pregame/app.js — City Planning Academy.
  *
  * A self-contained teaching game that introduces the four algorithms the 2D
- * city planner uses, then hands the student a "Planner's License" JSON file
- * whose key unlocks the planner. No server, no AI — pure client-side.
+ * city planner uses as an optional Lesson 1 companion. No server, no AI —
+ * pure client-side. Progress travels in the existing Champion File.
  *
  * Rooms:
  *   1. Weighted Score   (report card — weighted sum + a draggable weight lab)
  *   2. Coverage Radius  (leash garden — 150m/400m distance rules)
  *   3. Shortest Path    (ant trail — Dijkstra shown expanding, then shortest walk)
  *   4. Hill-Climbing    (foggy mountain — greedy local search + Explore restart)
- * Each room teaches the concept with a visual, then CHECKS understanding with
- * a multi-step challenge. All four must be completed before the download
- * unlocks.
+ * Each room teaches the concept with a visual, then checks understanding with
+ * a multi-step challenge. Completion is recognition, never a gate.
  *
  * Algorithm maths lives in lesson-core.js (pure + unit-tested); app.js only
  * renders it.
@@ -24,13 +23,7 @@ import { collectState, composeChampionFile, championFilename } from '../city-com
 
 initI18n();
 
-// ── The Planner's License ───────────────────────────────
-// Shared with the 2D planner's lock gate (soft gate, not security).
-const LICENSE_KEY = 'CITYSMART-P5-2026';
-const LICENSE_FILENAME = 'planner-license.json';
 const PROGRESS_KEY = 'p5_pregame_progress';
-// Same-origin unlock flag the 2D planner checks (planner.js UNLOCK_STORAGE_KEY).
-const UNLOCK_STORAGE_KEY = 'p5_planner_unlocked';
 
 // ── Room content (localized at render time) ─────────────
 // The teaching copy lives in i18n.js keyed per room; buildRooms() assembles it
@@ -88,7 +81,6 @@ const screenIntro = document.getElementById('screen-intro');
 const screenRooms = document.getElementById('screen-rooms');
 const screenFinale = document.getElementById('screen-finale');
 const roomWrap = document.getElementById('room-wrap');
-const downloadBtn = document.getElementById('btn-download');
 const downloadHint = document.getElementById('download-hint');
 const unlockBtn = document.getElementById('btn-unlock');
 
@@ -1061,22 +1053,12 @@ function graduate() {
   state.currentRoom = null;
   showScreen('finale');
   updateNav();
-  const allDone = ROOM_ORDER.every((r) => state.completed[r]);
-  if (unlockBtn) unlockBtn.disabled = !allDone;
-  if (downloadBtn) downloadBtn.disabled = !allDone;
-  if (downloadHint) downloadHint.textContent = allDone
-    ? t('pg.downloadHint.ready')
-    : t('pg.downloadHint.locked');
+  if (unlockBtn) unlockBtn.disabled = false;
+  if (downloadHint) downloadHint.textContent = t('pg.downloadHint.ready');
 }
 
-/** Same-origin unlock: set the flag the 2D planner checks, then open it. */
+/** The Planner is always available; Academy is a Lesson 1 companion. */
 function unlockPlanner() {
-  try { localStorage.setItem(UNLOCK_STORAGE_KEY, '1'); }
-  catch (e) {
-    toast(t('pg.toast.unlockFail'));
-    return;
-  }
-  toast(t('pg.toast.unlocked'));
   window.location.href = '/planner/';
 }
 
@@ -1101,24 +1083,6 @@ function saveProgressFile() {
   } catch (e) {
     toast(t('pg.toast.progressFail'));
   }
-}
-
-function downloadLicense() {
-  const file = {
-    title: "City Planner's License",
-    algorithms: ['weighted_score', 'coverage_radius', 'shortest_path', 'hill_climbing'],
-    key: LICENSE_KEY,
-  };
-  const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = LICENSE_FILENAME;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast(t('pg.toast.downloaded'));
 }
 
 // ── Restart (custom modal, no confirm()) ────────────────
@@ -1165,7 +1129,6 @@ document.getElementById('btn-start').addEventListener('click', () => {
   showScreen('rooms');
   window.scrollTo({ top: 0 });
 });
-if (downloadBtn) downloadBtn.addEventListener('click', downloadLicense);
 if (unlockBtn) unlockBtn.addEventListener('click', unlockPlanner);
 const saveProgressBtn = document.getElementById('btn-save-progress');
 if (saveProgressBtn) saveProgressBtn.addEventListener('click', saveProgressFile);

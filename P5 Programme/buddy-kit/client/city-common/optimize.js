@@ -38,6 +38,7 @@
 
 import { catalogType, specialKeys } from './catalog.js';
 import { computeMetrics, roadSegments, METRIC_PARAMS, ratioTargets, servicesNear, utilitiesNear } from './metrics.js';
+import { computeWalkReach } from './walkability.js';
 
 // Heavy-noisy facilities kept away from homes. POWER is NOT in this set — it is
 // a required utility (homes need it nearby) with only a mild setback (see
@@ -406,7 +407,9 @@ function greedyLayout(layout, opts = {}, seed = 1) {
   // passed through to every trial score. When null the fixed default blend is
   // used (identical to the pre-goals behaviour).
   const weights = opts?.weights || null;
-  const measure = (l) => computeMetrics(l, METRIC_PARAMS, weights);
+  // The planner displays the road-based walk score. The optimizer must optimise
+  // that exact same objective or its promised score can disagree after Apply.
+  const measure = (l) => computeMetrics(l, METRIC_PARAMS, weights, computeWalkReach(l));
   // Working copy — never touch the caller's layout.
   const out = JSON.parse(JSON.stringify(layout));
   const diff = [];
@@ -1019,7 +1022,8 @@ function clusterScore(layout, b, type) {
 export function proposeMoves(layout, opts = {}, k = 3, seed = 1) {
   const rng = seedRng(seed);
   const weights = opts?.weights || null;
-  const measure = (l) => computeMetrics(l, METRIC_PARAMS, weights);
+  // Keep "My move" on the same road-aware objective as Optimise and the UI.
+  const measure = (l) => computeMetrics(l, METRIC_PARAMS, weights, computeWalkReach(l));
   const out = JSON.parse(JSON.stringify(layout));
   const segs = roadSegments(out);
   const buildings = () => out.buildings;

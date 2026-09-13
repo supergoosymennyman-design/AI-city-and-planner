@@ -78,9 +78,6 @@ function buddyMsg(nameKey, msgKey) {
 const SCALE = 2000;                  // plan meters per side
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
 const MAX_UNDO = 60;
-// Planner's License gate: shared with the City Planning Academy pregame.
-const LICENSE_KEY = 'CITYSMART-P5-2026';
-const UNLOCK_STORAGE_KEY = 'p5_planner_unlocked';
 
 // ─── Goal model (display) ─────────────────────────────
 const GOAL_META = {
@@ -1733,6 +1730,32 @@ function closeMyMove() {
 }
 
 // ─── Export ─────────────────────────────────────────────
+/**
+ * The planner's weighted breakdown, carried into the 3D city. Without this the
+ * child's planning *reasoning* (goals + the score maths) would be discarded the
+ * moment they cross over, leaving only a number. With it, the 3D city can echo
+ * WHY the city scored as it did using the same rows as the 2D receipt.
+ */
+function buildPlannerPlan() {
+  const m = state.lastMetrics;
+  if (!m || !Number.isFinite(m.score)) return null;
+  const weights = effectiveWeights();
+  const mw = weights ? normalizeWeights(weights) : defaultMetricWeights();
+  return {
+    score: Math.round(m.score),
+    metrics: RECEIPT_META.map((r) => {
+      const raw = m[r.key] || 0;
+      const w = mw[r.key] || 0;
+      return {
+        key: r.key,
+        raw: Math.round(raw * 100),
+        weight: Math.round(w * 100),
+        points: Math.round(raw * w * 1000) / 10,
+      };
+    }),
+  };
+}
+
 function serializeLayout() {
   // The 3D city used to receive only static geometry. Since the planner is the
   // place the child actually "does AI" (weighs goals, picks a mayor, watches the
@@ -1754,6 +1777,7 @@ function serializeLayout() {
     state.lastMetrics && Number.isFinite(state.lastMetrics.score)
       ? Math.round(state.lastMetrics.score)
       : null;
+  const plannerPlan = buildPlannerPlan();
 
   return {
     version: 2,
@@ -1769,6 +1793,7 @@ function serializeLayout() {
     })),
     ...(goals ? { goals } : {}),
     ...(plannerScore !== null ? { plannerScore } : {}),
+    ...(plannerPlan ? { plannerPlan } : {}),
   };
 }
 
@@ -1786,9 +1811,12 @@ function exportCity() {
   try { localStorage.setItem(STORAGE_KEY, json); savedToStorage = true; } catch (e) { /* quota — fall back below */ }
   if (!savedToStorage) {
     // Storage full / blocked — fall back to a download so the student can still
-    // reach the 3D city by uploading the file there.
+    // reach the 3D city by uploading the file there. Keep the instruction on
+    // the always-visible hint bar too: the toast fades in 2.6s, so a child who
+    // looks away would be left with a seemingly-broken "View my city" button.
     downloadLayout(json);
     toast(t('planner.export.storageFull'));
+    hint(t('planner.export.storageFullHint'));
     return;
   }
   const roadsCount = state.layout.roads.length;
@@ -2294,6 +2322,7 @@ document.addEventListener('keydown', (e) => {
 });
 document.getElementById('btn-ai').addEventListener('click', askOptimise);
 document.getElementById('btn-step').addEventListener('click', runMyMove);
+document.getElementById('btn-academy').addEventListener('click', () => { window.location.href = '/pregame/'; });
 document.getElementById('btn-export').addEventListener('click', exportCity);
 document.querySelectorAll('.tool-btn').forEach((btn) => {
   btn.addEventListener('click', () => setTool(btn.dataset.tool));
@@ -2422,63 +2451,6 @@ document.getElementById('score').addEventListener('keydown', (e) => {
 });
 document.getElementById('receipt-done').addEventListener('click', closeReceipt);
 
-// ── Planner's License (unlock gate) ─────────────────────
-function isUnlocked() {
-  try { return localStorage.getItem(UNLOCK_STORAGE_KEY) === '1'; } catch (e) { return false; }
-}
-
-function maybeLock() {
-  const overlay = document.getElementById('lock-overlay');
-  if (isUnlocked() || !overlay) return;
-  overlay.classList.remove('hidden');
-}
-
-function tryUnlock(raw) {
-  const errEl = document.getElementById('lock-error');
-  // Forgiving match: trim, ignore case, accept the key anywhere in the text.
-  // A pasted/uploaded license (or a file that got wrapped in prose) still
-  // unlocks. This is a soft gate for kids — never an error wall.
-  const hasKey = typeof raw === 'string' && raw.toUpperCase().includes(LICENSE_KEY);
-  if (hasKey) {
-    try { localStorage.setItem(UNLOCK_STORAGE_KEY, '1'); } catch (e) { /* ignore */ }
-    document.getElementById('lock-overlay').classList.add('hidden');
-    toast(t('planner.unlock.toast'));
-    aiOutput.innerHTML = buddyMsg('planner.buddy.nova', 'planner.unlock.nova');
-    updateMetrics();
-    render();
-    return;
-  }
-  errEl.textContent = t('planner.unlock.error');
-}
-
-(function wireLock() {
-  const overlay = document.getElementById('lock-overlay');
-  if (!overlay) return;
-  document.getElementById('lock-goto-academy').addEventListener('click', () => {
-    // Same-origin now (unified under city-sim) — no cross-worker hop.
-    window.location.href = '/pregame/';
-  });
-  const fileInput = document.getElementById('lock-file');
-  document.getElementById('lock-upload').addEventListener('click', (e) => {
-    if (e.defaultPrevented) return;
-    e.preventDefault();
-    fileInput.click();
-  });
-  fileInput.addEventListener('change', () => {
-    const f = fileInput.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => { tryUnlock(reader.result); fileInput.value = ''; };
-    reader.readAsText(f);
-  });
-  const pasteToggle = document.getElementById('lock-paste-toggle');
-  const pasteWrap = document.getElementById('lock-paste-wrap');
-  pasteToggle.addEventListener('click', () => pasteWrap.classList.toggle('hidden'));
-  document.getElementById('lock-paste-go').addEventListener('click', () => {
-    tryUnlock(document.getElementById('lock-paste').value);
-  });
-})();
-
 // My move modal close on backdrop / X.
 document.querySelectorAll('#mymove-modal [data-mymove-close]').forEach((el) => {
   el.addEventListener('click', () => { state.mymove = null; closeMyMove(); });
@@ -2519,11 +2491,6 @@ function toast(msg) {
   setTool('place');
   updateMetrics();
   resize();
-  maybeLock();
-  if (!document.getElementById('lock-overlay').classList.contains('hidden')) {
-    // Locked — don't show the coach over the lock screen.
-  } else {
-    maybeShowCoach();
-  }
+  maybeShowCoach();
   _booted = true;   // from here on, auto-save changes announce themselves
 })();

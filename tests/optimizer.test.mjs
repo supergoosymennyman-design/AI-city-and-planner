@@ -12,6 +12,7 @@ import { computeMetrics, ratioTargets } from '../P5 Programme/buddy-kit/client/c
 import { validateLayout, sanitizeLayout } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
 import { specialKeys } from '../P5 Programme/buddy-kit/client/city-common/catalog.js';
 import { proposeMoves, applyMove, stableSeed } from '../P5 Programme/buddy-kit/client/city-common/optimize.js';
+import { computeWalkReach } from '../P5 Programme/buddy-kit/client/city-common/walkability.js';
 
 const NOISY = new Set(['power', 'traffic_lab', 'traffic_emergency', 'delivery', 'recycling']);
 const SPECIAL_SET = new Set(specialKeys());
@@ -72,6 +73,23 @@ test('empty-ish layout is safe (no throw, valid, score non-decreasing)', () => {
   const res = optimizeLayout(layout, {}, 1);
   assert.ok(validateLayout(res.layout).ok);
   assert.ok(computeMetrics(res.layout).score >= computeMetrics(layout).score - 1e-9);
+});
+
+test('optimizer promises the same road-aware score the planner displays after Apply', () => {
+  const layout = sanitizeLayout({
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [600, 1000], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [1300, 1000], footprint: [26, 24], height: 20 },
+    ],
+  });
+  const result = optimizeLayout(layout, {}, 20260913);
+  const displayedBefore = computeMetrics(layout, undefined, null, computeWalkReach(layout)).score;
+  const displayedAfter = computeMetrics(result.layout, undefined, null, computeWalkReach(result.layout)).score;
+  assert.equal(result.before.score, displayedBefore, 'shown plan start equals current UI score');
+  assert.equal(result.after.score, displayedAfter, 'shown plan result equals UI score after Apply');
 });
 
 test('already-well-balanced city stays untouched', () => {

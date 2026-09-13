@@ -24,7 +24,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { design as questDesign } from '../hong-kong-real/quest-buildings.js';
-import { QUESTS, loadQuestState, questStatus, questTheme, questComplete, saveQuestState } from '../hong-kong-real/quests.js';
+import { QUESTS, loadQuestState, questStatus, questTheme, questComplete } from '../hong-kong-real/quests.js';
 import { createChampion, WALK_SPEED } from '../hong-kong-real/champion-real.js';
 import { createDrones } from '../hong-kong-real/drones.js';
 import { createDecoTaxis } from '../hong-kong-real/deco-taxis.js';
@@ -2843,8 +2843,9 @@ function openMinigame(data) {
     overlay.classList.add('hidden');
     const st = loadQuestState();
     if (!st.completed.includes(data.questId)) {
-      st.completed.push(data.questId);
-      saveQuestState(st);            // writes QUEST_STATE_KEY + refreshes the shared cache
+      // Centralise completion so cache refresh + next-quest progression cannot
+      // drift from the quest state contract.
+      questComplete(st, data.questId);
       refreshQuestStateCache();
     }
     showToast(tf('toast.questComplete', { name: data.name }));
@@ -3338,32 +3339,81 @@ function loadLayout(raw) {
       ? { label: String(g.label || 'Balanced'), weights: g.weights && typeof g.weights === 'object' ? g.weights : null }
       : null;
     layout.plannerScore = Number.isFinite(+raw.plannerScore) ? Math.round(+raw.plannerScore) : null;
+    // The planner's weighted breakdown travels too, so the 3D city can show WHY
+    // the city scored as it did — not just a number.
+    const pp = raw.plannerPlan && typeof raw.plannerPlan === 'object' ? raw.plannerPlan : null;
+    layout.plannerPlan = pp && Array.isArray(pp.metrics)
+      ? {
+          score: Number.isFinite(+pp.score) ? Math.round(+pp.score) : null,
+          metrics: pp.metrics
+            .filter((r) => r && typeof r.key === 'string' && Number.isFinite(+r.raw) && Number.isFinite(+r.weight))
+            .slice(0, 12)
+            .map((r) => ({ key: r.key, raw: Math.round(+r.raw), weight: Math.round(+r.weight), points: Number.isFinite(+r.points) ? +r.points : 0 })),
+        }
+      : null;
   } else {
     layout.goals = null;
     layout.plannerScore = null;
+    layout.plannerPlan = null;
   }
   applyPlanChip();
   return true;
 }
 
+// Planner metric keys → bilingual names (mirrors the 2D receipt rows).
+const PLAN_METRIC_KEYS = ['accessibility', 'coverage', 'utilities', 'zoning', 'spread', 'balance'];
+let _plannerPlan = null;
+
 /** Echo the planner's AI goals + score in the HUD chip (hidden when absent). */
 function applyPlanChip() {
   const chip = document.getElementById('plan-ai-chip');
   if (!chip) return;
+  _plannerPlan = layout && layout.plannerPlan && Array.isArray(layout.plannerPlan.metrics) && layout.plannerPlan.metrics.length
+    ? layout.plannerPlan
+    : null;
   const gl = layout && layout.goals && layout.goals.label ? String(layout.goals.label) : null;
   const sc = layout && layout.plannerScore != null ? Math.round(layout.plannerScore) : null;
   if (!gl && sc === null) { chip.hidden = true; return; }
-  const zh = (() => { try { return localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant'; } catch { return false; } })();
-  const name = gl || (zh ? '均衡目標' : 'Balanced');
+  const name = gl || t('plan.balanced');
   const scorePart = sc !== null ? ' · ' + sc : '';
   chip.textContent = '🌆 ' + name + scorePart;
-  chip.title = (zh ? '規劃師 AI 的目標與得分' : 'Planner AI goals + score') + (sc !== null ? ' · ' + sc : '');
+  chip.title = t('entry.planChip') + (sc !== null ? ' · ' + sc : '');
+  chip.setAttribute('aria-label', t('plan.buttonAria') + ' — ' + name + (sc !== null ? ' · ' + sc : ''));
   chip.hidden = false;
 }
 
+/** Render the planner's weighted score breakdown inside the 3D city. */
+function openPlanModal() {
+  const modal = document.getElementById('plan-modal');
+  const body = document.getElementById('plan-body');
+  if (!modal || !body || !_plannerPlan) return;
+  const label = layout && layout.goals && layout.goals.label ? String(layout.goals.label) : t('plan.balanced');
+  const score = _plannerPlan.score != null ? _plannerPlan.score : (_plannerPlan.metrics.length ? '' : '—');
+  // Keep the receipt's row order even if the planner ever sends a subset.
+  const byKey = new Map(_plannerPlan.metrics.map((r) => [r.key, r]));
+  const rows = PLAN_METRIC_KEYS
+    .filter((k) => byKey.has(k))
+    .map((k) => {
+      const r = byKey.get(k);
+      return `<div class="plan-row">
+        <span class="plan-row-name">${t('plan.metric.' + k)}</span>
+        <span class="plan-row-math">${r.raw}% × ${r.weight}%</span>
+        <span class="plan-row-pts">${(Math.round(r.points * 10) / 10).toFixed(1)}</span>
+      </div>`;
+    }).join('') || `<p class="plan-note">${t('plan.empty')}</p>`;
+  body.innerHTML = `
+    <div class="plan-head">${t('plan.goalLabel')} <strong>${label}</strong> · <strong>${score}</strong>/100</div>
+    <p class="plan-note">${t('plan.note')}</p>
+    <div class="plan-rows">${rows}</div>`;
+  modal.classList.remove('hidden');
+}
+
+
 function showEntryError(msg) {
-  const sub = document.querySelector('.entry-card p');
-  if (sub) sub.textContent = '⚠️ ' + msg;
+  // Dedicated slot (#entry-error) — i18n applyStatic() never touches it, so a
+  // later re-localize (boot / language toggle) can't wipe the message.
+  const el = document.getElementById('entry-error');
+  if (el) { el.textContent = '⚠️ ' + msg; el.hidden = false; }
 }
 
 // ── Champion File: save / cloud / restore (cross-device backup) ─────────────
@@ -3924,8 +3974,8 @@ function showBootError(msg) {
   const loading = document.getElementById('loading');
   const fill = document.getElementById('loading-fill');
   if (fill) fill.style.width = '100%';
-  const sub = document.querySelector('.entry-card p');
-  if (sub) sub.textContent = '⚠️ ' + msg;
+  const err = document.getElementById('entry-error');
+  if (err) { err.textContent = '⚠️ ' + msg; err.hidden = false; }
   const localBtn = document.getElementById('entry-local');
   if (localBtn) localBtn.textContent = '↻ Try again';
   const overlay = document.getElementById('entry-overlay');
@@ -4142,7 +4192,16 @@ async function bootInner() {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
+initI18n();          // resolve the saved/browser language BEFORE first paint
 applyStatic();       // localize the entry overlay before it's shown
+// Planner plan panel: the 🌆 HUD chip opens the weighted breakdown carried
+// from the 2D planner, so the child's planning reasoning survives the crossover.
+(function wirePlanModal() {
+  const chip = document.getElementById('plan-ai-chip');
+  const modal = document.getElementById('plan-modal');
+  if (chip) chip.addEventListener('click', openPlanModal);
+  if (modal) modal.querySelectorAll('[data-plan-close]').forEach((el) => el.addEventListener('click', () => modal.classList.add('hidden')));
+})();
 startEntryFlow();
 window.addEventListener('resize', () => {
   if (renderer && camera) {

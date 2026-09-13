@@ -11,25 +11,6 @@
 </head>
 <body>
 
-<!-- Lock screen: shown until the student earns a Planner's License -->
-<div id="lock-overlay" class="lock-overlay hidden">
-  <div class="lock-card">
-    <div class="lock-emoji">🔒</div>
-    <h1 class="lock-title" data-i18n="planner.lock.title">Earn your Planner's License to open this city</h1>
-    <p class="lock-text"><span data-i18n="planner.lock.pre">Finish the </span><strong data-i18n="planner.lock.academy">City Planning Academy</strong><span data-i18n="planner.lock.mid"> and the planner opens by itself on this tablet. Going to a new tablet? Bring your </span><strong data-i18n="planner.lock.file">license file</strong><span data-i18n="planner.lock.post"> — the "Algorithm File" from the training, a tiny .json certificate.</span></p>
-    <button id="lock-goto-academy" class="lock-btn primary" data-i18n="planner.lock.goto">🎓 Go to City Planning Academy</button>
-    <div class="lock-divider" data-i18n="planner.lock.or">or</div>
-    <button id="lock-upload" class="lock-btn" data-i18n="planner.lock.upload">📁 Upload my license file</button>
-    <input type="file" id="lock-file" accept=".json,application/json" class="visually-hidden">
-    <button id="lock-paste-toggle" class="lock-link" data-i18n="planner.lock.pasteToggle">📋 Paste the file instead</button>
-    <div id="lock-paste-wrap" class="lock-paste-wrap hidden">
-      <textarea id="lock-paste" rows="5" placeholder='{"title":"City Planner&#39;s License","key":"…"}'></textarea>
-      <button id="lock-paste-go" class="lock-btn" data-i18n="planner.lock.pasteGo">⬆️ Unlock with pasted file</button>
-    </div>
-    <p id="lock-error" class="lock-error" aria-live="polite"></p>
-  </div>
-</div>
-
 <header id="topbar">
   <div class="title" data-i18n="planner.title.app">🏙️ AI City Planner</div>
   <div class="tools" role="toolbar" data-i18n-aria="planner.toolbar.aria" aria-label="Planning tools">
@@ -51,6 +32,7 @@
     </div>
     <button id="btn-step" class="action-btn step" data-i18n="planner.mymove" data-i18n-title="planner.mymoveTitle" title="Be the planner — predict the best change, then see the maths">🧠 My move</button>
     <button id="btn-ai" class="action-btn opt" data-i18n="planner.optimise" data-i18n-title="planner.optimiseTitle" title="Let the city optimiser improve your city in one pass">🧮 Optimise</button>
+    <button id="btn-academy" class="action-btn" data-i18n="planner.academy" data-i18n-title="planner.academyTitle" title="Learn how the planner works">🎓 Learn</button>
     <div class="import-wrap">
       <button id="btn-import" class="action-btn" data-i18n="planner.open" data-i18n-title="planner.openTitle" title="Open a saved city from a JSON file">📂 Open</button>
       <div id="import-menu" class="import-menu hidden">
