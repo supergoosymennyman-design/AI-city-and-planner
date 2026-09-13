@@ -20,6 +20,7 @@
 import { WEIGHT_LAB, weightLabTotal, DIJKSTRA_LESSON, DIJKSTRA_BUS_DIST, dijkstraReveal, dijkstraWinner } from './lesson-core.js';
 import { initI18n, currentLang, t, tf, applyStatic, mountLangToggle } from './i18n.js';
 import { collectState, composeChampionFile, championFilename } from '../city-common/champion-file.js';
+import { parseProgress, mergeProgress } from '../city-common/pregame-progress.js';
 
 initI18n();
 
@@ -58,19 +59,23 @@ const state = {
   hintLevel: {},
 };
 
-function loadProgress() {
+function readStored() {
   try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); } catch { return {}; }
 }
 function saveProgress() {
   // Merge with what's already stored instead of blind-overwriting: two
   // same-origin tabs finishing different rooms must not lose each other's
   // progress (a refresh/tab that completed Room 2 earlier still has Room 2
-  // marked after this tab completes Room 4).
+  // marked after this tab completes Room 4). mergeProgress also refreshes the
+  // versioned checkpoint (resumable room + hint levels) under a reserved,
+  // non-room key — legacy flat saves stay readable.
   try {
-    let prev = {};
-    try { prev = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); } catch { prev = {}; }
-    if (!prev || typeof prev !== 'object' || Array.isArray(prev)) prev = {};
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ ...prev, ...state.completed }));
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(
+      mergeProgress(readStored(), state.completed, {
+        currentRoom: state.currentRoom,
+        hintLevel: state.hintLevel,
+      })
+    ));
   } catch { /* ignore */ }
 }
 
@@ -150,6 +155,7 @@ function hintButton(room, container) {
       f.innerHTML = `<span class="icon" aria-hidden="true">💡</span> ${hint}`;
     }
     if (!ROOMS[room].hints[level + 1]) btn.disabled = true;
+    saveProgress();   // persist the hint level in the checkpoint
   });
   wrap.appendChild(btn);
   container.appendChild(wrap);
@@ -201,6 +207,7 @@ function roomPathHTML(current) {
 function renderRoom(room) {
   state.currentRoom = room;
   updateNav();
+  saveProgress();   // checkpoint the resumable room
   const r = ROOMS[room];
   const el = document.createElement('div');
   el.className = 'room';
@@ -1133,9 +1140,13 @@ window.addEventListener('i18n:change', () => {
 
 // ── Init ────────────────────────────────────────────────
 document.getElementById('btn-start').addEventListener('click', () => {
-  // Resume returning students at the first room they haven't finished yet
-  // (a refresh/tab that completed earlier rooms shouldn't redo Room 1).
-  state.currentRoom = ROOM_ORDER.find((r) => !state.completed[r]) || ROOM_ORDER[0];
+  // Resume returning students: prefer the saved checkpoint room, else the first
+  // room they haven't finished (a refresh/tab that completed earlier rooms
+  // shouldn't redo Room 1).
+  const resume = state.currentRoom;
+  state.currentRoom = (Number.isInteger(resume) && !state.completed[resume])
+    ? resume
+    : (ROOM_ORDER.find((r) => !state.completed[r]) || ROOM_ORDER[0]);
   showScreen('rooms');
   window.scrollTo({ top: 0 });
 });
@@ -1147,6 +1158,14 @@ document.getElementById('modal-cancel').addEventListener('click', closeRestartMo
 document.getElementById('modal-ok').addEventListener('click', () => { closeRestartModal(); restart(); });
 document.getElementById('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeRestartModal(); });
 
+// Data-loss safety: flush the checkpoint when the tab is hidden or closed.
+// iOS Safari can evict localStorage, so the last reliable moment is pagehide /
+// visibilitychange, not the next room completion.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveProgress();
+});
+window.addEventListener('pagehide', saveProgress);
+
 // Nav dots: allow revisiting completed rooms or the next unlocked room.
 $$('.nav-dot').forEach((dot) => {
   const go = () => {
@@ -1156,13 +1175,23 @@ $$('.nav-dot').forEach((dot) => {
       state.currentRoom = room;
       showScreen('rooms');
       window.scrollTo({ top: 0 });
+      saveProgress();
     }
   };
   dot.addEventListener('click', go);
   dot.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
 });
 
-// Restore completion from localStorage so a refresh keeps progress.
-Object.assign(state.completed, loadProgress());
+// Restore completion + the room-level checkpoint so a refresh keeps progress.
+const restored = parseProgress(readStored(), ROOM_ORDER.length);
+Object.assign(state.completed, restored.completed);
+if (restored.checkpoint) {
+  Object.assign(state.hintLevel, restored.checkpoint.hintLevel || {});
+  const cr = restored.checkpoint.currentRoom;
+  // Only resume an unfinished room whose predecessor is done (never skip ahead).
+  if (cr && !state.completed[cr] && (cr === 1 || state.completed[cr - 1])) {
+    state.currentRoom = cr;
+  }
+}
 updateNav();
 if (ROOM_ORDER.every((r) => state.completed[r])) graduate();
