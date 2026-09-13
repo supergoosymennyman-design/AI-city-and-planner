@@ -79,6 +79,12 @@ const SCALE = 2000;                  // plan meters per side
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
 const MAX_UNDO = 60;
 
+// prefers-reduced-motion must be honoured in JS animation loops, not just CSS
+// (P5-LESSON-CONVENTIONS). Under reduce, highlights/route counts render once.
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 // ─── Goal model (display) ─────────────────────────────
 const GOAL_META = {
   happy: { name: 'Happy Homes', emoji: '🏘️' },
@@ -1661,8 +1667,7 @@ function flashOneMove(move) {
   else if (move.action === 'add' && move.to) marks.push({ x: move.to[0], z: move.to[1], color: '#3ddc84' });
   else if (move.action === 'move' && move.to) marks.push({ x: move.to[0], z: move.to[1], color: '#00b7ff' });
   if (!marks.length) { render(); return; }
-  const end = Date.now() + 1600;
-  function drawFlash() {
+  const draw = () => {
     render();
     for (const mk of marks) {
       const c = planToScreen(mk.x, mk.z);
@@ -1675,6 +1680,12 @@ function flashOneMove(move) {
       ctx.strokeRect(c.x - s / 2, c.y - s / 2, s, s);
       ctx.restore();
     }
+  };
+  // Reduced motion: paint the highlight once (the toast carries the text result).
+  if (prefersReducedMotion()) { draw(); return; }
+  const end = Date.now() + 1600;
+  function drawFlash() {
+    draw();
     if (Date.now() < end) requestAnimationFrame(drawFlash);
   }
   drawFlash();
@@ -2290,8 +2301,7 @@ function flashChanges(oldLayout, diff) {
     }
   }
   if (!marks.length) return;
-  const end = Date.now() + FLASH_MS;
-  function drawFlash() {
+  const draw = () => {
     render();   // repaint the base map
     for (const mk of marks) {
       const c = planToScreen(mk.x, mk.z);
@@ -2304,6 +2314,12 @@ function flashChanges(oldLayout, diff) {
       ctx.strokeRect(c.x - s / 2, c.y - s / 2, s, s);
       ctx.restore();
     }
+  };
+  // Reduced motion: one static highlight (the "plan applied" toast is the text result).
+  if (prefersReducedMotion()) { draw(); return; }
+  const end = Date.now() + FLASH_MS;
+  function drawFlash() {
+    draw();
     if (Date.now() < end) requestAnimationFrame(drawFlash);
   }
   drawFlash();

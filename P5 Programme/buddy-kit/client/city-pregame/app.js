@@ -811,6 +811,16 @@ function challenge3(container) {
     walk.style.transition = 'none';
     ant.setAttribute('opacity', '1');
 
+    // Reduced motion: show the chosen route + final total instantly — no ant
+    // race, no count-up loop (the numbers are the feedback).
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      ant.setAttribute('opacity', '0');
+      value.textContent = tf('c3.budgetValue', { shown: total });
+      fill.style.width = Math.min(100, (total / BUDGET) * 100) + '%';
+      fill.classList.toggle('over', total > BUDGET);
+      return;
+    }
+
     const steps = 90;
     let i = 0;
     const animate = () => {
