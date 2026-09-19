@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My AI City — 3D</title>
+  <script>
+    // Browser support check: this sim needs ES modules + import maps.
+    (function () {
+      var ok = (function () {
+        var s = document.createElement('script');
+        var hasImportMapProp = 'importmap' in s;
+        var hasSupportsAPI = !!window.HTMLScriptElement && typeof HTMLScriptElement.supports === 'function';
+        if (hasSupportsAPI) return !!HTMLScriptElement.supports('importmap');
+        return hasImportMapProp;
+      })();
+      if (ok) return;
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;' +
+        'background:#0b1220;color:#eaf2f8;font:700 16px system-ui,sans-serif;text-align:center;padding:28px;';
+      d.textContent = 'This AI City game needs a modern browser (Chrome, Edge, Firefox, or Safari). Please update and reload.';
+      document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(d); });
+    })();
+  </script>
+  <link rel="stylesheet" href="../champion-city/styles.css">
+  <link rel="stylesheet" href="./my-work.css">
+  <link rel="stylesheet" href="./presentation.css">
+  <script src="/crash-guard.js"></script>
+  <style>
+    #entry-overlay {
+      position: fixed; inset: 0; z-index: 400;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+      background: linear-gradient(160deg, #0b132b, #16224a);
+      font-family: var(--font-ui, sans-serif); color: #eaf2f8;
+    }
+    #entry-overlay.hidden { display: none; }
+    .visually-hidden {
+      position: absolute !important; width: 1px; height: 1px;
+      margin: -1px; padding: 0; border: 0;
+      clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden;
+      white-space: nowrap;
+    }
+    .entry-card {
+      box-sizing: border-box; width: min(540px, 100%); max-height: calc(100dvh - 48px);
+      overflow: auto; text-align: center;
+      background: #121d3d;
+      border: 2px solid #00ddec; border-radius: 22px;
+      padding: 28px 24px 24px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.28);
+    }
+    .entry-card h1 { display:flex; justify-content:center; align-items:center; gap:8px; margin: 0 0 8px; font-size: 27px; color: #00e8f4; }
+    .entry-card p { margin: 0 auto 18px; max-width: 430px; font-size: 15px; color: #b8c6dc; text-align:center; line-height:1.4; }
+    .entry-btn {
+      display: flex; align-items:center; justify-content:center; box-sizing:border-box; width: 100%;
+      min-height: 54px; margin: 10px 0;
+      border-radius: 13px; border: 1px solid transparent;
+      background: #1c294d; color: #f4f8ff;
+      font-size: 16px; font-weight: 800; cursor: pointer;
+    }
+    .entry-btn:hover { border-color: #00ddec; }
+    .entry-btn.primary { background: #00e695; color: #06283a; box-shadow: 0 4px 0 #00ab71; }
+    .entry-btn.cloud-btn { border-color: rgba(0, 183, 255, 0.55); background: #0f2c4a; color: #bfe9ff; }
+    .entry-save-divider { margin: 18px 0 7px; font-size: 11px; font-weight: 800; color: #8191ad; letter-spacing: 0.75px; text-align:center; }
+    .entry-hint { max-width:400px; font-size: 12px; color: #8d9bb4; margin: 18px auto 0; text-align:center; line-height:1.4; }
+    #entry-open-flow { width:100%; }
+    #entry-open-flow > summary { justify-content:center; text-align:center; }
+    #entry-skin { margin-top:0; border-color:rgba(0,221,236,0.5); background:#172b50; color:#effcff; }
+    #entry-skin::after { content:'⌁'; margin-left:10px; color:#00e8f4; font-size:20px; line-height:1; }
+    #skin-status { text-align:center; line-height:1.35; }
+    /* Dedicated transient error slot. Deliberately NOT localized by applyStatic()
+       and NOT carrying data-i18n — otherwise a later re-localize (boot, language
+       toggle) would overwrite the message before the child can read it. */
+    .entry-card .entry-error {
+      margin: 0 0 14px; padding: 10px 12px; font-size: 14px; font-weight: 700;
+      color: #ffd0d8; background: rgba(255, 92, 122, 0.14);
+      border: 1px solid rgba(255, 92, 122, 0.5); border-radius: 12px;
+      text-align: left; line-height: 1.4;
+    }
+    .entry-card .entry-error[hidden] { display: none; }
+    .entry-plan {
+      font-size: 14px; font-weight: 700; color: #00f2fe;
+      background: rgba(0,242,254,0.08);
+      border: 1px solid rgba(0,242,254,0.25);
+      border-radius: 999px; padding: 6px 14px; margin: 8px auto 2px;
+      max-width: 92%; line-height: 1.4;
+    }
+    .skin-status { font-size: 12px; color: #00ff9d; margin-top: 8px; min-height: 14px; }
+    @media (max-width: 520px) {
+      #entry-overlay { padding:16px; align-items:center; }
+      .entry-card { padding:26px 24px 22px; border-radius:20px; }
+      .entry-card h1 { font-size:26px; }
+      .entry-card p { font-size:15px; }
+    }
+    #paste-wrap textarea {
+      width: 100%; min-height: 90px; margin-top: 8px;
+      border-radius: 10px; border: 1px solid #33406e;
+      background: #0b132b; color: #eaf2f8;
+      font-family: ui-monospace, monospace; font-size: 12px; padding: 8px;
+    }
+    /* The quest "Enter" prompt sits near the TOP-MIDDLE here, clear of the
+       buddy chat panel (right/bottom) and the model-library slide-out (left). */
+    #quest-prompt {
+      top: 92px; bottom: auto;
+      left: 50%; transform: translateX(-50%);
+      z-index: 130;
+    }
+    /* Walk / Run — the only movement controls (camera-relative forward).
+       Steer by orbiting the camera. Styled like the shared action buttons so
+       they read as the same control family. */
+    .walk-run { display: flex; gap: 12px; }
+    .move-btn {
+      width: 88px; height: 88px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 242, 254, 0.5);
+      background: rgba(10, 15, 29, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #f8fafc;
+      font-size: 26px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+      transition: transform 0.1s ease, background 0.1s ease;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .move-btn span {
+      font-size: 10px;
+      letter-spacing: 0.4px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .move-btn:active { transform: scale(0.9); background: rgba(0, 242, 254, 0.18); }
+    #btn-run.move-btn { border-color: rgba(0, 255, 157, 0.6); }
+    @media (max-width: 640px), (max-height: 640px) {
+      .move-btn { width: 68px; height: 68px; font-size: 22px; }
+    }
+    /* "Take me home" — sits in the camera/skin toggle row (top-left). */
+    #btn-home {
+      position: fixed; top: 64px; left: 128px; z-index: 95;
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border, rgba(255,255,255,0.2));
+      background: var(--bg, rgba(10,15,29,0.85));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: var(--shadow, 0 4px 16px rgba(0,0,0,0.35));
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #btn-home:active { transform: scale(0.92); background: rgba(0, 242, 254, 0.18); }
+    /* "Select and move" — toggles the grab/select mode for placed library
+       models (the 🎯 glyph has nothing to do with quests; the goal ring in the
+       world marks the next quest). Renamed so the aria/title copy matches the
+       actual behaviour. */
+    #btn-next {
+      position: fixed; top: 64px; left: 184px; z-index: 95;
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border, rgba(255,255,255,0.2));
+      background: var(--bg, rgba(10,15,29,0.85));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: var(--shadow, 0 4px 16px rgba(0,0,0,0.35));
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #btn-next:active { transform: scale(0.92); background: rgba(0, 242, 254, 0.18); }
+    /* "Back to My AI City (hub)" — sits at the end of the top-left tool row,
+       after 🏠 Take me home and 🎯 Select. A distinct 🚪 exit glyph + warm
+       border so "leave to the hub" never reads as the same action as the
+       in-city 🏠 home button. */
+    #btn-hub {
+      position: fixed; top: 64px; left: 240px; z-index: 95;
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 184, 76, 0.6);
+      background: var(--bg, rgba(10,15,29,0.85));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: var(--shadow, 0 4px 16px rgba(0,0,0,0.35));
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #btn-hub:hover { border-color: #ffb84c; }
+    #btn-hub:active { transform: scale(0.92); background: rgba(255, 184, 76, 0.18); }
+    /* 🌆 Plan chip is a <button> so it can open the score breakdown. The base
+       pill style lives here (not city-builder/styles.css, which is not linked
+       — see audit note) so the chip is styled regardless. */
+    button.plan-chip {
+      margin-left: 10px; display: inline-flex; align-items: center;
+      min-height: 44px; padding: 0 14px;
+      border: 1px solid rgba(0, 242, 254, 0.35); border-radius: 999px;
+      background: rgba(10, 15, 29, 0.85); color: #00f2fe;
+      font-size: 14px; font-weight: 700; line-height: 1.2; white-space: nowrap;
+      cursor: pointer; font-family: inherit;
+    }
+    button.plan-chip[hidden] { display: none !important; }
+    button.plan-chip:hover { border-color: #00f2fe; }
+    button.plan-chip:active { transform: scale(0.97); }
+    /* Weighted-breakdown rows (mirrors the 2D planner's receipt). */
+    .plan-head { font-size: 15px; font-weight: 700; color: #eaf2f8; margin-bottom: 6px; }
+    .plan-note { font-size: 13px; color: #9fb0c7; margin: 0 0 12px; line-height: 1.45; }
+    .plan-rows { display: flex; flex-direction: column; gap: 6px; }
+    .plan-row {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+      padding: 8px 10px; border-radius: 10px;
+      background: rgba(0, 242, 254, 0.06);
+      border: 1px solid rgba(0, 242, 254, 0.16);
+      font-size: 13px;
+    }
+    .plan-row-name { color: #eaf2f8; font-weight: 700; }
+    .plan-row-math { color: #9fb0c7; font-variant-numeric: tabular-nums; }
+    .plan-row-pts { color: #00f2fe; font-weight: 800; min-width: 38px; text-align: right; }
+    /* Solid panels: kill glass blur on the chrome this app actually uses.
+       Cheaper compositing on tablets and reads as solid paper/plastic,
+       matching the "toy diorama" direction instead of AI-slop glass. */
+    #orbit-toggle, #skin-toggle, #btn-home, #btn-next, #btn-hub,
+    #skin-panel, #quest-prompt, .action-btn, .move-btn, .toast {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+  </style>
+  <link rel="stylesheet" href="../city-common/interface.css">
+</head>
+<body>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/three.module.js",
+    "three/addons/": "/vendor/three/addons/",
+    "three/examples/jsm/": "/vendor/three/addons/"
+  }
+}
+</script>
+
+<div id="stage"></div>
+
+<div id="loading">
+  <div class="loading-logo">🏙️</div>
+  <div class="loading-title">My AI City</div>
+  <div class="loading-sub">Building your city…</div>
+  <div class="loading-bar"><div id="loading-fill"></div></div>
+</div>
+
+<!-- Entry: load a student layout -->
+<div id="entry-overlay">
+  <div class="entry-card">
+    <h1 data-i18n="hud.title">🏙️ My AI City</h1>
+    <p data-i18n="entry.intro">Your city from the planner is ready to explore in 3D!</p>
+    <p class="entry-plan" id="entry-plan" hidden></p>
+    <p id="entry-error" class="entry-error" role="alert" hidden></p>
+    <button class="entry-btn primary" id="entry-local">▶ Start my saved city</button>
+    <div class="resume-note" id="entry-resume" hidden></div>
+
+    <details id="entry-open-flow">
+    <summary class="entry-btn">Open or restore</summary>
+    <div class="entry-save-divider" role="separator" data-i18n="entry.divDevice">— take your city to another device —</div>
+    <button class="entry-btn cloud-btn" id="entry-cloud-save" data-i18n="entry.cloudSave" data-i18n-title="entry.cloudSaveTitle" title="Save to the cloud and get a code to restore anywhere">☁️ Save to cloud</button>
+    <button class="entry-btn cloud-btn" id="entry-cloud-open" data-i18n="entry.cloudOpen" data-i18n-title="entry.cloudOpenTitle" title="Open a city you saved to the cloud with a code">☁️ Open from cloud</button>
+
+    <div class="entry-save-divider" role="separator" data-i18n="entry.divFile">— or keep it as a file —</div>
+    <button class="entry-btn" id="entry-save" data-i18n="entry.saveMine" data-i18n-title="entry.saveTitle" title="Download a backup file of your whole city">💾 Save my city</button>
+    <label class="entry-btn" id="entry-file" for="file-input" data-i18n="entry.openFile">📁 Open my city file</label>
+    <button class="entry-btn" id="entry-paste" data-i18n="entry.pasteJson">📋 Paste JSON</button>
+    <input type="file" id="file-input" accept=".json,application/json" class="visually-hidden">
+    <div id="paste-wrap" style="display:none">
+      <textarea id="paste-box" placeholder='Paste your layout JSON here…'></textarea>
+      <button class="entry-btn primary" id="paste-go" data-i18n="entry.loadIt">Load it!</button>
+    </div>
+    </details>
+
+    <div class="entry-save-divider" role="separator" data-i18n="entry.divSkin">— make it yours —</div>
+    <label class="entry-btn" id="entry-skin" for="skin-input" data-i18n="entry.skinLabel">🎨 Upload your fitted champion (.glb)</label>
+    <input type="file" id="skin-input" accept=".glb,model/gltf-binary" class="visually-hidden">
+    <div class="skin-status" id="skin-status"></div>
+
+    <div class="entry-hint">Your city stays on this device. Use Save in the city to make a Champion File or cloud code for another lesson.</div>
+  </div>
+</div>
+
+<!-- Save modal: name + Download / Save-to-cloud (shows the code) -->
+<div id="save-modal" data-i18n-aria="saveModal.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="Save my city">
+  <div class="modal-backdrop" data-save-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title" data-i18n="saveModal.title">💾 Save my city</span>
+      <button class="modal-close" data-save-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="save-intro" data-i18n="saveModal.intro">Give your city a name so you can find it later — a fun city name is perfect (no need for your real name).</p>
+      <input id="save-name" class="save-input" type="text" value="my-ai-city" maxlength="60" data-i18n-aria="saveModal.nameAria" aria-label="City name">
+      <div class="goals-actions save-actions">
+        <button id="save-download" class="entry-btn" data-i18n="saveModal.download">💾 Download</button>
+        <button id="save-cloud" class="entry-btn primary-save" data-i18n="saveModal.cloud">☁️ Save to cloud</button>
+      </div>
+      <div id="save-cloud-result" role="status" class="save-cloud-result" hidden></div>
+    </div>
+  </div>
+</div>
+
+<!-- Cloud open modal: enter the code -->
+<div id="cloud-modal" data-i18n-aria="cloud.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="Open from cloud">
+  <div class="modal-backdrop" data-cloud-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title" data-i18n="cloud.title">☁️ Open from cloud</span>
+      <button class="modal-close" data-cloud-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="save-intro" data-i18n="cloud.intro">Type the code you got when you saved (it looks like <b>tiger-bamboo-river-umbrella</b>).</p>
+      <input id="cloud-code" class="save-input" type="text" maxlength="64" placeholder="tiger-bamboo-river-umbrella" data-i18n-aria="ui.cloudCode" aria-label="Cloud code" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <div class="goals-actions"><button id="cloud-load" class="plan-apply" data-i18n="cloud.load">☁️ Load my city</button></div>
+      <div id="cloud-load-result" class="save-cloud-result" aria-live="polite"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Inspector's Logbook: tier emblem tap target -->
+<div id="logbook-modal" data-i18n-aria="logbook.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="Inspector's Logbook">
+  <div class="modal-backdrop" data-logbook-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title" data-i18n="logbook.title">🎖️ Inspector's Logbook</span>
+      <button class="modal-close" data-logbook-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="logbook-body"></div>
+  </div>
+</div>
+
+<!-- Capability Panel: planted AI machines (Stage 1 — display only, honest) -->
+<div id="cap-modal" data-i18n-aria="cap.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="Your planted AI machines">
+  <div class="modal-backdrop" data-cap-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title" data-i18n="cap.title">📦 Your planted AI machines</span>
+      <button class="modal-close" data-cap-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="cap-body"></div>
+  </div>
+</div>
+<input type="file" id="cap-file" accept=".json,application/json,.cap" class="visually-hidden">
+
+<!-- My plan: the weighted score breakdown carried from the 2D planner -->
+<div id="plan-modal" data-i18n-aria="plan.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="My city plan">
+  <div class="modal-backdrop" data-plan-close></div>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="modal-title" data-i18n="plan.title">📋 My city plan</span>
+      <button class="modal-close" data-plan-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="plan-body"></div>
+  </div>
+</div>
+
+<header id="hud-top">
+  <div class="hud-left"><span class="hud-title" data-i18n="hud.title">🏙️ My AI City</span></div>
+  <nav id="city-mode-switch" aria-label="City mode">
+    <button type="button" class="city-mode active" data-city-mode="explore" aria-pressed="true" data-i18n="ui.explore">Explore</button>
+    <button type="button" class="city-mode" data-city-mode="decorate" aria-pressed="false" data-i18n="ui.decorate">Decorate</button>
+  </nav>
+  <div class="hud-right">
+    <span class="hud-mission-count" data-i18n="hud.cityLabel">🤖 Your AI City</span>
+    <button class="plan-chip" id="plan-ai-chip" type="button" hidden></button>
+    <button id="btn-save-hud" data-i18n-aria="saveModal.title" class="hud-chip" aria-label="Save my city (backup)" data-i18n-title="saveModal.title" title="Save my city"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 19h14"/></g></svg><span data-i18n="ui.save">Save</span></button>
+    <details id="city-more"><summary data-i18n="ui.optional">More / history</summary><div class="city-secondary">
+    <button id="more-home" class="hud-chip" type="button" data-i18n="ui.homeShort">Home</button>
+    <button id="more-camera" class="hud-chip" type="button" data-i18n="ui.camera">Camera</button>
+    <button id="more-hub" class="hud-chip" type="button" data-i18n="ui.exitHub">Exit to hub</button>
+    <button id="more-drive" class="hud-chip" type="button" data-i18n="ui.carTitle">Choose a car</button>
+    <button id="cap-btn" data-i18n-aria="ui.inspect" class="hud-chip" aria-label="Your planted AI machines" data-i18n-title="ui.inspect" title="Your planted AI machines"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v2M12 3v2M15 3v2M9 19v2M12 19v2M15 19v2M3 9h2M3 12h2M3 15h2M19 9h2M19 12h2M19 15h2"/></g></svg></button>
+    <button id="badge-emblem" data-i18n-aria="ui.badge" class="badge-emblem" aria-label="Your inspector badge" data-i18n-title="ui.badge" title="Inspector badge"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 2 2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 16.9 6.2 19.8l1.1-6.4L2.6 8.8l6.5-.9Z"/></g></svg></button>
+    </div></details>
+  </div>
+</header>
+
+<button id="orbit-toggle" data-i18n-aria="ui.look" aria-label="Look around (rotate camera)" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></g></svg></button>
+<button id="skin-toggle" data-i18n-aria="ui.skin" aria-label="Choose skin" aria-expanded="false"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c.6-3.4 3.5-5 7.5-5s6.9 1.6 7.5 5"/></g></svg></button>
+  <button id="btn-home" data-i18n-aria="ui.home" aria-label="Take me home" data-i18n-title="ui.home" title="Take me home"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/></g></svg></button>
+  <button id="btn-next" data-i18n-aria="ui.move" aria-label="Select and move things" data-i18n-title="ui.move" title="Select and move things"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></g></svg></button>
+  <button id="btn-hub" data-i18n-aria="ui.hub" aria-label="Back to My AI City home page" data-i18n-title="ui.hub" title="Back to My AI City home page"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4"/><path d="M10 9l-3 3 3 3"/><path d="M7 12h10"/></g></svg></button>
+  <div id="skin-panel" aria-hidden="true">
+  <div class="skin-panel-title">Choose your champion</div>
+  <div id="skin-list"></div>
+</div>
+
+<div id="toasts"></div>
+
+<div id="quest-prompt" class="hidden">
+  <div class="quest-prompt-label" id="quest-prompt-label">🏛️</div>
+  <button id="quest-prompt-btn" data-i18n="quest.enter">View purpose</button>
+</div>
+
+<!-- Minigame overlay -->
+<div id="game-overlay" class="hidden" role="dialog" aria-modal="true" data-i18n-aria="ui.activity" aria-label="Optional activity">
+  <div id="game-overlay-bar">
+    <span id="game-overlay-title">Optional activity</span><span data-i18n="work.linkHelp">Optional link unavailable or blank? Return to City.</span>
+    <div class="game-overlay-actions">
+      <button id="game-overlay-done" data-i18n="game.done">✅ 完成 Done</button>
+      <button id="game-overlay-close" data-i18n="game.return">↩ 返回城市 Return to City</button>
+    </div>
+  </div>
+  <!-- Audit A8: the minigame/Workshop frame is SANDBOXED and only programme-owned
+       origins may load here (enforced in openMinigame()). Camera + mic stay allowed
+       because the Workshop games use them; sandbox still blocks top-navigation,
+       popups-by-default and same-origin escapes. -->
+  <iframe id="game-frame" title="Minigame" allow="microphone; camera" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock"></iframe>
+</div>
+
+<div id="controls">
+  <div class="controls-left">
+    <div class="action-bar">
+      <button class="action-btn hidden" id="btn-jump">🦘<span data-i18n="ctl.jump">Jump</span></button>
+      <button class="action-btn hidden" id="btn-flyup">⬆️<span data-i18n="ctl.climb">Climb</span></button>
+      <button class="action-btn hidden" id="btn-flydown">⬇️<span data-i18n="ctl.descend">Descend</span></button>
+      <button class="action-btn" id="btn-drive">🚗<span data-i18n="ctl.drive">Drive</span></button>
+      <button class="action-btn" id="btn-taxi">🚕<span data-i18n="ctl.taxi">Taxi</span></button>
+      <details id="actions-tray"><summary data-i18n="ui.actions">Actions</summary><div>
+        <button class="action-btn" id="btn-wave">👋<span data-i18n="ctl.wave">Wave</span></button>
+        <button class="action-btn" id="btn-dance">💃<span data-i18n="ctl.dance">Dance</span></button>
+      </div></details>
+    </div>
+    <div class="walk-run">
+      <button class="move-btn" id="btn-walk" data-i18n-aria="ui.walk" aria-label="Walk forward">🚶<span data-i18n="ctl.walk">Walk</span></button>
+      <button class="move-btn" id="btn-run" data-i18n-aria="ui.run" aria-label="Run forward">🏃<span data-i18n="ctl.run">Run</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="buddy-root"></div>
+
+<script src="/buddy-boot.js"></script>
+<script type="module" src="city-builder.js"></script>
+</body>
+</html>

@@ -1,0 +1,2802 @@
+[
+  {
+    "id": "prop_market_cash_register",
+    "name": "Cash Register",
+    "category": "props",
+    "glb": "../library/props/prop_market_cash-register.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_castle_tower_square_top",
+    "name": "Tower Square Top",
+    "category": "buildings",
+    "glb": "../library/buildings/bld_castle_tower-square-top.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_castle_tower_square",
+    "name": "Tower Square",
+    "category": "buildings",
+    "glb": "../library/buildings/bld_castle_tower-square.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_character_employee",
+    "name": "Character Employee",
+    "category": "props",
+    "glb": "../library/props/prop_market_character-employee.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_display_bread",
+    "name": "Display Bread",
+    "category": "props",
+    "glb": "../library/props/prop_market_display-bread.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_display_fruit",
+    "name": "Display Fruit",
+    "category": "props",
+    "glb": "../library/props/prop_market_display-fruit.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_shelf_boxes",
+    "name": "Shelf Boxes",
+    "category": "props",
+    "glb": "../library/props/prop_market_shelf-boxes.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_shelf_bags",
+    "name": "Shelf Bags",
+    "category": "props",
+    "glb": "../library/props/prop_market_shelf-bags.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_freezers_standing",
+    "name": "Freezers Standing",
+    "category": "props",
+    "glb": "../library/props/prop_market_freezers-standing.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_freezer",
+    "name": "Freezer",
+    "category": "props",
+    "glb": "../library/props/prop_market_freezer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_shelf_end",
+    "name": "Shelf End",
+    "category": "props",
+    "glb": "../library/props/prop_market_shelf-end.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_shopping_basket",
+    "name": "Shopping Basket",
+    "category": "props",
+    "glb": "../library/props/prop_market_shopping-basket.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_market_shopping_cart",
+    "name": "Shopping Cart",
+    "category": "props",
+    "glb": "../library/props/prop_market_shopping-cart.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_box_large",
+    "name": "Box Large",
+    "category": "props",
+    "glb": "../library/props/prop_factory_box-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_catwalk_stairs",
+    "name": "Catwalk Stairs",
+    "category": "props",
+    "glb": "../library/props/prop_factory_catwalk-stairs.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_box_small",
+    "name": "Box Small",
+    "category": "props",
+    "glb": "../library/props/prop_factory_box-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_cog_a",
+    "name": "Cog A",
+    "category": "props",
+    "glb": "../library/props/prop_factory_cog-a.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_cog_b",
+    "name": "Cog B",
+    "category": "props",
+    "glb": "../library/props/prop_factory_cog-b.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_cone",
+    "name": "Cone",
+    "category": "props",
+    "glb": "../library/props/prop_factory_cone.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_conveyor_bars",
+    "name": "Conveyor Bars",
+    "category": "props",
+    "glb": "../library/props/prop_factory_conveyor-bars.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_machine_bed",
+    "name": "Machine Bed",
+    "category": "props",
+    "glb": "../library/props/prop_factory_machine-bed.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_machine_fortified",
+    "name": "Machine Fortified",
+    "category": "props",
+    "glb": "../library/props/prop_factory_machine-fortified.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_machine_window",
+    "name": "Machine Window",
+    "category": "props",
+    "glb": "../library/props/prop_factory_machine-window.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_conveyor",
+    "name": "Conveyor",
+    "category": "props",
+    "glb": "../library/props/prop_factory_conveyor.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_machine",
+    "name": "Machine",
+    "category": "props",
+    "glb": "../library/props/prop_factory_machine.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_pipe_large_cross",
+    "name": "Pipe Large Cross",
+    "category": "props",
+    "glb": "../library/props/prop_factory_pipe-large-cross.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_pipe_glass_large",
+    "name": "Pipe Glass Large",
+    "category": "props",
+    "glb": "../library/props/prop_factory_pipe-glass-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_pipe_large_bend",
+    "name": "Pipe Large Bend",
+    "category": "props",
+    "glb": "../library/props/prop_factory_pipe-large-bend.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_pipe_large",
+    "name": "Pipe Large",
+    "category": "props",
+    "glb": "../library/props/prop_factory_pipe-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_factory_robot_arm_a",
+    "name": "Robot Arm A",
+    "category": "props",
+    "glb": "../library/props/prop_factory_robot-arm-a.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_barrel",
+    "name": "Barrel",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_barrel.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_boat_row_large",
+    "name": "Boat Row Large",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_boat-row-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_boat_row_small",
+    "name": "Boat Row Small",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_boat-row-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_cannon_ball",
+    "name": "Cannon Ball",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_cannon-ball.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_cannon_mobile",
+    "name": "Cannon Mobile",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_cannon-mobile.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_cannon",
+    "name": "Cannon",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_cannon.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_chest",
+    "name": "Chest",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_chest.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_crate_bottles",
+    "name": "Crate Bottles",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_crate-bottles.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_crate",
+    "name": "Crate",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_crate.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_mast",
+    "name": "Mast",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_mast.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_flag_pirate",
+    "name": "Flag Pirate",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_flag-pirate.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_flag_pirate_high",
+    "name": "Flag Pirate High",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_flag-pirate-high.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_palm_bend",
+    "name": "Palm Bend",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_palm-bend.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_palm_straight",
+    "name": "Palm Straight",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_palm-straight.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_patch_sand",
+    "name": "Patch Sand",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_patch-sand.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_rocks_a",
+    "name": "Rocks A",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_rocks-a.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_ship_pirate_large",
+    "name": "Ship Pirate Large",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_ship-pirate-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_ship_pirate_medium",
+    "name": "Ship Pirate Medium",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_ship-pirate-medium.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_ship_pirate_small",
+    "name": "Ship Pirate Small",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_ship-pirate-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_ship_wreck",
+    "name": "Ship Wreck",
+    "category": "props",
+    "glb": "../library/props/prop_pirate_ship-wreck.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_barrel",
+    "name": "Barrel",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_barrel.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_banner",
+    "name": "Banner",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_banner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_chair",
+    "name": "Chair",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_chair.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_chest",
+    "name": "Chest",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_chest.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_coin",
+    "name": "Coin",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_coin.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_gate",
+    "name": "Gate",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_gate.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_key",
+    "name": "Key",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_key.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_pot",
+    "name": "Pot",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_pot.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_rocks",
+    "name": "Rocks",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_rocks.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_shield_round",
+    "name": "Shield Round",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_shield-round.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_potion",
+    "name": "Potion",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_potion.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_stones",
+    "name": "Stones",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_stones.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_table",
+    "name": "Table",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_table.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_weapon_spear",
+    "name": "Weapon Spear",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_weapon-spear.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_dungeon_weapon_sword",
+    "name": "Weapon Sword",
+    "category": "props",
+    "glb": "../library/props/prop_dungeon_weapon-sword.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_cave_ladder",
+    "name": "Ladder",
+    "category": "props",
+    "glb": "../library/props/prop_cave_ladder.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_cave_gate_metal_bars",
+    "name": "Gate Metal Bars",
+    "category": "props",
+    "glb": "../library/props/prop_cave_gate-metal-bars.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_castle_flag_pennant",
+    "name": "Flag Pennant",
+    "category": "props",
+    "glb": "../library/props/prop_castle_flag-pennant.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_castle_flag_banner_long",
+    "name": "Flag Banner Long",
+    "category": "props",
+    "glb": "../library/props/prop_castle_flag-banner-long.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_castle_bridge_draw",
+    "name": "Bridge Draw",
+    "category": "props",
+    "glb": "../library/props/prop_castle_bridge-draw.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_castle_siege_catapult",
+    "name": "Siege Catapult",
+    "category": "props",
+    "glb": "../library/props/prop_castle_siege-catapult.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_castle_tree_small",
+    "name": "Tree Small",
+    "category": "props",
+    "glb": "../library/props/prop_castle_tree-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_castle_tree_large",
+    "name": "Tree Large",
+    "category": "props",
+    "glb": "../library/props/prop_castle_tree-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_banner_green",
+    "name": "Banner Green",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_banner-green.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_banner_red",
+    "name": "Banner Red",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_banner-red.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_chimney",
+    "name": "Chimney",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_chimney.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_fountain_center",
+    "name": "Fountain Center",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_fountain-center.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_cart",
+    "name": "Cart",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_cart.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_fence_gate",
+    "name": "Fence Gate",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_fence-gate.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_cart_high",
+    "name": "Cart High",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_cart-high.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_fountain_round",
+    "name": "Fountain Round",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_fountain-round.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_fountain_square",
+    "name": "Fountain Square",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_fountain-square.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_hedge_large",
+    "name": "Hedge Large",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_hedge-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_hedge",
+    "name": "Hedge",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_hedge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_pillar_wood",
+    "name": "Pillar Wood",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_pillar-wood.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_fantasy_lantern",
+    "name": "Lantern",
+    "category": "props",
+    "glb": "../library/props/prop_fantasy_lantern.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_graveyard_bench",
+    "name": "Bench",
+    "category": "props",
+    "glb": "../library/props/prop_graveyard_bench.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_coaster_flume_corner_small",
+    "name": "Coaster Flume Corner Small",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-coaster-flume-corner-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_graveyard_fire_basket",
+    "name": "Fire Basket",
+    "category": "props",
+    "glb": "../library/props/prop_graveyard_fire-basket.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_graveyard_cross",
+    "name": "Cross",
+    "category": "props",
+    "glb": "../library/props/prop_graveyard_cross.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_graveyard_crypt_a",
+    "name": "Crypt A",
+    "category": "props",
+    "glb": "../library/props/prop_graveyard_crypt-a.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_coaster_flume_looping",
+    "name": "Coaster Flume Looping",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-coaster-flume-looping.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_coaster_flume_straight",
+    "name": "Coaster Flume Straight",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-coaster-flume-straight.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_coaster_train_front",
+    "name": "Coaster Train Front",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-coaster-train-front.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_coaster_train_hanging",
+    "name": "Coaster Train Hanging",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-coaster-train-hanging.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_coaster_train_wooden",
+    "name": "Coaster Train Wooden",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-coaster-train-wooden.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_coaster_train",
+    "name": "Coaster Train",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-coaster-train.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_station",
+    "name": "Station",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-station.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_train_log_flume",
+    "name": "Train Log Flume",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-train-log-flume.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_coaster_train_monorail",
+    "name": "Train Monorail",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-coaster-train-monorail.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_flower_red",
+    "name": "Red Flowers",
+    "category": "nature",
+    "glb": "../library/nature/kenney-flower_redA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_flower_purple",
+    "name": "Purple Flowers",
+    "category": "nature",
+    "glb": "../library/nature/kenney-flower_purpleA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_cactus",
+    "name": "Cactus",
+    "category": "nature",
+    "glb": "../library/nature/kenney-cactus_short.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_flower_yellow",
+    "name": "Yellow Flowers",
+    "category": "nature",
+    "glb": "../library/nature/kenney-flower_yellowA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_grass",
+    "name": "Grass",
+    "category": "nature",
+    "glb": "../library/nature/kenney-grass.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_grass_large",
+    "name": "Tall Grass",
+    "category": "nature",
+    "glb": "../library/nature/kenney-grass_large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_mushroom_red",
+    "name": "Red Mushroom",
+    "category": "nature",
+    "glb": "../library/nature/kenney-mushroom_red.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_mushroom_tan",
+    "name": "Tan Mushroom",
+    "category": "nature",
+    "glb": "../library/nature/kenney-mushroom_tan.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_bush",
+    "name": "Bush",
+    "category": "nature",
+    "glb": "../library/nature/kenney-plant_bush.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_bush_large",
+    "name": "Large Bush",
+    "category": "nature",
+    "glb": "../library/nature/kenney-plant_bushLarge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_bush_small",
+    "name": "Small Bush",
+    "category": "nature",
+    "glb": "../library/nature/kenney-plant_bushSmall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_bush_k",
+    "name": "Bush",
+    "category": "nature",
+    "glb": "../library/nature/kaykit-bush.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_rock_large",
+    "name": "Large Rock",
+    "category": "nature",
+    "glb": "../library/nature/kenney-rock_largeA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_rock_small",
+    "name": "Small Rock",
+    "category": "nature",
+    "glb": "../library/nature/kenney-rock_smallA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_rock_tall",
+    "name": "Tall Rock",
+    "category": "nature",
+    "glb": "../library/nature/kenney-rock_tallA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_cone",
+    "name": "Cone Tree",
+    "category": "nature",
+    "glb": "../library/nature/kenney-tree_cone.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_default",
+    "name": "Tree",
+    "category": "nature",
+    "glb": "../library/nature/kenney-tree_default.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_oak",
+    "name": "Oak Tree",
+    "category": "nature",
+    "glb": "../library/nature/kenney-tree_oak.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_palm",
+    "name": "Palm Tree",
+    "category": "nature",
+    "glb": "../library/nature/kenney-tree_palm.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_pine",
+    "name": "Pine Tree",
+    "category": "nature",
+    "glb": "../library/nature/kenney-tree_pineDefaultA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_planter",
+    "name": "Planter",
+    "category": "nature",
+    "glb": "../library/nature/kenney-planter.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_large",
+    "name": "Large Tree",
+    "category": "nature",
+    "glb": "../library/nature/kenney-tree-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_small",
+    "name": "Small Tree",
+    "category": "nature",
+    "glb": "../library/nature/kenney-tree_small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_tall",
+    "name": "Tall Tree",
+    "category": "nature",
+    "glb": "../library/nature/kenney-tree_tall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_small_2",
+    "name": "Small Tree",
+    "category": "nature",
+    "glb": "../library/nature/kenney-tree-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_cactus_short",
+    "name": "Nat Cactus Short",
+    "category": "nature",
+    "glb": "../library/nature/nat_cactus_short.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_cactus_tall",
+    "name": "Nat Cactus Tall",
+    "category": "nature",
+    "glb": "../library/nature/nat_cactus_tall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_campfire_bricks",
+    "name": "Nat Campfire Bricks",
+    "category": "nature",
+    "glb": "../library/nature/nat_campfire_bricks.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_campfire_logs",
+    "name": "Nat Campfire Logs",
+    "category": "nature",
+    "glb": "../library/nature/nat_campfire_logs.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_canoe",
+    "name": "Nat Canoe",
+    "category": "nature",
+    "glb": "../library/nature/nat_canoe.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_canoe_paddle",
+    "name": "Nat Canoe Paddle",
+    "category": "nature",
+    "glb": "../library/nature/nat_canoe_paddle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_cliff_large_rock",
+    "name": "Nat Cliff Large Rock",
+    "category": "nature",
+    "glb": "../library/nature/nat_cliff_large_rock.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_cliff_rock",
+    "name": "Nat Cliff Rock",
+    "category": "nature",
+    "glb": "../library/nature/nat_cliff_rock.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_flower_purple",
+    "name": "Nat Flower Purplea",
+    "category": "nature",
+    "glb": "../library/nature/nat_flower_purpleA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_flower_purple",
+    "name": "Nat Flower Purpleb",
+    "category": "nature",
+    "glb": "../library/nature/nat_flower_purpleB.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_flower_red",
+    "name": "Nat Flower Reda",
+    "category": "nature",
+    "glb": "../library/nature/nat_flower_redA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_bridge",
+    "name": "Nat Bridge",
+    "category": "nature",
+    "glb": "../library/nature/nat_bridge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_flower_red",
+    "name": "Nat Flower Redb",
+    "category": "nature",
+    "glb": "../library/nature/nat_flower_redB.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_flower_yellow",
+    "name": "Nat Flower Yellowa",
+    "category": "nature",
+    "glb": "../library/nature/nat_flower_yellowA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_flower_yellow",
+    "name": "Nat Flower Yellowb",
+    "category": "nature",
+    "glb": "../library/nature/nat_flower_yellowB.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_grass",
+    "name": "Nat Grass",
+    "category": "nature",
+    "glb": "../library/nature/nat_grass.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_grass_large",
+    "name": "Nat Grass Large",
+    "category": "nature",
+    "glb": "../library/nature/nat_grass_large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_flag",
+    "name": "Nat Flag",
+    "category": "nature",
+    "glb": "../library/nature/nat_flag.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_log",
+    "name": "Nat Log",
+    "category": "nature",
+    "glb": "../library/nature/nat_log.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_log_large",
+    "name": "Nat Log Large",
+    "category": "nature",
+    "glb": "../library/nature/nat_log_large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_log_stack",
+    "name": "Nat Log Stack",
+    "category": "nature",
+    "glb": "../library/nature/nat_log_stack.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_mushroom_red",
+    "name": "Nat Mushroom Red",
+    "category": "nature",
+    "glb": "../library/nature/nat_mushroom_red.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_mushroom_tan",
+    "name": "Nat Mushroom Tan",
+    "category": "nature",
+    "glb": "../library/nature/nat_mushroom_tan.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_patch_grass",
+    "name": "Nat Patch Grass",
+    "category": "nature",
+    "glb": "../library/nature/nat_patch-grass.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_plant",
+    "name": "Nat Plant",
+    "category": "nature",
+    "glb": "../library/nature/nat_plant.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_plant_bush",
+    "name": "Nat Plant Bush",
+    "category": "nature",
+    "glb": "../library/nature/nat_plant_bush.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_plant_bush_arge",
+    "name": "Nat Plant Bushlarge",
+    "category": "nature",
+    "glb": "../library/nature/nat_plant_bushLarge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_plant_bush_mall",
+    "name": "Nat Plant Bushsmall",
+    "category": "nature",
+    "glb": "../library/nature/nat_plant_bushSmall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_plant_flat_all",
+    "name": "Nat Plant Flattall",
+    "category": "nature",
+    "glb": "../library/nature/nat_plant_flatTall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_plant_flat_hort",
+    "name": "Nat Plant Flatshort",
+    "category": "nature",
+    "glb": "../library/nature/nat_plant_flatShort.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_rock_large",
+    "name": "Nat Rock Largea",
+    "category": "nature",
+    "glb": "../library/nature/nat_rock_largeA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_rock_large",
+    "name": "Nat Rock Largeb",
+    "category": "nature",
+    "glb": "../library/nature/nat_rock_largeB.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_rock_large",
+    "name": "Nat Rock Largec",
+    "category": "nature",
+    "glb": "../library/nature/nat_rock_largeC.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_rock_small",
+    "name": "Nat Rock Smalla",
+    "category": "nature",
+    "glb": "../library/nature/nat_rock_smallA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_rocks_high",
+    "name": "Nat Rocks High",
+    "category": "nature",
+    "glb": "../library/nature/nat_rocks-high.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_rocks_low",
+    "name": "Nat Rocks Low",
+    "category": "nature",
+    "glb": "../library/nature/nat_rocks-low.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_stones",
+    "name": "Nat Stones",
+    "category": "nature",
+    "glb": "../library/nature/nat_stones.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_bamboo_b",
+    "name": "Bamboo Grove",
+    "category": "nature",
+    "glb": "../library/nature/poly-bamboo-b.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_bamboo_mid",
+    "name": "Bamboo Sprout",
+    "category": "nature",
+    "glb": "../library/nature/poly-bamboo-mid.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_bamboo_a",
+    "name": "Bamboo",
+    "category": "nature",
+    "glb": "../library/nature/poly-bamboo-a.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_tent",
+    "name": "Nat Tent",
+    "category": "nature",
+    "glb": "../library/nature/nat_tent.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_tree_high",
+    "name": "Nat Tree High",
+    "category": "nature",
+    "glb": "../library/nature/nat_tree-high.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_nat_tree",
+    "name": "Nat Tree",
+    "category": "nature",
+    "glb": "../library/nature/nat_tree.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_dead_tree",
+    "name": "Dead Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-DeadTree_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_bush_2",
+    "name": "Bush",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Bush_Common.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_flowering_bush",
+    "name": "Flowering Bush",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Bush_Common_Flowers.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_clover",
+    "name": "Clover",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Clover_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_common_tree",
+    "name": "Common Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-CommonTree_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_common_tree_2",
+    "name": "Common Tree 2",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-CommonTree_2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_dead_tree_2",
+    "name": "Dead Tree 2",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-DeadTree_3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_grass_2",
+    "name": "Grass",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Grass_Common_Short.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tall_grass",
+    "name": "Tall Grass",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Grass_Common_Tall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_wispy_grass",
+    "name": "Wispy Grass",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Grass_Wispy_Short.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_fern",
+    "name": "Fern",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Fern_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_flowers",
+    "name": "Flowers",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Flower_3_Group.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_flower_patch",
+    "name": "Flower Patch",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Flower_4_Group.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_mushroom",
+    "name": "Mushroom",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Mushroom_Common.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_shelf_mushroom",
+    "name": "Shelf Mushroom",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Mushroom_Laetiporus.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_stone",
+    "name": "Stone",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Pebble_Square_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_pine_tree",
+    "name": "Pine Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Pine_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_pebble",
+    "name": "Pebble",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Pebble_Round_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_pine_tree_2",
+    "name": "Pine Tree 2",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Pine_3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_big_plant",
+    "name": "Big Plant",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Plant_1_Big.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_basketball_hoop",
+    "name": "Basketball Hoop",
+    "category": "props",
+    "glb": "../library/props/polypizza-basketball_hoop.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_plant",
+    "name": "Plant",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Plant_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_rock",
+    "name": "Rock",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-Rock_Medium_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_twisted_tree",
+    "name": "Twisted Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-TwistedTree_1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_twisted_tree_2",
+    "name": "Twisted Tree 2",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-TwistedTree_3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_goal_flag",
+    "name": "Goal Flag",
+    "category": "props",
+    "glb": "../library/props/polypizza-goal_flag.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_health_pack",
+    "name": "Health Pack",
+    "category": "props",
+    "glb": "../library/props/polypizza-health_pack.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_health_pack2",
+    "name": "Health Pack B",
+    "category": "props",
+    "glb": "../library/props/polypizza-health_pack2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_baseball_bat",
+    "name": "Baseball Bat",
+    "category": "props",
+    "glb": "../library/props/polypizza-baseball_bat.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_golf_club",
+    "name": "Golf Club",
+    "category": "props",
+    "glb": "../library/props/polypizza-golf_club.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_hockey_stick",
+    "name": "Hockey Stick",
+    "category": "props",
+    "glb": "../library/props/polypizza-hockey_stick.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rugby_ball",
+    "name": "Rugby Ball",
+    "category": "props",
+    "glb": "../library/props/polypizza-rugby_ball.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_hospital_sign",
+    "name": "Hospital Sign",
+    "category": "props",
+    "glb": "../library/props/polypizza-hospital_sign.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_air_conditioner",
+    "name": "Air Conditioner",
+    "category": "props",
+    "glb": "../library/props/polypizza-air_conditioner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_backpack",
+    "name": "Backpack",
+    "category": "props",
+    "glb": "../library/props/polypizza-backpack.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_snowboard",
+    "name": "Snowboard",
+    "category": "props",
+    "glb": "../library/props/polypizza-snowboard.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_skateboard",
+    "name": "Skateboard",
+    "category": "props",
+    "glb": "../library/props/polypizza-skateboard.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_guitar",
+    "name": "Guitar",
+    "category": "props",
+    "glb": "../library/props/polypizza-guitar.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_telescope",
+    "name": "Telescope",
+    "category": "props",
+    "glb": "../library/props/polypizza-telescope.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_drill",
+    "name": "Drill",
+    "category": "props",
+    "glb": "../library/props/polypizza-drill.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_crane",
+    "name": "Crane",
+    "category": "props",
+    "glb": "../library/props/polypizza-crane.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_binoculars",
+    "name": "Binoculars",
+    "category": "props",
+    "glb": "../library/props/polypizza-binoculars.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_globe",
+    "name": "Globe",
+    "category": "props",
+    "glb": "../library/props/polypizza-globe.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_astronaut_bee",
+    "name": "Astronaut Bee",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-astronaut-bee.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_astronaut_flamingo",
+    "name": "Astronaut Flamingo",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-astronaut-flamingo.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_astronaut_frog",
+    "name": "Astronaut Frog",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-astronaut-frog.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_astronaut_redpanda",
+    "name": "Astronaut Red Panda",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-astronaut-redpanda.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_mech_bee",
+    "name": "Mech Bee",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-mech-bee.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_mech_flamingo",
+    "name": "Mech Flamingo",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-mech-flamingo.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_mech_frog",
+    "name": "Mech Frog",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-mech-frog.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_mech_redpanda",
+    "name": "Mech Red Panda",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-mech-redpanda.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_enemy_extrasmall",
+    "name": "Tiny Space Enemy",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-enemy-extrasmall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_alpaca",
+    "name": "Alpaca",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animal-alpaca.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_enemy_flying",
+    "name": "Flying Space Enemy",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-enemy-flying.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_enemy_large",
+    "name": "Large Space Enemy",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-enemy-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_deer",
+    "name": "Deer",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animal-deer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_space_enemy_small",
+    "name": "Small Space Enemy",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-space-enemy-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_stag",
+    "name": "Stag",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animal-stag.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_wolf",
+    "name": "Wolf",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animal-wolf.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_pirate_anne",
+    "name": "Pirate Anne",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-pirate-anne.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_pirate_henry",
+    "name": "Pirate Henry",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-pirate-henry.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_pirate_mako",
+    "name": "Pirate Mako",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-pirate-mako.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_pirate_captain",
+    "name": "Pirate Captain",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-pirate-captain.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_alien_cyclop",
+    "name": "Cyclops Alien",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-alien-cyclop.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_pirate_shark",
+    "name": "Pirate Shark",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-pirate-shark.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_pirate_sharky",
+    "name": "Pirate Sharky",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-pirate-sharky.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_pirate_skeleton",
+    "name": "Pirate Skeleton",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-pirate-skeleton.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_alien_oculichrysalis",
+    "name": "Eye Alien",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-alien-oculichrysalis.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_pirate_skeleton_headless",
+    "name": "Headless Skeleton",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-pirate-skeleton-headless.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_pirate_tentacle",
+    "name": "Kraken Tentacle",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-pirate-tentacle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_alien_scolitex",
+    "name": "Scolitex Alien",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-alien-scolitex.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_casual",
+    "name": "Casual Character",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-casual.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_beach",
+    "name": "Beach Character",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-beach.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_hoodie",
+    "name": "Hoodie Character",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-hoodie.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_suit",
+    "name": "Suit Character",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-suit.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_spacesuit",
+    "name": "Spacesuit Character",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-spacesuit.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_cleric",
+    "name": "Cleric",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-cleric.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_ranger",
+    "name": "Ranger",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-ranger.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_rogue",
+    "name": "Rogue",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-rogue.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_wizard",
+    "name": "Wizard",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-wizard.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_monk",
+    "name": "Monk",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-monk.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_warrior",
+    "name": "Warrior",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-char-warrior.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_ship_frog",
+    "name": "Spaceship Frog",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-ship-frog.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_ship_bee",
+    "name": "Spaceship Bee",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-ship-bee.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rover_1",
+    "name": "Space Rover 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rover-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rover_round",
+    "name": "Round Rover",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rover-round.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rover_2",
+    "name": "Space Rover 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rover-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_ship_flamingo",
+    "name": "Spaceship Flamingo",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-ship-flamingo.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_pickup_crate",
+    "name": "Crate Pickup",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-pickup-crate.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_pickup_health",
+    "name": "Health Pickup",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-pickup-health.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_ship_redpanda",
+    "name": "Spaceship Red Panda",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-ship-redpanda.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_pickup_bullets",
+    "name": "Bullet Pickup",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-pickup-bullets.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_pickup_keycard",
+    "name": "Keycard Pickup",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-pickup-keycard.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_pickup_jar",
+    "name": "Jar Pickup",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-pickup-jar.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_pickup_sphere",
+    "name": "Sphere Pickup",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-pickup-sphere.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_pickup_thunder",
+    "name": "Thunder Pickup",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-pickup-thunder.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_1",
+    "name": "Planet 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_2",
+    "name": "Planet 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_3",
+    "name": "Planet 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_4",
+    "name": "Planet 4",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-4.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_5",
+    "name": "Planet 5",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-5.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_6",
+    "name": "Planet 6",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-6.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_7",
+    "name": "Planet 7",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-7.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_8",
+    "name": "Planet 8",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-8.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_9",
+    "name": "Planet 9",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-9.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_10",
+    "name": "Planet 10",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-10.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_planet_11",
+    "name": "Planet 11",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-planet-11.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_floating_1",
+    "name": "Floating Tree 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-floating-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_spiral_1",
+    "name": "Spiral Tree 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-spiral-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_blob_1",
+    "name": "Blob Tree 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-blob-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_lava_1",
+    "name": "Lava Tree 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-lava-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_floating_2",
+    "name": "Floating Tree 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-floating-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_blob_2",
+    "name": "Blob Tree 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-blob-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_lava_2",
+    "name": "Lava Tree 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-lava-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_blob_3",
+    "name": "Blob Tree 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-blob-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_spiral_2",
+    "name": "Spiral Tree 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-spiral-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_floating_3",
+    "name": "Floating Tree 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-floating-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_lava_3",
+    "name": "Lava Tree 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-lava-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_spiral_3",
+    "name": "Spiral Tree 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-spiral-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_light_1",
+    "name": "Light Tree 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-light-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_spikes_1",
+    "name": "Spike Tree 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-spikes-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_swirl_1",
+    "name": "Swirl Tree 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-swirl-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_light_2",
+    "name": "Light Tree 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-light-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_spikes_2",
+    "name": "Spike Tree 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-spikes-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_tree_swirl_2",
+    "name": "Swirl Tree 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-tree-swirl-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rock_1",
+    "name": "Space Rock 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rock-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rock_2",
+    "name": "Space Rock 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rock-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rock_3",
+    "name": "Space Rock 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rock-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rock_4",
+    "name": "Space Rock 4",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rock-4.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rock_large_1",
+    "name": "Large Space Rock 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rock-large-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_plant_1",
+    "name": "Space Plant 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-plant-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_grass_1",
+    "name": "Space Grass 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-grass-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_plant_2",
+    "name": "Space Plant 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-plant-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_grass_2",
+    "name": "Space Grass 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-grass-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rock_large_2",
+    "name": "Large Space Rock 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rock-large-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rock_large_3",
+    "name": "Large Space Rock 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-rock-large-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_bush_2",
+    "name": "Space Bush 2",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-bush-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_bush_1",
+    "name": "Space Bush 1",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-bush-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_plant_3",
+    "name": "Space Plant 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-plant-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_bush_3",
+    "name": "Space Bush 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-bush-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_grass_3",
+    "name": "Space Grass 3",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-grass-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_geodesic_dome",
+    "name": "Geodesic Dome",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-geodesic-dome.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_solar_panel",
+    "name": "Solar Panel",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/quaternius-space-solar-panel.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_birch_2",
+    "name": "Birch Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-birch-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_birch_4",
+    "name": "Birch Tree 4",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-birch-4.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_birch_3",
+    "name": "Birch Tree 3",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-birch-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_maple_5",
+    "name": "Maple Tree 5",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-maple-5.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_maple_1",
+    "name": "Maple Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-maple-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_maple_3",
+    "name": "Maple Tree 3",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-maple-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_wheat",
+    "name": "Wheat",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-wheat.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_lilypad",
+    "name": "Lily Pad",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-lilypad.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_stump",
+    "name": "Tree Stump",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-stump.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_stump_moss",
+    "name": "Mossy Stump",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-stump-moss.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_corn",
+    "name": "Corn",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-corn.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_corn_2",
+    "name": "Corn Stalk",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-corn-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_quat_bush_large",
+    "name": "Large Bush",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-bush-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_quat_bush_small",
+    "name": "Small Bush",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-bush-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_bush_berries",
+    "name": "Berry Bush",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-bush-berries.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_cactus_flower",
+    "name": "Flowering Cactus",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-cactus-flower.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_willow",
+    "name": "Willow Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-willow.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_willow_3",
+    "name": "Willow Tree 3",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-willow-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_willow_2",
+    "name": "Willow Tree 2",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-nature-willow-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_anchor",
+    "name": "Anchor",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-anchor.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_bomb",
+    "name": "Bomb",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-bomb.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_bottle_1",
+    "name": "Bottle",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-bottle-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_bottle_2",
+    "name": "Bottle B",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-bottle-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_bucket",
+    "name": "Bucket",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-bucket.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_bucket_fishes",
+    "name": "Bucket of Fish",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-bucket-fishes.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_chest_gold",
+    "name": "Gold Chest",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-chest-gold.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_fish_mackerel",
+    "name": "Mackerel",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-fish-mackerel.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_coins",
+    "name": "Gold Coins",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-coins.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_fish_tuna",
+    "name": "Tuna",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-fish-tuna.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_goldbag",
+    "name": "Gold Bag",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-goldbag.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_weapon_axe",
+    "name": "Pirate Axe",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-weapon-axe.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_weapon_dagger",
+    "name": "Dagger",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-weapon-dagger.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_weapon_cutlass",
+    "name": "Cutlass",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-weapon-cutlass.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_weapon_pistol",
+    "name": "Flintlock Pistol",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-weapon-pistol.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_weapon_rifle",
+    "name": "Pirate Rifle",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-weapon-rifle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_weapon_sword",
+    "name": "Pirate Sword",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-weapon-sword.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_weapon_lute",
+    "name": "Lute",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-weapon-lute.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_ship_large",
+    "name": "Pirate Ship",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-ship-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_ship_small",
+    "name": "Small Pirate Ship",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-ship-small.glb",
+    "status": "loaded",
+    "error": null
+  }
+]

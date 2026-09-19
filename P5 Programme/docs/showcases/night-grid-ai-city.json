@@ -1,0 +1,4597 @@
+{
+  "version": 2,
+  "scaleMeters": 2000,
+  "autoScenery": true,
+  "roads": [
+    {
+      "class": "primary",
+      "width": 24,
+      "points": [
+        [
+          90,
+          270
+        ],
+        [
+          400,
+          270
+        ],
+        [
+          700,
+          315
+        ],
+        [
+          1030,
+          405
+        ],
+        [
+          1320,
+          550
+        ],
+        [
+          1640,
+          750
+        ],
+        [
+          1910,
+          930
+        ]
+      ]
+    },
+    {
+      "class": "primary",
+      "width": 22,
+      "points": [
+        [
+          90,
+          1590
+        ],
+        [
+          410,
+          1505
+        ],
+        [
+          720,
+          1440
+        ],
+        [
+          1030,
+          1360
+        ],
+        [
+          1300,
+          1215
+        ],
+        [
+          1570,
+          1040
+        ],
+        [
+          1910,
+          970
+        ]
+      ]
+    },
+    {
+      "class": "primary",
+      "width": 20,
+      "points": [
+        [
+          390,
+          90
+        ],
+        [
+          420,
+          430
+        ],
+        [
+          465,
+          770
+        ],
+        [
+          520,
+          1110
+        ],
+        [
+          595,
+          1480
+        ],
+        [
+          690,
+          1910
+        ]
+      ]
+    },
+    {
+      "class": "primary",
+      "width": 20,
+      "points": [
+        [
+          1390,
+          90
+        ],
+        [
+          1340,
+          430
+        ],
+        [
+          1300,
+          760
+        ],
+        [
+          1315,
+          1100
+        ],
+        [
+          1390,
+          1470
+        ],
+        [
+          1510,
+          1910
+        ]
+      ]
+    },
+    {
+      "class": "secondary",
+      "width": 14,
+      "points": [
+        [
+          80,
+          920
+        ],
+        [
+          370,
+          900
+        ],
+        [
+          690,
+          880
+        ],
+        [
+          1000,
+          870
+        ],
+        [
+          1300,
+          885
+        ],
+        [
+          1600,
+          905
+        ],
+        [
+          1910,
+          945
+        ]
+      ]
+    },
+    {
+      "class": "secondary",
+      "width": 14,
+      "points": [
+        [
+          700,
+          100
+        ],
+        [
+          790,
+          420
+        ],
+        [
+          875,
+          700
+        ],
+        [
+          960,
+          980
+        ],
+        [
+          1090,
+          1270
+        ],
+        [
+          1230,
+          1600
+        ],
+        [
+          1360,
+          1900
+        ]
+      ]
+    },
+    {
+      "class": "secondary",
+      "width": 12,
+      "points": [
+        [
+          150,
+          520
+        ],
+        [
+          420,
+          590
+        ],
+        [
+          680,
+          700
+        ],
+        [
+          870,
+          800
+        ]
+      ]
+    },
+    {
+      "class": "secondary",
+      "width": 12,
+      "points": [
+        [
+          1510,
+          350
+        ],
+        [
+          1650,
+          520
+        ],
+        [
+          1810,
+          690
+        ]
+      ]
+    },
+    {
+      "class": "tertiary",
+      "width": 10,
+      "points": [
+        [
+          150,
+          1230
+        ],
+        [
+          300,
+          1150
+        ],
+        [
+          520,
+          1090
+        ]
+      ]
+    },
+    {
+      "class": "tertiary",
+      "width": 10,
+      "points": [
+        [
+          1040,
+          230
+        ],
+        [
+          1160,
+          350
+        ],
+        [
+          1320,
+          550
+        ]
+      ]
+    },
+    {
+      "class": "tertiary",
+      "width": 10,
+      "points": [
+        [
+          1440,
+          1440
+        ],
+        [
+          1640,
+          1510
+        ],
+        [
+          1840,
+          1640
+        ]
+      ]
+    },
+    {
+      "class": "residential",
+      "width": 8,
+      "points": [
+        [
+          760,
+          1710
+        ],
+        [
+          980,
+          1690
+        ],
+        [
+          1170,
+          1725
+        ]
+      ]
+    }
+  ],
+  "parks": [
+    {
+      "cx": 225,
+      "cz": 690,
+      "radius": 54
+    },
+    {
+      "cx": 1030,
+      "cz": 655,
+      "radius": 58
+    },
+    {
+      "cx": 1660,
+      "cz": 1265,
+      "radius": 62
+    },
+    {
+      "cx": 980,
+      "cz": 1660,
+      "radius": 50
+    },
+    {
+      "cx": 720,
+      "cz": 1190,
+      "radius": 44
+    },
+    {
+      "cx": 1770,
+      "cz": 300,
+      "radius": 42
+    }
+  ],
+  "buildings": [
+    {
+      "type": "city_central",
+      "pos": [
+        1090,
+        1030
+      ],
+      "height": 126
+    },
+    {
+      "type": "finance_tower",
+      "pos": [
+        1170,
+        620
+      ],
+      "height": 142
+    },
+    {
+      "type": "atc",
+      "pos": [
+        1510,
+        860
+      ],
+      "height": 98
+    },
+    {
+      "type": "drone_routing",
+      "pos": [
+        890,
+        430
+      ],
+      "height": 72
+    },
+    {
+      "type": "traffic_lab",
+      "pos": [
+        690,
+        560
+      ],
+      "height": 62
+    },
+    {
+      "type": "traffic_emergency",
+      "pos": [
+        640,
+        1280
+      ],
+      "height": 70
+    },
+    {
+      "type": "health",
+      "pos": [
+        1000,
+        1510
+      ],
+      "height": 70
+    },
+    {
+      "type": "delivery",
+      "pos": [
+        1580,
+        1160
+      ],
+      "height": 76
+    },
+    {
+      "type": "monitoring",
+      "pos": [
+        1710,
+        720
+      ],
+      "height": 70
+    },
+    {
+      "type": "water",
+      "pos": [
+        210,
+        1130
+      ],
+      "height": 58
+    },
+    {
+      "type": "power",
+      "pos": [
+        250,
+        400
+      ],
+      "height": 64
+    },
+    {
+      "type": "recycling",
+      "pos": [
+        430,
+        1740
+      ],
+      "height": 58
+    },
+    {
+      "type": "robot_grid",
+      "pos": [
+        770,
+        1550
+      ],
+      "height": 68
+    },
+    {
+      "type": "swarm",
+      "pos": [
+        1220,
+        1460
+      ],
+      "height": 70
+    },
+    {
+      "type": "subsurface",
+      "pos": [
+        1740,
+        1510
+      ],
+      "height": 60
+    },
+    {
+      "type": "bus",
+      "pos": [
+        310,
+        780
+      ],
+      "height": 58
+    },
+    {
+      "type": "treasury",
+      "pos": [
+        1120,
+        300
+      ],
+      "height": 82
+    },
+    {
+      "type": "sentiment_lab",
+      "pos": [
+        1510,
+        260
+      ],
+      "height": 62
+    },
+    {
+      "type": "housing",
+      "pos": [
+        110,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        172,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        234,
+        110
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "school",
+      "pos": [
+        296,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "shop",
+      "pos": [
+        482,
+        110
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 34
+    },
+    {
+      "type": "library",
+      "pos": [
+        544,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "fire",
+      "pos": [
+        606,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "office",
+      "pos": [
+        792,
+        110
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 132
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        854,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        916,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        978,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        1040,
+        110
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 104
+    },
+    {
+      "type": "school",
+      "pos": [
+        1102,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "police",
+      "pos": [
+        1164,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1226,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "shop",
+      "pos": [
+        1288,
+        110
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 40
+    },
+    {
+      "type": "library",
+      "pos": [
+        1350,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1474,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1536,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        1598,
+        110
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1660,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1722,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1784,
+        110
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        1846,
+        110
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 118
+    },
+    {
+      "type": "office",
+      "pos": [
+        138,
+        176
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 76
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        200,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        262,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "housing",
+      "pos": [
+        324,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "school",
+      "pos": [
+        448,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "police",
+      "pos": [
+        510,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        572,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "shop",
+      "pos": [
+        634,
+        176
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 34
+    },
+    {
+      "type": "fire",
+      "pos": [
+        758,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        820,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        882,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        944,
+        176
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1006,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1068,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1130,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        1192,
+        176
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "school",
+      "pos": [
+        1254,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "police",
+      "pos": [
+        1316,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "shop",
+      "pos": [
+        1440,
+        176
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 40
+    },
+    {
+      "type": "library",
+      "pos": [
+        1502,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1564,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1626,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1688,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        1750,
+        176
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 104
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1812,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1874,
+        176
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        482,
+        242
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "school",
+      "pos": [
+        544,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "police",
+      "pos": [
+        606,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        668,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "library",
+      "pos": [
+        792,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "fire",
+      "pos": [
+        854,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        916,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "housing",
+      "pos": [
+        978,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1102,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1164,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1226,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "office",
+      "pos": [
+        1288,
+        242
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 104
+    },
+    {
+      "type": "police",
+      "pos": [
+        1412,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "library",
+      "pos": [
+        1598,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1660,
+        242
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "office",
+      "pos": [
+        1846,
+        242
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "library",
+      "pos": [
+        138,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "fire",
+      "pos": [
+        200,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        262,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        324,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        820,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "shop",
+      "pos": [
+        882,
+        308
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 34
+    },
+    {
+      "type": "library",
+      "pos": [
+        944,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1006,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1068,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        1192,
+        308
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1254,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1316,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        1440,
+        308
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "police",
+      "pos": [
+        1564,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1626,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1874,
+        308
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "housing",
+      "pos": [
+        110,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "shop",
+      "pos": [
+        172,
+        374
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 28
+    },
+    {
+      "type": "fire",
+      "pos": [
+        296,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        358,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "office",
+      "pos": [
+        482,
+        374
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 118
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        544,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        606,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        668,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        730,
+        374
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1102,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1226,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        1288,
+        374
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 132
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1412,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1474,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "school",
+      "pos": [
+        1598,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "police",
+      "pos": [
+        1660,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1722,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "library",
+      "pos": [
+        1846,
+        374
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "school",
+      "pos": [
+        138,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "police",
+      "pos": [
+        200,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "shop",
+      "pos": [
+        324,
+        440
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 28
+    },
+    {
+      "type": "library",
+      "pos": [
+        386,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        510,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "housing",
+      "pos": [
+        572,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "office",
+      "pos": [
+        634,
+        440
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 76
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        696,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        758,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "school",
+      "pos": [
+        944,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "police",
+      "pos": [
+        1006,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1378,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        1440,
+        440
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1502,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "office",
+      "pos": [
+        1688,
+        440
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "school",
+      "pos": [
+        1750,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "police",
+      "pos": [
+        1812,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1874,
+        440
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        110,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "school",
+      "pos": [
+        234,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "police",
+      "pos": [
+        296,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        358,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "library",
+      "pos": [
+        482,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "fire",
+      "pos": [
+        544,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        606,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        668,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        730,
+        506
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 118
+    },
+    {
+      "type": "housing",
+      "pos": [
+        854,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        916,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        978,
+        506
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "school",
+      "pos": [
+        1040,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "police",
+      "pos": [
+        1102,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1412,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1474,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "office",
+      "pos": [
+        1536,
+        506
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 132
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1722,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "office",
+      "pos": [
+        1784,
+        506
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 104
+    },
+    {
+      "type": "school",
+      "pos": [
+        1846,
+        506
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        138,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        200,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        510,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "shop",
+      "pos": [
+        572,
+        572
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 28
+    },
+    {
+      "type": "library",
+      "pos": [
+        634,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        758,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        882,
+        572
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 76
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        944,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "office",
+      "pos": [
+        1130,
+        572
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 132
+    },
+    {
+      "type": "school",
+      "pos": [
+        1192,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "police",
+      "pos": [
+        1254,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "library",
+      "pos": [
+        1440,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1502,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1564,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1626,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1750,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1812,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1874,
+        572
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "housing",
+      "pos": [
+        110,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        358,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "shop",
+      "pos": [
+        668,
+        638
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 28
+    },
+    {
+      "type": "library",
+      "pos": [
+        730,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "fire",
+      "pos": [
+        792,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        916,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        1226,
+        638
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "police",
+      "pos": [
+        1350,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "library",
+      "pos": [
+        1536,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1598,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1660,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1846,
+        638
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "office",
+      "pos": [
+        324,
+        704
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        386,
+        704
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        510,
+        704
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        572,
+        704
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 118
+    },
+    {
+      "type": "shop",
+      "pos": [
+        820,
+        704
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 28
+    },
+    {
+      "type": "fire",
+      "pos": [
+        944,
+        704
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "office",
+      "pos": [
+        1130,
+        704
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 76
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1192,
+        704
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1254,
+        704
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        1378,
+        704
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 132
+    },
+    {
+      "type": "school",
+      "pos": [
+        1440,
+        704
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "police",
+      "pos": [
+        1502,
+        704
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1874,
+        704
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "shop",
+      "pos": [
+        110,
+        770
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 22
+    },
+    {
+      "type": "library",
+      "pos": [
+        172,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "office",
+      "pos": [
+        420,
+        770
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 104
+    },
+    {
+      "type": "housing",
+      "pos": [
+        544,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        606,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        668,
+        770
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 76
+    },
+    {
+      "type": "school",
+      "pos": [
+        730,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "library",
+      "pos": [
+        978,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1040,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1102,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1164,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        1226,
+        770
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 118
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1350,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1412,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        1474,
+        770
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "school",
+      "pos": [
+        1536,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "police",
+      "pos": [
+        1598,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "library",
+      "pos": [
+        1784,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1846,
+        770
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "police",
+      "pos": [
+        138,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        200,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "shop",
+      "pos": [
+        262,
+        836
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 22
+    },
+    {
+      "type": "library",
+      "pos": [
+        324,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "fire",
+      "pos": [
+        386,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "office",
+      "pos": [
+        572,
+        836
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        634,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        696,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        758,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        820,
+        836
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 118
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1006,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "library",
+      "pos": [
+        1130,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1192,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1254,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        1378,
+        836
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 76
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1440,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1564,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        1626,
+        836
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 132
+    },
+    {
+      "type": "school",
+      "pos": [
+        1688,
+        836
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "shop",
+      "pos": [
+        1874,
+        836
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        138,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        200,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        262,
+        968
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 104
+    },
+    {
+      "type": "school",
+      "pos": [
+        324,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "police",
+      "pos": [
+        386,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        448,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "library",
+      "pos": [
+        572,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "fire",
+      "pos": [
+        634,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        696,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        758,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        820,
+        968
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        882,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1006,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        1068,
+        968
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 118
+    },
+    {
+      "type": "school",
+      "pos": [
+        1130,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "police",
+      "pos": [
+        1192,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1254,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "library",
+      "pos": [
+        1378,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1440,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1502,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1564,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "office",
+      "pos": [
+        1626,
+        968
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 76
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1688,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1750,
+        968
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        110,
+        1034
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        172,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        234,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        296,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        358,
+        1034
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "school",
+      "pos": [
+        420,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        544,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "shop",
+      "pos": [
+        606,
+        1034
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 22
+    },
+    {
+      "type": "library",
+      "pos": [
+        668,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "fire",
+      "pos": [
+        730,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        792,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        854,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        916,
+        1034
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 104
+    },
+    {
+      "type": "office",
+      "pos": [
+        1164,
+        1034
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 76
+    },
+    {
+      "type": "school",
+      "pos": [
+        1226,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1350,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "shop",
+      "pos": [
+        1412,
+        1034
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 28
+    },
+    {
+      "type": "library",
+      "pos": [
+        1474,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1784,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1846,
+        1034
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        138,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        262,
+        1100
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 132
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        324,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "school",
+      "pos": [
+        572,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "police",
+      "pos": [
+        634,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        696,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "shop",
+      "pos": [
+        758,
+        1100
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 22
+    },
+    {
+      "type": "library",
+      "pos": [
+        820,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "fire",
+      "pos": [
+        882,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        944,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "office",
+      "pos": [
+        1068,
+        1100
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1130,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1192,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1254,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "school",
+      "pos": [
+        1378,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "shop",
+      "pos": [
+        1564,
+        1100
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 28
+    },
+    {
+      "type": "library",
+      "pos": [
+        1626,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1688,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1750,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1812,
+        1100
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        1874,
+        1100
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 76
+    },
+    {
+      "type": "library",
+      "pos": [
+        110,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "fire",
+      "pos": [
+        172,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        420,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        482,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "office",
+      "pos": [
+        606,
+        1166
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "shop",
+      "pos": [
+        854,
+        1166
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 22
+    },
+    {
+      "type": "library",
+      "pos": [
+        916,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "fire",
+      "pos": [
+        978,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1102,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "office",
+      "pos": [
+        1164,
+        1166
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 104
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1226,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1288,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "school",
+      "pos": [
+        1474,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "library",
+      "pos": [
+        1722,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1784,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1846,
+        1166
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "library",
+      "pos": [
+        262,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "fire",
+      "pos": [
+        324,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        386,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "housing",
+      "pos": [
+        448,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "school",
+      "pos": [
+        820,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "police",
+      "pos": [
+        882,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        944,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "shop",
+      "pos": [
+        1006,
+        1232
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 22
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1130,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1192,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1378,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1440,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1502,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "shop",
+      "pos": [
+        1812,
+        1232
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 28
+    },
+    {
+      "type": "library",
+      "pos": [
+        1874,
+        1232
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "school",
+      "pos": [
+        110,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "police",
+      "pos": [
+        172,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        234,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "shop",
+      "pos": [
+        296,
+        1298
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 40
+    },
+    {
+      "type": "library",
+      "pos": [
+        358,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "fire",
+      "pos": [
+        420,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        482,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        730,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 18
+    },
+    {
+      "type": "housing",
+      "pos": [
+        792,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        854,
+        1298
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 62
+    },
+    {
+      "type": "school",
+      "pos": [
+        916,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "police",
+      "pos": [
+        978,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1040,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "fire",
+      "pos": [
+        1226,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1288,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "office",
+      "pos": [
+        1412,
+        1298
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 104
+    },
+    {
+      "type": "hospital",
+      "pos": [
+        1474,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 34
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1536,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 25
+    },
+    {
+      "type": "police",
+      "pos": [
+        1784,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 40
+    },
+    {
+      "type": "housing",
+      "pos": [
+        1846,
+        1298
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 32
+    },
+    {
+      "type": "housing",
+      "pos": [
+        138,
+        1364
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "office",
+      "pos": [
+        200,
+        1364
+      ],
+      "footprint": [
+        24,
+        24
+      ],
+      "height": 90
+    },
+    {
+      "type": "school",
+      "pos": [
+        262,
+        1364
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 22
+    },
+    {
+      "type": "police",
+      "pos": [
+        324,
+        1364
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 28
+    },
+    {
+      "type": "housing",
+      "pos": [
+        386,
+        1364
+      ],
+      "footprint": [
+        20,
+        20
+      ],
+      "height": 39
+    },
+    {
+      "type": "shop",
+      "pos": [
+        448,
+        1364
+      ],
+      "footprint": [
+        30,
+        30
+      ],
+      "height": 40
+    }
+  ]
+}

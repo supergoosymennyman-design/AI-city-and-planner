@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "policy": "owner-vetted-commercial-use vehicle exception; this file is the complete allow-list and does not alter the CC0 requirement for any other asset",
+  "records": [
+    { "id": "veh_nissan_frontier", "displayName": { "en": "Nissan Frontier", "zh-Hant": "日產 Frontier" }, "source": "Nissan Frontier", "status": "source-not-present" },
+    { "id": "veh_cadillac_ct5", "displayName": { "en": "Cadillac CT5", "zh-Hant": "凱迪拉克 CT5" }, "source": "Cadillac CT5", "status": "source-not-present" },
+    { "id": "veh_corvette_grand_sport", "displayName": { "en": "Corvette Grand Sport", "zh-Hant": "Corvette Grand Sport" }, "source": "Corvette Grand Sport", "status": "source-not-present" },
+    { "id": "veh_audi_a7", "displayName": { "en": "Audi A7", "zh-Hant": "奧迪 A7" }, "source": "Audi A7", "status": "accepted", "license": "owner-vetted-commercial-use", "glb": "library/vehicles/audi-a7.glb", "dimensions": { "width": 2.14, "height": 1.48, "length": 5.00 }, "review": "Traffic LOD; Y-up; grounded; centred; length along Z; five semantic batches (paint, glass, wheels, trim, lamps); Draco; 0.59 MiB" },
+    { "id": "veh_audi_rs_q8", "displayName": { "en": "Audi RS Q8", "zh-Hant": "奧迪 RS Q8" }, "source": "Audi RS Q8", "status": "accepted", "license": "owner-vetted-commercial-use", "glb": "library/vehicles/audi-rs-q8.glb", "dimensions": { "width": 2.22, "height": 1.70, "length": 5.00 }, "review": "Traffic LOD; Y-up; grounded; centred; length along Z; five semantic batches (paint, glass, wheels, trim, lamps); Draco; 0.53 MiB" },
+    { "id": "veh_porsche_911_gt3", "displayName": { "en": "Porsche 911 GT3", "zh-Hant": "保時捷 911 GT3" }, "source": "Porsche 911 GT3", "status": "source-not-present" }
+  ]
+}

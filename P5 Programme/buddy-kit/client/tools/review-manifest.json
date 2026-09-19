@@ -1,0 +1,744 @@
+[
+ {
+  "name": "taxi",
+  "group": "champion-models",
+  "path": "champion-city/assets/models/taxi.glb",
+  "size": 969540,
+  "thumb": "review-thumbs/champion-models__taxi.png"
+ },
+ {
+  "name": "tree-high",
+  "group": "champion-models",
+  "path": "champion-city/assets/models/tree-high.glb",
+  "size": 31176,
+  "thumb": "review-thumbs/champion-models__tree-high.png"
+ },
+ {
+  "name": "tree",
+  "group": "champion-models",
+  "path": "champion-city/assets/models/tree.glb",
+  "size": 23476,
+  "thumb": "review-thumbs/champion-models__tree.png"
+ },
+ {
+  "name": "cloud-a",
+  "group": "root",
+  "path": "city-builder/assets/models/cloud-a.glb",
+  "size": 824000,
+  "thumb": "review-thumbs/root__cloud-a.png"
+ },
+ {
+  "name": "cloud-b",
+  "group": "root",
+  "path": "city-builder/assets/models/cloud-b.glb",
+  "size": 1372808,
+  "thumb": "review-thumbs/root__cloud-b.png"
+ },
+ {
+  "name": "cloud-c",
+  "group": "root",
+  "path": "city-builder/assets/models/cloud-c.glb",
+  "size": 823832,
+  "thumb": "review-thumbs/root__cloud-c.png"
+ },
+ {
+  "name": "cloud-d",
+  "group": "root",
+  "path": "city-builder/assets/models/cloud-d.glb",
+  "size": 201576,
+  "thumb": "review-thumbs/root__cloud-d.png"
+ },
+ {
+  "name": "fire-station",
+  "group": "root",
+  "path": "city-builder/assets/models/fire-station.glb",
+  "size": 771436,
+  "thumb": "review-thumbs/root__fire-station.png"
+ },
+ {
+  "name": "hospital",
+  "group": "root",
+  "path": "city-builder/assets/models/hospital.glb",
+  "size": 209728,
+  "thumb": "review-thumbs/root__hospital.png"
+ },
+ {
+  "name": "housing-a",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-a.glb",
+  "size": 110440,
+  "thumb": "review-thumbs/housing-variants__housing-a.png"
+ },
+ {
+  "name": "housing-b",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-b.glb",
+  "size": 146720,
+  "thumb": "review-thumbs/housing-variants__housing-b.png"
+ },
+ {
+  "name": "housing-c",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-c.glb",
+  "size": 111428,
+  "thumb": "review-thumbs/housing-variants__housing-c.png"
+ },
+ {
+  "name": "housing-d",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-d.glb",
+  "size": 147368,
+  "thumb": "review-thumbs/housing-variants__housing-d.png"
+ },
+ {
+  "name": "housing-e",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-e.glb",
+  "size": 145512,
+  "thumb": "review-thumbs/housing-variants__housing-e.png"
+ },
+ {
+  "name": "housing-extra-2story-a",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-extra-2story-a.glb",
+  "size": 46788,
+  "thumb": "review-thumbs/housing-variants__housing-extra-2story-a.png"
+ },
+ {
+  "name": "housing-extra-cottage",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-extra-cottage.glb",
+  "size": 182332,
+  "thumb": "review-thumbs/housing-variants__housing-extra-cottage.png"
+ },
+ {
+  "name": "housing-extra-house-a",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-extra-house-a.glb",
+  "size": 146268,
+  "thumb": "review-thumbs/housing-variants__housing-extra-house-a.png"
+ },
+ {
+  "name": "housing-extra-house-b",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-extra-house-b.glb",
+  "size": 1079472,
+  "thumb": "review-thumbs/housing-variants__housing-extra-house-b.png"
+ },
+ {
+  "name": "housing-extra-townhouse-a",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-extra-townhouse-a.glb",
+  "size": 292152,
+  "thumb": "review-thumbs/housing-variants__housing-extra-townhouse-a.png"
+ },
+ {
+  "name": "housing-extra-townhouse-b",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-extra-townhouse-b.glb",
+  "size": 2216644,
+  "thumb": "review-thumbs/housing-variants__housing-extra-townhouse-b.png"
+ },
+ {
+  "name": "housing-extra-townhouse-c",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-extra-townhouse-c.glb",
+  "size": 764512,
+  "thumb": "review-thumbs/housing-variants__housing-extra-townhouse-c.png"
+ },
+ {
+  "name": "housing-extra-townhouse-large",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-extra-townhouse-large.glb",
+  "size": 631328,
+  "thumb": "review-thumbs/housing-variants__housing-extra-townhouse-large.png"
+ },
+ {
+  "name": "housing-f",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-f.glb",
+  "size": 138536,
+  "thumb": "review-thumbs/housing-variants__housing-f.png"
+ },
+ {
+  "name": "housing-g",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-g.glb",
+  "size": 93596,
+  "thumb": "review-thumbs/housing-variants__housing-g.png"
+ },
+ {
+  "name": "housing-h",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-h.glb",
+  "size": 77200,
+  "thumb": "review-thumbs/housing-variants__housing-h.png"
+ },
+ {
+  "name": "housing-i",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-i.glb",
+  "size": 69772,
+  "thumb": "review-thumbs/housing-variants__housing-i.png"
+ },
+ {
+  "name": "housing-j",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-j.glb",
+  "size": 111348,
+  "thumb": "review-thumbs/housing-variants__housing-j.png"
+ },
+ {
+  "name": "housing-k",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-k.glb",
+  "size": 89152,
+  "thumb": "review-thumbs/housing-variants__housing-k.png"
+ },
+ {
+  "name": "housing-l",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-l.glb",
+  "size": 109232,
+  "thumb": "review-thumbs/housing-variants__housing-l.png"
+ },
+ {
+  "name": "housing-m",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-m.glb",
+  "size": 96996,
+  "thumb": "review-thumbs/housing-variants__housing-m.png"
+ },
+ {
+  "name": "housing-n",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-n.glb",
+  "size": 151300,
+  "thumb": "review-thumbs/housing-variants__housing-n.png"
+ },
+ {
+  "name": "housing-o",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-o.glb",
+  "size": 114424,
+  "thumb": "review-thumbs/housing-variants__housing-o.png"
+ },
+ {
+  "name": "housing-p",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-p.glb",
+  "size": 109260,
+  "thumb": "review-thumbs/housing-variants__housing-p.png"
+ },
+ {
+  "name": "housing-q",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-q.glb",
+  "size": 98632,
+  "thumb": "review-thumbs/housing-variants__housing-q.png"
+ },
+ {
+  "name": "housing-r",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-r.glb",
+  "size": 88544,
+  "thumb": "review-thumbs/housing-variants__housing-r.png"
+ },
+ {
+  "name": "housing-s",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-s.glb",
+  "size": 103172,
+  "thumb": "review-thumbs/housing-variants__housing-s.png"
+ },
+ {
+  "name": "housing-t",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-t.glb",
+  "size": 167512,
+  "thumb": "review-thumbs/housing-variants__housing-t.png"
+ },
+ {
+  "name": "housing-u",
+  "group": "housing-variants",
+  "path": "city-builder/assets/models/housing-variants/housing-u.glb",
+  "size": 129748,
+  "thumb": "review-thumbs/housing-variants__housing-u.png"
+ },
+ {
+  "name": "library",
+  "group": "root",
+  "path": "city-builder/assets/models/library.glb",
+  "size": 108936,
+  "thumb": "review-thumbs/root__library.png"
+ },
+ {
+  "name": "atc",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/atc.glb",
+  "size": 149524,
+  "thumb": "review-thumbs/mission__atc.png"
+ },
+ {
+  "name": "bus",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/bus.glb",
+  "size": 246976,
+  "thumb": "review-thumbs/mission__bus.png"
+ },
+ {
+  "name": "city-central",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/city-central.glb",
+  "size": 167148,
+  "thumb": "review-thumbs/mission__city-central.png"
+ },
+ {
+  "name": "delivery",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/delivery.glb",
+  "size": 128208,
+  "thumb": "review-thumbs/mission__delivery.png"
+ },
+ {
+  "name": "drone-routing",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/drone-routing.glb",
+  "size": 290516,
+  "thumb": "review-thumbs/mission__drone-routing.png"
+ },
+ {
+  "name": "finance-tower",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/finance-tower.glb",
+  "size": 138480,
+  "thumb": "review-thumbs/mission__finance-tower.png"
+ },
+ {
+  "name": "health",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/health.glb",
+  "size": 166356,
+  "thumb": "review-thumbs/mission__health.png"
+ },
+ {
+  "name": "monitoring",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/monitoring.glb",
+  "size": 128964,
+  "thumb": "review-thumbs/mission__monitoring.png"
+ },
+ {
+  "name": "power",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/power.glb",
+  "size": 211608,
+  "thumb": "review-thumbs/mission__power.png"
+ },
+ {
+  "name": "recycling",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/recycling.glb",
+  "size": 159552,
+  "thumb": "review-thumbs/mission__recycling.png"
+ },
+ {
+  "name": "robot-grid",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/robot-grid.glb",
+  "size": 127384,
+  "thumb": "review-thumbs/mission__robot-grid.png"
+ },
+ {
+  "name": "sentiment-lab",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/sentiment-lab.glb",
+  "size": 301004,
+  "thumb": "review-thumbs/mission__sentiment-lab.png"
+ },
+ {
+  "name": "subsurface",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/subsurface.glb",
+  "size": 100336,
+  "thumb": "review-thumbs/mission__subsurface.png"
+ },
+ {
+  "name": "swarm",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/swarm.glb",
+  "size": 440652,
+  "thumb": "review-thumbs/mission__swarm.png"
+ },
+ {
+  "name": "traffic-emergency",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/traffic-emergency.glb",
+  "size": 106508,
+  "thumb": "review-thumbs/mission__traffic-emergency.png"
+ },
+ {
+  "name": "traffic-lab",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/traffic-lab.glb",
+  "size": 134484,
+  "thumb": "review-thumbs/mission__traffic-lab.png"
+ },
+ {
+  "name": "treasury",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/treasury.glb",
+  "size": 341232,
+  "thumb": "review-thumbs/mission__treasury.png"
+ },
+ {
+  "name": "water",
+  "group": "mission",
+  "path": "city-builder/assets/models/mission/water.glb",
+  "size": 176884,
+  "thumb": "review-thumbs/mission__water.png"
+ },
+ {
+  "name": "flower_purpleA",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/flower_purpleA.glb",
+  "size": 7112,
+  "thumb": "review-thumbs/nature-filler__flower_purpleA.png"
+ },
+ {
+  "name": "flower_purpleB",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/flower_purpleB.glb",
+  "size": 8084,
+  "thumb": "review-thumbs/nature-filler__flower_purpleB.png"
+ },
+ {
+  "name": "flower_yellowA",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/flower_yellowA.glb",
+  "size": 7120,
+  "thumb": "review-thumbs/nature-filler__flower_yellowA.png"
+ },
+ {
+  "name": "flower_yellowB",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/flower_yellowB.glb",
+  "size": 11256,
+  "thumb": "review-thumbs/nature-filler__flower_yellowB.png"
+ },
+ {
+  "name": "grass_leafs",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/grass_leafs.glb",
+  "size": 4608,
+  "thumb": "review-thumbs/nature-filler__grass_leafs.png"
+ },
+ {
+  "name": "grass_leafsLarge",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/grass_leafsLarge.glb",
+  "size": 13988,
+  "thumb": "review-thumbs/nature-filler__grass_leafsLarge.png"
+ },
+ {
+  "name": "mushroom_redTall",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/mushroom_redTall.glb",
+  "size": 6504,
+  "thumb": "review-thumbs/nature-filler__mushroom_redTall.png"
+ },
+ {
+  "name": "plant_bush",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/plant_bush.glb",
+  "size": 4396,
+  "thumb": "review-thumbs/nature-filler__plant_bush.png"
+ },
+ {
+  "name": "plant_bushDetailed",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/plant_bushDetailed.glb",
+  "size": 10172,
+  "thumb": "review-thumbs/nature-filler__plant_bushDetailed.png"
+ },
+ {
+  "name": "plant_bushTriangle",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/plant_bushTriangle.glb",
+  "size": 3956,
+  "thumb": "review-thumbs/nature-filler__plant_bushTriangle.png"
+ },
+ {
+  "name": "rock_smallA",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/rock_smallA.glb",
+  "size": 3044,
+  "thumb": "review-thumbs/nature-filler__rock_smallA.png"
+ },
+ {
+  "name": "rock_smallB",
+  "group": "nature-filler",
+  "path": "city-builder/assets/models/nature-filler/rock_smallB.glb",
+  "size": 3528,
+  "thumb": "review-thumbs/nature-filler__rock_smallB.png"
+ },
+ {
+  "name": "tree-birch",
+  "group": "nature",
+  "path": "city-builder/assets/models/nature/tree-birch.glb",
+  "size": 1158944,
+  "thumb": "review-thumbs/nature__tree-birch.png"
+ },
+ {
+  "name": "tree-dead",
+  "group": "nature",
+  "path": "city-builder/assets/models/nature/tree-dead.glb",
+  "size": 461024,
+  "thumb": "review-thumbs/nature__tree-dead.png"
+ },
+ {
+  "name": "tree-maple",
+  "group": "nature",
+  "path": "city-builder/assets/models/nature/tree-maple.glb",
+  "size": 731744,
+  "thumb": "review-thumbs/nature__tree-maple.png"
+ },
+ {
+  "name": "tree-normal",
+  "group": "nature",
+  "path": "city-builder/assets/models/nature/tree-normal.glb",
+  "size": 1064656,
+  "thumb": "review-thumbs/nature__tree-normal.png"
+ },
+ {
+  "name": "tree-pine",
+  "group": "nature",
+  "path": "city-builder/assets/models/nature/tree-pine.glb",
+  "size": 400468,
+  "thumb": "review-thumbs/nature__tree-pine.png"
+ },
+ {
+  "name": "office",
+  "group": "root",
+  "path": "city-builder/assets/models/office.glb",
+  "size": 138480,
+  "thumb": "review-thumbs/root__office.png"
+ },
+ {
+  "name": "park",
+  "group": "root",
+  "path": "city-builder/assets/models/park.glb",
+  "size": 807420,
+  "thumb": "review-thumbs/root__park.png"
+ },
+ {
+  "name": "police",
+  "group": "root",
+  "path": "city-builder/assets/models/police.glb",
+  "size": 95160,
+  "thumb": "review-thumbs/root__police.png"
+ },
+ {
+  "name": "android-bot",
+  "group": "robots",
+  "path": "city-builder/assets/models/robots/android-bot.glb",
+  "size": 106552,
+  "thumb": "review-thumbs/robots__android-bot.png"
+ },
+ {
+  "name": "mech-a",
+  "group": "robots",
+  "path": "city-builder/assets/models/robots/mech-a.glb",
+  "size": 181128,
+  "thumb": "review-thumbs/robots__mech-a.png"
+ },
+ {
+  "name": "robot-enemy-large",
+  "group": "robots",
+  "path": "city-builder/assets/models/robots/robot-enemy-large.glb",
+  "size": 219472,
+  "thumb": "review-thumbs/robots__robot-enemy-large.png"
+ },
+ {
+  "name": "robot-enemy",
+  "group": "robots",
+  "path": "city-builder/assets/models/robots/robot-enemy.glb",
+  "size": 299784,
+  "thumb": "review-thumbs/robots__robot-enemy.png"
+ },
+ {
+  "name": "robot-pm",
+  "group": "robots",
+  "path": "city-builder/assets/models/robots/robot-pm.glb",
+  "size": 250664,
+  "thumb": "review-thumbs/robots__robot-pm.png"
+ },
+ {
+  "name": "rolie",
+  "group": "robots",
+  "path": "city-builder/assets/models/robots/rolie.glb",
+  "size": 126940,
+  "thumb": "review-thumbs/robots__rolie.png"
+ },
+ {
+  "name": "school",
+  "group": "root",
+  "path": "city-builder/assets/models/school.glb",
+  "size": 102788,
+  "thumb": "review-thumbs/root__school.png"
+ },
+ {
+  "name": "shop",
+  "group": "root",
+  "path": "city-builder/assets/models/shop.glb",
+  "size": 12736,
+  "thumb": "review-thumbs/root__shop.png"
+ },
+ {
+  "name": "construction-barrier",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/construction-barrier.glb",
+  "size": 7052,
+  "thumb": "review-thumbs/street-deco__construction-barrier.png"
+ },
+ {
+  "name": "construction-cone",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/construction-cone.glb",
+  "size": 7056,
+  "thumb": "review-thumbs/street-deco__construction-cone.png"
+ },
+ {
+  "name": "dumpster",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/dumpster.glb",
+  "size": 24456,
+  "thumb": "review-thumbs/street-deco__dumpster.png"
+ },
+ {
+  "name": "electricity-pole",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/electricity-pole.glb",
+  "size": 43652,
+  "thumb": "review-thumbs/street-deco__electricity-pole.png"
+ },
+ {
+  "name": "ferris-wheel",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/ferris-wheel.glb",
+  "size": 899384,
+  "thumb": "review-thumbs/street-deco__ferris-wheel.png"
+ },
+ {
+  "name": "fountain",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/fountain.glb",
+  "size": 83612,
+  "thumb": "review-thumbs/street-deco__fountain.png"
+ },
+ {
+  "name": "gazebo",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/gazebo.glb",
+  "size": 51196,
+  "thumb": "review-thumbs/street-deco__gazebo.png"
+ },
+ {
+  "name": "market-stand",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/market-stand.glb",
+  "size": 84908,
+  "thumb": "review-thumbs/street-deco__market-stand.png"
+ },
+ {
+  "name": "post-lantern",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/post-lantern.glb",
+  "size": 42160,
+  "thumb": "review-thumbs/street-deco__post-lantern.png"
+ },
+ {
+  "name": "stop-sign",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/stop-sign.glb",
+  "size": 10720,
+  "thumb": "review-thumbs/street-deco__stop-sign.png"
+ },
+ {
+  "name": "street-sign",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/street-sign.glb",
+  "size": 15948,
+  "thumb": "review-thumbs/street-deco__street-sign.png"
+ },
+ {
+  "name": "traffic-light-horizontal",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/traffic-light-horizontal.glb",
+  "size": 11664,
+  "thumb": "review-thumbs/street-deco__traffic-light-horizontal.png"
+ },
+ {
+  "name": "traffic-light-vertical",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/traffic-light-vertical.glb",
+  "size": 12408,
+  "thumb": "review-thumbs/street-deco__traffic-light-vertical.png"
+ },
+ {
+  "name": "traffic-light",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/traffic-light.glb",
+  "size": 63648,
+  "thumb": "review-thumbs/street-deco__traffic-light.png"
+ },
+ {
+  "name": "warning-sign",
+  "group": "street-deco",
+  "path": "city-builder/assets/models/street-deco/warning-sign.glb",
+  "size": 11496,
+  "thumb": "review-thumbs/street-deco__warning-sign.png"
+ },
+ {
+  "name": "bench",
+  "group": "street",
+  "path": "city-builder/assets/models/street/bench.glb",
+  "size": 12140,
+  "thumb": "review-thumbs/street__bench.png"
+ },
+ {
+  "name": "streetlight",
+  "group": "street",
+  "path": "city-builder/assets/models/street/streetlight.glb",
+  "size": 19332,
+  "thumb": "review-thumbs/street__streetlight.png"
+ },
+ {
+  "name": "ambulance",
+  "group": "vehicles",
+  "path": "city-builder/assets/models/vehicles/ambulance.glb",
+  "size": 233612,
+  "thumb": "review-thumbs/vehicles__ambulance.png"
+ },
+ {
+  "name": "bus",
+  "group": "vehicles",
+  "path": "city-builder/assets/models/vehicles/bus.glb",
+  "size": 79272,
+  "thumb": "review-thumbs/vehicles__bus.png"
+ },
+ {
+  "name": "firetruck",
+  "group": "vehicles",
+  "path": "city-builder/assets/models/vehicles/firetruck.glb",
+  "size": 232448,
+  "thumb": "review-thumbs/vehicles__firetruck.png"
+ },
+ {
+  "name": "police",
+  "group": "vehicles",
+  "path": "city-builder/assets/models/vehicles/police.glb",
+  "size": 180512,
+  "thumb": "review-thumbs/vehicles__police.png"
+ }
+]

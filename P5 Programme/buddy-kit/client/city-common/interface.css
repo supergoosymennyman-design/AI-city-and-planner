@@ -1,0 +1,10 @@
+/* Scoped by inclusion in Planner and outdoor City only. */
+html, body { touch-action:pan-x pan-y pinch-zoom; }
+#stage canvas { touch-action:pinch-zoom; }
+button, select, summary, input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]) { min-height:44px !important; }
+button, summary { min-width:44px !important; }
+:focus-visible { outline:3px solid #ffbf47 !important; outline-offset:3px; }
+.modal-card { max-height:85dvh; overflow:auto; }
+@media (prefers-reduced-motion:reduce) {
+  *, *::before, *::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+}

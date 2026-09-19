@@ -1,0 +1,11 @@
+{
+  "name": "p5-buddy-bundled",
+  "private": true,
+  "type": "commonjs",
+  "description": "DEPLOY BUNDLE manifest for the buddy worker — copied to deploy/<app>/buddy/package.json by deploy-city-apps.sh. `type:commonjs` lets server/*.js (ESM via their own server/package.json) import named exports from logic/*.js; the deps here serve the Cloudflare Worker build (wrangler resolves ai/@ai-sdk/zod from this node_modules). Kept in sync with server/package.json. Secrets (.env) and node_modules are excluded from the bundle by the deploy script.",
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "1.0.46",
+    "ai": "5.0.216",
+    "zod": "3.25.76"
+  }
+}

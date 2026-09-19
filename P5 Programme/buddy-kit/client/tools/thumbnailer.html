@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Library Thumbnailer</title>
+<style>body{margin:0;background:#10141f;color:#f8fafc;font-family:system-ui,sans-serif}</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/three.module.js",
+    "three/addons/": "/vendor/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<script type="module">
+// tools/thumbnailer.html — headless-friendly thumbnail renderer for the shared
+// model library. Driven by scripts/generate-thumbnails.mjs via Playwright:
+//   window.__THUMBS.renderAll([ids]) → [{ id, dataUrl } | { id, error }]
+// Renders each library GLB centred in a 256×256 view, dark backdrop, one pass.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { LIBRARY } from '../city-common/library.js';
+
+const SIZE = 256;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(SIZE, SIZE);
+renderer.setClearColor(0x10141f, 1);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 200);
+camera.position.set(2.4, 1.7, 2.4);
+const loader = new GLTFLoader();
+const hemi = new THREE.HemisphereLight(0xffffff, 0x33406e, 1.6);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(3, 5, 2);
+scene.add(key);
+
+async function renderOne(item) {
+  return new Promise((resolve) => {
+    const group = new THREE.Group();
+    loader.load(item.glb, (gltf) => {
+      const m = gltf.scene;
+      group.add(m);
+      scene.add(group);
+      const box = new THREE.Box3().setFromObject(m);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      const fit = (SIZE * 0.62) / (maxDim * 1.15);
+      group.scale.setScalar(fit);
+      const b2 = new THREE.Box3().setFromObject(group);
+      const c = b2.getCenter(new THREE.Vector3());
+      group.position.sub(c);
+      renderer.render(scene, camera);
+      const dataUrl = renderer.domElement.toDataURL('image/png');
+      scene.remove(group);
+      group.traverse((n) => { if (n.geometry) n.geometry.dispose(); if (n.material) { if (Array.isArray(n.material)) n.material.forEach((x) => x && x.dispose()); else n.material.dispose(); } });
+      resolve({ id: item.id, dataUrl });
+    }, undefined, (err) => resolve({ id: item.id, error: String(err && err.message || err) }));
+  });
+}
+
+async function renderAll(ids) {
+  const items = (ids && ids.length ? ids : LIBRARY.map((i) => i.id))
+    .map((id) => LIBRARY.find((i) => i.id === id))
+    .filter(Boolean);
+  const out = [];
+  for (const it of items) {
+    // small settle so the GPU stays coherent between renders
+    await new Promise((r) => setTimeout(r, 30));
+    out.push(await renderOne(it));
+  }
+  return out;
+}
+
+window.__THUMBS = { renderAll };
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>procedural render check</title>
+<style>body{margin:0;background:#0b132b;overflow:hidden}#hud{position:fixed;top:10px;left:10px;color:#7dffb0;font:13px monospace;z-index:9;background:rgba(0,0,0,.6);padding:8px;border-radius:6px}</style>
+<script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three/addons/"}}</script>
+</head><body>
+<div id="hud">starting…</div>
+<script type="module">
+import * as THREE from 'three';
+import { createTraffic } from '/city-builder/traffic.js';
+import { createPedestrians } from '/city-builder/pedestrians.js';
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b132b);
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.5, 4000);
+camera.position.set(1000, 220, 1250); camera.lookAt(1000, 0, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(500, 800, 400); scene.add(sun);
+scene.add(new THREE.AmbientLight(0x8899bb, 0.6));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x232c44 }));
+ground.rotation.x = -Math.PI/2; scene.add(ground);
+// a couple of simple building boxes so people/cars have context
+for (let i = 0; i < 6; i++) {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(24, 40 + i*10, 24), new THREE.MeshStandardMaterial({ color: 0x3a4a5a }));
+  b.position.set(800 + (i % 3) * 100, 20 + i*5, 850 + Math.floor(i/3) * 100); scene.add(b);
+}
+const layout = {
+  version: 2, scaleMeters: 2000,
+  roads: [
+    { points: [[300, 1000], [1700, 1000]], width: 14, class: 'primary' },
+    { points: [[1000, 300], [1000, 1700]], width: 14, class: 'primary' },
+  ],
+  parks: [{ cx: 1500, cz: 1500, radius: 80 }],
+  buildings: [{ type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 }],
+};
+const traffic = createTraffic(scene, layout.roads, { carCount: 12, busCount: 2 });
+const peds = createPedestrians(scene, layout, { count: 30 });
+const hud = document.getElementById('hud');
+let t = 0, frames = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now - t) / 1000 || 0.016); t = now;
+  if (traffic) traffic.update(dt);
+  if (peds) peds.update(dt, now / 1000);
+  renderer.render(scene, camera);
+  if (++frames % 30 === 0) hud.textContent = `people: ${peds.getCount()} | vehicles: ${traffic.vehicles.length} | instancedMeshes: ${countInstanced()}`;
+}
+function countInstanced() { let n = 0; scene.traverse(o => { if (o.isMesh && o.isInstancedMesh) n++; }); return n; }
+requestAnimationFrame(loop);
+window.__ok = true;
+</script></body></html>

@@ -1,0 +1,15 @@
+{
+  "name": "buddy-server",
+  "private": true,
+  "type": "module",
+  "description": "P5 AI Coding Buddy — gateway + in-house model engine. Networked; outside game lint scope.",
+  "scripts": {
+    "//start": "Loads server/.env if present. --env-file-if-exists (NOT --env-file, which EXITS when the file is absent) keeps the zero-config path working: no .env, no keys, buddy still runs on the free default. Without this flag Node ignores .env entirely and every key a teacher writes there is silently invisible.",
+    "start": "node --env-file-if-exists=.env gateway.js"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "1.0.46",
+    "ai": "5.0.216",
+    "zod": "3.25.76"
+  }
+}

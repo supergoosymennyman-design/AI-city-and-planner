@@ -1,0 +1,52 @@
+# p5.yml — CI gate for the P5 (Passiona) programme.
+#
+# Runs on push/PR to anything in the repo:
+#   1. unit   — node:test suite (metrics, optimizer, layout, catalog, buddy logic…)
+#   2. audit  — shared model library integrity (missing glb/thumbnail, orphans)
+#   3. e2e    — Playwright smoke: city-builder boots clean + prop picker works
+#
+# The full 19-spec E2E suite (npm run test:e2e) needs software-GL rendering on a
+# single CI worker and is far too slow to gate a public repo; CI runs the two
+# fast smoke specs instead. Run the full suite locally when you touch the city.
+#
+# Deploys stay manual (deploy-city-apps.sh). Add a workflow_dispatch deploy job
+# here once secrets (CLOUDFLARE_API_TOKEN) are configured in the repo.
+name: P5 CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit + library audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:unit
+      - run: npm run test:library
+
+  e2e:
+    name: E2E smoke (Playwright, built bundle)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      # test:e2e:smoke builds the unified bundle (planner+pregame+city under one
+      # origin) then runs only the city-smoke + picker specs.
+      - run: npm run test:e2e:smoke
+        env:
+          CI: 'true'

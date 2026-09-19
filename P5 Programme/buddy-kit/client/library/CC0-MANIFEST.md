@@ -1,0 +1,389 @@
+# CC0 Model Manifest — policy: only free-for-all-use models ship
+
+## Environment foundation (version 1)
+
+| Source | License | Processed files | Use / fallback |
+|---|---|---|---|
+| Poly Haven — [Aerial Asphalt 01](https://polyhaven.com/a/aerial_asphalt_01) | CC0 | `city-builder/assets/textures/{ground-asphalt.jpg,aerial_asphalt_01_nor_gl_1k.jpg,aerial_asphalt_01_rough_1k.jpg}` | Road material; flat charcoal fallback |
+| Poly Haven — [Kiara 1 Dawn](https://polyhaven.com/a/kiara_1_dawn) | CC0 | _Reserved; no raw HDR ships_ | PMREM environment loader; procedural sky/sun fallback |
+| Poly Haven — [Leafy Grass](https://polyhaven.com/a/leafy_grass) | CC0 | `city-builder/assets/textures/leafy_grass_{diff,nor_gl,rough}_1k.jpg` | Realistic City Look terrain and park surfaces; procedural grass fallback |
+| Poly Haven — [Concrete Pavers 03](https://polyhaven.com/a/concrete_pavers_03) | CC0 | `city-builder/assets/textures/concrete_pavers_03_{diff,nor_gl,rough}_1k.jpg` | Realistic City Look sidewalks and public paving; flat concrete fallback |
+| Poly Haven — [Gravel Floor 03](https://polyhaven.com/a/gravel_floor_03) | CC0 | `city-builder/assets/textures/gravel_floor_03_{diff,nor_gl,rough}_1k.jpg` | Realistic City Look Urban Gravel terrain option; restrained normal fallback |
+| Poly Haven — Pure-sky HDRI gallery | CC0 | `city-builder/assets/environment/*.png` | Local preview cards for six child-selectable City Looks; the runtime remains offline-safe |
+
+The machine-readable, versioned companion is `city-builder/assets/environment-manifest.json`. HDRIs are enabled only after a processed, size-reviewed file is added there and to the loader manifest.
+
+Keep: **CC0 / public-domain only** (Kenney, Quaternius, KayKit, objcar, planets,
+documented CC0 city-builder assets, custom/champion assets). Remove:
+attribution-required (CC-BY), non-commercial (CC-BY-NC), unverified itch
+"personal-use" packs, and mixed-provenance building GLBs — none may ship.
+
+## Owner-vetted commercial vehicle exception (strictly limited)
+
+The owner-vetted commercial-use vehicle intake is a one-batch exception to the
+CC0 rule above. It applies only to records explicitly marked `accepted` in
+`library/COMMERCIAL-VEHICLE-INTAKE.json`, only when their `license` is
+`owner-vetted-commercial-use`, and only to their listed `library/vehicles/*.glb`
+output. The library audit rejects any other `commercialVehicle` catalogue entry.
+The nine supplied-source records are retained there even when their source file
+has not been attached; a record remains non-shippable until its normalized GLB,
+size review, and thumbnail are recorded. All non-vehicle assets remain CC0 / public domain only.
+
+| Source | License | Files admitted (library/) |
+|---|---|---|
+| Owner-vetted commercial-use intake — Audi A7 + Audi RS Q8 | owner-vetted-commercial-use | `library/vehicles/audi-a7.glb` (2.56 MiB; 2.13 × 1.43 × 4.96 m), `library/vehicles/audi-rs-q8.glb` (2.60 MiB; 2.23 × 1.70 × 5.00 m). Both reviewed Y-up, grounded, centred, and Z-length; their original material and texture groups are retained for rendering. |
+
+## Summary
+- Total GLBs audited: 186 (baseline) + 140 (batch 1) + 10 (batch 2) + 21 (batch 3) + 16 (batch 4) = 373
+- **KEEP (CC0 / documented / custom): 373**
+- **DELETE: 0**
+
+## Batch 2026-08-29 — CC0 re-density (all KEEP)
+
+| Source | License | Files added (library/) |
+|---|---|---|
+| Kenney City Kit (Commercial) v2.1 — https://kenney.nl/assets/city-kit-commercial | CC0 1.0 | `buildings/kenney-building-h..n.glb` (7), `kenney-lowbuilding-a..n.glb` (14 towers), `kenney-widebuilding-a/b.glb` (2) |
+| Kenney City Kit (Industrial) v1.0 — https://kenney.nl/assets/city-kit-industrial | CC0 1.0 | `buildings/kenney-industrial-a..t.glb` (20), `kenney-chimney-small/medium/large/basic.glb` (4), `kenney-tank.glb` (1) |
+| Kenney City Kit (Suburban) v2.0 — https://kenney.nl/assets/city-kit-suburban | CC0 1.0 | `buildings/kenney-suburban-a..j.glb` (10 houses), `nature/kenney-tree-large.glb`, `kenney-tree-small.glb`, `kenney-planter.glb` |
+| Kenney City Kit (Roads) — https://kenney.nl/assets/city-kit-roads | CC0 1.0 | `props/kenney-sign-stop/warning/street/empty.glb`, `kenney-cone.glb`, `kenney-barrier.glb`, `kenney-barrier-fence.glb`, `kenney-dumpster.glb`, `kenney-pole.glb`, `kenney-pole-wide.glb`, `kenney-traffic-light*.glb` (4), `kenney-sign-highway*.glb` (2) |
+| KayKit City Builder Bits — https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0 | CC0 1.0 | `props/kaykit-firehydrant/dumpster/trash-a/b/streetlight/watertower/trafficlight-a/b/c/crate/crate-b/bench.glb` (13), `vehicles/kaykit-car-hatchback/police/sedan/stationwagon/taxi.glb` (5), `nature/kaykit-bush.glb` |
+| KayKit Furniture Bits — https://github.com/KayKit-Game-Assets/KayKit-Furniture-Bits-1.0 | CC0 1.0 | `props/kaykit-armchair/couch/bed-single/bed-double/chair-a/b/c/stool/table-small/medium/long/low/cabinet-small/medium/shelf-small/large/lamp-standing/lamp-table/rug-rect/rug-oval/pictureframe/books/cactus.glb` (23) |
+| KayKit Restaurant Bits — https://github.com/KayKit-Game-Assets/KayKit-Restaurant-Bits-1.0 | CC0 1.0 | `props/kaykit-food-burger/dinner/stew/bowl/plate/pot/pan/stove/fridge/oven/kitchen-table/ketchup/mustard/jar/cutting-board/knife/crate-buns/crate-cheese/crate-tomatoes/cheese/carrot/dishrack.glb` (22) |
+
+All Kenney GLBs reference the shared `Textures/colormap.png` (CC0, from the same
+packs) copied into each category's `Textures/` dir. KayKit GLBs embed their atlas.
+
+## Batch 2 (2026-08-29) — Poly Pizza CC0 + Quaternius Public Transport (all KEEP)
+
+| Source | License | Files added (library/) |
+|---|---|---|
+| Poly Pizza — Quaternius boats (Boat, Sail Boat, Sail Ship, Small Ship, Raft, Dock) | CC0 1.0 | `props/polypizza-boat.glb`, `polypizza-sail-boat.glb`, `polypizza-sail-ship.glb`, `polypizza-small-ship.glb`, `polypizza-raft.glb`, `polypizza-dock.glb` |
+| Quaternius Public Transport Pack — https://quaternius.com/packs/publictransport.html | CC0 1.0 | `vehicles/quaternius-bus.glb`, `quaternius-schoolbus.glb`, `quaternius-train.glb`, `props/quaternius-bicycle.glb` |
+
+## Batch 3 (2026-08-29) — Poly Pizza CC0 round 2 (all KEEP)
+
+| Source | License | Files added (library/) |
+|---|---|---|
+| Poly Pizza CC0 (Quaternius / Kenney / Isa Lousberg / CreativeTrio / kazuma / BlenderVoyage / AliceCassie uploads) | CC0 1.0 | `props/polypizza-fountain-mailbox-trash-bags-houseplant-horse-statue-pizza-cake-cupcake-pancakes-waffle-cherries-apple-banana.glb` (14), `vehicles/polypizza-helicopter-motorcycle.glb` (2), `characters/polypizza-robot-robot-flying-shiba-husky-pug-cat.glb` (6) |
+| Poly Pizza — Fountain (Isa Lousberg) | CC0 1.0 | `city-builder/assets/models/street-deco/fountain.glb` (park deco) |
+
+> The Poly Pizza Colosseum (batch 2 stadium) was REMOVED after review — not
+> shipped; stadium renders procedurally.
+
+## Batch 4 (2026-08-29) — all KEEP
+
+| Source | License | Files added (library/) |
+|---|---|---|
+| Quaternius Ultimate Textured Building Pack — https://quaternius.com/packs/ultimatetexturedbuildings.html | CC0 1.0 | `buildings/quaternius-1story_gableroof.glb`, `quaternius-1story_sign.glb`, `quaternius-2story_center.glb`, `quaternius-2story_balcony.glb`, `quaternius-2story_columns.glb`, `quaternius-2story_gableroof.glb`, `quaternius-2story_wide.glb`, `quaternius-2story_wide_2doors.glb`, `quaternius-3story_balcony.glb`, `quaternius-4story_center.glb`, `quaternius-4story_wide_2doors.glb`, `quaternius-6story_stack.glb` (12) |
+| Poly Pizza — Ferris Wheel (CreativeTrio) — https://poly.pizza/m/6CepsZjXBw | CC0 1.0 | `props/polypizza-ferris-wheel.glb` + `city-builder/assets/models/street-deco/ferris-wheel.glb` (park deco) |
+
+| Quaternius Ships Pack — https://quaternius.com/packs/ships.html | CC0 1.0 | `props/quaternius-cruise-ship.glb`, `quaternius-viking-boat.glb`, `quaternius-lifeboat.glb` (3) |
+
+## Batch 5 (2026-08-29) — mission buildings + cleanup
+- 18 Kenney mission-building GLBs copied into `city-builder/assets/models/mission/` (CC0, Kenney City Kit Commercial/Industrial — documented above).
+- REMOVED: 12 `library/buildings/quaternius-*.glb` (flat/untextured — the pack's texture atlas was not in the Drive download). Not shipped.
+
+## Batch 7 (2026-08-29) — Hong Kong theme (all KEEP)
+
+| Source | License | Files added (library/) |
+|---|---|---|
+| Poly Pizza CC0 (Quaternius / KayKit / MaverickFX uploads) | CC0 1.0 | `nature/poly-bamboo-{a,b,mid}.glb` (3), `buildings/poly-{temple-a,temple-b,shrine,bell-tower,watch-tower}.glb` (5), `props/poly-{gazebo,post-lantern,hanging-lantern,lantern,neon-signs,market-stand,lighthouse}.glb` (7), `vehicles/poly-{passenger-carriage,cargo-train-front,high-speed-front}.glb` (3) |
+
+## Batch 8 (2026-08-29) — Quaternius Stylized Nature (all KEEP)
+
+| Source | License | Files added (library/) |
+|---|---|---|
+| Quaternius Ultimate Stylized Nature Pack — https://quaternius.com/packs/ultimatestylizednature.html (Drive .blend, converted via Blender) | CC0 1.0 | `nature/quaternius-BirchTree_1.glb`, `quaternius-BirchTree_2.glb`, `quaternius-MapleTree_1.glb`, `quaternius-MapleTree_3.glb`, `quaternius-NormalTree_1.glb`, `quaternius-NormalTree_2.glb`, `quaternius-PalmTree_1.glb`, `quaternius-PalmTree_3.glb`, `quaternius-DeadTree_1.glb`, `quaternius-DeadTree_5.glb`, `quaternius-Bush.glb`, `quaternius-Bush_Large.glb`, `quaternius-Bush_Flowers.glb`, `quaternius-Bush_Small_Flowers.glb`, `quaternius-Flower_1_Clump.glb`, `quaternius-Flower_3_Clump.glb`, `quaternius-Flower_4_Clump.glb`, `quaternius-Grass_Large.glb`, `quaternius-Grass_Small.glb` (19) |
+
+## KEEP (186)
+| File | Reason |
+|---|---|
+| `library/buildings/kenney-building-a.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-building-b.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-building-c.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-building-g.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-building-f.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-building-d.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-building-e.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-skyscraper-a.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-skyscraper-b.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-skyscraper-c.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-skyscraper-d.glb` | Documented CC0 source (kenney) |
+| `library/buildings/kenney-skyscraper-e.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-loungeChair.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-kitchenSink.glb` | Documented CC0 source (kenney) |
+| `library/props/quaternius-donut.glb` | Documented CC0 source (quaternius) |
+| `library/props/kenney-kitchenCabinetUpper.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-lampSquareTable.glb` | Documented CC0 source (kenney) |
+| `library/props/quaternius-pizza.glb` | Documented CC0 source (quaternius) |
+| `library/props/quaternius-ice-cream.glb` | Documented CC0 source (quaternius) |
+| `library/props/quaternius-junk-boat.glb` | Documented CC0 source (quaternius) |
+| `library/props/quaternius-laundry-rack.glb` | Documented CC0 source (quaternius) |
+| `library/props/kenney-bedSingle.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-bench.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-kitchenCabinet.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-parasol-a.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-bedDouble.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-lampSquareCeiling.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-parasol-b.glb` | Documented CC0 source (kenney) |
+| `library/props/quaternius-hamburger.glb` | Documented CC0 source (quaternius) |
+| `library/props/kenney-chairDesk.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-chair.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-desk.glb` | Documented CC0 source (kenney) |
+| `library/props/kenney-lampWall.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-Bush_Common.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-tree_cone.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-Plant_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-Grass_Common_Short.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-plant_bushLarge.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-Pebble_Round_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-tree_default.glb` | Documented CC0 source (kenney) |
+| `library/nature/kenney-flower_redA.glb` | Documented CC0 source (kenney) |
+| `library/nature/kenney-flower_yellowA.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-DeadTree_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-Flower_3_Group.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-Pine_3.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-tree_palm.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-Pine_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-mushroom_tan.glb` | Documented CC0 source (kenney) |
+| `library/nature/kenney-plant_bushSmall.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-DeadTree_3.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-Flower_4_Group.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-tree_tall.glb` | Documented CC0 source (kenney) |
+| `library/nature/kenney-mushroom_red.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-Mushroom_Laetiporus.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-tree_oak.glb` | Documented CC0 source (kenney) |
+| `library/nature/kenney-plant_bush.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-Grass_Common_Tall.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-cactus_short.glb` | Documented CC0 source (kenney) |
+| `library/nature/kenney-flower_purpleA.glb` | Documented CC0 source (kenney) |
+| `library/nature/kenney-tree_pineDefaultA.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-Pebble_Square_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-tree_small.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-Bush_Common_Flowers.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-Grass_Wispy_Short.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-rock_largeA.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-Rock_Medium_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-Fern_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-Mushroom_Common.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-Clover_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-rock_tallA.glb` | Documented CC0 source (kenney) |
+| `library/nature/kenney-rock_smallA.glb` | Documented CC0 source (kenney) |
+| `library/nature/kenney-grass.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-CommonTree_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/kenney-grass_large.glb` | Documented CC0 source (kenney) |
+| `library/nature/quaternius-TwistedTree_3.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-CommonTree_2.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-TwistedTree_1.glb` | Documented CC0 source (quaternius) |
+| `library/nature/quaternius-Plant_1_Big.glb` | Documented CC0 source (quaternius) |
+| `library/scenarios/space/kenney-station-container-tall.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kenney-station-container.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kenney-station-computer.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kaykit-container-b.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/planets-saturn.glb` | Documented CC0 source (planets) |
+| `library/scenarios/space/quaternius-intergalactic-ship.glb` | Documented CC0 source (quaternius) |
+| `library/scenarios/space/kaykit-container-a.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/planets-jupiter.glb` | Documented CC0 source (planets) |
+| `library/scenarios/space/kaykit-landingpad.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/kaykit-wind-turbine.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/kenney-station-chair-armrest-headrest.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kenney-station-computer-screen.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kenney-station-display-wall.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kenney-station-table.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/planets-mercury.glb` | Documented CC0 source (planets) |
+| `library/scenarios/space/kenney-station-pipe-ring-colored.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kaykit-cargodepot.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/kaykit-lander.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/kenney-station-wall-switch.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kaykit-solar-panel.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/kenney-station-display-wall-wide.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kenney-station-chair.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kaykit-rock.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/kenney-station-table-large.glb` | Documented CC0 source (kenney) |
+| `library/scenarios/space/kaykit-space-truck.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/kaykit-structure.glb` | Documented CC0 source (kaykit) |
+| `library/scenarios/space/kaykit-cargo.glb` | Documented CC0 source (kaykit) |
+| `library/vehicles/objcar-Cop.glb` | Documented CC0 source (objcar) |
+| `library/vehicles/kenney-suv.glb` | Documented CC0 source (kenney) |
+| `library/vehicles/kenney-police.glb` | Documented CC0 source (kenney) |
+| `library/vehicles/kenney-ambulance.glb` | Documented CC0 source (kenney) |
+| `library/vehicles/kenney-delivery.glb` | Documented CC0 source (kenney) |
+| `library/vehicles/objcar-SUV.glb` | Documented CC0 source (objcar) |
+| `library/vehicles/objcar-SportsCar.glb` | Documented CC0 source (objcar) |
+| `library/vehicles/kenney-sedan.glb` | Documented CC0 source (kenney) |
+| `library/vehicles/objcar-NormalCar2.glb` | Documented CC0 source (objcar) |
+| `library/vehicles/objcar-SportsCar2.glb` | Documented CC0 source (objcar) |
+| `library/vehicles/kenney-truck.glb` | Documented CC0 source (kenney) |
+| `library/vehicles/objcar-NormalCar1.glb` | Documented CC0 source (objcar) |
+| `library/vehicles/kenney-race.glb` | Documented CC0 source (kenney) |
+| `library/vehicles/objcar-Taxi.glb` | Documented CC0 source (objcar) |
+| `library/vehicles/kenney-firetruck.glb` | Documented CC0 source (kenney) |
+| `library/vehicles/kenney-taxi.glb` | Documented CC0 source (kenney) |
+| `library/vehicles/kenney-van.glb` | Documented CC0 source (kenney) |
+| `library/characters/kenney-fish.glb` | Documented CC0 source (kenney) |
+| `library/characters/kenney-bee.glb` | Documented CC0 source (kenney) |
+| `library/characters/kenney-bunny.glb` | Documented CC0 source (kenney) |
+| `library/characters/kenney-panda.glb` | Documented CC0 source (kenney) |
+| `library/characters/kenney-elephant.glb` | Documented CC0 source (kenney) |
+| `library/characters/quaternius-farmer.glb` | Documented CC0 source (quaternius) |
+| `library/characters/quaternius-business.glb` | Documented CC0 source (quaternius) |
+| `library/characters/quaternius-worker.glb` | Documented CC0 source (quaternius) |
+| `library/characters/kenney-monkey.glb` | Documented CC0 source (kenney) |
+| `library/characters/kenney-dog.glb` | Documented CC0 source (kenney) |
+| `library/characters/quaternius-swat.glb` | Documented CC0 source (quaternius) |
+| `library/characters/quaternius-adventurer.glb` | Documented CC0 source (quaternius) |
+| `library/characters/quaternius-witch.glb` | Documented CC0 source (quaternius) |
+| `library/characters/kenney-koala.glb` | Documented CC0 source (kenney) |
+| `library/characters/kenney-fox.glb` | Documented CC0 source (kenney) |
+| `library/characters/kenney-penguin.glb` | Documented CC0 source (kenney) |
+| `library/characters/quaternius-business-woman.glb` | Documented CC0 source (quaternius) |
+| `library/characters/kenney-lion.glb` | Documented CC0 source (kenney) |
+| `library/characters/quaternius-soldier.glb` | Documented CC0 source (quaternius) |
+| `library/characters/quaternius-king.glb` | Documented CC0 source (quaternius) |
+| `library/characters/kenney-deer.glb` | Documented CC0 source (kenney) |
+| `library/characters/quaternius-astronaut.glb` | Documented CC0 source (quaternius) |
+| `library/characters/quaternius-medieval.glb` | Documented CC0 source (quaternius) |
+| `library/characters/kenney-cat.glb` | Documented CC0 source (kenney) |
+| `library/characters/quaternius-punk.glb` | Documented CC0 source (quaternius) |
+| `city-builder/assets/models/housing-variants/housing-n.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/housing-variants/housing-h.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/housing-variants/housing-j.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/housing-variants/housing-a.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/housing-variants/housing-c.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/housing-variants/housing-u.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/grass_leafs.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/flower_yellowA.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/plant_bush.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/grass_leafsLarge.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/plant_bushDetailed.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/flower_yellowB.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/mushroom_redTall.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/plant_bushTriangle.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/flower_purpleB.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/flower_purpleA.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/rock_smallA.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature-filler/rock_smallB.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/fire-station.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature/tree-birch.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature/tree-dead.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature/tree-maple.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature/tree-pine.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/nature/tree-normal.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/cloud-b.glb` | Custom procedural cloud model (obj2gltf, in-repo) |
+| `city-builder/assets/models/cloud-c.glb` | Custom procedural cloud model (obj2gltf, in-repo) |
+| `city-builder/assets/models/cloud-a.glb` | Custom procedural cloud model (obj2gltf, in-repo) |
+| `city-builder/assets/models/park.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/cloud-d.glb` | Custom procedural cloud model (obj2gltf, in-repo) |
+| `city-builder/assets/models/street-deco/traffic-light.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/street/streetlight.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/street/bench.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/vehicles/firetruck.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/vehicles/bus.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/vehicles/police.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `city-builder/assets/models/vehicles/ambulance.glb` | Documented CC0 city-builder asset (ATTRIBUTION.md) |
+| `champion-city/assets/models/tree.glb` | Custom/champion asset (own work / Kenney trees) |
+| `champion-city/assets/models/taxi.glb` | Custom/champion asset (own work / Kenney trees) |
+| `champion-city/assets/models/tree-high.glb` | Custom/champion asset (own work / Kenney trees) |
+
+## Round-3 provenance gap-fill (2026-09-10) — all KEEP
+
+Rows added for runtime GLBs that were shipped without a manifest entry (Round-3
+audit B1). The provenance gate (`scripts/library-audit.mjs`) now fails a deploy
+when a shipped GLB has no entry here or in `scripts/cc0-provenance.list`.
+
+| File | Reason |
+|---|---|
+| `city-builder/assets/models/hospital.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/school.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/shop.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/office.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/library.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/police.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `champion-city/assets/clips/breakdance.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/champion_base.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/chickendance.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/fastrun.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/hiphop.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/idle.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/idle_bunny.glb` | Custom/champion asset (in-repo bunny skin + idle) |
+| `champion-city/assets/clips/idle_dragon.glb` | Custom/champion asset (in-repo dragon skin + idle) |
+| `champion-city/assets/clips/idle_neondragon.glb` | Custom/champion asset (in-repo neon-dragon skin + idle) |
+| `champion-city/assets/clips/idle_sentinel.glb` | Custom/champion asset (in-repo sentinel skin + idle) |
+| `champion-city/assets/clips/jumping.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/leftturn.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/lockingdance.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/mmakick.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/rightturn.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/sittinglaugh.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/strikejog.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/walking.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/waving.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `home/champion.glb` | Custom/champion asset (byte-copy of `champion-city/assets/clips/idle.glb`) |
+| `library/props/kaykit-base.glb` | KayKit CC0 pack leftover — deliberately uncatalogued (kept; no library.js entry) |
+| `library/props/poly-market-stand.glb` | CC0 1.0 Poly Pizza batch-7 upload — deliberately uncatalogued (kept; no library.js entry) |
+
+> Summary note (Round 3): the manifest's "373 GLBs audited" figure predates the
+> later batch tables; the on-disk shipped set is larger and is fully mirrored by
+> the machine snapshot `scripts/cc0-provenance.list` (1529 entries, regenerable
+> with `node scripts/library-audit.mjs --write-provenance`).
+
+## DELETE (0)
+| File | Reason |
+|---|---|
+
+## Batch 2026-09-01 — scenario objects (space / lab / park) — all KEEP
+
+| Source | License | Files added (library/scenarios/) |
+|---|---|---|
+| KayKit Space Base Bits (full) — https://github.com/KayKit-Game-Assets/KayKit-Space-Base-Bits-1.0 | CC0 1.0 | `space/kaykit-{cargo_A_packed,cargo_A_stacked,containers_C,containers_D,lander_B,landingpad_small,lights,rocks_A,spacetruck_large,drill_structure}.glb` (10) |
+| KayKit Dungeon Remastered — https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0 | CC0 1.0 | `lab/kaykit-lab-{bottle_A_brown,bottle_A_green,bottle_B_brown,bottle_B_green,bottle_C_brown,bottle_C_green,candle_lit,candle_triple,chair,shelf_large,shelf_small,table_medium,table_small,barrel_small}.glb` (14) |
+| Kenney Space Kit — https://kenney.nl/assets/space-kit | CC0 1.0 | `space/kenney-space-{barrel,barrels,craft_cargoA,craft_miner,craft_racer,craft_speederA,craft_speederB,machine_generator,machine_generatorLarge,machine_wireless,meteor,rover,satelliteDish,satelliteDish_detailed,rocket_baseA,rocket_finsA,rocket_sidesA,rocket_topA,rock_crystals,turret_single}.glb` (20) + `lab/kenney-lab-{desk_chair,desk_chairArms,desk_computer,desk_computerCorner,desk_computerScreen,machine_barrel}.glb` (6) |
+| Kenney Racing Kit — https://kenney.nl/assets/racing-kit | CC0 1.0 | `park/kenney-park-{raceCarGreen,raceCarOrange,raceCarRed,raceCarWhite,bannerTowerGreen,barrierRed,barrierWhite,flagCheckers,flagGreen,grandStand,lightPostModern,lightRed,overheadLights,tent,tentLong,treeSmall,billboard}.glb` (17) |
+| Poly Pizza CC0 (Quaternius / Kenney / CreativeTrio / Kay Lousberg uploads) | CC0 1.0 | `space/polypizza-{rocket,antenna,robot}.glb` (3) · `lab/polypizza-{bookcasebooks,bookshelf,computer,computerlarge,jars,potion,cauldron,books}.glb` (8) · `park/polypizza-{marketstand,marketstalls,marketstallscompact,tent,tenthalf,cart,benchq,benchk,icecream,hotdog,burger,campfire,picnic}.glb` (13) |
+
+91 objects total. Kenney GLBs are self-contained (no external colormap). KayKit glTF converted to GLB via gltf-transform (texture atlas embedded). Poly Pizza models carry valid geometry at small source scales; footprints/heights are rough estimates pending a Blender normalize pass.
+
+## Batch 2026-09-01 (sprint 4) — Quaternius packs (all KEEP, 260 objects)
+
+| Source | License | Files added (library/) |
+|---|---|---|
+| Quaternius Ultimate Space Kit — https://quaternius.com/packs/ultimatespacekit.html | CC0 1.0 | `scenarios/space/quaternius-space-{rover-1,rover-2,rover-round,ship-bee,ship-flamingo,ship-frog,ship-redpanda,pickup-bullets,pickup-crate,pickup-health,pickup-jar,pickup-keycard,pickup-sphere,pickup-thunder,planet-1..11,tree-blob-1..3,tree-floating-1..3,tree-lava-1..3,tree-light-1..2,tree-spikes-1..2,tree-spiral-1..3,tree-swirl-1..2,rock-1..4,rock-large-1..3,plant-1..3,grass-1..3,bush-1..3,geodesic-dome,solar-panel}.glb` (61) + `characters/quaternius-space-{astronaut-bee,astronaut-flamingo,astronaut-frog,astronaut-redpanda,mech-bee,mech-flamingo,mech-frog,mech-redpanda,enemy-extrasmall,enemy-flying,enemy-large,enemy-small}.glb` (12) |
+| Quaternius Ultimate Animated Animals — https://quaternius.com/packs/ultimateanimatedanimals.html | CC0 1.0 | `characters/quaternius-animal-{alpaca,deer,stag,wolf}.glb` (4, new vs existing ch_animal_*) |
+| Quaternius Pirate Kit — https://quaternius.com/packs/piratekit.html | CC0 1.0 | `props/quaternius-pirate-{anchor,bomb,bottle-1,bottle-2,bucket,bucket-fishes,chest-gold,coins,fish-mackerel,fish-tuna,goldbag,weapon-axe,weapon-cutlass,weapon-dagger,weapon-pistol,weapon-rifle,weapon-sword,weapon-lute,ship-large,ship-small,cliff-1..4,dock,dock-broken,dock-pole,house-1..3,palm-1..3,rock-1..3,large-bones,sawmill,skulls}.glb` (39) + `characters/quaternius-pirate-{anne,captain,henry,mako,shark,sharky,skeleton,skeleton-headless,tentacle}.glb` (9) |
+| Quaternius Ultimate Modular Sci-Fi MegaKit — https://quaternius.com/packs/ultimatemodularscifi.html | CC0 1.0 | `props/quaternius-scifi-{access-point,barrel,chest,clamp,computer,crate-3,crate-4,fan,item-holder,light-corner,light-floor,light-small,light-wide,pipe-holder,vent-big,vent-small,vent-wide,column-astra,column-hollow,column-large,column-metal,column-metal-curve,column-pipes,column-round,column-simple}.glb` (25) + `characters/quaternius-alien-{cyclop,oculichrysalis,scolitex}.glb` (3) |
+| Quaternius Ultimate Stylized Nature — https://quaternius.com/packs/ultimatestylizednature.html | CC0 1.0 | `nature/quaternius-nature-{birch-2,birch-3,birch-4,maple-1,maple-3,maple-5,bush-small,bush-large}.glb` (8, new vs existing stylized-nature subset) |
+| Quaternius Individual Characters — https://quaternius.com/packs/individualcharacters.html | CC0 1.0 | `characters/quaternius-char-{casual,beach,hoodie,suit,spacesuit}.glb` (5) — static rest-pose figures (armature flattened) |
+| Quaternius RPG Characters — https://quaternius.com/packs/rpgcharacters.html | CC0 1.0 | `characters/quaternius-char-{cleric,monk,ranger,rogue,warrior,wizard}.glb` (6) — static rest-pose figures |
+| Quaternius Modular Men & Women (aircraft subset) — https://quaternius.com | CC0 1.0 | `props/quaternius-aircraft-{bob,challenger,dispatcher,executioner,imperial,insurgent,omen,pancake,spitfire,striker,zenith}.glb` (11) — low-poly fighter jets / flying saucer |
+| Quaternius Ultimate Nature — https://quaternius.com/packs/ultimatenature.html | CC0 1.0 | `nature/quaternius-nature-{wheat,lilypad,stump,stump-moss,corn,corn-2,bush-berries,cactus-flower,willow,willow-2,willow-3}.glb` (11, Blender-normalized) |
+| Quaternius Survival Pack — https://quaternius.com/packs/survivalpack.html | CC0 1.0 | `props/quaternius-survival-{axe,backpack,bandages,battery,beartrap,bonfire,can,compass,firstaid,flaregun,gascan,knife,match,matchbox,pan,phone,pistol,pot,propanetank,radio,raft,paddle,revolver,shotgun,shovel,tent,torch,trashcan,waterbottle,woodlog,woodentorch}.glb` (31, Blender-normalized) |
+| Quaternius Ultimate Food — https://quaternius.com/packs/ultimatefood.html | CC0 1.0 | `props/quaternius-food-{avocado,bacon,bottle,coconut,eggplant,fish,fishbone,icecream,lettuce,mayo,mushroom,orange,peanutbutter,pepper-green,pepper-red,popsicle,sausage,soysauce,steak,tomato,turnip}.glb` (21, Blender-normalized) |
+| Quaternius Modular Train — https://quaternius.com/packs/modulartrain.html | CC0 1.0 | `vehicles/quaternius-train-{cargo-coal,cargo-container,cargo-front,cargo-wagon,cargo-wagon-empty,cargo-wagon-open,highspeed-front,highspeed-wagon,loco-tender,loco-front,loco-passenger,loco-wagon}.glb` (12, length along Z) + `props/quaternius-train-track-{curve,straight}.glb` (2) |
+
+260 objects total. glTF packs converted via gltf-transform (textures embedded). Character packs flattened to static rest pose via Blender `library-normalize.py`. Train vehicles re-oriented so length sits along glTF Z. FBX packs normalized via headless Blender (grounded, centred, single mesh). Footprints/heights from actual GLB bounds or Blender RESULT dims.
+
+## Batch 2026-09-01 (sprint 5) — Quaternius gap-fill packs (all KEEP, 249 objects)
+
+| Source | License | Files added (library/) |
+|---|---|---|
+| Quaternius Ultimate Animated Character Pack — https://quaternius.com/packs/ultimatedanimatedcharacter.html | CC0 1.0 | `characters/quaternius-animchar-{base,casual-male,casual-female,casual2-male,casual2-female,casual3-male,casual3-female,casual-bald,chef-male,chef-female,cowboy-male,cowboy-female,doctor-male,doctor-female,doctor-male-old,doctor-female-old,worker-male,worker-female,soldier-male,soldier-female,soldier-blue-male,soldier-blue-female,suit-male,suit-female,classy-male,classy-female,kimono-male,kimono-female,elf,wizard,witch,knight,knight-golden,ninja,ninja-female,pirate,pirate-female,viking,viking-female,goblin,goblin-female,zombie,zombie-female,pug}.glb` (44) — rigged glTF, static rest-pose via gltf-transform |
+| Quaternius Universal Base Characters — https://quaternius.com/packs/universalbasecharacters.html | CC0 1.0 | `characters/quaternius-basechar-{george,leela,mike,stan}.glb` (4) |
+| Quaternius Background Posed Humans — https://quaternius.com/packs/backgroundposedhumans.html | CC0 1.0 | `characters/quaternius-posed-{female-sitting,female-standing,female-walking,female-running,female-picking,female-cheering,female-hands-hips,female-cover-eyes,female-looking-up,woman-waving,male-sitting,male-standing,male-walking,male-running,male-picking,male-cheering,male-hands-hips,male-cover-eyes,male-looking-up,male-waving}.glb` (20, Blender-normalized) |
+| Quaternius Farm Buildings Pack — https://quaternius.com/packs/farmbuildings.html | CC0 1.0 | `buildings/quaternius-farm-{barn,barn-big,barn-open,barn-small,chicken-coop,silo,silo-house,windmill-tower,windmill,water-tower}.glb` (10) + `props/quaternius-farm-{well,fence,fence-2}.glb` (3) |
+| Quaternius Simple Buildings Pack — https://quaternius.com/packs/simplebuildings.html | CC0 1.0 | `buildings/quaternius-{hospital,bank,shop,house,house-2,house-3,house-4,house-5,flat,flat-2}.glb` (10) |
+| Quaternius Cars Pack — https://quaternius.com/packs/cars.html | CC0 1.0 | `vehicles/quaternius-car-{police,normal-1,normal-2,suv,sports,sports-2,taxi}.glb` (7, length along Z) |
+| Quaternius Animated Dinosaur Pack — https://quaternius.com/packs/animateddinosaurs.html | CC0 1.0 | `characters/quaternius-dino-{apatosaurus,parasaurolophus,stegosaurus,trex,triceratops,velociraptor}.glb` (6, Blender-normalized) |
+| Quaternius Animated Robot / Alien Packs — https://quaternius.com | CC0 1.0 | `characters/quaternius-{robot,alien-anim,alien-helmet}.glb` (3) |
+| Quaternius Animated Cute Fish Pack — https://quaternius.com/packs/cutefish.html | CC0 1.0 | `characters/quaternius-fish-{clownfish,goldfish,goldfish-blue,anglerfish,lionfish,lionfish-black,pufferfish,piranha,shark,goblin-shark,swordfish,blue-tang,tang,yellow-tang,mandarin,koi,moorish-idol,parrotfish,red-snapper,tuna,tetra,sunfish,blobfish,betta,flatfish,turbot,flowerhorn,humphead,cowfish,butterflyfish,cardinalfish,coral-grouper,royal-gramma,zebra-clownfish}.glb` (34, Blender-normalized) |
+| Quaternius Sushi Restaurant Kit — https://quaternius.com/packs/sushirestaurantkit.html | CC0 1.0 | `props/quaternius-sushi-{bamboo,bell,carpet,fish-deco,light,painting,painting-small,plant-1,plant-2,sakura-flower,sakura-tree,sign,sign-2,sign-3,wall-light,arch,bench,bottle,bottles,bowl,cabinet-corner,cabinet-doors,cabinet-shelves,cabinet-shelves-2,fridge,chair-1,chair-2,steamer,counter-corner,counter-door}.glb` (30, glTF) |
+| Quaternius Ultimate House Interior Pack — https://quaternius.com/packs/ultimatehomeinterior.html | CC0 1.0 | `props/quaternius-home-{fireplace,curtains,curtains-single,chandelier,desk-lamp,towel,toilet-paper,bed-king,bed-bunk,door,door-double,window-round,window-large,closet,closet-short,nightstand,office-chair,door-2,desk}.glb` (19, curated) |
+| Quaternius Ultimate Furniture Pack — https://quaternius.com/packs/ultimatefurniture.html | CC0 1.0 | `props/quaternius-home-{closet,closet-short,nightstand,office-chair,door-2,desk}.glb` (6, curated) |
+| Quaternius Ultimate RPG Pack — https://quaternius.com/packs/ultimaterpg.html | CC0 1.0 | `props/quaternius-rpg-{backpack,bag,arrow,axe-double,axe,bone,book,book-open,bow,crown,chalice,chest,coin,crystal,dagger,fishbone,glove,gold-ingots,heart,heart-broken,key,mineral,necklace,padlock,parchment,potion,pouch,scroll,skull,star,sword,sword-golden,sword-big,ring,snowflake}.glb` (35, curated) |
+| Quaternius Ultimate Crops Pack — https://quaternius.com/packs/ultimatecrops.html | CC0 1.0 | `nature/quaternius-crop-{apple,bamboo,beet,berries,cactus,carrot,corn,flowers,lettuce,mushroom,orange,palm,pumpkin,rice,tomato,watermelon,wheat}.glb` (17, Blender-normalized) |
+| Quaternius Stylized Tree Pack — https://quaternius.com/packs/stylizedtree.html | CC0 1.0 | `nature/quaternius-tree-{stylized,birch,birch-dead,dead,pine,pine-2,pine-3}.glb` (7, Blender-normalized) |
+
+249 objects total. glTF packs converted via gltf-transform (embedded textures). Rigged characters render as static rest-pose figures. FBX packs normalized via headless Blender (grounded, centred, single mesh). Cars re-oriented length-along-Z. Skipped this batch: Downtown City MegaKit (modular facades, objects-only rule) and the pack13 aircraft re-download (already in library). Footprints/heights from actual GLB bounds or Blender RESULT dims.
+
+## City foreground citizens — 2026-09-13
+
+`city-builder/assets/models/citizens/casual-{male,female}.glb` are local derivatives of the KEEP-listed Quaternius Ultimate Animated Character Pack, specifically `library/characters/quaternius-animchar-casual2-{male,female}.glb` (CC0 1.0). Derived with `scripts/build-city-citizens.py` and `scripts/compact-city-glb.py`: Idle/Walk only, under 3,000 triangles each, one vertex-coloured material, no textures, normalized integer attributes using KHR_mesh_quantization. The two files total 415,376 bytes. Source files remain unchanged. These are city runtime assets rather than additional picker entries.

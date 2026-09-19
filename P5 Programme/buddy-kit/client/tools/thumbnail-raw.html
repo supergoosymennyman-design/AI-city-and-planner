@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Raw GLB Thumbnailer</title>
+<style>body{margin:0;background:#10141f;color:#f8fafc;font-family:system-ui,sans-serif}</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/three.module.js", "three/addons/": "/vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { createGLTFLoader } from '/shared/gltf.js';
+const SIZE = 256;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(SIZE, SIZE);
+renderer.setClearColor(0x10141f, 1);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 200);
+camera.position.set(2.4, 1.7, 2.4);
+camera.lookAt(0, 0, 0);
+const loader = createGLTFLoader();
+const hemi = new THREE.HemisphereLight(0xffffff, 0x33406e, 1.6);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(3, 5, 2);
+scene.add(key);
+
+window.__THUMBS_RAW = { renderOne: (path) => new Promise((resolve) => {
+  const group = new THREE.Group();
+  loader.load(path, (gltf) => {
+    const m = gltf.scene;
+    group.add(m);
+    scene.add(group);
+    const box = new THREE.Box3().setFromObject(m);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    // Fit in WORLD units so the whole model sits inside the frame with margin
+    // (a pixel-based scale would massively over-zoom: 0.54*SIZE world units).
+    const dist = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+    const viewH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5);
+    const fit = (viewH * 0.55) / maxDim;
+    group.scale.setScalar(fit);
+    const b2 = new THREE.Box3().setFromObject(group);
+    const c = b2.getCenter(new THREE.Vector3());
+    group.position.sub(c);
+    renderer.render(scene, camera);
+    resolve({ dataUrl: renderer.domElement.toDataURL('image/png') });
+    scene.remove(group);
+  }, undefined, (err) => resolve({ error: String(err && err.message || err) }));
+}) };
+</script>
+</body>
+</html>

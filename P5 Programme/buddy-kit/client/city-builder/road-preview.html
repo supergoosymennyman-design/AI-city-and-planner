@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Road curve preview — realistic PBR ribbon</title>
+<style>
+  body { margin: 0; background: #0b1220; overflow: hidden; font-family: system-ui, sans-serif; }
+  canvas { display: block; }
+  #hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); color: #7c8db0; font-size: 13px; background: rgba(6,10,20,.6); padding: 4px 12px; border-radius: 999px; white-space: nowrap; z-index: 5; }
+  #info { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); color: #9fb0c7; font-size: 12px; background: rgba(0,0,0,.55); padding: 6px 12px; border-radius: 8px; max-width: 94vw; text-align: center; z-index: 5; }
+  #toggles { position: fixed; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 4px; font: 12px/1.4 system-ui; color: #cfe0ff; background: rgba(6,10,20,.7); padding: 8px 10px; border-radius: 10px; z-index: 6; }
+  #toggles label { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body>
+<div id="hint">drag to orbit · scroll to zoom</div>
+<div id="toggles">
+  <label><input type="checkbox" id="t-neon" checked> <span>neon edge</span></label>
+  <label><input type="checkbox" id="t-curb" checked> <span>curbs</span></label>
+  <label><input type="checkbox" id="t-dash" checked> <span>centre dashes</span></label>
+  <label><input type="checkbox" id="t-edge" checked> <span>white edge lines</span></label>
+  <label><input type="checkbox" id="t-island" checked> <span>roundabout island</span></label>
+  <label><input type="checkbox" id="t-bloom" checked> <span>bloom</span></label>
+</div>
+<div id="info">loading…</div>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/three.module.js", "three/addons/": "/vendor/three/addons/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const Q = new URLSearchParams(location.search);
+const info = document.getElementById('info');
+const neonCtl = document.getElementById('t-neon');
+const curbCtl = document.getElementById('t-curb');
+const dashCtl = document.getElementById('t-dash');
+const edgeCtl = document.getElementById('t-edge');
+const islCtl = document.getElementById('t-island');
+const bloomCtl = document.getElementById('t-bloom');
+
+// ── ROAD STYLE ───────────────────────────────────────────────────────────────
+const ROAD = {
+  asphalt:     0x565d64,   // tint over the albedo (ground-asphalt.jpg is aerial)
+  roughness:   1.0,        // roughness comes from the roughness map; 1 = full
+  metalness:   0.0,
+  tileM:       8,          // world metres per texture tile along the road
+  asphY:       0.03,
+  curbW:       0.6,
+  curbY:       0.10,
+  curbColor:   0x3f454c,
+  dashW:       0.3,
+  dashLen:     2.0,
+  dashGap:     3.0,
+  dashY:       0.042,
+  edgeInset:   0.8,        // from road edge to the white solid line
+  edgeW:       0.3,
+  edgeColor:   0xcbd4da,
+  markY:       0.042,
+  neonInset:   0.22,       // neon strip: just inside the asphalt edge
+  neonW:       0.18,
+  neonColor:   0x28e6ff,
+  neonY:       0.038,
+};
+const Y0 = ROAD.asphY;
+
+// ── Scene ────────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1220);
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 3000);
+camera.position.set(-30, 150, 210);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.5, 0.55, 0.8);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+scene.add(new THREE.HemisphereLight(0xd7e6ff, 0x101622, 1.0));
+const sun = new THREE.DirectionalLight(0xffe2bd, 2.2); sun.position.set(120, 220, 90); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.6); fill.position.set(-80, 60, -120); scene.add(fill);
+const rim = new THREE.DirectionalLight(0x28e6ff, 0.8); rim.position.set(-240, 40, 200); scene.add(rim);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(1400, 1400),
+  new THREE.MeshStandardMaterial({ color: 0x16213a, roughness: 1, metalness: 0 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(30, 0, -10);
+controls.maxPolarAngle = Math.PI / 2.03;
+controls.update();
+
+// ── Materials ────────────────────────────────────────────────────────────────
+const matAsph = new THREE.MeshStandardMaterial({ color: ROAD.asphalt, roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
+const matCurb = new THREE.MeshStandardMaterial({ color: ROAD.curbColor, roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
+const matDash = new THREE.MeshBasicMaterial({ color: 0xe8edf2, side: THREE.DoubleSide });
+const matEdge = new THREE.MeshBasicMaterial({ color: ROAD.edgeColor, side: THREE.DoubleSide });
+const matNeon = new THREE.MeshStandardMaterial({
+  color: 0x04070a, emissive: ROAD.neonColor, emissiveIntensity: 2.4,
+  roughness: 0.5, metalness: 0, toneMapped: false, side: THREE.DoubleSide,
+});
+
+// ── Geometry helpers ─────────────────────────────────────────────────────────
+function polyLateral(pts) {
+  // horizontal perpendicular to the path, averaged at corners, normalised
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    let nx = 0, nz = 0;
+    const add = (a, b) => {
+      const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1;
+      nx += -dz / l; nz += dx / l;
+    };
+    if (i > 0) add(pts[i - 1], pts[i]);
+    if (i < pts.length - 1) add(pts[i], pts[i + 1]);
+    const l = Math.hypot(nx, nz) || 1;
+    out.push({ x: nx / l, z: nz / l });
+  }
+  return out;
+}
+function arcInfo(pts) {
+  const segLen = [], cum = [0];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const l = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].z - pts[i].z);
+    segLen.push(l); cum.push(cum[i] + l);
+  }
+  return { segLen, cum, total: cum[cum.length - 1] };
+}
+function offsetPath(pts, lat, d) {
+  return pts.map((p, i) => ({ x: p.x + lat[i].x * d, z: p.z + lat[i].z * d }));
+}
+function sampleLine(a, b, step) {
+  const len = Math.hypot(b.x - a.x, b.z - a.z);
+  const n = Math.max(2, Math.ceil(len / step));
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    out.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+  }
+  return out;
+}
+
+// Swept ribbon (indexed, U = arc length / tileM, V = lateral / tileM).
+function ribbonGeometry(path, width, y) {
+  const half = width / 2;
+  const lat = polyLateral(path);
+  const { cum } = arcInfo(path);
+  const pos = [], uv = [];
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i];
+    const lx = -lat[i].x * half, lz = -lat[i].z * half;
+    const rx = lat[i].x * half, rz = lat[i].z * half;
+    pos.push(p.x + lx, y, p.z + lz, p.x + rx, y, p.z + rz);
+    const u = cum[i] / ROAD.tileM;
+    uv.push(u, -half / ROAD.tileM, u, half / ROAD.tileM);
+  }
+  const idx = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = 2 * i, b = 2 * i + 1, c = 2 * (i + 1), d = 2 * (i + 1) + 1;
+    idx.push(a, b, c, b, d, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+function addRibbon(group, path, width, y, mat, layer) {
+  const g = ribbonGeometry(path, width, y);
+  const m = new THREE.Mesh(g, mat);
+  m.userData.layer = layer;
+  group.add(m);
+  return m;
+}
+
+// Point on path at arc length d.
+function pointAt(pts, cum, segLen, d) {
+  let lo = 0, hi = pts.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (cum[m] <= d) lo = m + 1; else hi = m; }
+  const i = Math.max(0, lo - 1);
+  const t = segLen[i] ? (d - cum[i]) / segLen[i] : 0;
+  return { x: pts[i].x + (pts[i + 1].x - pts[i].x) * t, z: pts[i].z + (pts[i + 1].z - pts[i].z) * t };
+}
+
+// Centre dashes as quad ribbons; optional skip test (e.g. near a junction).
+function addDashes(group, pts, skipFn, layer) {
+  const { segLen, cum, total } = arcInfo(pts);
+  const pos = [];
+  const half = ROAD.dashW / 2;
+  for (let s = 0; s < total; s += ROAD.dashLen + ROAD.dashGap) {
+    const d0 = Math.min(s + ROAD.dashLen, total);
+    if (d0 - s < 0.25) continue;
+    const mid = pointAt(pts, cum, segLen, (s + d0) / 2);
+    if (skipFn && skipFn(mid)) continue;
+    const a = pointAt(pts, cum, segLen, s), b = pointAt(pts, cum, segLen, d0);
+    let dx = b.x - a.x, dz = b.z - a.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    const nx = -dz * half, nz = dx * half;
+    const y = ROAD.dashY;
+    pos.push(a.x + nx, y, a.z + nz, a.x - nx, y, a.z - nz, b.x + nx, y, b.z + nz);
+    pos.push(b.x + nx, y, b.z + nz, a.x - nx, y, a.z - nz, b.x - nx, y, b.z - nz);
+  }
+  if (pos.length) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, matDash);
+    m.userData.layer = layer;
+    group.add(m);
+  }
+}
+
+// ── Road builder (open road) ─────────────────────────────────────────────────
+function buildRoad(group, pts, width, label, opts = {}) {
+  const half = width / 2;
+  const lat = polyLateral(pts);
+  addRibbon(group, pts, width, Y0, matAsph, 'asph');
+
+  if (ROAD.dash !== false && opts.dash !== false) {
+    addDashes(group, pts, opts.dashSkip, 'dash');
+  }
+  if (opts.edge !== false) {
+    // solid white edge lines just inside the asphalt edge
+    const eLat = half - ROAD.edgeInset - ROAD.edgeW / 2;
+    addRibbon(group, offsetPath(pts, lat, eLat), ROAD.edgeW, ROAD.markY, matEdge, 'edge');
+    addRibbon(group, offsetPath(pts, lat, -eLat), ROAD.edgeW, ROAD.markY, matEdge, 'edge');
+  }
+  if (ROAD.neon !== false && opts.neon !== false) {
+    const nLat = half - ROAD.neonInset - ROAD.neonW / 2;
+    addRibbon(group, offsetPath(pts, lat, nLat), ROAD.neonW, ROAD.neonY, matNeon, 'neon');
+    addRibbon(group, offsetPath(pts, lat, -nLat), ROAD.neonW, ROAD.neonY, matNeon, 'neon');
+  }
+  if (ROAD.curb !== false && opts.curb !== false) {
+    const cLat = half + ROAD.curbW / 2;
+    addRibbon(group, offsetPath(pts, lat, cLat), ROAD.curbW, ROAD.curbY, matCurb, 'curb');
+    addRibbon(group, offsetPath(pts, lat, -cLat), ROAD.curbW, ROAD.curbY, matCurb, 'curb');
+  }
+  group.name = label;
+  const arc = arcInfo(pts);
+  return { pts, cum: arc.cum, segLen: arc.segLen, total: arc.total };
+}
+
+// ── Roundabout ───────────────────────────────────────────────────────────────
+// Ring + 4 trimmed radial arms. Arms are drawn FIRST; the ring asphalt is drawn
+// over them so the ring wins at the seams. Markings/neon are masked over each
+// arm mouth.
+function addRoundabout(group, cx, cz, R, ringW, armW, armStartR, armHalfAngDeg) {
+  const rh = ringW / 2;
+  const halfA = (armHalfAngDeg || 11) * Math.PI / 180;
+  const mouths = [0, 90, 180, 270].map((d) => d * Math.PI / 180);
+
+  const nearMouth = (p) => {
+    const ang = Math.atan2(p.z - cz, p.x - cx);
+    return mouths.some((m) => {
+      let d = Math.abs(ang - m); while (d > Math.PI) d = Math.abs(d - Math.PI * 2);
+      return d < halfA;
+    });
+  };
+  const arcPath = (r, a0, a1) => {
+    const n = Math.max(2, Math.ceil(((a1 - a0) * r) / 1.2));
+    const out = [];
+    for (let i = 0; i <= n; i++) {
+      const a = a0 + (a1 - a0) * (i / n);
+      out.push({ x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r });
+    }
+    return out;
+  };
+
+  // 1) Arms (radial). Asphalt runs to just under the ring edge; the ring below
+  //    will cover the inner part, so markings stop short of it.
+  const armInnerStop = R + rh - 2.5;          // dashes stop here
+  const armEnd = R + rh;                      // asphalt ends at ring outer edge
+  for (const mouth of mouths) {
+    const dx = Math.cos(mouth), dz = Math.sin(mouth);
+    const far = { x: cx + dx * armStartR, z: cz + dz * armStartR };
+    const stop = { x: cx + dx * armInnerStop, z: cz + dz * armInnerStop };
+    const end = { x: cx + dx * armEnd, z: cz + dz * armEnd };
+    const pts = sampleLine(far, end, 1.0);    // asphalt + curbs + neon full
+    buildRoad(group, pts, armW, 'arm', { dash: false, edge: true, neon: true, curb: true });
+    const dashPts = sampleLine(far, stop, 1.0);
+    addDashes(group, dashPts, null, 'dash');  // dashes only away from the ring
+  }
+
+  // 2) Ring asphalt (full circle) — on top of the arms' inner ends.
+  const ringPts = [];
+  const RN = 200;
+  for (let i = 0; i <= RN; i++) {
+    const a = (i / RN) * Math.PI * 2;
+    ringPts.push({ x: cx + Math.cos(a) * R, z: cz + Math.sin(a) * R });
+  }
+  addRibbon(group, ringPts, ringW, Y0, matAsph, 'asph');
+  addDashes(group, ringPts, nearMouth, 'dash');
+
+  // 3) Outer curb + neon: ring has 4 mouth gaps, so draw free arcs separately.
+  const freeArcs = [];
+  for (let k = 0; k < 4; k++) {
+    const a0 = mouths[k] + halfA, a1 = mouths[(k + 1) % 4] - halfA;
+    freeArcs.push([a0, a1 + (a0 > a1 ? Math.PI * 2 : 0)]);
+  }
+  if (ROAD.curb !== false) {
+    const rCurb = R + rh + ROAD.curbW / 2;
+    for (const [a0, a1] of freeArcs) addRibbon(group, arcPath(rCurb, a0, a1), ROAD.curbW, ROAD.curbY, matCurb, 'curb');
+  }
+  if (ROAD.neon !== false) {
+    const rNeon = R + rh + ROAD.curbW + 0.06;
+    for (const [a0, a1] of freeArcs) addRibbon(group, arcPath(rNeon, a0, a1), ROAD.neonW, ROAD.neonY, matNeon, 'neon');
+  }
+}
+
+// ── Curved examples ──────────────────────────────────────────────────────────
+// S-bend (car follows this).
+const sRaw = [
+  { x: -190, z: -100 }, { x: -150, z: -122 }, { x: -110, z: -92 },
+  { x: -66, z: -124 }, { x: -24, z: -94 }, { x: 18, z: -122 }, { x: 62, z: -96 },
+];
+const sCurve = new THREE.CatmullRomCurve3(sRaw.map((p) => new THREE.Vector3(p.x, 0, p.z)), false, 'catmullrom', 0.5);
+const sSamples = sCurve.getSpacedPoints(220).map((v) => ({ x: v.x, z: v.z }));
+const sGroup = new THREE.Group(); scene.add(sGroup);
+const sRoad = buildRoad(sGroup, sSamples, 7.5, 's-bend');
+
+// Big sweeping ramp.
+const rampRaw = [
+  { x: -260, z: 30 }, { x: -210, z: 95 }, { x: -140, z: 120 }, { x: -60, z: 80 },
+  { x: 10, z: 120 }, { x: 70, z: 60 }, { x: 150, z: 90 }, { x: 210, z: 30 },
+];
+const rampCurve = new THREE.CatmullRomCurve3(rampRaw.map((p) => new THREE.Vector3(p.x, 0, p.z)), false, 'catmullrom', 0.5);
+const rampSamples = rampCurve.getSpacedPoints(300).map((v) => ({ x: v.x, z: v.z }));
+const rampGroup = new THREE.Group(); scene.add(rampGroup);
+buildRoad(rampGroup, rampSamples, 10, 'ramp');
+
+// Roundabout with arms (drawn AFTER arms so its asphalt overlays arm seams).
+const RING_C = { x: 150, z: -40 }, RING_R = 24;
+const ringGroup = new THREE.Group(); scene.add(ringGroup);
+addRoundabout(ringGroup, RING_C.x, RING_C.z, RING_R, 9, 7.5, 55, 11);
+// Island disc inside the ring (read as a roundabout).
+const island = new THREE.Mesh(
+  new THREE.CircleGeometry(RING_R - 7, 48),
+  new THREE.MeshStandardMaterial({ color: 0x173326, roughness: 1 })
+);
+island.rotation.x = -Math.PI / 2;
+island.position.set(RING_C.x, 0.015, RING_C.z);
+scene.add(island);
+island.userData.layer = 'island';
+
+// ── Car ──────────────────────────────────────────────────────────────────────
+function makeCar(color) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 4.2), new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.5 }));
+  body.position.y = 0.65; g.add(body);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 2.0), new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.5 }));
+  roof.position.set(0, 1.2, -0.2); g.add(roof);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.28, 0.18), new THREE.MeshBasicMaterial({ color: 0xfff4c9 }));
+  head.position.set(0, 0.78, 2.1); g.add(head);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.22, 0.18), new THREE.MeshBasicMaterial({ color: 0xff3b30 }));
+  tail.position.set(0, 0.7, -2.1); g.add(tail);
+  const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.3, 12); wheelGeo.rotateX(Math.PI / 2);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0a0c10, roughness: 0.85 });
+  for (const [wx, wz] of [[-0.95, 1.3], [0.95, 1.3], [-0.95, -1.3], [0.95, -1.3]]) {
+    const w = new THREE.Mesh(wheelGeo, wheelMat); w.position.set(wx, 0.42, wz); g.add(w);
+  }
+  scene.add(g);
+  return g;
+}
+const car = makeCar(0xffb43a);
+let carD = 0;
+const CAR_SPEED = 14;
+
+// ── Kenney modular road kit (CC0) ───────────────────────────────────────────
+const kitHolder = new THREE.Group();
+kitHolder.position.set(-330, 0, 150);
+scene.add(kitHolder);
+let kitLoaded = false;
+new GLTFLoader().load('assets/models/kenney-road-kit.glb', (gltf) => {
+  const m = gltf.scene;
+  const box = new THREE.Box3().setFromObject(m);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  m.position.sub(center);
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  m.scale.setScalar(30 / maxDim);
+  kitHolder.add(m);
+  kitLoaded = true;
+}, undefined, (e) => { info.textContent = 'Kenney kit failed: ' + e.message; });
+
+// ── Toggle wiring ────────────────────────────────────────────────────────────
+function setLayer(name, on) {
+  scene.traverse((o) => { if (o.userData && o.userData.layer === name) o.visible = on; });
+}
+neonCtl.addEventListener('change', () => setLayer('neon', neonCtl.checked));
+curbCtl.addEventListener('change', () => setLayer('curb', curbCtl.checked));
+dashCtl.addEventListener('change', () => setLayer('dash', dashCtl.checked));
+edgeCtl.addEventListener('change', () => setLayer('edge', edgeCtl.checked));
+islCtl.addEventListener('change', () => { island.visible = islCtl.checked; });
+bloomCtl.addEventListener('change', () => { bloom.enabled = bloomCtl.checked; });
+
+info.textContent = 'PBR asphalt + curbs + dashes + white edges + neon (bloom) — S-bend (car) · ramp · roundabout with arms';
+
+// ── Textures (async; flat colours until loaded) ─────────────────────────────
+const texLoader = new THREE.TextureLoader();
+function loadTex(url, srgb) {
+  return new Promise((res) => texLoader.load(url, (t) => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    res(t);
+  }));
+}
+(async () => {
+  if (Q.get('flat') === '1') return;
+  try {
+    const [albedo, normal, rough] = await Promise.all([
+      loadTex('assets/textures/ground-asphalt.jpg', true),
+      loadTex('assets/textures/aerial_asphalt_01_nor_gl_1k.jpg', false),
+      loadTex('assets/textures/aerial_asphalt_01_rough_1k.jpg', false),
+    ]);
+    matAsph.map = albedo;
+    matAsph.normalMap = normal;
+    matAsph.normalScale.set(0.7, 0.7);
+    matAsph.roughnessMap = rough;
+    matAsph.roughness = 1.0;
+    matAsph.needsUpdate = true;
+  } catch (e) { console.warn('[textures] failed — staying flat colour', e); }
+})();
+
+// ── Loop ─────────────────────────────────────────────────────────────────────
+function loop() {
+  requestAnimationFrame(loop);
+  if (sRoad && sRoad.total > 0) {
+    carD = (carD + CAR_SPEED * 0.016) % sRoad.total;
+    const d = sRoad.total - carD;
+    let lo = 0, hi = sSamples.length - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (sRoad.cum[m] <= d) lo = m + 1; else hi = m; }
+    const i = Math.max(0, lo - 1);
+    const t = sRoad.segLen[i] ? (d - sRoad.cum[i]) / sRoad.segLen[i] : 0;
+    const a = sSamples[i], b = sSamples[i + 1];
+    car.position.set(a.x + (b.x - a.x) * t, 0, a.z + (b.z - a.z) * t);
+    car.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
+  }
+  composer.render();
+}
+loop();
+window.__rp = { get scene() { return scene; }, get car() { return car; }, get kitLoaded() { return kitLoaded; }, get sRoad() { return sRoad; } };
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  composer.setSize(innerWidth, innerHeight);
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "extentMeters": 2000,
+  "seed": 85867543,
+  "lotCount": 3267,
+  "roadCount": 302,
+  "parkCount": 6,
+  "bounds": {
+    "minX": 39.4,
+    "minZ": 41.63,
+    "maxX": 1961.31,
+    "maxZ": 1965.5
+  }
+}

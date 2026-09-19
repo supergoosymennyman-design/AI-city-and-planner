@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI City Architect — 3D</title>
+<script>
+  // Browser support check: this sim needs ES modules + import maps.
+  (function () {
+    var ok = (function () {
+      var s = document.createElement('script');
+      // 'importmap' in s  → the element exposes import-map support
+      // HTMLScriptElement.supports() → authoritative check (newer browsers only)
+      var hasImportMapProp = 'importmap' in s;
+      var hasSupportsAPI = !!window.HTMLScriptElement && typeof HTMLScriptElement.supports === 'function';
+      if (hasSupportsAPI) return !!HTMLScriptElement.supports('importmap');
+      // Older browsers that support import maps but predate the supports() API
+      // (e.g. Chrome 89–120, Safari 16.4–17.3, Firefox 108–120) still work.
+      return hasImportMapProp;
+    })();
+    if (ok) return;
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;align-items:center;justify-content:center;' +
+      'background:#0b1220;color:#eaf2f8;font:700 16px system-ui,sans-serif;text-align:center;padding:28px;';
+    d.textContent = 'This AI City game needs a modern browser (Chrome, Edge, Firefox, or Safari). ' +
+      'Please update your browser and reload.';
+    document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(d); });
+  })();
+</script>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/three.module.js",
+    "three/addons/": "/vendor/three/addons/",
+    "three/examples/jsm/": "/vendor/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="stage"></div>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="loading-logo">🏝️</div>
+  <div class="loading-title">AI City Architect</div>
+  <div class="loading-sub">The reclaimed island is surfacing…</div>
+  <div class="loading-bar"><div id="loading-fill"></div></div>
+</div>
+
+<!-- Reclaimed island intro -->
+<div id="island-intro" class="hidden">
+  <div class="island-intro-box">
+    <div class="island-intro-kicker">🏙️ THE MAIN CITY</div>
+    <div class="island-intro-title">A New Island Has Risen</div>
+    <div class="island-intro-text">A small island has been reclaimed in Victoria Harbour. The AI City needs a planner — and that's you. Every building you place affects every other system: power, water, transport, health, waste, safety. Champion is waiting to help you design it.</div>
+    <button id="island-intro-begin">Begin Design →</button>
+  </div>
+</div>
+
+<!-- Top HUD -->
+<header id="hud-top">
+  <div class="hud-left">
+    <span class="hud-title">🏗️ AI City Architect</span>
+    <span class="hud-phase" id="hud-phase">Design</span>
+  </div>
+  <div class="hud-center">
+    <span class="hud-tokens">🪙 <b id="hud-tokens">500</b></span>
+    <span class="hud-check" id="hud-check">📋 Build checklist</span>
+  </div>
+  <div class="hud-right">
+    <button id="btn-cam" aria-label="Toggle camera" aria-pressed="false">🎥 Follow</button>
+    <button id="btn-sim" disabled aria-label="Start simulation">▶ Simulate</button>
+  </div>
+</header>
+
+<!-- Building palette (left) -->
+<aside id="palette">
+  <div class="palette-title">Buildings</div>
+  <div id="palette-list"></div>
+  <div class="palette-tools">
+    <button id="tool-walk" class="tool-btn" data-tool="walk" aria-label="Walk champion">🚶 Walk</button>
+    <button id="tool-build" class="tool-btn active" data-tool="build" aria-label="Place buildings">🏗️ Build</button>
+    <button id="tool-remove" class="tool-btn" data-tool="remove" aria-label="Remove buildings">🗑️ Remove</button>
+  </div>
+</aside>
+
+<!-- Hint bar (bottom) -->
+<div id="hint">Tap a building above, then tap the ground to place it. 🏗️</div>
+<div id="toasts"></div>
+
+<!-- Skin + accessories sidebar (shared champion system) -->
+<button id="skin-toggle" aria-label="Choose skin" aria-expanded="false">🎨</button>
+<div id="skin-panel" aria-hidden="true">
+  <div class="skin-panel-title">Your champion</div>
+  <div id="skin-list"></div>
+</div>
+
+<!-- Requirements checklist -->
+<div id="check-panel" class="hidden">
+  <div class="check-title">Build checklist</div>
+  <div id="check-list"></div>
+  <button id="check-close">Close</button>
+</div>
+
+<!-- Simulation dashboard (right) -->
+<aside id="dashboard" class="hidden">
+  <div class="dash-title">City Status</div>
+  <div id="dash-systems"></div>
+  <div id="dash-weather" class="dash-row">☀️ Clear</div>
+  <div id="dash-clock" class="dash-row">⏱ Day 1 · 06:00</div>
+  <div id="dash-events"></div>
+</aside>
+
+<!-- Crisis panel (modal) -->
+<div id="crisis-panel" class="hidden">
+  <div class="crisis-box">
+    <div class="crisis-title" id="crisis-title">⚠️</div>
+    <div class="crisis-text" id="crisis-text"></div>
+    <div id="crisis-options"></div>
+  </div>
+</div>
+
+<!-- Reclaimed island report (after simulation) -->
+<div id="report-panel" class="hidden">
+  <div class="report-box">
+    <div class="report-title">🏝️ Reclaimed Island Report</div>
+    <div class="report-score">
+      <span class="report-score-big" id="report-score-val">0</span><span class="report-score-slash">/100</span>
+    </div>
+    <div id="report-notes"></div>
+    <button id="report-advice">📜 Give advice for future islands →</button>
+    <button id="report-close" class="ghost">Continue building</button>
+  </div>
+</div>
+
+<!-- City Design Code advice questions (from the main city) -->
+<div id="advice-panel" class="hidden">
+  <div class="advice-box">
+    <div class="advice-kicker">🏙️ THE MAIN CITY</div>
+    <div class="advice-title" id="advice-title">We need your advice</div>
+    <div class="advice-question" id="advice-question"></div>
+    <div id="advice-options"></div>
+    <div class="advice-feedback hidden" id="advice-feedback"></div>
+    <button class="advice-next hidden" id="advice-next">Next →</button>
+  </div>
+</div>
+
+<!-- Toasts container -->
+<div id="toast-stack"></div>
+
+<script type="module">
+import { createGame } from './city-logic.js';
+import { createCityRenderer } from './city-render.js';
+import { createChampion } from './champion.js';
+import { createSimulation } from './city-sim.js';
+import { mountUI } from './main.js';
+import { mountSkinSidebar } from '/champion-city/skins.js';
+import { preloadAccessories } from '/champion-city/accessories.js';
+
+const stage = document.getElementById('stage');
+const Game = createGame();
+const renderer = await createCityRenderer(stage);
+const champion = await createChampion(renderer.scene);
+const sim = createSimulation(renderer, champion);
+const ui = mountUI(renderer, champion, sim, Game);
+
+// Preload Hunyuan-generated accessory GLBs (non-blocking, cloned on equip).
+preloadAccessories('/champion-city/assets/');
+
+// Shared champion customization: the 5 presets + modular accessories.
+mountSkinSidebar('/champion-city/assets/', champion, (skin) => {
+  ui.toast(`👑 ${skin.name} equipped!`, 'ok');
+});
+
+window.__game = { Game, renderer, champion, sim, ui };
+document.getElementById('loading').classList.add('done');
+// Auto-zoom to the champion so the player sees their robot on first load —
+// otherwise the default overview camera (55m up) makes the 1.8m champion an
+// invisible speck on the 80m grid. The player can tap 🎥 Follow anytime to
+// toggle back to the overview.
+document.getElementById('btn-cam')?.click();
+// Reclaimed-island narrative intro — shown once, dismissed by the player.
+const intro = document.getElementById('island-intro');
+if (intro) {
+  intro.classList.remove('hidden');
+  document.getElementById('island-intro-begin').addEventListener('click', () => {
+    intro.classList.add('hidden');
+  });
+}
+</script>
+
+</body>
+</html>
