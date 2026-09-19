@@ -1,15 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-// KNOWN REGRESSION (recorded, not hidden) — the detailed tree packs never reach
-// the city. `buildTreeVariants()` / `flushTrees()` run synchronously during boot
-// (city-builder.js:4462/4465) BEFORE the deferred `loadTreeModels()` /
-// `loadTreePacks()` resolve (city-builder.js:4493-4496), so `_treeVariants` is
-// empty for every addTree() call. Park trees fall back to procedural meshes,
-// scatterStreetTrees() returns early, and the post-load `buildTreeVariants()`
-// has no placements left to flush. Verified on source AND the live worker:
-// 0 nodes with `userData.isCityTree`, 0 textured foliage. Re-enable these tests
-// (test.fixme -> test) once the two tree phases are ordered correctly.
-test.fixme('foliage retains textures', async ({page}, testInfo) => {
+// Foliage is the library Common Tree set (nat_common_tree/_2): park + street
+// trees queue during boot and flush inside startDeferredAssets once the GLBs
+// resolve, giving textured InstancedMeshes with userData.isCityTree.
+test('foliage retains textures', async ({page}, testInfo) => {
  await page.goto('/city-builder/');
  await page.waitForTimeout(2000);
  await page.evaluate(() => [...document.querySelectorAll('button')].find(b => /example city|empty sample/i.test(b.textContent))?.click());
@@ -54,9 +48,7 @@ test('library search and tablet close work', async ({page}, testInfo) => {
 // Touch capability, rather than a resized desktop viewport, selects mobile assets.
 test.describe('school tablet', () => {
  test.use({viewport:{width:768,height:1024}, hasTouch:true, deviceScaleFactor:1});
- // KNOWN REGRESSION: same dead tree-pack pipeline as above — `isCityTree`
- // batches never exist, so this test cannot pass until the ordering is fixed.
- test.fixme('uses the compact tree models without requesting forest packs', async ({page}, testInfo) => {
+ test('uses the compact tree models without requesting forest packs', async ({page}, testInfo) => {
   const forestRequests=[];
   page.on('request', r=>{if (/\/assets\/models\/nature\/tree-/.test(r.url())) forestRequests.push(r.url());});
   await page.goto('/city-builder/');
