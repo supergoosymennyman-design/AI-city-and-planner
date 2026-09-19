@@ -1,12 +1,11 @@
 // save-restore.spec.mjs — the Champion File data-loss safety net, end to end:
 // save (named download) → wipe the device → restore from the file.
 //
-// Requires the BUILT bundle (E2E_DOCROOT=deploy/city-sim) — the save/cloud UI
-// lives in the city-builder entry overlay.
+// Runs against source or an explicitly selected existing bundle.
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-test.skip(!process.env.E2E_DOCROOT, 'save/restore spec needs the built bundle (E2E_DOCROOT=deploy/city-sim)');
+
 
 const UNLOCK_KEY = 'p5_planner_unlocked';
 const LAYOUT_KEY = 'p5_city_planner_layout_v1';
@@ -37,8 +36,12 @@ test('save my city → wipe storage → restore from the downloaded file', async
   await page.waitForTimeout(1200);
   await expect(page.locator('#entry-overlay')).toBeVisible();
 
-  // Save: open the modal, name it, download.
-  await page.click('#entry-save');
+  // Save: the entry screen is OPEN-ONLY by design (#entry-save and
+  // #entry-cloud-save are display:none). A returning student starts their city
+  // and saves from the HUD 💾 Save control.
+  await page.click('#entry-local');
+  await page.waitForFunction(() => document.getElementById('loading')?.classList.contains('done'), null, { timeout: 60000 });
+  await page.click('#btn-save-hud');
   await expect(page.locator('#save-modal')).toBeVisible();
   await page.fill('#save-name', 'Jason week 3');
   const [download] = await Promise.all([

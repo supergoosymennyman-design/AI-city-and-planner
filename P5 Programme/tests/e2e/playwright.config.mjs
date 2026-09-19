@@ -7,6 +7,11 @@
 import { defineConfig } from '@playwright/test';
 
 const PORT = Number(process.env.E2E_PORT || 8377);
+// SwiftShader rendering plus the per-test `Emulation.setCPUThrottlingRate`
+// makes these specs CPU-bound. Playwright's default (= os.cpus(), 8 here)
+// oversubscribes and turns throttled specs into timeout flakes that pass solo.
+// Cap it; override with E2E_WORKERS for a deliberate stress run.
+const WORKERS = Number(process.env.E2E_WORKERS) || (process.env.CI ? 1 : 2);
 
 export default defineConfig({
   testDir: '.',
@@ -14,11 +19,15 @@ export default defineConfig({
   timeout: 120000,
   expect: { timeout: 30000 },
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: WORKERS,
   reporter: [['list']],
   use: {
     baseURL: `http://localhost:${PORT}`,
     viewport: { width: 1280, height: 800 },
+    // Without this, a single un-clickable/off-screen control burns the whole
+    // 120s test timeout and hides which interaction actually failed.
+    actionTimeout: 30000,
+    navigationTimeout: 60000,
     launchOptions: {
       args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'],
     },

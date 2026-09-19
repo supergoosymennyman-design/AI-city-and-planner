@@ -30,6 +30,8 @@ test('badge emblem shows the lowest tier (Builder) and opens the Logbook', async
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await bootCity(page);
+  // The badge emblem lives inside the collapsed "More / history" disclosure.
+  await page.locator('#city-more summary').click();
   await expect(page.locator('#badge-emblem')).toBeVisible({ timeout: 15000 });
   const text = await page.locator('#badge-emblem').textContent();
   expect(text).toContain('Builder');
@@ -49,10 +51,13 @@ test('capability panel opens and shows an honest empty state', async ({ page }) 
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await bootCity(page);
+  // The capability button lives inside the collapsed "More / history" disclosure.
+  await page.locator('#city-more summary').click();
   await expect(page.locator('#cap-btn')).toBeVisible({ timeout: 15000 });
   await page.locator('#cap-btn').click();
   await expect(page.locator('#cap-modal')).toBeVisible();
   const body = await page.locator('#cap-body').textContent();
-  expect(body).toContain('No planted AI machines');
+  expect(body).toContain('No imported machine files yet');
+  expect(body).toContain('does not run inference');
   expect(errors, `pageerrors:\n${errors.join('\n') || '(none)'}`).toEqual([]);
 });

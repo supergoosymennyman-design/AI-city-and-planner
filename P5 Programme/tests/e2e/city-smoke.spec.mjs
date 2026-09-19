@@ -22,7 +22,7 @@ async function bootCity(page) {
   await page.goto('/city-builder/', { waitUntil: 'load' });
   await page.waitForTimeout(2500);
   await page.evaluate(() => {
-    const el = [...document.querySelectorAll('button')].find((b) => /empty sample/i.test(b.textContent || ''));
+    const el = [...document.querySelectorAll('button')].find((b) => /example city|empty sample/i.test(b.textContent || ''));
     if (el) el.click();
   });
   await expect(page.locator('canvas')).toBeVisible({ timeout: 60000 });
@@ -33,7 +33,7 @@ async function bootCity(page) {
 test('city-builder boots: loading done, scene, champion ring, zero critical warnings', async ({ page }) => {
   const warnings = await bootCity(page);
 
-  // Poll for full readiness instead of a fixed sleep — pedestrians + champion
+  // Poll for full readiness instead of a fixed sleep — pedestrians (citizens) + champion
   // ring initialize lazily and fixed waits race under parallel load.
   await page.waitForFunction(() => {
     const scene = window.__scene;
@@ -42,7 +42,7 @@ test('city-builder boots: loading done, scene, champion ring, zero critical warn
     scene.traverse((o) => {
       if (o.isMesh && o.geometry && o.geometry.type === 'RingGeometry') rings++;
     });
-    const peds = (window.__city && window.__city.pedestrians) ? window.__city.pedestrians.getCount() : -1;
+    const peds = (window.__city && window.__city.citizens) ? window.__city.citizens.getCount() : -1;
     const loadingDone = document.getElementById('loading')?.classList.contains('done') ?? false;
     return loadingDone && rings > 0 && peds >= 0;
   }, { timeout: 60000 });
@@ -57,7 +57,7 @@ test('city-builder boots: loading done, scene, champion ring, zero critical warn
       loadingDone: document.getElementById('loading')?.classList.contains('done') ?? false,
       scene: !!scene,
       rings,
-      peds: (window.__city && window.__city.pedestrians) ? window.__city.pedestrians.getCount() : -1,
+      peds: (window.__city && window.__city.citizens) ? window.__city.citizens.getCount() : -1,
     };
   });
   expect(state.loadingDone, 'boot did not complete (loading overlay)').toBe(true);
@@ -69,7 +69,7 @@ test('city-builder boots: loading done, scene, champion ring, zero critical warn
   expect(bad, `critical warnings:\n${bad.join('\n') || '(none)'}`).toEqual([]);
 });
 
-test('city-builder renders instanced meshes (crowd/pedestrians use instancing)', async ({ page }) => {
+test('city-builder renders instanced meshes (citizen crowd uses instancing)', async ({ page }) => {
   const warnings = await bootCity(page);
 
   const info = await page.evaluate(() => {
@@ -78,7 +78,7 @@ test('city-builder renders instanced meshes (crowd/pedestrians use instancing)',
     let ims = 0;
     let peds = 'n/a';
     scene.traverse((o) => { if (o.isInstancedMesh) ims++; });
-    if (window.__city && window.__city.pedestrians) peds = window.__city.pedestrians.getCount();
+    if (window.__city && window.__city.citizens) peds = window.__city.citizens.getCount();
     return { ims, peds };
   });
   expect(info.error, 'scene missing').toBeUndefined();
