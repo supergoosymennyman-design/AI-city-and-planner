@@ -68,7 +68,13 @@ test('desktop example city uses the moderate fleet and spreads beyond the rounda
   expect(traffic.robotPopulation).toBeNull();
   expect(traffic.citizens).toBeGreaterThan(0);
   expect(traffic.animatedCitizens).toBeGreaterThan(0);
-  expect(Object.keys(traffic.occupancy).length).toBeGreaterThan(2);
+  // The example city has exactly two valid circuits: the outer ring (road 4)
+  // and the central roundabout (road 9). An old planner bug closed the ring
+  // route with a U-turn onto a dead-end avenue, which padded this to 3 roads;
+  // the invariant we actually care about is that both true circuits carry cars.
+  const occupiedRoads = Object.keys(traffic.occupancy).map(Number);
+  expect(occupiedRoads).toContain(4);
+  expect(occupiedRoads).toContain(9);
 });
 
 test('ambient fleet keeps both Audi GLBs and their material primitive batches', async ({ page }) => {

@@ -87,13 +87,21 @@ function makeTurnPath(from, to, allowSeamless = false) {
   const p0 = lanePoint(from, from.length);
   const p3 = lanePoint(to, 0);
   const chord = Math.hypot(p3.x - p0.x, p3.z - p0.z);
-  const handle = Math.max(2, Math.min(8, chord * .65));
+  // A sharper turn needs a shorter handle so the connector does not overshoot
+  // the junction pad; a gentle turn can afford a longer, calmer sweep. This is
+  // what stops a 90° corner bulging out past the carriageway.
+  const turnCos = Math.max(-1, Math.min(1, from.dx * to.dx + from.dz * to.dz));
+  const sharpness = Math.acos(turnCos) / Math.PI;      // 0 straight → 1 reversal
+  const handle = Math.max(2, Math.min(8, chord * (.75 - sharpness * .35)));
   const p1 = point(p0.x + from.dx * handle, p0.z + from.dz * handle);
   const p2 = point(p3.x - to.dx * handle, p3.z - to.dz * handle);
   const points = [];
   const cumulative = [0];
-  for (let i = 0; i <= 12; i++) {
-    const p = cubic(p0, p1, p2, p3, i / 12);
+  // Doubled from 12: a coarse polyline made a text-book turn read as a
+  // sequence of straight hops rather than one continuous arc.
+  const SEGMENTS = 24;
+  for (let i = 0; i <= SEGMENTS; i++) {
+    const p = cubic(p0, p1, p2, p3, i / SEGMENTS);
     points.push(p);
     if (i) cumulative.push(cumulative[i - 1] + length(points[i - 1], p));
   }
@@ -112,13 +120,26 @@ function pathPoint(path, dist) {
   const span = path.cumulative[i + 1] - path.cumulative[i] || 1;
   const t = (s - path.cumulative[i]) / span;
   const a = path.points[i], b = path.points[i + 1];
-  const progress = path.length ? s / path.length : 1;
-  const entryAngle = Math.atan2(path.entryDz, path.entryDx);
-  const exitAngle = Math.atan2(path.exitDz, path.exitDx);
-  const turn = Math.atan2(Math.sin(exitAngle - entryAngle), Math.cos(exitAngle - entryAngle));
-  const angle = entryAngle + turn * progress;
-  return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t,
-    dx: Math.cos(angle), dz: Math.sin(angle) };
+  // Follow the curve's own tangent. The previous version linearly blended the
+  // entry and exit headings across the whole connector, so a car slid/crabbed
+  // sideways through a turn while its position travelled the arc. At the two
+  // endpoints the tangent equals the logical lane heading (p1 is p0 + entry*handle,
+  // p2 is p3 - exit*handle), so this still meets both lanes exactly.
+  const heading = normalize(b.x - a.x, b.z - a.z);
+  return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, dx: heading.dx, dz: heading.dz };
+}
+
+// The single most "straight ahead" legal continuation from a link. Shared by
+// route planning and live junction choice so a straight-only crossing behaves
+// the same whether a car is following a plan or improvising.
+function straightExit(link) {
+  let best = null, bestDot = -Infinity;
+  for (const next of link.to.links) {
+    if (next === link || next.to === link.from) continue;
+    const dot = link.dx * next.dx + link.dz * next.dz;
+    if (dot > bestDot || (dot === bestDot && best && next.id < best.id)) { best = next; bestDot = dot; }
+  }
+  return best;
 }
 
 // Ambient traffic is deliberately sized from the usable, *undirected* road
@@ -186,20 +207,31 @@ function joinsAtNode(from, to) {
   return Math.hypot(from.to.x - to.from.x, from.to.z - to.from.z) < .08;
 }
 
-function findDirectedCycle(component, usableSet) {
+function findDirectedCycle(component, usableSet, { straightOnly = false, kindByNode = null } = {}) {
   const maxDepth = Math.max(3, component.length / 2);
   for (const start of [...component].sort((a, b) => a.id - b.id)) {
     const walk = [start], used = new Set([physicalKey(start)]);
     const visit = (current) => {
-      const exits = current.to.links.filter(next => usableSet.has(next) && next.from !== next.to && joinsAtNode(current, next) && next.to !== current.from)
-        .sort((a, b) => a.id - b.id);
+      let exits = current.to.links.filter(next => usableSet.has(next) && next.from !== next.to && joinsAtNode(current, next) && next.to !== current.from);
+      // At a plain crossing only the straight continuation may be used. A
+      // component that cannot circulate without turning there (a pure grid)
+      // is retried with turns allowed, so no district is left vehicle-free.
+      if (straightOnly && kindByNode?.get(current.to.id) === 'cross') {
+        const straight = straightExit(current);
+        exits = exits.filter(next => next === straight);
+      }
+      exits.sort((a, b) => a.id - b.id);
       for (const next of exits) {
+        const key = physicalKey(next);
+        // An edge may never be reused — not even to close. Without this a spur
+        // could "close" by doubling back on its own reverse, inventing a U-turn
+        // lollipop route (out to the dead end and straight back).
+        if (used.has(key)) continue;
         if (next.to === start.from) {
           if (walk.length >= 3) return [...walk, next];
           continue;
         }
-        const key = physicalKey(next);
-        if (used.has(key) || walk.length >= maxDepth) continue;
+        if (walk.length >= maxDepth) continue;
         used.add(key); walk.push(next);
         const found = visit(next);
         if (found) return found;
@@ -213,11 +245,15 @@ function findDirectedCycle(component, usableSet) {
   return null;
 }
 
+/** Bound on independent circuits extracted from one connected district. */
+const MAX_LOOPS_PER_COMPONENT = 4;
+
 /**
  * Produce safe, deterministic, closed ambient-traffic routes.  Components do
- * use genuine directed circuits. Branches and cul-de-sacs without a paved,
- * lane-valid return circuit receive no ambient vehicles rather than a visible
- * U-turn or a disappearing model.
+ * use genuine directed circuits — every independent loop in a district, up to
+ * MAX_LOOPS_PER_COMPONENT, so a ring plus an inner roundabout both get cars.
+ * Branches and cul-de-sacs without a paved, lane-valid return circuit receive
+ * no ambient vehicles rather than a visible U-turn or a disappearing model.
  */
 export function planTrafficLoops(roadsOrNetwork, { minLinkLength = 12, minRoadWidth = 5 } = {}) {
   const network = Array.isArray(roadsOrNetwork) ? buildTrafficNetwork(roadsOrNetwork) : roadsOrNetwork;
@@ -233,10 +269,28 @@ export function planTrafficLoops(roadsOrNetwork, { minLinkLength = 12, minRoadWi
     }
     components.push(component);
   }
+  const kindByNode = network.junctionKindByNode;
   components.forEach((component, componentId) => {
-    const walked = findDirectedCycle(component, usableSet);
-    const route = walked && routeFromWalk(walked, componentId, network);
-    if (route) routes.push(route);
+    // A district can hold SEVERAL genuine circuits — e.g. an outer ring with a
+    // connected central roundabout. Find each independent loop in turn (bounded),
+    // claiming its edges so the next search looks for a different one. This is
+    // why both rings of the example city get cars instead of only the outer one.
+    const claimed = new Set();
+    for (let attempt = 0; attempt < MAX_LOOPS_PER_COMPONENT; attempt++) {
+      const available = new Set(component.filter(link => !claimed.has(physicalKey(link))));
+      // Prefer the calm straight-only crossing. Only if that leaves this circuit
+      // unfound (a pure grid has no way around a block without turning) do we
+      // fall back to allowing legal turns there.
+      let walked = findDirectedCycle(component, available, { straightOnly: true, kindByNode });
+      let route = walked && routeFromWalk(walked, componentId, network);
+      if (!route) {
+        walked = findDirectedCycle(component, available, { straightOnly: false, kindByNode });
+        route = walked && routeFromWalk(walked, componentId, network);
+      }
+      if (!walked) break;
+      for (const link of walked) claimed.add(physicalKey(link));
+      if (route) routes.push(route);
+    }
   });
   const covered = new Set(routes.flatMap(route => route.links));
   return Object.freeze({ network, routes: Object.freeze(routes), componentCount: components.length,
@@ -377,17 +431,30 @@ export function buildTrafficNetwork(roads = []) {
       }
     }
   }
-  // A node involving two physical roads (or a self-crossing with four arms) is
-  // a mutual-exclusion zone. A normal polyline bend has four directed links
-  // too, so it must remain free-flowing rather than becoming a fake junction.
-  const junctions = nodes.filter(n => n.roads.size > 1 || n.links.length > 4).map(n => {
+  // A real junction is where THREE OR MORE arms meet. `n.links` holds outgoing
+  // links only, so it counts arms directly: a bend / elbow / through-node has
+  // 2, a T has 3, a crossing or 4-way has 4+. Two roads joined end-to-end at an
+  // elbow are NOT a junction — reserving them made cars needlessly stop at every
+  // corner, and made the road renderer paint a stop line there.
+  const junctions = nodes.filter(n => n.links.length >= 3).map(n => {
     const ringRoadIds = [...n.roads].filter(id => closedRoadIds.has(id));
+    // A roundabout is a circulated closed ring whose other roads arrive as
+    // single-arm stubs. A through road that merely *crosses* a ring (two arms
+    // at this node) is an ordinary crossing: treating it as a roundabout made
+    // avenues merge onto the outer ring instead of carrying straight across.
+    const nonRingRoadIds = [...n.roads].filter(id => !closedRoadIds.has(id));
+    const crossedByThroughRoad = nonRingRoadIds.some(id => n.links.filter(l => l.roadId === id).length >= 2);
+    const roundabout = ringRoadIds.length > 0 && nonRingRoadIds.length > 0 && !crossedByThroughRoad;
+    // A plain X (four or more arms) is signalised straight-only; a T keeps its
+    // turn, and a roundabout keeps circulating.
+    const kind = roundabout ? 'roundabout' : n.links.length >= 4 ? 'cross' : 't';
     return { node: n, owner: null, queue: [], clearance: Math.max(8, ...n.links.map(l => l.width)),
-      ringRoadIds: new Set(ringRoadIds), roundabout: ringRoadIds.length > 0 && n.roads.size > ringRoadIds.length };
+      ringRoadIds: new Set(ringRoadIds), roundabout, kind, crossedByThroughRoad };
   });
   const junctionByNode = new Map(junctions.map(j => [j.node.id, j]));
+  const junctionKindByNode = new Map(junctions.map(j => [j.node.id, j.kind]));
   const entryLinks = links.filter(l => l.from.links.length === 1);
-  return { nodes, links, junctions, junctionByNode, entryLinks, segments, closedRoadIds };
+  return { nodes, links, junctions, junctionByNode, junctionKindByNode, entryLinks, segments, closedRoadIds };
 }
 
 export function pointInRoadCarriageway(network, x, z, radius = 0) {
@@ -423,6 +490,64 @@ export function isJunctionClear(network, x, z, pad = 5) {
 // actual planted footprint, rather than merely the trunk centre.
 export function isRoadsideSceneryClear(network, x, z, radius = 2.2, junctionPad = 8) {
   return !pointInRoadCarriageway(network, x, z, radius) && isJunctionClear(network, x, z, junctionPad + radius);
+}
+
+// Distance from a point to the nearest carriageway EDGE across every road in the
+// network. Negative means the point is on the asphalt. Used to guarantee street
+// furniture has real verge between it and the traffic.
+export function roadEdgeClearance(network, x, z) {
+  let best = Infinity;
+  for (const seg of network.segments || []) {
+    const dx = seg.b.x - seg.a.x, dz = seg.b.z - seg.a.z, l2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((x - seg.a.x) * dx + (z - seg.a.z) * dz) / l2));
+    const d = Math.hypot(x - (seg.a.x + dx * t), z - (seg.a.z + dz * t)) - (seg.width || 9) / 2;
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+function trafficSpotIsClear(network, x, z, propRadius, margin) {
+  // Hard guarantee: the prop footprint must miss this road AND every crossing
+  // road, with real margin to the kerb. This is the "never in the middle of the
+  // road" rule, checked against all ribbons rather than only the host road.
+  if (pointInRoadCarriageway(network, x, z, propRadius)) return false;
+  return roadEdgeClearance(network, x, z) >= propRadius + margin - 1e-6;
+}
+
+/**
+ * Sidewalk positions for signal heads at plain X crossings. Renderer-free so
+ * the placement rule is unit-testable. For each approach arm it tries both
+ * pavements and walks outward until it finds a spot fully outside every road
+ * ribbon; if none exists the arm is skipped rather than forced onto asphalt.
+ */
+export function trafficLightSpots(network, { propRadius = 1.2, margin = 0.6, maxPerJunction = 4, cap = 32 } = {}) {
+  const spots = [];
+  const crosses = (network?.junctions || []).filter(j => j.kind === 'cross');
+  for (const junction of crosses) {
+    if (spots.length >= cap) break;
+    let placed = 0;
+    for (const arm of [...junction.node.links].sort((a, b) => a.id - b.id)) {
+      if (placed >= maxPerJunction || spots.length >= cap) break;
+      const half = (arm.width || 9) / 2;
+      const perpendicular = { x: -arm.dz, z: arm.dx };
+      let chosen = null;
+      // Near the node the arm-side point is still inside the CROSSING road's
+      // ribbon; walking out along the arm reaches the pavement corner.
+      for (let d = Math.max(2, propRadius); d <= junction.clearance + 12 && !chosen; d += 1) {
+        for (const side of [1, -1]) {
+          const x = junction.node.x + arm.dx * d + perpendicular.x * side * (half + margin + propRadius);
+          const z = junction.node.z + arm.dz * d + perpendicular.z * side * (half + margin + propRadius);
+          if (!trafficSpotIsClear(network, x, z, propRadius, margin)) continue;
+          if (spots.some(spot => Math.hypot(spot.x - x, spot.z - z) < propRadius * 2)) continue;
+          // Face down the arm, toward oncoming traffic.
+          chosen = { x, z, yaw: Math.atan2(-arm.dx, -arm.dz), junctionId: junction.node.id, roadId: arm.roadId };
+          break;
+        }
+      }
+      if (chosen) { spots.push(chosen); placed++; }
+    }
+  }
+  return spots;
 }
 
 export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
@@ -461,6 +586,12 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
         if (!branchExits.length || rng() < .78) return continueRing?.link || null;
         return branchExits[Math.floor(rng() * branchExits.length)];
       }
+    }
+    // A plain crossing is signalised: carry straight on, never turn across
+    // traffic. T-junctions and roundabouts keep the normal choice below.
+    if (junction?.kind === 'cross') {
+      const straight = straightExit(incoming);
+      if (straight && exits.includes(straight)) return straight;
     }
     const scored = exits.map(link => ({ link, dot: incoming.dx * link.dx + incoming.dz * link.dz }));
     scored.sort((a, b) => b.dot - a.dot || a.link.id - b.link.id);
@@ -581,7 +712,10 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
     const startDist = Math.min(dist, chosen.length);
     const startPose = seamlessLanePoint(chosen, startDist, route?.transitions[routeStep]);
     const v = { id: vehicles.length, kind, length, width, speed, currentSpeed: speed, link: chosen, dist: startDist, route, routeStep, reservation: null,
-      x: startPose.x, z: startPose.z, vx: chosen.dx, vz: chosen.dz, done: false };
+      x: startPose.x, z: startPose.z, vx: chosen.dx, vz: chosen.dz,
+      // Previous fixed-step pose, for render-side interpolation. Without it a
+      // stepped sim would visibly advance at the display refresh rate.
+      px: startPose.x, pz: startPose.z, pdx: chosen.dx, pdz: chosen.dz, done: false };
     chosen.vehicles.push(v); vehicles.push(v); return v;
   }
   function enterJoin(v, next, turn, remaining, advance) {
@@ -627,6 +761,9 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
       // Keep an endpoint vehicle visible for one render frame before removing
       // it. This prevents the old "vanish just before the road end" effect.
       if (v.done) { v.expired = true; continue; }
+      // Snapshot the pose before this slice so the renderer can interpolate
+      // between two fixed steps instead of snapping at the display rate.
+      v.px = v.x; v.pz = v.z; v.pdx = v.vx; v.pdz = v.vz;
       // Links are sorted far-to-near for rendering/update order; choose the
       // nearest vehicle ahead, not the first (farthest) item in that order.
       const leader = v.link.vehicles.reduce((nearest, other) =>
@@ -709,10 +846,14 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
   // frame rate. A slow frame runs several safe slices rather than moving a car
   // far enough to skip a stop line or an internal junction lane.
   let accumulator = 0;
+  // Leftover fraction of a fixed step, in [0,1). Exposed so the renderer can
+  // place cars between the last two simulated poses (fixed-step interpolation)
+  // rather than snapping them forward at the display refresh rate.
+  const alpha = () => accumulator / .05;
   function update(dt) {
     accumulator = Math.min(.5, accumulator + Math.max(0, Number.isFinite(dt) ? dt : 0));
     while (accumulator >= .05) { updateStep(.05); accumulator -= .05; }
   }
-  return { network, routePlan, vehicles, addVehicle, spawnCandidates, update,
+  return { network, routePlan, vehicles, addVehicle, spawnCandidates, update, alpha,
     vehiclesOverlap: (a, b) => bodiesOverlap(bodyAt(a), bodyAt(b)) };
 }

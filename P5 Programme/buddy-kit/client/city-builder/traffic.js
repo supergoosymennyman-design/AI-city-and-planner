@@ -261,6 +261,10 @@ export function createTraffic(group, roads, opts = {}) {
     // Street-life occupancy is intentionally separate: pedestrians no longer
     // cross carriageways, so it cannot stall the graph halfway through a turn.
     flow.update(streetLife ? (streetLife.shouldYield ? dt : dt) : dt);
+    // Fixed-step interpolation: draw cars between the last two simulated poses
+    // so motion stays smooth even when the display frame is shorter than the
+    // 0.05s simulation slice.
+    const alpha = Math.max(0, Math.min(1, flow.alpha ? flow.alpha() : 1));
     // Planned loops have no runtime respawn: omitted startup vehicles stay
     // omitted rather than appearing beside the Champion later.
     const used = new Map(renderers.map(renderer => [renderer, 0]));
@@ -275,8 +279,15 @@ export function createTraffic(group, roads, opts = {}) {
       // The renderer consumes the already lane-centred pose produced by the
       // graph. Applying another offset here would visibly separate the GLB
       // from the collision envelope, especially while traversing a turn path.
-      pos.set(v.x, 0.5, v.z);
-      if (v.vx * v.vx + v.vz * v.vz > 1e-4) v.renderYaw = Math.atan2(v.vx, v.vz);
+      const ix = Number.isFinite(v.px) ? v.px + (v.x - v.px) * alpha : v.x;
+      const iz = Number.isFinite(v.pz) ? v.pz + (v.z - v.pz) * alpha : v.z;
+      pos.set(ix, 0.5, iz);
+      const curYaw = v.vx * v.vx + v.vz * v.vz > 1e-4 ? Math.atan2(v.vx, v.vz)
+        : (Number.isFinite(v.renderYaw) ? v.renderYaw : 0);
+      const prevYaw = (Number.isFinite(v.pdx) && v.pdx * v.pdx + v.pdz * v.pdz > 1e-4)
+        ? Math.atan2(v.pdx, v.pdz) : curYaw;
+      const yawDelta = Math.atan2(Math.sin(curYaw - prevYaw), Math.cos(curYaw - prevYaw));
+      v.renderYaw = prevYaw + yawDelta * alpha;
       if (!Number.isFinite(v.renderYaw)) v.renderYaw = 0;
       quat.setFromAxisAngle(up, v.renderYaw);
       scl.set(1, 1, 1);

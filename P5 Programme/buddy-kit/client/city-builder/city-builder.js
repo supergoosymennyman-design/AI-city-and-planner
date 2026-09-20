@@ -55,6 +55,7 @@ import { GROUND_TEXTURES, readGroundTexture, validGroundTexture, mountGroundText
 import { CITY_PALETTE as DUSK } from './city-palette.js';
 import { createNeighbourhood, createStreetLife } from '../city-common/neighbourhood.js';
 import { buildTrafficNetwork, isRoadsideSceneryClear, resolveRoadCarriageway } from '../city-common/traffic-network.js';
+import { junctionMouthMaskHalf, junctionPadOutline, ribbonNormals } from '../city-common/road-geometry.js';
 import { PARK_VEGETATION_ASSETS, createParkVegetation } from '../city-common/park-vegetation.js';
 import { createPublicSpaces } from './public-spaces.js';
 import { createClouds } from './clouds.js';
@@ -973,6 +974,10 @@ function makeMarkingMaterial(colorHex, intensity, rampMin = 1.0) {
 }
 const _roadMats = {
   asph: asphaltSurfaceDetail(new THREE.MeshStandardMaterial({ color: ROAD_FX.asphColor, roughness: 1, metalness: 0, side: THREE.DoubleSide })),
+  // Junction pad: same asphalt, but biased toward the camera so it always wins
+  // over the (lower) ribbon asphalt where they overlap at a crossing.
+  pad: asphaltSurfaceDetail(new THREE.MeshStandardMaterial({ color: ROAD_FX.asphColor, roughness: 1, metalness: 0, side: THREE.DoubleSide,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })),
   // Flat concrete sidewalk — one untextured standard material, merged city-wide.
   sw: new THREE.MeshStandardMaterial({ color: ROAD_FX.swColor, roughness: 0.95, metalness: 0, side: THREE.DoubleSide }),
   // Markings are unlit flat colour shaders with polygonOffset (robust at
@@ -1014,27 +1019,24 @@ function loadRoadTextures(gen = _bootGen, targetRenderer = renderer) {
     _roadMats.asph.roughnessMap = rough;
     _roadMats.asph.roughness = 1;
     _roadMats.asph.needsUpdate = true;
+    // Same maps as the roads (including the normal map) so the junction shades
+    // exactly like the street it joins.
+    _roadMats.pad.map = albedo;
+    _roadMats.pad.normalMap = normal;
+    _roadMats.pad.normalScale.set(0.15, 0.15);
+    _roadMats.pad.roughnessMap = rough;
+    _roadMats.pad.roughness = 1;
+    _roadMats.pad.needsUpdate = true;
   }).catch((e) => { console.warn('[road-fx] textures failed — staying flat charcoal', e); _roadTexLoading = false; });
 }
 
-/** Horizontal perpendicular to a polyline, averaged at vertices (for offsets). */
+/** Horizontal perpendicular at every vertex, mitred so bends keep their width
+ *  (see ribbonNormals in city-common/road-geometry.js). */
 function roadLateral(poly) {
-  const out = [];
-  for (let i = 0; i < poly.length; i++) {
-    let nx = 0, nz = 0;
-    const add = (a, b) => {
-      const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1;
-      nx += -dz / l; nz += dx / l;
-    };
-    if (i > 0) add(poly[i - 1], poly[i]);
-    if (i < poly.length - 1) add(poly[i], poly[i + 1]);
-    const l = Math.hypot(nx, nz) || 1;
-    out.push({ x: nx / l, z: nz / l });
-  }
-  return out;
+  return ribbonNormals(poly);
 }
 function offsetRoad(poly, lat, d) {
-  return poly.map((p, i) => ({ x: p.x + lat[i].x * d, z: p.z + lat[i].z * d }));
+  return poly.map((p, i) => ({ x: p.x + lat[i].x * d * (lat[i].s ?? 1), z: p.z + lat[i].z * d * (lat[i].s ?? 1) }));
 }
 /** Push a swept ribbon (two triangles per segment) into Pos (+ optional Uv). */
 function pushRibbon(Pos, Uv, path, width, y, wantUv) {
@@ -1047,8 +1049,9 @@ function pushRibbon(Pos, Uv, path, width, y, wantUv) {
   }
   for (let i = 0; i < path.length - 1; i++) {
     const a = path[i], b = path[i + 1];
-    const lx0 = -lat[i].x * half, lz0 = -lat[i].z * half, rx0 = lat[i].x * half, rz0 = lat[i].z * half;
-    const lx1 = -lat[i + 1].x * half, lz1 = -lat[i + 1].z * half, rx1 = lat[i + 1].x * half, rz1 = lat[i + 1].z * half;
+    const si = lat[i].s ?? 1, sj = lat[i + 1].s ?? 1;
+    const lx0 = -lat[i].x * half * si, lz0 = -lat[i].z * half * si, rx0 = lat[i].x * half * si, rz0 = lat[i].z * half * si;
+    const lx1 = -lat[i + 1].x * half * sj, lz1 = -lat[i + 1].z * half * sj, rx1 = lat[i + 1].x * half * sj, rz1 = lat[i + 1].z * half * sj;
     const xL0 = a.x + lx0, zL0 = a.z + lz0, xR0 = a.x + rx0, zR0 = a.z + rz0;
     const xL1 = b.x + lx1, zL1 = b.z + lz1, xR1 = b.x + rx1, zR1 = b.z + rz1;
     Pos.push(xL0, y, zL0, xR0, y, zR0, xL1, y, zL1);
@@ -1083,6 +1086,84 @@ function pushDashes(Pos, poly, cum, y, skipArc) {
     Pos.push(b.x + nx, y, b.z + nz, a.x - nx, y, a.z - nz, b.x - nx, y, b.z - nz);
   }
 }
+/** Project a point onto a road polyline in the road's OWN texture frame:
+ *  arc-length along the centreline and signed lateral (left +), in metres —
+ *  exactly the (u, v) `pushRibbon` uses, so a junction pad continues the same
+ *  asphalt at the same grain and scale instead of looking like another material. */
+function roadUV(info, P) {
+  let bestD = Infinity, bestArc = 0, bestLat = 0;
+  for (let i = 0; i < info.poly.length - 1; i++) {
+    const a = info.poly[i], b = info.poly[i + 1];
+    const dx = b.x - a.x, dz = b.z - a.z;
+    const l2 = dx * dx + dz * dz;
+    let t = l2 ? ((P.x - a.x) * dx + (P.z - a.z) * dz) / l2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const qx = a.x + dx * t, qz = a.z + dz * t;
+    const d = Math.hypot(P.x - qx, P.z - qz);
+    if (d < bestD) {
+      const l = Math.sqrt(l2) || 1;
+      const nlx = -dz / l, nlz = dx / l;             // left normal
+      bestD = d;
+      bestArc = info.cum[i] + (info.cum[i + 1] - info.cum[i]) * t;
+      bestLat = (P.x - qx) * nlx + (P.z - qz) * nlz;
+    }
+  }
+  return { u: bestArc / ROAD_FX.tileM, v: bestLat / ROAD_FX.tileM };
+}
+
+/** Fan-triangulate a star-shaped outline (from junctionPadOutline) about its
+ *  node into a flat layer. `uvFor(point)` returns that vertex's road-frame UV
+ *  (or null for an untextured layer). Zero-area wedges (the straight-through
+ *  diameter of a T/X) are dropped — a degenerate triangle has an undefined
+ *  normal and renders as a bright streak. */
+function pushFan(Pos, Uv, outline, y, uvFor) {
+  const { node, ring } = outline;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i], b = ring[(i + 1) % ring.length];
+    const area2 = (a.x - node.x) * (b.z - node.z) - (a.z - node.z) * (b.x - node.x);
+    if (Math.abs(area2) < 0.02) continue;        // skip needles that alias a normal map
+    Pos.push(node.x, y, node.z, a.x, y, a.z, b.x, y, b.z);
+    if (Uv && uvFor) {
+      // The node vertex must be measured in THIS triangle's road frame, or its
+      // UV jumps to another road's arc and the mouth no longer lines up.
+      const un = uvFor({ x: node.x, z: node.z, roadId: a.roadId });
+      const ua = uvFor(a), ub = uvFor(b);
+      Uv.push(un.u, un.v, ua.u, ua.v, ub.u, ub.v);
+    }
+  }
+}
+
+/** Concrete band between two matching star outlines (inner pad ring → grown
+ *  apron ring). Only fills the pavement OUTSIDE the pad, so no light concrete
+ *  can show through a thin asphalt wedge. */
+function pushRingBand(Pos, inner, outer, y) {
+  const n = inner.ring.length;
+  if (!n || outer.ring.length !== n) return;
+  for (let i = 0; i < n; i++) {
+    const a = inner.ring[i], b = inner.ring[(i + 1) % n];
+    const A = outer.ring[i], B = outer.ring[(i + 1) % n];
+    const area2 = (b.x - a.x) * (B.z - A.z) - (b.z - a.z) * (B.x - A.x);
+    if (Math.abs(area2) < 0.02) continue;      // skip needles → no NaN normals
+    Pos.push(a.x, y, a.z, b.x, y, b.z, A.x, y, A.z);
+    Pos.push(b.x, y, b.z, B.x, y, B.z, A.x, y, A.z);
+  }
+}
+
+/** Flat pavement mesh. Uses computeVertexNormals exactly like the road ribbons
+ *  do (a fixed +Y normal would disagree with the fan's winding and light the
+ *  visible face as if it pointed down — i.e. black). Degenerate wedges are
+ *  skipped by the pushers, so there is no NaN normal to worry about. */
+function addFlatFanMesh(group, Pos, Uv, mat) {
+  if (!Pos.length) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(Pos, 3));
+  if (Uv && Uv.length) geo.setAttribute('uv', new THREE.Float32BufferAttribute(Uv, 2));
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.receiveShadow = true;
+  group.add(mesh);
+}
+
 /** Push a two-triangle quad between centreline points a→b (per-segment, maskable). */
 function pushSegQuad(Pos, a, b, half, y) {
   const dx = b.x - a.x, dz = b.z - a.z;
@@ -1120,42 +1201,68 @@ function arcDelta(arc, c, total, closed) {
   if (closed) d = Math.min(d, Math.abs(arc - (c + total)), Math.abs(arc - (c - total)));
   return d;
 }
-function buildJunctionContacts(infos) {
-  // infos: [{poly, cum, total, half, closed}]
-  // Returns masks (per-road {arc, mask} for marking culling) AND junctions
-  // (structured records used to draw zebra + stop-line detail at each mouth).
+/**
+ * Mask road markings around every REAL junction, driven by the traffic graph.
+ *
+ * The graph already splits roads at their true crossings and reports a junction
+ * wherever three or more arms meet (T, X, multi-way, roundabout merge); elbows
+ * and bends are not junctions. For each incident road we mask a window whose
+ * half-width follows the actual mouth — `otherHalf / sin θ` — so an oblique join
+ * is masked as wide as it really opens. That stops centre dashes AND the bright
+ * edge glow from printing across the crossing street at any angle (previously a
+ * 4-way crossing was invisible to this pass and its glow drew a "+").
+ *
+ * `mouths` lists the terminating approaches that get stop-line/zebra paint: a
+ * one-arm road joining a road that carries through traffic. Through roads and
+ * 4-way/multi-way crossings are masked only — no paint.
+ */
+function buildJunctionContacts(infos, network) {
   const masks = infos.map(() => []);
-  const junctions = [];
-  for (let i = 0; i < infos.length; i++) {
-    const A = infos[i];
-    const ends = [
-      { x: A.poly[0].x, z: A.poly[0].z, at: 0, atEnd: 'start' },
-      { x: A.poly[A.poly.length - 1].x, z: A.poly[A.poly.length - 1].z, at: A.total, atEnd: 'end' },
-    ];
-    for (const end of ends) {
-      for (let j = 0; j < infos.length; j++) {
-        if (i === j) continue;
-        const B = infos[j];
-        const hit = nearestArcOnPoly(B.poly, B.cum, end);
-        if (hit.dist < B.half + 2.5) {
-          // On the terminating road i: mask markings near its end (extra room so
-          // the zebra/stop detail we draw there isn't clobbered by a leftover
-          // dash edge). On the through road j: mask across the approach mouth
-          // (extended past the contact so no dash survives inside the junction).
-          masks[i].push({ arc: end.at, mask: 8 });
-          masks[j].push({ arc: hit.arc, mask: A.half + 6 });
-          junctions.push({
-            term: i, termEnd: end.atEnd, termArc: end.at,
-            thru: j, thruArc: hit.arc,
-            termHalf: A.half, thruHalf: B.half,
-            thruTotal: B.total, thruClosed: B.closed,
-            endX: end.x, endZ: end.z,
-          });
+  const mouths = [];
+  const junctions = network?.junctions;
+  if (!junctions || !junctions.length) return { masks, mouths };
+
+  for (const junction of junctions) {
+    const node = junction.node;
+    // Group the node's outgoing arms by their physical road.
+    const byRoad = new Map();
+    for (const link of node.links) {
+      const arms = byRoad.get(link.roadId) || [];
+      arms.push(link);
+      byRoad.set(link.roadId, arms);
+    }
+    // A "through movement" exists when one road passes the node (two arms).
+    const hasThrough = [...byRoad.values()].some((arms) => arms.length >= 2);
+
+    for (const [roadId, arms] of byRoad) {
+      const info = infos[roadId];
+      if (!info) continue;
+      // Mask window measured ALONG this road, from every other incident road.
+      let maskHalf = 8;
+      for (const [otherId, otherArms] of byRoad) {
+        if (otherId === roadId) continue;
+        const otherHalf = infos[otherId]?.half ?? 6;
+        for (const arm of arms) {
+          for (const other of otherArms) {
+            maskHalf = Math.max(maskHalf, junctionMouthMaskHalf(info.half, otherHalf, arm, other));
+          }
         }
+      }
+      const hit = nearestArcOnPoly(info.poly, info.cum, node);
+      masks[roadId].push({ arc: hit.arc, mask: maskHalf });
+
+      // Terminating approach: one arm at this road's end, joining a through road.
+      const atStart = hit.arc <= 0.5;
+      const atEnd = hit.arc >= info.total - 0.5;
+      if (arms.length === 1 && hasThrough && (atStart || atEnd)) {
+        // `setback` is how far the through carriageway reaches along this road:
+        // the stop line + zebra belong BEYOND it, on the approach — not inside
+        // the junction (which is what happens if we paint from the node itself).
+        mouths.push({ roadId, atEnd: atStart ? 'start' : 'end', arc: atStart ? 0 : info.total, half: info.half, setback: maskHalf });
       }
     }
   }
-  return { masks, junctions };
+  return { masks, mouths };
 }
 function makeMaskTest(masks, total, closed) {
   if (!masks || !masks.length) return null;
@@ -1173,7 +1280,7 @@ function addFlatMesh(group, arr, mat, receive) {
 
 function buildRoadsInto(group, roads, opts = {}) {
   const elevated = !!opts.elevated;
-  const P = { sw: [], asph: [], uv: [], jct: [], dash: [], glow: [] };
+  const P = { sw: [], asph: [], uv: [], jct: [], dash: [], glow: [], pad: [], padUv: [], apron: [] };
 
   // Phase 1 — collect road geometry (poly, arc info, half widths).
   const infos = [];
@@ -1199,8 +1306,8 @@ function buildRoadsInto(group, roads, opts = {}) {
     publicCrossings = [];
     roadBarrierNetwork = buildTrafficNetwork(publicRoads);
   }
-  // Phase 2 — junction contacts (which roads terminate on which).
-  const { masks, junctions } = buildJunctionContacts(infos);
+  // Phase 2 — junction masks (all real junctions) + terminating mouths (paint).
+  const { masks, mouths } = buildJunctionContacts(infos, elevated ? null : roadBarrierNetwork);
 
   // Phase 3 — emit layers, masking dashes + glow near junction contacts.
   const yAsph = elevated ? 0.07 : ROAD_FX.asphY;
@@ -1227,30 +1334,72 @@ function buildRoadsInto(group, roads, opts = {}) {
       const gOff = half - ROAD_FX.glowInset - ROAD_FX.glowW / 2;
       for (const side of [1, -1]) {
         const path = offsetRoad(poly, lat, gOff * side);
-        // Per-segment so masked arcs leave clean gaps.
+        // Walk by ARC, not by vertex: a junction can sit in the middle of one
+        // long segment (a 2-point road), and a merely per-vertex test would let
+        // the glowing edge run straight across the intersection.
         for (let s = 0; s < path.length - 1; s++) {
-          if (maskedAt((cum[s] + cum[s + 1]) / 2)) continue;
-          pushSegQuad(P.glow, path[s], path[s + 1], ROAD_FX.glowW / 2, yGlow);
+          const a = path[s], b = path[s + 1];
+          const segLen = Math.hypot(b.x - a.x, b.z - a.z);
+          if (segLen < 1e-4) continue;
+          const arc0 = cum[s], arcSpan = cum[s + 1] - cum[s];
+          const steps = Math.max(1, Math.ceil(segLen / 4));   // ≤ 4 m pieces
+          for (let k = 0; k < steps; k++) {
+            const t0 = k / steps, t1 = (k + 1) / steps;
+            if (maskedAt(arc0 + arcSpan * (t0 + t1) / 2)) continue;
+            pushSegQuad(P.glow,
+              { x: a.x + (b.x - a.x) * t0, z: a.z + (b.z - a.z) * t0 },
+              { x: a.x + (b.x - a.x) * t1, z: a.z + (b.z - a.z) * t1 },
+              ROAD_FX.glowW / 2, yGlow);
+          }
         }
       }
     }
   }
 
-  // Phase 4 — junction mouth detail (stop lines + zebra bars). Reclaims the
-  // masked mouths so they read as painted crossings, not black holes. Each
-  // terminating approach gets a stop line near its join plus zebra bars before
-  // it (crossing the approach arm, pointing at approaching traffic).
-  if (!elevated && junctions.length) {
-    for (const jc of junctions) {
-      const termInfo = infos[jc.term];
+  // Phase 3b — junction pavement. A star-shaped asphalt pad hugs each arm's
+  // edges and cuts the corners between them with a kerb chord, so the paved
+  // surface reads as one intersection at ANY approach angle (and hides the
+  // square-cut ribbon ends and overlap slivers). An outward concrete apron fills
+  // the corner wedges so the pavement stays continuous. Fan-triangulated from
+  // the node — valid because the outline is star-shaped about it.
+  if (!elevated && roadBarrierNetwork) {
+    const yPad = ROAD_FX.asphY + 0.003;   // ~flush; the material's depth bias resolves the overlap
+    for (const j of roadBarrierNetwork.junctions) {
+      const arms = j.node.links.map((l) => ({ dx: l.dx, dz: l.dz, half: (l.width || 9) / 2, id: l.roadId }));
+      const pad = junctionPadOutline(j.node, arms, { kerb: 5 });
+      const apron = junctionPadOutline(j.node, arms, { kerb: 5, grow: ROAD_FX.swW });
+      if (pad && apron) pushRingBand(P.apron, pad, apron, ySide);
+      if (pad) {
+        // Texture the pad in the frame of the road each vertex belongs to, so it
+        // is a seamless continuation of that road's asphalt at the mouth.
+        const uvFor = (p) => {
+          const info = infos[p.roadId];
+          return info ? roadUV(info, p) : { u: 0, v: 0 };
+        };
+        pushFan(P.pad, P.padUv, pad, yPad, uvFor);
+      }
+    }
+  }
+
+  // Phase 4 — junction mouth detail (stop lines + zebra bars). Only for a
+  // terminating approach that joins a through road: that reclaims the masked
+  // mouth as a painted crossing. Through roads and 4-way/multi-way crossings
+  // stay clean (no paint), so a grid does not sprout zebras in every cell.
+  if (!elevated && mouths.length) {
+    for (const jc of mouths) {
+      const termInfo = infos[jc.roadId];
+      if (!termInfo) continue;
       // Direction from the mouth INTO the terminating road (where bars sit).
-      const inward = jc.termEnd === 'start' ? 1 : -1;
+      const inward = jc.atEnd === 'start' ? 1 : -1;
+      // Sit the paint clear of the through carriageway (setback = the mouth
+      // width along this approach), so it lands on the approach, not the junction.
+      const base = jc.arc + inward * (jc.setback || 0);
       // Stop line: single thick bar at stopDist back from the mouth.
-      const stopAt = jc.termArc + inward * ROAD_FX.stopDist;
+      const stopAt = base + inward * ROAD_FX.stopDist;
       pushArcBar(P.jct, termInfo, clampArc(stopAt, termInfo.total), termInfo.half, ROAD_FX.stopLen / 2, yMark);
       // Zebra: thin bars, spaced out from just behind the stop line.
       for (let b = 0; b < 3; b++) {
-        const zb = jc.termArc + inward * (ROAD_FX.stopDist + 1.2 + b * ROAD_FX.zebraGap);
+        const zb = base + inward * (ROAD_FX.stopDist + 1.2 + b * ROAD_FX.zebraGap);
         if (zb < 0 || zb > termInfo.total) continue;
         pushArcBar(P.jct, termInfo, zb, termInfo.half, ROAD_FX.zebraLen / 2, yMark);
         if (b === 1) {
@@ -1259,13 +1408,14 @@ function buildRoadsInto(group, roads, opts = {}) {
           const len=Math.hypot(end.x-a.x,end.z-a.z)||1;
           const t=(zb-termInfo.cum[si])/len, x=a.x+(end.x-a.x)*t,z=a.z+(end.z-a.z)*t;
           const nx=-(end.z-a.z)/len*(termInfo.half+.95),nz=(end.x-a.x)/len*(termInfo.half+.95);
-          publicCrossings.push({a:{x:x+nx,z:z+nz},b:{x:x-nx,z:z-nz},road:jc.term});
+          publicCrossings.push({a:{x:x+nx,z:z+nz},b:{x:x-nx,z:z-nz},road:jc.roadId});
         }
       }
     }
   }
 
   // One mesh per layer keeps draw calls low on tablets.
+  addFlatFanMesh(group, P.apron, null, _roadMats.sw);
   if (P.sw.length) addFlatMesh(group, P.sw, _roadMats.sw, true);
   if (P.asph.length) {
     const geo = new THREE.BufferGeometry();
@@ -1276,6 +1426,7 @@ function buildRoadsInto(group, roads, opts = {}) {
     mesh.receiveShadow = true;
     group.add(mesh);
   }
+  addFlatFanMesh(group, P.pad, P.padUv, _roadMats.pad);
   addFlatMesh(group, P.jct, _roadMats.jct, false);
   addFlatMesh(group, P.dash, _roadMats.dash, false);
   addFlatMesh(group, P.glow, _roadMats.glow, false);

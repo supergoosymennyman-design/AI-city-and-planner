@@ -475,6 +475,115 @@ function crossingPoint(a, b, c, d) {
 
 const halfSnap = (v) => Math.round(v * 2) / 2;
 
+/** Cap on the ribbon mitre stretch (≈ a 120° turn). Beyond it the edge is
+ *  clipped rather than spiking, so a near-U-turn can never fire a long sliver. */
+export const RIBBON_MITRE_LIMIT = 2;
+
+/**
+ * Per-vertex offset normals for a swept road ribbon, mitred so the ribbon keeps
+ * its true width around bends. Naively averaging the two segment normals makes
+ * an offset ribbon pinch on the outside and self-overlap on the inside at sharp
+ * corners; the mitre scale `1 / cos(turn/2)` (clamped) restores the correct
+ * width. Endpoints get no mitre. Pure and deterministic.
+ *
+ * Returns an array of { x, z, s } — unit normal plus the offset scale.
+ */
+export function ribbonNormals(points, opts = {}) {
+  const limit = opts.mitreLimit ?? RIBBON_MITRE_LIMIT;
+  const pts = points || [];
+  const single = (a, b) => {
+    const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1;
+    return { x: -dz / l, z: dx / l };
+  };
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const hasPrev = i > 0, hasNext = i < pts.length - 1;
+    if (!hasPrev || !hasNext) {
+      if (!hasPrev && !hasNext) { out.push({ x: 0, z: 0, s: 1 }); continue; }
+      const n = hasPrev ? single(pts[i - 1], pts[i]) : single(pts[i], pts[i + 1]);
+      out.push({ x: n.x, z: n.z, s: 1 });
+      continue;
+    }
+    const a = single(pts[i - 1], pts[i]), b = single(pts[i], pts[i + 1]);
+    const bx = a.x + b.x, bz = a.z + b.z;
+    const mag = Math.hypot(bx, bz);
+    if (mag < 1e-6) {                    // ≈ 180° doubling back — clamp the mitre
+      out.push({ x: a.x, z: a.z, s: limit });
+      continue;
+    }
+    // |n1 + n2| = 2·cos(turn/2) for unit normals, so 1/cos = 2/|bisector|.
+    const s = Math.min(limit, 2 / mag);
+    out.push({ x: bx / mag, z: bz / mag, s: Math.max(1, s) });
+  }
+  return out;
+}
+
+/**
+ * Half-width (metres, measured ALONG `dirOwn`) of the opening a crossing road
+ * cuts into this road's markings. A mouth is `halfOther / sin θ` wide where θ
+ * is the angle between the two directions, so a perpendicular join opens a
+ * width equal to the other road, and a shallow join opens a much wider one.
+ * Clamped at `sinMin` and `cap` so a near-parallel pair can never mask a whole
+ * street. Pure — used by the 3D junction painter.
+ */
+export function junctionMouthMaskHalf(halfOwn, halfOther, dirOwn, dirOther, opts = {}) {
+  const kerb = opts.kerb ?? 6;
+  const sinMin = opts.sinMin ?? Math.sin(Math.PI / 12);     // 15°
+  const cap = opts.cap ?? (halfOwn + halfOther) * 2 + 18;
+  // Accept both a unit vector `{x,z}` and a traffic-graph link `{dx,dz}`.
+  const ax = dirOwn?.dx ?? dirOwn?.x ?? 0, az = dirOwn?.dz ?? dirOwn?.z ?? 0;
+  const bx = dirOther?.dx ?? dirOther?.x ?? 0, bz = dirOther?.dz ?? dirOther?.z ?? 0;
+  const cross = Math.abs(ax * bz - az * bx);
+  const sin = Math.max(sinMin, Math.min(1, cross));
+  return Math.min(cap, (halfOther || 0) / sin + kerb);
+}
+
+/**
+ * Outline of a junction's paved surface, as a ring of points sorted by angle
+ * around the node. Each arm contributes its two edge points at a shared radius
+ * `R = maxApproachHalf + kerb`; connecting them in angular order cuts the corner
+ * between neighbouring arms with a straight kerb chord — so a 4-way keeps its
+ * four sidewalk corners, while an acute/oblique join gets its wedge paved.
+ *
+ * The polygon is star-shaped about the node, so the caller can fan-triangulate
+ * from the node. `grow` expands the ring outward by a constant (used for the
+ * concrete apron). Returns null for fewer than 3 arms, or when every arm leaves
+ * in one half-plane (a dead-end fan the node-fan can't triangulate).
+ */
+export function junctionPadOutline(node, arms, opts = {}) {
+  const list = (arms || []).filter((a) => a && Number.isFinite(a.dx) && Number.isFinite(a.dz));
+  if (list.length < 3) return null;
+  const kerb = opts.kerb ?? 5;
+  const grow = opts.grow ?? 0;
+  const maxHalf = Math.max(0, ...list.map((a) => a.half || 0));
+  const R = maxHalf + kerb + grow;
+  const pts = [];
+  for (const a of list) {
+    const len = Math.hypot(a.dx, a.dz) || 1;
+    const dx = a.dx / len, dz = a.dz / len;
+    const h = (a.half || 0) + grow;
+    const x = node.x + dx * R, z = node.z + dz * R;
+    const px = -dz * h, pz = dx * h;             // perpendicular offset
+    // `roadId` tags each point with the road it belongs to, so the caller can
+    // give it that road's own texture frame (same look as the ribbon it meets).
+    pts.push({ x: x + px, z: z + pz, roadId: a.id }, { x: x - px, z: z - pz, roadId: a.id });
+  }
+  // Sort by the REAL angle around the node (atan2 of the built point), so the
+  // ring is monotonic even across the ±π seam — the precondition for a valid fan.
+  for (const p of pts) p.a = Math.atan2(p.z - node.z, p.x - node.x);
+  pts.sort((p, q) => p.a - q.a);
+  const TAU = Math.PI * 2;
+  for (let i = 0; i < pts.length; i++) {
+    const gap = (pts[(i + 1) % pts.length].a - pts[i].a + TAU) % TAU;
+    if (gap > Math.PI + 1e-6) return null;       // all arms in one half-plane
+  }
+  return {
+    node: { x: node.x, z: node.z, roadId: list[0].id },
+    ring: pts.map((p) => ({ x: p.x, z: p.z, roadId: p.roadId })),
+    radius: R,
+  };
+}
+
 /**
  * Find every place where two roads nearly join (or cross) WITHOUT changing
  * anything. Read-only, deterministic, safe to call on every planner render.
@@ -524,9 +633,20 @@ export function detectJunctions(layoutOrRoads, opts = {}) {
         const dist = snapRadius(tBase, roads[i].half, roads[j].half);
         for (let k = 0; k < tp.length - 1; k++) {
           const proj = pointToSegment(p[0], p[1], tp[k][0], tp[k][1], tp[k + 1][0], tp[k + 1][1]);
-          if (proj.t <= 0.02 || proj.t >= 0.98) continue;
           if (proj.d > dist) continue;
-          push(proj.x, proj.z, 'T', [roads[i].roadId, roads[j].roadId], proj.d);
+          if (proj.t > 0.02 && proj.t < 0.98) {
+            push(proj.x, proj.z, 'T', [roads[i].roadId, roads[j].roadId], proj.d);
+          } else {
+            // Near an INTERIOR vertex (a spoke meeting a ring corner): a join
+            // worth offering, even though the weld reuses that vertex. Endpoint
+            // vertices are skipped — the L pass already covers those joins, so
+            // counting them here would double the suggestion.
+            const vIndex = proj.t <= 0.02 ? k : k + 1;
+            if (vIndex === 0 || vIndex === tp.length - 1) continue;
+            const v = tp[vIndex];
+            const dv = Math.hypot(v[0] - p[0], v[1] - p[1]);
+            if (dv <= dist) push(v[0], v[1], 'T', [roads[i].roadId, roads[j].roadId], dv);
+          }
         }
       }
     }
@@ -620,7 +740,8 @@ export function materializeJunctions(layoutOrRoads, opts = {}) {
     }
   }
 
-  // 3. Project a loose end onto another road body (T-junctions), splitting it.
+  // 3. Join a loose end onto another road: split the target's mid-segment, or
+  //    snap onto an existing vertex when it lands near one (ring + spokes).
   const applyInserts = (roadIdx, arr) => {
     const tp = list[roadIdx].points;
     const bySeg = new Map();
@@ -655,17 +776,34 @@ export function materializeJunctions(layoutOrRoads, opts = {}) {
         const tp = list[j].points;
         for (let k = 0; k < tp.length - 1; k++) {
           const proj = pointToSegment(pt[0], pt[1], tp[k][0], tp[k][1], tp[k + 1][0], tp[k + 1][1]);
-          if (proj.t <= 0.02 || proj.t >= 0.98 || proj.d > dist) continue;
-          if (!best || proj.d < best.d) best = { d: proj.d, road: j, seg: k, t: proj.t, x: proj.x, z: proj.z };
+          if (proj.d > dist) continue;
+          if (proj.t > 0.02 && proj.t < 0.98) {
+            // Lands on the middle of the target: split it with a new vertex.
+            if (!best || proj.d < best.d) best = { d: proj.d, road: j, seg: k, t: proj.t, x: proj.x, z: proj.z, insert: true };
+          } else {
+            // Lands at/near an EXISTING INTERIOR vertex: join that vertex
+            // instead of skipping (a spoke meeting a ring at its corner is
+            // exactly this), so the two roads share it exactly and no chord is
+            // split in two. Endpoint vertices are already handled by step 2.
+            const vIndex = proj.t <= 0.02 ? k : k + 1;
+            if (vIndex === 0 || vIndex === tp.length - 1) continue;
+            const v = tp[vIndex];
+            const dv = Math.hypot(v[0] - pt[0], v[1] - pt[1]);
+            if (dv <= dist && (!best || dv < best.d)) best = { d: dv, road: j, x: v[0], z: v[1], insert: false };
+          }
         }
       }
       if (!best) continue;
-      const x = halfSnap(Math.max(0, Math.min(scale, best.x)));
-      const z = halfSnap(Math.max(0, Math.min(scale, best.z)));
+      // A new mid-segment vertex is grid-snapped; an existing vertex is used
+      // verbatim so it is byte-identical to the target road's own point.
+      const x = best.insert ? halfSnap(Math.max(0, Math.min(scale, best.x))) : best.x;
+      const z = best.insert ? halfSnap(Math.max(0, Math.min(scale, best.z))) : best.z;
       p[end] = [x, z];
-      const arr = tInserts.get(best.road) || [];
-      arr.push({ seg: best.seg, t: best.t, x, z });
-      tInserts.set(best.road, arr);
+      if (best.insert) {
+        const arr = tInserts.get(best.road) || [];
+        arr.push({ seg: best.seg, t: best.t, x, z });
+        tInserts.set(best.road, arr);
+      }
       addRecord(x, z, 'T', [source[i].roadId, source[best.road].roadId]);
     }
   }

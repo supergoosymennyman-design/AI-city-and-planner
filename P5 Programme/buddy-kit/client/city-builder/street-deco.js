@@ -5,7 +5,7 @@
 // skipped (no crash, no hang).
 import * as THREE from 'three';
 import { createGLTFLoader } from '../shared/gltf.js';
-import { buildTrafficNetwork, isRoadsideSceneryClear } from '../city-common/traffic-network.js';
+import { buildTrafficNetwork, isRoadsideSceneryClear, trafficLightSpots } from '../city-common/traffic-network.js';
 
 // CC0-only street/playground deco. Playground equipment (swing/slide) is still
 // pending CC0 replacements, but parks get a CC0 fountain (Poly Pizza, Isa
@@ -18,7 +18,6 @@ const PLAYGROUND = [
   { file: 'assets/models/street-deco/gazebo.glb', name: 'gazebo' },
 ];
 const STREET_DECO = [
-  { file: 'assets/models/street-deco/traffic-light.glb', name: 'traffic light' },
   { file: 'assets/models/street-deco/stop-sign.glb', name: 'stop sign' },
   { file: 'assets/models/street-deco/warning-sign.glb', name: 'warning sign' },
   { file: 'assets/models/street-deco/street-sign.glb', name: 'street sign' },
@@ -26,8 +25,6 @@ const STREET_DECO = [
   { file: 'assets/models/street-deco/construction-barrier.glb', name: 'barrier' },
   { file: 'assets/models/street-deco/dumpster.glb', name: 'dumpster' },
   { file: 'assets/models/street-deco/electricity-pole.glb', name: 'electricity pole' },
-  { file: 'assets/models/street-deco/traffic-light-vertical.glb', name: 'vertical traffic light' },
-  { file: 'assets/models/street-deco/traffic-light-horizontal.glb', name: 'horizontal traffic light' },
   { file: 'assets/models/street-deco/post-lantern.glb', name: 'post lantern' },
   { file: 'assets/models/street-deco/market-stand.glb', name: 'market stand' },
 ];
@@ -59,6 +56,10 @@ export function scatterStreetDeco(scene, layout, opts = {}) {
   // street-props.js).
   const roads = layout.roads || [];
   const roadNetwork = buildTrafficNetwork(roads);
+  // Signal heads belong at the plain crossings, on the pavement, never in the
+  // carriageway. The helper validates every spot against every road ribbon and
+  // silently skips an arm it cannot place safely.
+  placeSignals(loader, scene, trafficLightSpots(roadNetwork), schedule);
   const primary = roads.filter((r) => r.class === 'primary' || (r.points || []).length >= 2);
   let decoCount = 0;
   let busStops = 0;
@@ -170,6 +171,36 @@ function buildBusStop(scene, x, z, yaw) {
   g.rotation.y = yaw || 0;
   g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   scene.add(g);
+}
+
+/**
+ * Place one signal head per validated spot. The GLB is loaded once and cloned so
+ * a city with two dozen crossings does not fire two dozen async loads. Spots come
+ * from `trafficLightSpots`, which has already guaranteed they are on the verge.
+ */
+function placeSignals(loader, scene, spots, schedule = (task) => task()) {
+  if (!spots.length) return;
+  const file = 'assets/models/street-deco/traffic-light.glb';
+  schedule(() => loader.loadAsync(file))
+    .then((gltf) => {
+      const source = gltf.scene;
+      const box = new THREE.Box3().setFromObject(source);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      for (const spot of spots) {
+        const model = source.clone(true);
+        // Same normalisation place() applies: centre on origin, feet on y=0.
+        model.position.sub(center);
+        model.position.y -= box.min.y;
+        model.scale.setScalar(2.4 / maxDim);
+        model.rotation.y = spot.yaw || 0;
+        model.position.set(spot.x, 0, spot.z);
+        model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        scene.add(model);
+      }
+    })
+    .catch((e) => { console.warn('[street-deco] traffic light failed:', e); });
 }
 
 function place(loader, scene, def, x, z, targetScale, yaw = 0, schedule = (task) => task()) {

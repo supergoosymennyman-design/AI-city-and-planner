@@ -12,8 +12,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildSampleCity, sampleCityRoads, sampleCityParks,
+  buildSampleCity, sampleCityRoads, sampleCityParks, CX, CZ,
 } from '../P5 Programme/buddy-kit/client/city-common/sample-city.js';
+import { buildTrafficNetwork, planTrafficLoops } from '../P5 Programme/buddy-kit/client/city-common/traffic-network.js';
 import { validateLayout, sanitizeLayout, densifyLayout, ROAD_WIDTH } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
 import { specialKeys } from '../P5 Programme/buddy-kit/client/city-common/catalog.js';
 import { libraryItem } from '../P5 Programme/buddy-kit/client/city-common/library.js';
@@ -124,6 +125,19 @@ test('sample city: all 18 mission buildings present exactly once, lib ids resolv
     assert.equal(counts[key], 1, `mission ${key} present exactly once`);
   }
   assert.ok(c.buildings.length >= 150, `sample should read as a full city (got ${c.buildings.length})`);
+});
+
+test('sample city: the central roundabout is really joined to every approach', () => {
+  const roads = sampleCityRoads();
+  const net = buildTrafficNetwork(roads);
+  // 8 approach junctions on the central ring (4 cross arms + 4 diagonals).
+  const central = net.nodes.filter((n) => Math.hypot(n.x - CX, n.z - CZ) < 140 && n.roads.size > 1);
+  assert.ok(central.length >= 8, `central ring joins 8 branches (got ${central.length})`);
+  // And a real traffic loop circulates it — the roundabout is the last road.
+  const roundRoadId = roads.length - 1;
+  const plan = planTrafficLoops(net);
+  assert.ok(plan.routes.some((r) => r.links.some((l) => l.roadId === roundRoadId)),
+    'a loop drives around the central roundabout');
 });
 
 test('sample city: no building sits on a road, overlaps a neighbour, or hits the park (post-densify)', () => {

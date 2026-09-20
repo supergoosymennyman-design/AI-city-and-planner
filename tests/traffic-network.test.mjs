@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildTrafficNetwork, createTrafficFlow, initialLoopPlacements, initialTrafficPlacements, isJunctionClear, isRoadsideSceneryClear, planTrafficLoops, pointInRoadCarriageway, resolveRoadCarriageway, trafficFleetPlan } from '../P5 Programme/buddy-kit/client/city-common/traffic-network.js';
-import { sampleCityRoads } from '../P5 Programme/buddy-kit/client/city-common/sample-city.js';
+import { buildTrafficNetwork, createTrafficFlow, initialLoopPlacements, initialTrafficPlacements, isJunctionClear, isRoadsideSceneryClear, planTrafficLoops, pointInRoadCarriageway, resolveRoadCarriageway, roadEdgeClearance, trafficFleetPlan, trafficLightSpots } from '../P5 Programme/buddy-kit/client/city-common/traffic-network.js';
+import { sampleCityRoads, CX as CITY_X, CZ as CITY_Z } from '../P5 Programme/buddy-kit/client/city-common/sample-city.js';
 import { createParkVegetation } from '../P5 Programme/buddy-kit/client/city-common/park-vegetation.js';
 import { streetlightPlacements } from '../P5 Programme/buddy-kit/client/city-common/roadside-placement.js';
 import { ROAD_TEMPLATES } from '../P5 Programme/buddy-kit/client/city-common/road-templates.js';
@@ -422,6 +422,39 @@ test('every road template can sustain an ambient traffic circuit', () => {
   }
 });
 
+test('a junction is three or more arms — elbows and bends are never junctions', () => {
+  const elbow = [
+    { width: 10, points: [[0, 0], [100, 0]] },
+    { width: 10, points: [[100, 0], [100, 100]] },
+  ];
+  assert.equal(buildTrafficNetwork(elbow).junctions.length, 0, 'an elbow (two roads meeting end to end) is not a junction');
+  const bend = [{ width: 10, points: [[0, 0], [100, 0], [100, 100]] }];
+  assert.equal(buildTrafficNetwork(bend).junctions.length, 0, 'a single-road bend is not a junction');
+  const t = [
+    { width: 10, points: [[0, 0], [200, 0]] },
+    { width: 10, points: [[100, 0], [100, 100]] },
+  ];
+  assert.equal(buildTrafficNetwork(t).junctions.length, 1, 'a T (three arms) is a junction');
+  assert.equal(buildTrafficNetwork(grid).junctions.length, 1, 'a 4-way crossing (four arms) is a junction');
+});
+
+test('a ring with a dead-end spur circulates without a U-turn lollipop', () => {
+  const ring = [];
+  for (let i = 0; i <= 32; i++) { const a = (i / 32) * Math.PI * 2; ring.push([Math.round(Math.cos(a) * 120), Math.round(Math.sin(a) * 120)]); }
+  const roads = [
+    { width: 12, points: ring },
+    { width: 12, points: [[420, 0], [120, 0]] },   // spur ending on the ring vertex
+  ];
+  const plan = planTrafficLoops(roads);
+  assert.ok(plan.routes.length >= 1, 'the ring still gets a circuit');
+  for (const route of plan.routes) {
+    for (const link of route.links) {
+      const reverse = route.links.find((o) => o !== link && o.roadId === link.roadId && o.from === link.to && o.to === link.from);
+      assert.equal(reverse, undefined, 'no link is traversed in both directions (no U-turn lollipop)');
+    }
+  }
+});
+
 test('a four-way grid of separate straight roads forms a directed cycle', () => {
   const roads = [
     { width: 12, points: [[0, 500], [1000, 500]] },
@@ -430,4 +463,70 @@ test('a four-way grid of separate straight roads forms a directed cycle', () => 
     { width: 12, points: [[1000, 0], [1000, 1500]] },
   ];
   assert.ok(planTrafficLoops(roads).routes.length >= 1);
+});
+
+// ── Junctions: a through road crossing a ring is a signalised X, not a merge ──
+test('a ring crossed by a through road is a plain crossing; a ring with stubs is a roundabout', () => {
+  const ring = { width: 10, points: [[-20, -20], [20, -20], [20, 20], [-20, 20], [-20, -20]] };
+  const crossed = buildTrafficNetwork([ring, { width: 10, points: [[-60, 0], [60, 0]] }]);
+  const crossedJunctions = crossed.junctions.filter(j => j.node.x === -20 || j.node.x === 20);
+  assert.ok(crossedJunctions.length >= 2, 'the through road splits the ring at two junctions');
+  for (const j of crossedJunctions) {
+    assert.equal(j.kind, 'cross', 'a through road across a ring is an ordinary crossing');
+    assert.equal(j.roundabout, false, 'it must not trigger roundabout merge behaviour');
+  }
+  const stub = buildTrafficNetwork([ring, { width: 10, points: [[0, -60], [0, -20]] }]);
+  const merge = stub.junctions.find(j => j.node.z === -20);
+  assert.equal(merge.kind, 'roundabout');
+  assert.equal(merge.roundabout, true);
+});
+
+test('where a district can circulate, a plain crossing is taken straight-only', () => {
+  const plan = planTrafficLoops(sampleCityRoads());
+  assert.ok(plan.routes.length >= 1);
+  // The example city's OUTER-ring crossings are plain Xs. (Its central merges
+  // are a genuine roundabout, so they are deliberately not 'cross'.)
+  const outer = plan.network.junctions.filter(j => Math.hypot(j.node.x - CITY_X, j.node.z - CITY_Z) > 200);
+  assert.ok(outer.length >= 8, 'the example has outer-ring crossings');
+  assert.ok(outer.every(j => j.kind === 'cross'), 'the outer crossings are plain Xs');
+  assert.ok(plan.network.junctions.some(j => j.kind === 'roundabout'), 'the central merges are a roundabout');
+  for (const route of plan.routes) {
+    route.links.forEach((link, index) => {
+      const junction = plan.network.junctionByNode.get(link.to.id);
+      if (!junction || junction.kind !== 'cross') return;
+      const next = route.links[(index + 1) % route.links.length];
+      const dot = link.dx * next.dx + link.dz * next.dz;
+      const straightMost = Math.max(...link.to.links
+        .filter(candidate => candidate.to !== link.from)
+        .map(candidate => link.dx * candidate.dx + link.dz * candidate.dz));
+      assert.ok(dot >= straightMost - 1e-9, 'a route never turns across traffic at a plain crossing');
+    });
+  }
+});
+
+test('straight-only never empties a grid district: turning is restored where circulation needs it', () => {
+  // A pure grid cannot go around a block without turning at a crossing, so the
+  // planner must fall back to legal turns rather than leave the city carless.
+  const gridTemplate = ROAD_TEMPLATES.find(template => template.id === 'grid');
+  const plan = planTrafficLoops(gridTemplate.roads);
+  assert.ok(plan.network.junctions.some(j => j.kind === 'cross'), 'the grid crossings are plain Xs');
+  assert.ok(plan.routes.length >= 1, 'the grid still receives ambient traffic');
+});
+
+test('traffic signals are placed on the verge, never in a carriageway', () => {
+  const cases = [['sample-city', sampleCityRoads()], ...ROAD_TEMPLATES.map(template => [template.id, template.roads])];
+  for (const [name, roads] of cases) {
+    const network = buildTrafficNetwork(roads);
+    const spots = trafficLightSpots(network);
+    for (const spot of spots) {
+      assert.equal(pointInRoadCarriageway(network, spot.x, spot.z, 1.2), false,
+        `${name}: a signal is on the asphalt`);
+      assert.ok(roadEdgeClearance(network, spot.x, spot.z) >= 1.2,
+        `${name}: a signal has no verge clearance`);
+    }
+    for (let a = 0; a < spots.length; a++) for (let b = a + 1; b < spots.length; b++) {
+      assert.ok(Math.hypot(spots[a].x - spots[b].x, spots[a].z - spots[b].z) >= 2.4 - 1e-6,
+        `${name}: two signals occupy the same spot`);
+    }
+  }
 });

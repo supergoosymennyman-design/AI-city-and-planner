@@ -39,12 +39,13 @@ export const CZ = SCALE / 2;
 const RING_R = 300;
 const RING_N = 48;
 const PARK_R = 85;
-// Central roundabout ring around the park island. Its outer edge (ROUND_END)
-// is where the cross avenue and diagonal spokes terminate, so no road crosses
-// the park. Round ring width 12 → half 6, plus a small margin.
+// Central roundabout ring around the park island. Every cross avenue / diagonal
+// spoke terminates ON one of the ring's own VERTICES (see roundVertexFor below):
+// that makes the branch share the ring node (so it really joins) and, crucially,
+// never splits a ring chord into pieces too short for the traffic graph. Ending
+// short of the ring (the old ROUND_END) left the roundabout disconnected.
 const ROUND_R = 115;
 const ROUND_N = 44;
-const ROUND_END = ROUND_R + 12;
 
 // ─── Geometry helpers ──────────────────────────────────────────────────────
 
@@ -133,21 +134,37 @@ function ringRoad(cx, cz, r, n, width, cls) {
 export function sampleCityRoads() {
   const ring = ringRoad(CX, CZ, RING_R, RING_N, 20, 'primary');
   const round = ringRoad(CX, CZ, ROUND_R, ROUND_N, 12, 'primary');
+
+  // Nearest roundabout ring vertex to a direction, plus that vertex's own radial
+  // angle. Landing exactly on a vertex (a) shares the node so the branch is truly
+  // joined, and (b) never splits a ring chord into too-short segments — which is
+  // what silently disconnected the old mid-chord diagonal spokes.
+  const circumference = Math.PI * 2;
+  const roundVertexFor = (dx, dz) => {
+    const k = ((Math.round(Math.atan2(dz, dx) / (circumference / ROUND_N)) % ROUND_N) + ROUND_N) % ROUND_N;
+    const v = round.points[k];
+    return { x: v[0], z: v[1], angle: Math.atan2(v[1] - CZ, v[0] - CX) };
+  };
+
+  // 4 diagonal spokes, each starting on its ring vertex and running radially out.
   const diag = [];
   for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-    // Start on the roundabout ring's OUTER edge (radius ROUND_END along the 45°
-    // diagonal) so no spoke asphalt/marking reaches into the ring.
-    const off = ROUND_END / Math.SQRT2;
-    diag.push({ points: [[CX + dx * off, CZ + dz * off], [CX + dx * 360, CZ + dz * 360]], width: 10, class: 'secondary' });
+    const v = roundVertexFor(dx, dz);
+    diag.push({
+      points: [[CX + Math.cos(v.angle) * 360, CZ + Math.sin(v.angle) * 360], [v.x, v.z]],
+      width: 10, class: 'secondary',
+    });
   }
-  // Cross avenue terminates on the roundabout ring's OUTER edge (radius
-  // ROUND_END) at the 4 compass points, and runs out through the outer bands.
-  const cross = [
-    { points: [[CX - 570, CZ], [CX - ROUND_END, CZ]], width: 16, class: 'primary' },
-    { points: [[CX + ROUND_END, CZ], [CX + 570, CZ]], width: 16, class: 'primary' },
-    { points: [[CX, CZ - 570], [CX, CZ - ROUND_END]], width: 16, class: 'primary' },
-    { points: [[CX, CZ + ROUND_END], [CX, CZ + 570]], width: 16, class: 'primary' },
-  ];
+  // Cross avenue: 4 compass arms, each ending on its (on-axis) ring vertex and
+  // running out through the outer bands.
+  const cross = [];
+  for (const [dx, dz] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+    const v = roundVertexFor(dx, dz);
+    cross.push({
+      points: [[CX + Math.cos(v.angle) * 570, CZ + Math.sin(v.angle) * 570], [v.x, v.z]],
+      width: 16, class: 'primary',
+    });
+  }
   // Roundabout ring last so it overlays any approach-road micro-overlap.
   return [...cross, ring, ...diag, round];
 }

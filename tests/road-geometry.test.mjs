@@ -12,7 +12,8 @@ import {
   roadBands, roadHalfWidth, rectRoadClearance, isOnRoad, onRoadBuildingIndices,
   clearanceOffset, simplifyPolyline, softSnapAngles, connectEndpoints, tidyRoads,
   sampleCatmullRom, footprintOf, TIDY_DEFAULTS,
-  detectJunctions, materializeJunctions, junctionNodes,
+  detectJunctions, materializeJunctions, junctionNodes, junctionMouthMaskHalf, junctionPadOutline,
+  ribbonNormals, RIBBON_MITRE_LIMIT,
 } from '../P5 Programme/buddy-kit/client/city-common/road-geometry.js';
 import { createTrafficFlow } from '../P5 Programme/buddy-kit/client/city-common/traffic-network.js';
 
@@ -377,6 +378,105 @@ test('junctionNodes: reports shared vertices and closed-loop nodes', () => {
     roads: [{ points: [[500, 500], [900, 500], [900, 900], [500, 900], [500, 510]], width: 7 }],
   }, { closeLoops: true }).roads;
   assert.equal(junctionNodes(ring).length, 1, 'a closed ring is one node');
+});
+
+test('materializeJunctions: a spoke near a ring VERTEX joins that vertex (no chord split)', () => {
+  const ring = [];
+  for (let i = 0; i <= 32; i++) {
+    const a = (i / 32) * Math.PI * 2;
+    ring.push([Math.round(1000 + Math.cos(a) * 120), Math.round(1000 + Math.sin(a) * 120)]);
+  }
+  const layout = { scaleMeters: 2000, roads: [
+    { points: ring, width: 12, class: 'primary' },
+    // Runs radially inward and stops ~10 m beyond the ring's 90° vertex (1000,1120).
+    { points: [[1000, 1400], [1000, 1130]], width: 12, class: 'secondary' },
+  ] };
+  // The suggestion pass must SEE the vertex join too, or the planner never offers it.
+  const detect = detectJunctions(layout);
+  assert.equal(detect.candidates.length, 1);
+  assert.equal(detect.candidates[0].kind, 'T');
+  assert.deepEqual([detect.candidates[0].x, detect.candidates[0].z], [1000, 1120]);
+  const { roads, stats } = materializeJunctions(layout);
+  const vertex = roads[0].points.find((p) => Math.abs(p[0] - 1000) < 1 && Math.abs(p[1] - 1120) < 1);
+  assert.ok(vertex, 'the ring vertex exists');
+  assert.deepEqual(roads[1].points[1], vertex, 'the spoke snapped onto the existing ring vertex');
+  assert.equal(stats.tJunctions, 1);
+  assert.equal(roads[0].points.length, ring.length, 'the ring keeps its vertex count (no chord split)');
+});
+
+// ── junction mouth masking ─────────────────────────────────────────────
+test('junctionMouthMaskHalf: perpendicular = other width, oblique wider, near-parallel capped', () => {
+  const E = { x: 1, z: 0 }, N = { x: 0, z: 1 };
+  const perp = junctionMouthMaskHalf(7, 7, E, N, { kerb: 6 });
+  assert.ok(Math.abs(perp - 13) < 1e-9, 'a 90° join opens exactly the other road width + kerb');
+  const diag = junctionMouthMaskHalf(7, 7, E, { x: Math.SQRT1_2, z: Math.SQRT1_2 }, { kerb: 6 });
+  assert.ok(Math.abs(diag - (7 / Math.SQRT1_2 + 6)) < 1e-9, 'a 45° join opens wider by 1/sin θ');
+  assert.ok(diag > perp, 'shallower angles open wider');
+  const near = junctionMouthMaskHalf(7, 7, E, E, { kerb: 6 });
+  assert.ok(Math.abs(near - (7 / Math.sin(Math.PI / 12) + 6)) < 1e-9, 'a near-parallel pair uses the sinMin floor');
+  assert.ok(near <= (7 + 7) * 2 + 18, 'never masks more than the cap');
+  const capped = junctionMouthMaskHalf(7, 7, E, E, { kerb: 6, sinMin: 0.05 });
+  assert.equal(capped, (7 + 7) * 2 + 18, 'the cap wins at extreme angles');
+  // Traffic-graph links carry `{dx,dz}`, not `{x,z}` — the helper must accept both.
+  const linkForm = junctionMouthMaskHalf(6, 6, { dx: 1, dz: 0 }, { dx: 0, dz: 1 }, { kerb: 6 });
+  assert.ok(Math.abs(linkForm - 12) < 1e-9, 'link-shaped directions are read correctly');
+});
+
+// ── junction pad outline ───────────────────────────────────────────────
+test('junctionPadOutline: star-shaped ring per arm, corners chorded, apron grows', () => {
+  const node = { x: 0, z: 0 };
+  const cross = [
+    { dx: 1, dz: 0, half: 6 }, { dx: -1, dz: 0, half: 6 },
+    { dx: 0, dz: 1, half: 6 }, { dx: 0, dz: -1, half: 6 },
+  ];
+  const pad = junctionPadOutline(node, cross, { kerb: 5 });
+  assert.equal(pad.ring.length, 8, 'two edge points per arm');
+  assert.equal(pad.radius, 11);
+  // Every ring point sits at the arm mouth distance, so the ring is sorted by
+  // angle around the node (the precondition for a valid node fan).
+  for (const p of pad.ring) assert.ok(Math.abs(Math.hypot(p.x, p.z) - Math.hypot(11, 6)) < 1e-9);
+  const angles = pad.ring.map((p) => Math.atan2(p.z, p.x)).sort((a, b) => a - b);
+  assert.deepEqual(angles, pad.ring.map((p) => Math.atan2(p.z, p.x)), 'ring is angularly ordered');
+  const apron = junctionPadOutline(node, cross, { kerb: 5, grow: 3.6 });
+  assert.ok(apron.radius > pad.radius, 'the apron grows outward');
+  // A T (through + spur) keeps the opposite-arm diameter; a 3-arm half-plane fan cannot.
+  const t = junctionPadOutline(node, [{ dx: 1, dz: 0, half: 6 }, { dx: -1, dz: 0, half: 6 }, { dx: 0, dz: 1, half: 4 }], { kerb: 5 });
+  assert.equal(t.ring.length, 6);
+  const halfPlane = junctionPadOutline(node, [{ dx: 1, dz: 0, half: 6 }, { dx: 0.87, dz: 0.5, half: 6 }, { dx: 0.5, dz: 0.87, half: 6 }]);
+  assert.equal(halfPlane, null, 'all arms in one half-plane is rejected');
+  assert.equal(junctionPadOutline(node, [{ dx: 1, dz: 0, half: 6 }]), null, 'needs three arms');
+  // Each ring vertex is tagged with its OWN road so the pad can be textured in
+  // that road's frame (same look as the ribbon it meets).
+  const tagged = junctionPadOutline(node, [
+    { dx: 1, dz: 0, half: 6, id: 7 }, { dx: -1, dz: 0, half: 6, id: 8 }, { dx: 0, dz: 1, half: 6, id: 9 },
+  ]);
+  assert.deepEqual([...new Set(tagged.ring.map((p) => p.roadId))].sort(), [7, 8, 9]);
+  assert.equal(tagged.node.roadId, 7);
+});
+
+// ── ribbon mitre ───────────────────────────────────────────────────────
+test('ribbonNormals: straight lines keep width, bends mitre, U-turns clamp', () => {
+  // Straight along +x: left normal is (0,1), scale 1, endpoints unmitred.
+  const line = [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 200, z: 0 }];
+  const nl = ribbonNormals(line);
+  for (const n of nl) { assert.ok(Math.abs(n.x) < 1e-9 && Math.abs(n.z - 1) < 1e-9); assert.equal(n.s, 1); }
+  // A 90° corner mitres by 1/cos(45°) = √2.
+  const corner = [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 100, z: 100 }];
+  const nc = ribbonNormals(corner);
+  assert.equal(nc[0].s, 1, 'endpoint is unmitred');
+  assert.ok(Math.abs(nc[1].s - Math.SQRT2) < 1e-9, '90° corner mitres by √2');
+  assert.ok(Math.abs(nc[2].s - 1) < 1e-9);
+  assert.ok(Math.abs(Math.hypot(nc[1].x, nc[1].z) - 1) < 1e-9, 'still a unit normal');
+  // A near-U-turn clamps instead of firing a long sliver, and never inverts.
+  const hairpin = [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 0, z: 1 }];
+  const nh = ribbonNormals(hairpin);
+  assert.equal(nh[1].s, RIBBON_MITRE_LIMIT);
+  assert.ok(nh.every((n) => n.s >= 1 && n.s <= RIBBON_MITRE_LIMIT));
+  // Deterministic + custom limit honoured.
+  assert.deepEqual(ribbonNormals(hairpin), nh);
+  assert.equal(ribbonNormals(hairpin, { mitreLimit: 1.5 })[1].s, 1.5);
+  assert.deepEqual(ribbonNormals([]), [], 'no points → no normals');
+  assert.deepEqual(ribbonNormals([{ x: 3, z: 4 }]), [{ x: 0, z: 0, s: 1 }], 'a lone point degrades safely');
 });
 
 // ── curve sampling ──────────────────────────────────────────────────────
