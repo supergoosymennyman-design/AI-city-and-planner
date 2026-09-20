@@ -1,0 +1,2707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Add a Smile — Draw Feelings!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  /* Primitive colors */
+  --color-yellow-400: #FFD166;
+  --color-coral-400: #FF8C66;
+  --color-orange-500: #FF6B35;
+  --color-blue-500: #4A90D9;
+  --color-green-500: #5CB85C;
+  --color-robot-gray: #A8B8C4;
+  --color-robot-accent: #FF6B6B;
+  --color-warm-50: #FFF8F0;
+  --color-warm-100: #FFF8E8;
+  --color-white: #FFFFFF;
+  --color-dark: #2D2D2D;
+  --color-gray-400: #B8B8C7;
+  --color-gray-300: #D1D5DB;
+  --color-red-500: #E07A5F;
+
+  /* Semantic tokens */
+  --color-bg: var(--color-warm-50);
+  --color-surface: var(--color-white);
+  --color-primary: var(--color-blue-500);
+  --color-success: var(--color-green-500);
+  --color-accent: var(--color-coral-400);
+  --color-warning: var(--color-orange-500);
+  --color-text: var(--color-dark);
+  --color-text-muted: #6B7280;
+  --color-text-light: var(--color-white);
+  --color-robot-body: var(--color-robot-gray);
+  --color-robot-detail: var(--color-robot-accent);
+
+  /* Typography */
+  --font-display: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Spacing scale (8px rhythm) */
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+
+  /* Animation */
+  --duration-fast: 200ms;
+  --duration-normal: 400ms;
+  --duration-slow: 600ms;
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================================
+   APP CONTAINER
+   ============================================================ */
+#app {
+  width: 100%;
+  height: 100%;
+  max-width: 800px;
+  max-height: 1280px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  padding-top: max(var(--space-sm), env(safe-area-inset-top));
+  min-height: 56px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+#header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+#header-center {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+#header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.header-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header-btn:active {
+  transform: scale(0.92);
+  background: rgba(0,0,0,0.06);
+}
+
+.header-btn svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: var(--color-text);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Progress indicator */
+#progress-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.progress-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-gray-300);
+  transition: background var(--duration-normal) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+.progress-dot.active {
+  background: var(--color-primary);
+  transform: scale(1.3);
+}
+
+.progress-dot.done {
+  background: var(--color-success);
+}
+
+/* ============================================================
+   AI SPEECH BUBBLE
+   ============================================================ */
+#speech-bubble-area {
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-md);
+  min-height: 80px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+#ai-character-mini {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#ai-character-mini svg {
+  width: 32px;
+  height: 32px;
+}
+
+#speech-bubble {
+  flex: 1;
+  background: var(--color-white);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+#speech-bubble::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 14px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid var(--color-white);
+}
+
+#speech-text {
+  font-size: clamp(18px, 3.5vmin, 24px);
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--color-text);
+  width: 100%;
+}
+
+/* AI state indicator dot */
+#ai-state-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  margin-top: 4px;
+  transition: background var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+}
+
+.ai-listening { background: #22C55E; box-shadow: 0 0 0 3px rgba(34,197,94,0.3); }
+.ai-thinking { background: #EAB308; box-shadow: 0 0 0 3px rgba(234,179,8,0.3); animation: pulse-dot 0.8s ease-in-out infinite; }
+.ai-speaking { background: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.3); animation: pulse-dot 0.6s ease-in-out infinite; }
+.ai-idle { background: #9CA3AF; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* ============================================================
+   MAIN CONTENT AREA
+   ============================================================ */
+#content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.screen.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ============================================================
+   INTRO SCREEN
+   ============================================================ */
+#screen-intro {
+  text-align: center;
+  gap: var(--space-lg);
+}
+
+#intro-robot {
+  width: 200px;
+  height: 240px;
+  margin-bottom: var(--space-sm);
+}
+
+#intro-title {
+  font-size: clamp(28px, 5vmin, 40px);
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+
+#intro-subtitle {
+  font-size: clamp(18px, 3vmin, 22px);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  max-width: 400px;
+}
+
+.btn-large {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-width: 200px;
+  min-height: 72px;
+  padding: var(--space-md) var(--space-xl);
+  font-family: var(--font-body);
+  font-size: clamp(20px, 3.5vmin, 26px);
+  font-weight: 800;
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--duration-fast) var(--ease-bounce), box-shadow var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-large:active {
+  transform: scale(0.95);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-text-light);
+  box-shadow: 0 4px 0 #357ABD;
+}
+
+.btn-primary:active {
+  box-shadow: 0 2px 0 #357ABD;
+  transform: translateY(2px) scale(0.95);
+}
+
+.btn-success {
+  background: var(--color-success);
+  color: var(--color-text-light);
+  box-shadow: 0 4px 0 #4A9E4A;
+}
+
+.btn-success:active {
+  box-shadow: 0 2px 0 #4A9E4A;
+  transform: translateY(2px) scale(0.95);
+}
+
+.btn-accent {
+  background: var(--color-accent);
+  color: var(--color-text-light);
+  box-shadow: 0 4px 0 #E07855;
+}
+
+.btn-accent:active {
+  box-shadow: 0 2px 0 #E07855;
+  transform: translateY(2px) scale(0.95);
+}
+
+.btn-warning {
+  background: var(--color-warning);
+  color: var(--color-text-light);
+  box-shadow: 0 4px 0 #D55A2A;
+}
+
+.btn-warning:active {
+  box-shadow: 0 2px 0 #D55A2A;
+  transform: translateY(2px) scale(0.95);
+}
+
+/* ============================================================
+   PART A: DRAWING SCREEN
+   ============================================================ */
+#screen-draw {
+  padding: var(--space-xs) var(--space-md) var(--space-sm);
+  gap: var(--space-xs);
+}
+
+#draw-emotion-label {
+  font-size: clamp(20px, 3.5vmin, 28px);
+  font-weight: 800;
+  text-align: center;
+  padding: var(--space-2xs) 0;
+}
+
+#draw-count-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+#canvas-wrapper {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  touch-action: none;
+}
+
+#draw-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* Drawing toolbar */
+#draw-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  min-height: 64px;
+}
+
+.color-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  border: 3px solid transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.color-btn:active {
+  transform: scale(0.9);
+}
+
+.color-btn.active {
+  border-color: var(--color-dark);
+  box-shadow: 0 0 0 3px rgba(45,45,45,0.15);
+  transform: scale(1.1);
+}
+
+.color-red { background: #E74C3C; }
+.color-blue { background: var(--color-blue-500); }
+.color-green { background: var(--color-success); }
+.color-black { background: #2D2D2D; }
+
+.toolbar-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--color-gray-300);
+}
+
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 52px;
+  padding: var(--space-xs) var(--space-md);
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tool-btn:active {
+  transform: scale(0.92);
+}
+
+.tool-btn-undo {
+  background: var(--color-gray-300);
+  color: var(--color-text);
+}
+
+.tool-btn-undo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.tool-btn-done {
+  background: var(--color-success);
+  color: var(--color-text-light);
+  min-width: 140px;
+}
+
+/* ============================================================
+   PART A: RESULT SCREEN
+   ============================================================ */
+#screen-result {
+  text-align: center;
+  gap: var(--space-lg);
+}
+
+#result-emotion-icon {
+  font-size: 80px;
+  line-height: 1;
+}
+
+#result-text {
+  font-size: clamp(22px, 4vmin, 32px);
+  font-weight: 800;
+  line-height: 1.3;
+  max-width: 400px;
+}
+
+#result-subtext {
+  font-size: clamp(18px, 3vmin, 22px);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  max-width: 360px;
+}
+
+/* ============================================================
+   PART A: SUMMARY SCREEN
+   ============================================================ */
+#screen-summary {
+  text-align: center;
+  gap: var(--space-lg);
+}
+
+.summary-emotions {
+  display: flex;
+  gap: var(--space-lg);
+  justify-content: center;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.summary-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.summary-label {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+   PART B/C: ROBOT SCREEN
+   ============================================================ */
+#screen-robot {
+  padding: var(--space-xs) var(--space-md) var(--space-sm);
+  gap: var(--space-xs);
+}
+
+#robot-container {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#robot-canvas {
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* Robot command area */
+#command-area {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+}
+
+#mic-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+#mic-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-text-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+#mic-btn:active {
+  transform: scale(0.92);
+}
+
+#mic-btn.listening {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 8px rgba(255,140,102,0.3);
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+
+#mic-btn svg {
+  width: 36px;
+  height: 36px;
+}
+
+#mic-hint {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 6px rgba(255,140,102,0.3); }
+  50% { box-shadow: 0 0 0 16px rgba(255,140,102,0.1); }
+}
+
+/* Emotion command buttons */
+#emotion-commands {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.cmd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 64px;
+  min-width: 100px;
+  padding: var(--space-sm) var(--space-lg);
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--duration-fast) var(--ease-bounce), box-shadow var(--duration-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cmd-btn:active {
+  transform: scale(0.92);
+}
+
+.cmd-btn svg {
+  width: 28px;
+  height: 28px;
+}
+
+.cmd-happy {
+  background: #FFD166;
+  color: var(--color-text);
+  box-shadow: 0 4px 0 #E0B850;
+}
+
+.cmd-sad {
+  background: var(--color-blue-500);
+  color: var(--color-text-light);
+  box-shadow: 0 4px 0 #357ABD;
+}
+
+.cmd-angry {
+  background: #E07A5F;
+  color: var(--color-text-light);
+  box-shadow: 0 4px 0 #C06045;
+}
+
+/* Button nudge glow — used to guide kids toward tap buttons */
+.cmd-btn.glow {
+  animation: btn-glow 1s ease-in-out infinite;
+}
+
+@keyframes btn-glow {
+  0%, 100% { box-shadow: 0 4px 0 currentColor, 0 0 0 0 rgba(255,209,102,0.4); transform: scale(1); }
+  50% { box-shadow: 0 4px 0 currentColor, 0 0 0 12px rgba(255,209,102,0.15); transform: scale(1.08); }
+}
+
+/* ============================================================
+   CELEBRATION SCREEN
+   ============================================================ */
+#screen-celebration {
+  text-align: center;
+  gap: var(--space-lg);
+}
+
+#celebration-icon {
+  font-size: 100px;
+  line-height: 1;
+  animation: celeb-bounce 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes celeb-bounce {
+  from { transform: translateY(0) scale(1); }
+  to { transform: translateY(-12px) scale(1.05); }
+}
+
+#celebration-title {
+  font-size: clamp(28px, 5vmin, 40px);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+#celebration-subtitle {
+  font-size: clamp(18px, 3vmin, 22px);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  max-width: 380px;
+}
+
+/* ============================================================
+   CONFETTI
+   ============================================================ */
+.confetti-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  animation: confetti-fall linear forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-20px) rotate(0deg) scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg) scale(1.2);
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   IDLE PROMPT
+   ============================================================ */
+#idle-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+#idle-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#idle-prompt {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl) var(--space-2xl);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  animation: idle-pop 0.4s var(--ease-bounce);
+}
+
+@keyframes idle-pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+#idle-prompt-text {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* ============================================================
+   TRANSITIONS (REDUCED MOTION)
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.3s !important;
+  }
+
+  #celebration-icon {
+    animation: none;
+  }
+
+  .confetti-piece {
+    display: none;
+  }
+
+  #mic-btn.listening {
+    animation: none;
+  }
+
+  @keyframes idle-pop {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 420px) {
+  #speech-text {
+    font-size: 17px;
+  }
+
+  .color-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tool-btn {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .cmd-btn {
+    min-height: 56px;
+    min-width: 80px;
+    font-size: 16px;
+    padding: var(--space-xs) var(--space-md);
+  }
+
+  #mic-btn {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+@media (min-height: 900px) {
+  #intro-robot {
+    width: 260px;
+    height: 300px;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (orientation: landscape) and (max-height: 500px) {
+  #header { min-height: 40px; padding: 4px var(--space-sm); }
+  #speech-bubble-area { min-height: 56px; padding: 4px var(--space-sm); }
+  #speech-text { font-size: 16px; }
+  #draw-toolbar { min-height: 48px; padding: 2px 0; }
+  .color-btn { width: 36px; height: 36px; }
+  .tool-btn { min-height: 36px; font-size: 14px; padding: 4px var(--space-sm); }
+  #screen-draw { padding: 2px var(--space-sm); }
+  #screen-robot { padding: 2px var(--space-sm); }
+  #command-area { padding: 2px 0; gap: var(--space-xs); }
+  .cmd-btn { min-height: 44px; min-width: 60px; font-size: 14px; padding: 4px var(--space-sm); }
+  #mic-btn { width: 48px; height: 48px; }
+  #mic-btn svg { width: 24px; height: 24px; }
+  #draw-emotion-label { font-size: 16px; }
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.hidden { display: none !important; }
+
+/* STT fallback text input (hidden by default) */
+#stt-fallback {
+  display: none;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+#stt-fallback.active {
+  display: flex;
+}
+
+#stt-fallback input {
+  flex: 1;
+  min-height: 48px;
+  padding: var(--space-xs) var(--space-md);
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 600;
+  border: 2px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  outline: none;
+}
+
+#stt-fallback input:focus {
+  border-color: var(--color-primary);
+}
+
+#stt-fallback button {
+  min-height: 48px;
+  min-width: 48px;
+  border-radius: var(--radius-full);
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ========== HEADER ========== -->
+  <div id="header" role="banner">
+    <div id="header-left">
+      <button id="btn-home" class="header-btn" aria-label="Go to start" tabindex="0">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </button>
+    </div>
+    <div id="header-center">
+      <div id="progress-dots" role="progressbar" aria-label="Game progress"></div>
+    </div>
+    <div id="header-right">
+      <button id="btn-sound" class="header-btn" aria-label="Toggle sound" tabindex="0">
+        <svg id="sound-icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========== SPEECH BUBBLE ========== -->
+  <div id="speech-bubble-area" role="status" aria-live="polite">
+    <div id="ai-character-mini" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" fill="white"/><circle cx="11" cy="13" r="2" fill="#2D2D2D"/><circle cx="21" cy="13" r="2" fill="#2D2D2D"/><path d="M11 20 Q16 24 21 20" stroke="#2D2D2D" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    </div>
+    <div id="speech-bubble">
+      <div id="speech-text">Let's draw faces and teach AI about feelings!</div>
+    </div>
+    <div id="ai-state-dot" class="ai-listening" aria-label="AI is listening"></div>
+  </div>
+
+  <!-- ========== CONTENT ========== -->
+  <div id="content">
+
+    <!-- INTRO -->
+    <div id="screen-intro" class="screen active">
+      <div id="intro-robot" aria-hidden="true">
+        <svg viewBox="0 0 200 240" fill="none">
+          <!-- Robot body -->
+          <rect x="40" y="80" width="120" height="100" rx="20" fill="#A8B8C4"/>
+          <!-- Antenna -->
+          <line x1="100" y1="30" x2="100" y2="80" stroke="#A8B8C4" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="100" cy="26" r="8" fill="#FFD166"/>
+          <!-- Face area -->
+          <rect x="55" y="95" width="90" height="60" rx="12" fill="white"/>
+          <!-- Eyes -->
+          <circle cx="80" cy="118" r="6" fill="#2D2D2D"/>
+          <circle cx="120" cy="118" r="6" fill="#2D2D2D"/>
+          <!-- Mouth (smile) -->
+          <path d="M78 138 Q100 148 122 138" stroke="#2D2D2D" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <!-- Arms -->
+          <rect x="20" y="90" width="20" height="60" rx="10" fill="#A8B8C4"/>
+          <rect x="160" y="90" width="20" height="60" rx="10" fill="#A8B8C4"/>
+          <!-- Legs -->
+          <rect x="55" y="180" width="30" height="40" rx="6" fill="#A8B8C4"/>
+          <rect x="115" y="180" width="30" height="40" rx="6" fill="#A8B8C4"/>
+        </svg>
+      </div>
+      <h1 id="intro-title">Add a Smile!</h1>
+      <p id="intro-subtitle">Draw faces to teach AI about feelings, then tell a robot how to feel!</p>
+      <button id="btn-start" class="btn-large btn-primary" aria-label="Start the game">Let's Go!</button>
+    </div>
+
+    <!-- PART A: DRAW -->
+    <div id="screen-draw" class="screen">
+      <div id="draw-emotion-label">Draw a <strong>HAPPY</strong> face!</div>
+      <div id="draw-count-label">Drawing 1 of 3</div>
+      <div id="canvas-wrapper">
+        <canvas id="draw-canvas" role="img" aria-label="Drawing area for faces"></canvas>
+      </div>
+      <div id="draw-toolbar">
+        <button class="color-btn color-red" data-color="#E74C3C" aria-label="Red crayon"></button>
+        <button class="color-btn color-blue active" data-color="#4A90D9" aria-label="Blue crayon"></button>
+        <button class="color-btn color-green" data-color="#5CB85C" aria-label="Green crayon"></button>
+        <button class="color-btn color-black" data-color="#2D2D2D" aria-label="Black crayon"></button>
+        <div class="toolbar-divider"></div>
+        <button id="btn-undo" class="tool-btn tool-btn-undo" aria-label="Undo last stroke" disabled>↩ Undo</button>
+        <button id="btn-done" class="tool-btn tool-btn-done" aria-label="Done drawing!">✓ Done!</button>
+      </div>
+    </div>
+
+    <!-- PART A: RESULT -->
+    <div id="screen-result" class="screen">
+      <div id="result-emotion-icon">😊</div>
+      <div id="result-text">That's a happy face!</div>
+      <div id="result-subtext">I see the mouth curves up — that means happy!</div>
+      <button id="btn-next-draw" class="btn-large btn-primary" aria-label="Draw another face">Draw Another!</button>
+    </div>
+
+    <!-- PART A: SUMMARY -->
+    <div id="screen-summary" class="screen">
+      <div id="result-emotion-icon" style="font-size:64px;">🎉</div>
+      <div id="result-text">I can generalize!</div>
+      <div id="result-subtext">Even when faces look different, I know what feeling they are!</div>
+      <div class="summary-emotions">
+        <div class="summary-item"><div class="summary-icon">😊</div><div class="summary-label">Happy</div></div>
+        <div class="summary-item"><div class="summary-icon">😢</div><div class="summary-label">Sad</div></div>
+        <div class="summary-item"><div class="summary-icon">😠</div><div class="summary-label">Angry</div></div>
+      </div>
+      <button id="btn-to-robot" class="btn-large btn-success" aria-label="Meet the robot">Meet My Robot!</button>
+    </div>
+
+    <!-- PART B/C: ROBOT -->
+    <div id="screen-robot" class="screen">
+      <div id="robot-container">
+        <canvas id="robot-canvas" role="img" aria-label="Robot face display"></canvas>
+      </div>
+      <div id="command-area">
+        <div id="mic-row">
+          <button id="mic-btn" aria-label="Press and hold to talk">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+          </button>
+          <div id="mic-hint">Press & say "Make robot HAPPY!"</div>
+        </div>
+        <div id="stt-fallback">
+          <input type="text" id="stt-input" placeholder="Type a command..." aria-label="Type a robot command">
+          <button id="stt-send" class="tool-btn tool-btn-done" aria-label="Send command">Send</button>
+        </div>
+        <div id="emotion-commands">
+          <button class="cmd-btn cmd-happy" data-emotion="happy" aria-label="Make robot happy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 3 4 3 4-3 4-3"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            Happy
+          </button>
+          <button class="cmd-btn cmd-sad" data-emotion="sad" aria-label="Make robot sad">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 16s1.5-3 4-3 4 3 4 3"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            Sad
+          </button>
+          <button class="cmd-btn cmd-angry" data-emotion="angry" aria-label="Make robot angry">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 9l2 2M16 9l-2 2M8 16s1.5-2 4-2 4 2 4 2"/></svg>
+            Angry
+          </button>
+        </div>
+        <button id="btn-skip-robot" class="btn-large btn-primary" aria-label="Give robot a face" style="margin-top:12px;">Next →</button>
+      </div>
+    </div>
+
+    <!-- CELEBRATION -->
+    <div id="screen-celebration" class="screen">
+      <div id="celebration-icon">🎊</div>
+      <div id="celebration-title">Amazing Job!</div>
+      <div id="celebration-subtitle">You taught AI all about feelings! Your robot has so much personality!</div>
+      <button id="btn-play-again" class="btn-large btn-primary" aria-label="Play again">Play Again!</button>
+    </div>
+
+    <!-- IDLE OVERLAY -->
+    <div id="idle-overlay">
+      <div id="idle-prompt">
+        <div id="idle-prompt-text">Need some help?</div>
+        <button id="idle-action-btn" class="btn-large btn-accent" aria-label="Get help">Let's do this!</button>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+/* ============================================================
+   K2 Lesson 9 — Add a Smile
+   Complete game logic
+   ============================================================ */
+
+(function() {
+  'use strict';
+
+  // ============================================================
+  // STATE MACHINE
+  // ============================================================
+  const State = {
+    INIT: 'INIT',
+    INTRO: 'INTRO',
+    // PART_A_INTRO removed - goes directly to PART_A_DRAW
+    PART_A_DRAW: 'PART_A_DRAW',
+    PART_A_ANALYZE: 'PART_A_ANALYZE',
+    PART_A_RESULT: 'PART_A_RESULT',
+    PART_A_SUMMARY: 'PART_A_SUMMARY',
+    PART_B_INTRO: 'PART_B_INTRO',
+    PART_B_LISTEN: 'PART_B_LISTEN',
+    PART_B_GENERATE: 'PART_B_GENERATE',
+    PART_B_CELEBRATE: 'PART_B_CELEBRATE',
+    PART_C_FREE_PLAY: 'PART_C_FREE_PLAY',
+    GAME_COMPLETE: 'GAME_COMPLETE'
+  };
+
+  // ============================================================
+  // GAME CONFIG
+  // ============================================================
+  const EMOTIONS = ['happy', 'sad', 'angry'];
+  const DRAWS_PER_EMOTION = 3;
+  const STROKE_WIDTH = 12;
+  const COLORS = ['#E74C3C', '#4A90D9', '#5CB85C', '#2D2D2D'];
+
+  const EMOTION_ICONS = { happy: '😊', sad: '😢', angry: '😠' };
+  const EMOTION_LABELS = { happy: 'Happy', sad: 'Sad', angry: 'Angry' };
+  const EMOTION_RESPONSES = {
+    happy: [
+      'I see a mouth that curves UP! That means HAPPY!',
+      'The smile goes up — it\'s a HAPPY face!',
+      'That big smile tells me you\'re HAPPY!'
+    ],
+    sad: [
+      'The mouth curves DOWN. That means SAD!',
+      'I see a frown — that\'s a SAD face!',
+      'The droopy mouth tells me it\'s SAD!'
+    ],
+    angry: [
+      'That mouth looks sharp and angled — ANGRY!',
+      'The zigzag mouth tells me you\'re ANGRY!',
+      'Those strong lines say ANGRY!'
+    ]
+  };
+  const EMOTION_GENERALIZE = {
+    happy: 'They all have smiles that curve UP! Different smiles, same feeling — HAPPY! I can generalize!',
+    sad: 'They all have frowns that curve DOWN! Different frowns, same feeling — SAD! I can generalize!',
+    angry: 'They all have strong, angled mouths! Different angry faces, same feeling — ANGRY! I can generalize!'
+  };
+
+  const PART_B_SPEECH = 'Say "Make robot happy!" to give your robot a face!';
+  const PART_C_SPEECH = 'Now YOU are in charge! Tell your robot how to feel!';
+
+  // ============================================================
+  // DOM REFS
+  // ============================================================
+  const $ = id => document.getElementById(id);
+  const $$ = sel => document.querySelectorAll(sel);
+  const screenIntro = $('screen-intro');
+  const screenDraw = $('screen-draw');
+  const screenResult = $('screen-result');
+  const screenSummary = $('screen-summary');
+  const screenRobot = $('screen-robot');
+  const screenCelebration = $('screen-celebration');
+  const speechText = $('speech-text');
+  const aiStateDot = $('ai-state-dot');
+  const drawCanvas = $('draw-canvas');
+  const robotCanvas = $('robot-canvas');
+  const drawEmotionLabel = $('draw-emotion-label');
+  const drawCountLabel = $('draw-count-label');
+  const resultEmotionIcon = $('result-emotion-icon');
+  const resultText = $('result-text');
+  const resultSubtext = $('result-subtext');
+  const btnStart = $('btn-start');
+  const btnDone = $('btn-done');
+  const btnUndo = $('btn-undo');
+  const btnNextDraw = $('btn-next-draw');
+  const btnToRobot = $('btn-to-robot');
+  const btnHome = $('btn-home');
+  const btnSound = $('btn-sound');
+  const soundIcon = $('sound-icon');
+  const micBtn = $('mic-btn');
+  const micHint = $('mic-hint');
+  const sttFallback = $('stt-fallback');
+  const sttInput = $('stt-input');
+  const sttSend = $('stt-send');
+  const emotionCommands = $$('.cmd-btn');
+  const progressDots = $('progress-dots');
+  const idleOverlay = $('idle-overlay');
+  const idlePromptText = $('idle-prompt-text');
+  const idleActionBtn = $('idle-action-btn');
+  const colorBtns = $$('.color-btn');
+  const btnPlayAgain = $('btn-play-again');
+
+  // ============================================================
+  // GAME STATE
+  // ============================================================
+  const game = {
+    state: State.INIT,
+    emotionIndex: 0,
+    drawsCompleted: 0,      // draws for current emotion (0-3)
+    allDrawings: { happy: [], sad: [], angry: [] },
+    strokes: [],            // [{points, color}]
+    currentStroke: null,
+    selectedColor: COLORS[1], // blue default
+    robotEmotion: 'happy',
+    robotCommandCount: 0,
+    sttRetries: 0,
+    maxSttRetries: 3,
+    isSpeaking: false,
+    isListening: false,
+    soundEnabled: true,
+    inputCooldown: false,
+    idleTimer: null,
+    idleCount: 0,
+    recognition: null,
+    isRobotMode: false,     // true = Part B/C
+    transitionLock: false,
+    autoAdvanceTimer: null, // pending auto-advance timeout ID
+    buttonNudgeTimer: null, // pending button nudge timeout ID
+  };
+
+  // ============================================================
+  // CANVAS SETUP
+  // ============================================================
+  let ctx, robotCtx;
+  let faceCircle = { cx: 0, cy: 0, r: 0 };
+
+  function setupCanvas() {
+    const wrapper = drawCanvas.parentElement;
+    const rect = wrapper.getBoundingClientRect();
+    const dpr = 1; // Keep it simple for K2 (no retina overcomplication)
+    drawCanvas.width = rect.width;
+    drawCanvas.height = rect.height;
+    ctx = drawCanvas.getContext('2d');
+
+    // Robot canvas
+    const robotRect = robotCanvas.parentElement.getBoundingClientRect();
+    robotCanvas.width = robotRect.width;
+    robotCanvas.height = robotRect.height;
+    robotCtx = robotCanvas.getContext('2d');
+
+    // Calculate face circle guide (centered, 60% of canvas)
+    const size = Math.min(drawCanvas.width, drawCanvas.height) * 0.55;
+    faceCircle = {
+      cx: drawCanvas.width / 2,
+      cy: drawCanvas.height / 2,
+      r: size / 2
+    };
+
+    drawFaceGuide();
+  }
+
+  function drawFaceGuide() {
+    ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    ctx.beginPath();
+    ctx.arc(faceCircle.cx, faceCircle.cy, faceCircle.r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#D1D5DB';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw all existing strokes
+    game.strokes.forEach(stroke => {
+      if (stroke.points.length < 2) return;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = STROKE_WIDTH;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      ctx.stroke();
+    });
+  }
+
+  // ============================================================
+  // POINTER EVENTS (Drawing)
+  // ============================================================
+  function isOnCanvas(x, y) {
+    const rect = drawCanvas.getBoundingClientRect();
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+  }
+
+  function getCanvasPos(e) {
+    const rect = drawCanvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (drawCanvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (drawCanvas.height / rect.height);
+    return { x: Math.max(0, Math.min(drawCanvas.width, x)), y: Math.max(0, Math.min(drawCanvas.height, y)) };
+  }
+
+  function onPointerDown(e) {
+    if (game.state !== State.PART_A_DRAW) return;
+    e.preventDefault();
+    const pos = getCanvasPos(e);
+    game.currentStroke = { points: [pos], color: game.selectedColor };
+    resetIdleTimer();
+  }
+
+  function onPointerMove(e) {
+    if (!game.currentStroke || game.state !== State.PART_A_DRAW) return;
+    e.preventDefault();
+    const pos = getCanvasPos(e);
+    game.currentStroke.points.push(pos);
+
+    // Draw incrementally
+    ctx.beginPath();
+    ctx.strokeStyle = game.currentStroke.color;
+    ctx.lineWidth = STROKE_WIDTH;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const pts = game.currentStroke.points;
+    ctx.moveTo(pts[pts.length - 2].x, pts[pts.length - 2].y);
+    ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+    ctx.stroke();
+  }
+
+  function onPointerUp(e) {
+    if (!game.currentStroke) return;
+    e.preventDefault();
+    if (game.currentStroke.points.length > 1) {
+      game.strokes.push(game.currentStroke);
+      btnUndo.disabled = false;
+    }
+    game.currentStroke = null;
+    resetIdleTimer();
+  }
+
+  // ============================================================
+  // CANVAS DRAWING EVENTS
+  // ============================================================
+  function initCanvasEvents() {
+    drawCanvas.addEventListener('pointerdown', onPointerDown);
+    drawCanvas.addEventListener('pointermove', onPointerMove);
+    drawCanvas.addEventListener('pointerup', onPointerUp);
+    drawCanvas.addEventListener('pointercancel', onPointerUp);
+    drawCanvas.addEventListener('pointerleave', (e) => {
+      if (game.currentStroke) onPointerUp(e);
+    });
+
+    // Fallback touch events for devices without pointer
+    drawCanvas.addEventListener('touchstart', (e) => {
+      if (e.pointerType) return; // pointer event already handled
+      const touch = e.changedTouches[0];
+      const me = new MouseEvent('pointerdown', { clientX: touch.clientX, clientY: touch.clientY });
+      drawCanvas.dispatchEvent(me);
+    }, { passive: true });
+
+    drawCanvas.addEventListener('touchmove', (e) => {
+      if (e.pointerType) return;
+      e.preventDefault();
+      const touch = e.changedTouches[0];
+      const me = new MouseEvent('pointermove', { clientX: touch.clientX, clientY: touch.clientY });
+      drawCanvas.dispatchEvent(me);
+    }, { passive: false });
+
+    drawCanvas.addEventListener('touchend', (e) => {
+      if (e.pointerType) return;
+      const me = new MouseEvent('pointerup', {});
+      drawCanvas.dispatchEvent(me);
+    }, { passive: true });
+  }
+
+  // ============================================================
+  // EMOTION DETECTION FROM DRAWING
+  // ============================================================
+  function analyzeDrawing() {
+    // Get all strokes in the mouth region (bottom third of face circle)
+    const mouthY1 = faceCircle.cy + faceCircle.r * 0.1;
+    const mouthY2 = faceCircle.cy + faceCircle.r * 0.8;
+    const mouthX1 = faceCircle.cx - faceCircle.r * 0.7;
+    const mouthX2 = faceCircle.cx + faceCircle.r * 0.7;
+
+    // Collect all stroke points in mouth region
+    let mouthPoints = [];
+    let longestStroke = null;
+    let maxLen = 0;
+
+    game.strokes.forEach(stroke => {
+      const regionPts = stroke.points.filter(p =>
+        p.x >= mouthX1 && p.x <= mouthX2 && p.y >= mouthY1 && p.y <= mouthY2
+      );
+      if (regionPts.length > maxLen) {
+        maxLen = regionPts.length;
+        longestStroke = regionPts;
+      }
+      mouthPoints = mouthPoints.concat(regionPts);
+    });
+
+    // If no strokes found in mouth region, widen search to entire face
+    if (mouthPoints.length < 3) {
+      const faceR2 = faceCircle.r * 0.9;
+      game.strokes.forEach(stroke => {
+        stroke.points.forEach(p => {
+          const dx = p.x - faceCircle.cx;
+          const dy = p.y - faceCircle.cy;
+          if (dx*dx + dy*dy <= faceR2*faceR2) {
+            mouthPoints.push(p);
+          }
+        });
+      });
+    }
+
+    if (mouthPoints.length < 3) {
+      return { emotion: 'happy', confidence: 0.4, message: 'I see some beautiful colors! Is it a happy face?' };
+    }
+
+    // Analyze curve direction using least-squares parabola fit
+    // This is the most robust method — fits y = ax² + bx + c to all points
+    // and uses the sign of 'a' to determine curvature direction.
+    // In screen coords (Y-down):
+    //   a < 0 → parabola opens downward (∩) → smile → HAPPY
+    //   a > 0 → parabola opens upward (∪) → frown → SAD
+    const sorted = [...mouthPoints].sort((a, b) => a.x - b.x);
+    const n = sorted.length;
+
+    // Normalize x to [-1, 1] range for numerical stability
+    const minX = sorted[0].x;
+    const maxX = sorted[n - 1].x;
+    const range = maxX - minX || 1;
+    const pts = sorted.map(p => ({
+      xn: (p.x - minX) / range * 2 - 1,  // normalize to [-1, 1]
+      y: p.y
+    }));
+
+    // Fit parabola y = a*xn² + b*xn + c using least squares
+    // We need: Sxx, Sxxx, Sxxxx, Sy, Sxy, Sxxy
+    let Sx = 0, Sxx = 0, Sxxx = 0, Sxxxx = 0;
+    let Sy = 0, Sxy = 0, Sxxy = 0;
+    for (const p of pts) {
+      const x = p.xn;
+      const x2 = x * x;
+      const x3 = x2 * x;
+      const x4 = x3 * x;
+      Sx += x;
+      Sxx += x2;
+      Sxxx += x3;
+      Sxxxx += x4;
+      Sy += p.y;
+      Sxy += x * p.y;
+      Sxxy += x2 * p.y;
+    }
+
+    // Solve normal equations for y = a*x² + b*x + c
+    // [Sxxxx Sxxx Sxx] [a]   [Sxxy]
+    // [Sxxx  Sxx  Sx ] [b] = [Sxy ]
+    // [Sxx   Sx   n  ] [c]   [Sy  ]
+    // Using Cramer's rule
+    const det =
+      Sxxxx * (Sxx * n - Sx * Sx) -
+      Sxxx * (Sxxx * n - Sx * Sxx) +
+      Sxx * (Sxxx * Sx - Sxx * Sxx);
+
+    let a = 0;
+    if (Math.abs(det) > 1e-10) {
+      a = (
+        Sxxy * (Sxx * n - Sx * Sx) -
+        Sxy * (Sxxx * n - Sx * Sxx) +
+        Sy * (Sxxx * Sx - Sxx * Sxx)
+      ) / det;
+    }
+
+    // Scale a by the x-range squared to get meaningful curvature magnitude
+    const scaledA = a * (range / 2) * (range / 2);
+    // In screen coords (Y-down):
+    //   a < 0 → ∪ (center below ends) → corners UP → HAPPY
+    //   a > 0 → ∩ (center above ends) → corners DOWN → SAD
+    // Negate so: positive ∪ = happy, negative ∩ = sad
+    const curveDir = -scaledA;
+
+    // Also compute cross-check with 3-point interpolation
+    const p1 = sorted[Math.floor(n * 0.1)];
+    const p2 = sorted[Math.floor(n * 0.5)];
+    const p3 = sorted[Math.floor(n * 0.9)];
+    const yAtP2 = p1.y + (p3.y - p1.y) * ((p2.x - p1.x) / (p3.x - p1.x || 1));
+    const crossCurve = p2.y - yAtP2;
+
+    // Use the more confident measure (prefer parabola fit)
+    const finalCurve = Math.abs(curveDir) >= Math.abs(crossCurve) ? curveDir : crossCurve;
+
+    // Debug: log curvature values
+    console.log('🧪 CURVATURE DEBUG:');
+    console.log('  parabola_a=' + a.toExponential(3) + ' scaledA=' + scaledA.toFixed(2) + ' curveDir=' + curveDir.toFixed(2) + ' crossCurve=' + crossCurve.toFixed(2));
+    console.log('  finalCurve=' + finalCurve.toFixed(2) + ' → ' + (finalCurve > 3 ? '😊 HAPPY (∪ corners up)' : finalCurve < -3 ? '😢 SAD (∩ corners down)' : '🤷 low conf'));
+    console.log('  mouthPoints=' + mouthPoints.length + ' n=' + n);
+
+    // Count direction changes for angry detection (use ALL mouth points)
+    let directionChanges = 0;
+    if (sorted.length > 4) {
+      for (let i = 2; i < sorted.length; i++) {
+        const dy1 = sorted[i-1].y - sorted[i-2].y;
+        const dy2 = sorted[i].y - sorted[i-1].y;
+        if (dy1 * dy2 < -5) directionChanges++;
+      }
+    }
+
+    // Determine emotion
+    const absCurve = Math.abs(finalCurve);
+    let emotion, confidence, response;
+
+    if (directionChanges >= 2 && absCurve > 3) {
+      emotion = 'angry';
+      confidence = Math.min(0.9, 0.5 + directionChanges * 0.05);
+      response = pickRandom(EMOTION_RESPONSES.angry);
+    } else if (finalCurve > 3) {
+      // Positive curvature → ∪ (corners up) → HAPPY
+      emotion = 'happy';
+      confidence = Math.min(0.95, 0.4 + absCurve * 0.01);
+      response = pickRandom(EMOTION_RESPONSES.happy);
+    } else if (finalCurve < -3) {
+      // Negative curvature → ∩ (corners down) → SAD
+      emotion = 'sad';
+      confidence = Math.min(0.95, 0.4 + absCurve * 0.01);
+      response = pickRandom(EMOTION_RESPONSES.sad);
+    } else {
+      // Low confidence -> guess based on what we're expecting
+      emotion = EMOTIONS[game.emotionIndex];
+      confidence = 0.35;
+      response = `I see you drew something! I think it looks ${EMOTION_LABELS[emotion]}!`;
+    }
+
+    return { emotion, confidence, message: response };
+  }
+
+  // ============================================================
+  // ROBOT FACE GENERATION
+  // ============================================================
+  function drawRobot(allEmotion) {
+    const c = robotCanvas;
+    const w = c.width;
+    const h = c.height;
+    const cc = robotCtx;
+    cc.clearRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const bodyW = Math.min(w * 0.4, 160);
+    const bodyH = Math.min(h * 0.45, 200);
+
+    // Ground line
+    const groundY = h - 20;
+    cc.strokeStyle = '#D1D5DB';
+    cc.lineWidth = 3;
+    cc.beginPath();
+    cc.moveTo(20, groundY);
+    cc.lineTo(w - 20, groundY);
+    cc.stroke();
+
+    // Legs
+    const legW = bodyW * 0.2;
+    const legH = bodyH * 0.2;
+    const legY = groundY - legH;
+    cc.fillStyle = '#A8B8C4';
+    cc.beginPath();
+    cc.roundRect(cx - bodyW * 0.3 - legW/2, legY, legW, legH, 6);
+    cc.fill();
+    cc.beginPath();
+    cc.roundRect(cx + bodyW * 0.3 - legW/2, legY, legW, legH, 6);
+    cc.fill();
+
+    // Robot body
+    const bodyTop = legY - bodyH;
+    cc.fillStyle = '#A8B8C4';
+    cc.beginPath();
+    cc.roundRect(cx - bodyW/2, bodyTop, bodyW, bodyH, 20);
+    cc.fill();
+
+    // Body detail lines
+    cc.strokeStyle = '#9AA8B4';
+    cc.lineWidth = 2;
+    cc.beginPath();
+    cc.moveTo(cx - bodyW*0.3, bodyTop + bodyH*0.7);
+    cc.lineTo(cx + bodyW*0.3, bodyTop + bodyH*0.7);
+    cc.stroke();
+    cc.beginPath();
+    cc.moveTo(cx - bodyW*0.2, bodyTop + bodyH*0.78);
+    cc.lineTo(cx + bodyW*0.2, bodyTop + bodyH*0.78);
+    cc.stroke();
+
+    // Arms
+    const armW = bodyW * 0.12;
+    const armH = bodyH * 0.45;
+    cc.fillStyle = '#A8B8C4';
+    cc.beginPath();
+    cc.roundRect(cx - bodyW/2 - armW, bodyTop + bodyH*0.15, armW, armH, 10);
+    cc.fill();
+    cc.beginPath();
+    cc.roundRect(cx + bodyW/2, bodyTop + bodyH*0.15, armW, armH, 10);
+    cc.fill();
+
+    // Antenna
+    cc.strokeStyle = '#9AA8B4';
+    cc.lineWidth = 4;
+    cc.beginPath();
+    cc.moveTo(cx, bodyTop);
+    cc.lineTo(cx, bodyTop - 30);
+    cc.stroke();
+    cc.fillStyle = '#FFD166';
+    cc.beginPath();
+    cc.arc(cx, bodyTop - 34, 10, 0, Math.PI * 2);
+    cc.fill();
+
+    // Face oval
+    const faceW = bodyW * 0.65;
+    const faceH = bodyH * 0.5;
+    const faceX = cx - faceW/2;
+    const faceY = bodyTop + bodyH * 0.12;
+
+    cc.fillStyle = '#FFFFFF';
+    cc.beginPath();
+    cc.ellipse(cx, faceY + faceH/2, faceW/2, faceH/2, 0, 0, Math.PI * 2);
+    cc.fill();
+    cc.strokeStyle = '#D1D5DB';
+    cc.lineWidth = 2;
+    cc.stroke();
+
+    // Draw features based on emotion
+    const ey = faceY + faceH * 0.35;
+    const ex1 = cx - faceW * 0.25;
+    const ex2 = cx + faceW * 0.25;
+    const mouthY = faceY + faceH * 0.7;
+    const eyeR = faceW * 0.07;
+
+    if (allEmotion === 'happy') {
+      // Happy eyes (^_^) - arc up
+      drawHappyEyes(cc, ex1, ey, eyeR);
+      drawHappyEyes(cc, ex2, ey, eyeR);
+      // Big smile
+      cc.strokeStyle = '#2D2D2D';
+      cc.lineWidth = 3;
+      cc.beginPath();
+      cc.arc(cx, mouthY - 2, faceW * 0.2, 0.1 * Math.PI, 0.9 * Math.PI);
+      cc.stroke();
+      // Blush cheeks
+      cc.fillStyle = 'rgba(255,140,102,0.3)';
+      cc.beginPath();
+      cc.arc(ex1 - faceW*0.12, mouthY - 5, faceW*0.1, 0, Math.PI*2);
+      cc.fill();
+      cc.beginPath();
+      cc.arc(ex2 + faceW*0.12, mouthY - 5, faceW*0.1, 0, Math.PI*2);
+      cc.fill();
+    } else if (allEmotion === 'sad') {
+      // Sad eyes (>_<) - squinted
+      drawSadEyes(cc, ex1, ey, eyeR);
+      drawSadEyes(cc, ex2, ey, eyeR);
+      // Frown
+      cc.strokeStyle = '#2D2D2D';
+      cc.lineWidth = 3;
+      cc.beginPath();
+      cc.arc(cx, mouthY + 6, faceW * 0.2, 1.1 * Math.PI, 1.9 * Math.PI);
+      cc.stroke();
+      // Teardrop
+      cc.fillStyle = 'rgba(74,144,217,0.3)';
+      cc.beginPath();
+      cc.ellipse(ex2 + faceW*0.15, ey + faceH*0.15, 5, 8, 0, 0, Math.PI*2);
+      cc.fill();
+    } else if (allEmotion === 'angry') {
+      // Angry eyes (>_<) - furrowed
+      drawAngryEyes(cc, ex1, ey, eyeR);
+      drawAngryEyes(cc, ex2, ey, eyeR);
+      // Angry eyebrows
+      cc.strokeStyle = '#2D2D2D';
+      cc.lineWidth = 4;
+      cc.lineCap = 'round';
+      cc.beginPath();
+      cc.moveTo(ex1 - faceW*0.15, ey - faceH*0.2);
+      cc.lineTo(ex1 + faceW*0.15, ey - faceH*0.05);
+      cc.stroke();
+      cc.beginPath();
+      cc.moveTo(ex2 + faceW*0.15, ey - faceH*0.2);
+      cc.lineTo(ex2 - faceW*0.15, ey - faceH*0.05);
+      cc.stroke();
+      // Zigzag mouth
+      cc.strokeStyle = '#2D2D2D';
+      cc.lineWidth = 3;
+      cc.beginPath();
+      const mw = faceW * 0.25;
+      cc.moveTo(cx - mw, mouthY + 5);
+      cc.lineTo(cx - mw*0.4, mouthY - 5);
+      cc.lineTo(cx + mw*0.4, mouthY + 5);
+      cc.lineTo(cx + mw, mouthY - 3);
+      cc.stroke();
+    }
+
+    // Emotion label
+    cc.fillStyle = '#6B7280';
+    cc.font = 'bold 16px Nunito, -apple-system, sans-serif';
+    cc.textAlign = 'center';
+    cc.fillText(capitalize(allEmotion), cx, h - 10);
+  }
+
+  function drawHappyEyes(cc, x, y, r) {
+    cc.fillStyle = '#2D2D2D';
+    cc.beginPath();
+    cc.arc(x, y, r, 0, Math.PI * 2);
+    cc.fill();
+    // pupil highlight
+    cc.fillStyle = '#FFFFFF';
+    cc.beginPath();
+    cc.arc(x - r*0.3, y - r*0.3, r*0.35, 0, Math.PI*2);
+    cc.fill();
+  }
+
+  function drawSadEyes(cc, x, y, r) {
+    cc.fillStyle = '#2D2D2D';
+    cc.beginPath();
+    cc.arc(x, y, r * 0.8, 0, Math.PI * 2);
+    cc.fill();
+    // Half-closed lid
+    cc.fillStyle = '#A8B8C4';
+    cc.beginPath();
+    cc.rect(x - r, y - r, r*2, r*0.8);
+    cc.fill();
+  }
+
+  function drawAngryEyes(cc, x, y, r) {
+    cc.fillStyle = '#2D2D2D';
+    cc.beginPath();
+    cc.arc(x, y, r * 0.9, 0, Math.PI * 2);
+    cc.fill();
+    cc.fillStyle = '#FFFFFF';
+    cc.beginPath();
+    cc.arc(x - r*0.2, y - r*0.2, r*0.3, 0, Math.PI*2);
+    cc.fill();
+  }
+
+  // ============================================================
+  // SPEECH (TTS)
+  // ============================================================
+  let ttsQueue = [];
+  let ttsPlaying = false;
+
+  function speak(text, callback) {
+    if (!game.soundEnabled || !text) {
+      if (callback) setTimeout(callback, 300);
+      return;
+    }
+
+    // Safety timeout: if speech doesn't finish in 8s, fire callback anyway
+    let callbackFired = false;
+    const safeCallback = () => {
+      if (!callbackFired) {
+        callbackFired = true;
+        game.isSpeaking = false;
+        aiStateDot.className = 'ai-listening';
+        if (callback) callback();
+      }
+    };
+    const safetyTimer = setTimeout(safeCallback, 8000);
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.85;
+    utterance.pitch = 1.2;
+    utterance.volume = 1.0;
+    utterance.lang = 'en-US';
+
+    // Pick friendly voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v =>
+      v.name.includes('Samantha') || v.name.includes('Google UK') ||
+      v.name.includes('Female') || v.name.includes('Zoe') ||
+      v.name.includes('Nicky') || v.name.includes('Karen') ||
+      v.name.includes('Tessa')
+    );
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onstart = () => {
+      game.isSpeaking = true;
+      aiStateDot.className = 'ai-speaking';
+    };
+
+    utterance.onend = () => {
+      clearTimeout(safetyTimer);
+      safeCallback();
+    };
+
+    utterance.onerror = () => {
+      clearTimeout(safetyTimer);
+      safeCallback();
+    };
+
+    try {
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      clearTimeout(safetyTimer);
+      safeCallback();
+    }
+  }
+
+  function setSpeech(text) {
+    speechText.textContent = text;
+  }
+
+  function speakAndShow(text, callback) {
+    setSpeech(text);
+    speak(text, callback);
+  }
+
+  // ============================================================
+  // STT (Speech Recognition)
+  // ============================================================
+  let sttSupported = false;
+
+  function initSTT() {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      sttSupported = false;
+      return false;
+    }
+    sttSupported = true;
+    game.recognition = new SpeechRec();
+    game.recognition.lang = 'en-US';
+    game.recognition.continuous = false;
+    game.recognition.interimResults = false;
+    game.recognition.maxAlternatives = 3;
+    return true;
+  }
+
+  function showSttFallback() {
+    sttFallback.classList.add('active');
+    setTimeout(() => sttInput && sttInput.focus(), 100);
+  }
+
+  function hideSttFallback() {
+    sttFallback.classList.remove('active');
+  }
+
+  function startListening(onResult, onError) {
+    if (!sttSupported || !game.recognition) {
+      showSttFallback();
+      if (onError) onError('unsupported');
+      return;
+    }
+
+    // Check if we've exhausted retries
+    if (game.sttRetries >= game.maxSttRetries) {
+      showSttFallback();
+      if (onError) onError('exhausted');
+      return;
+    }
+
+    game.isListening = true;
+    micBtn.classList.add('listening');
+    aiStateDot.className = 'ai-thinking';
+
+    game.recognition.onresult = (event) => {
+      const results = event.results;
+      if (results.length === 0) return;
+      const transcript = results[0][0].transcript.toLowerCase().trim();
+      const confidence = results[0][0].confidence;
+
+      game.isListening = false;
+      micBtn.classList.remove('listening');
+
+      if (confidence < 0.3) {
+        if (onError) onError('low_confidence');
+        return;
+      }
+
+      // Match emotion keywords
+      let emotion = null;
+      if (transcript.includes('happy') || transcript.includes('hap')) emotion = 'happy';
+      else if (transcript.includes('sad') || transcript.includes('saa')) emotion = 'sad';
+      else if (transcript.includes('angry') || transcript.includes('mad') || transcript.includes('ang')) emotion = 'angry';
+
+      if (emotion) {
+        game.sttRetries = 0;
+        hideSttFallback();
+        if (onResult) onResult(emotion);
+      } else {
+        game.sttRetries++;
+        if (onError) onError('unrecognized');
+      }
+    };
+
+    game.recognition.onerror = (event) => {
+      game.isListening = false;
+      micBtn.classList.remove('listening');
+      // Permission denied → show fallback immediately (don't waste retries)
+      if (event.error === 'not-allowed' || event.error === 'permission-denied' || event.error === 'service-not-allowed') {
+        showSttFallback();
+        if (onError) onError('permission');
+        return;
+      }
+      game.sttRetries++;
+      if (onError) onError(event.error);
+    };
+
+    game.recognition.onend = () => {
+      game.isListening = false;
+      micBtn.classList.remove('listening');
+    };
+
+    try {
+      game.recognition.start();
+    } catch (e) {
+      game.isListening = false;
+      micBtn.classList.remove('listening');
+      showSttFallback();
+      if (onError) onError('error');
+    }
+  }
+
+  // ============================================================
+  // STATE MACHINE
+  // ============================================================
+  let currentState = State.INIT;
+
+  function setState(newState) {
+    currentState = newState;
+    game.state = newState;
+    renderState();
+  }
+
+  function renderState() {
+    // Hide all screens
+    $$('.screen').forEach(s => s.classList.remove('active'));
+    clearIdleTimer();
+
+    switch (currentState) {
+      case State.INIT:
+      case State.INTRO:
+        showIntro();
+        break;
+      case State.PART_A_DRAW:
+        showPartADraw();
+        break;
+      case State.PART_A_ANALYZE:
+        showPartAAnalyze();
+        break;
+      case State.PART_A_RESULT:
+        showPartAResult();
+        break;
+      case State.PART_A_SUMMARY:
+        showPartASummary();
+        break;
+      case State.PART_B_INTRO:
+        showPartBIntro();
+        break;
+      case State.PART_B_LISTEN:
+        showPartBListen();
+        break;
+      case State.PART_B_GENERATE:
+        showPartBGenerate();
+        break;
+      case State.PART_B_CELEBRATE:
+        showPartBCelebrate();
+        break;
+      case State.PART_C_FREE_PLAY:
+        showPartCFreePlay();
+        break;
+      case State.GAME_COMPLETE:
+        showGameComplete();
+        break;
+    }
+
+    updateProgressDots();
+  }
+
+  // ============================================================
+  // SCREEN RENDERERS
+  // ============================================================
+
+  function showIntro() {
+    screenIntro.classList.add('active');
+    speakAndShow('Let\'s draw faces and teach AI about feelings!');
+    aiStateDot.className = 'ai-listening';
+  }
+
+  function showPartADraw() {
+    screenDraw.classList.add('active');
+    const emotion = EMOTIONS[game.emotionIndex];
+    const label = EMOTION_LABELS[emotion];
+
+    // Reset canvas for each new emotion (but keep strokes during the 3 draws)
+    if (game.drawsCompleted === 0) {
+      game.strokes = [];
+      drawFaceGuide();
+      btnUndo.disabled = true;
+      // Initial intro speech for this emotion
+      if (game.emotionIndex === 0 && game.state === State.PART_A_DRAW && currentState === State.PART_A_DRAW) {
+        const msg = `Let's draw ${label.toLowerCase()} faces! Draw a ${label.toLowerCase()} face! I want to learn about feelings!`;
+        speakAndShow(msg);
+      } else {
+        const msg = `Now let's draw ${label.toLowerCase()} faces! Draw a ${label.toLowerCase()} face!`;
+        speakAndShow(msg);
+      }
+    }
+
+    drawEmotionLabel.innerHTML = `Draw a <strong>${label}</strong> face!`;
+    drawCountLabel.textContent = `Drawing ${game.drawsCompleted + 1} of 3`;
+    startIdleTimer(10000, `Start by drawing a mouth on the circle!`);
+  }
+
+  function showPartAAnalyze() {
+    screenDraw.classList.remove('active');
+
+    const result = analyzeDrawing();
+    const targetEmotion = EMOTIONS[game.emotionIndex];
+    const detected = result.emotion;
+
+    // Store the drawing analysis
+    game.allDrawings[targetEmotion].push(result);
+
+    // Always accept — even if wrong, we respond positively
+    const displayEmotion = (detected === targetEmotion || result.confidence >= 0.3)
+      ? targetEmotion
+      : targetEmotion;
+
+    const response = (detected === targetEmotion || result.confidence >= 0.4)
+      ? result.message
+      : `I see you drew something! I think it looks ${EMOTION_LABELS[targetEmotion]}!`;
+
+    // Show result brief display
+    screenResult.classList.add('active');
+    resultEmotionIcon.textContent = EMOTION_ICONS[targetEmotion];
+    resultText.textContent = `${EMOTION_LABELS[targetEmotion]}!`;
+
+    if (result.confidence >= 0.4) {
+      resultSubtext.textContent = response;
+    } else {
+      resultSubtext.textContent = response;
+    }
+
+    speakAndShow(response, () => {
+      // Auto-advance after brief pause (cancelled by btnNextDraw if user taps)
+      game.autoAdvanceTimer = setTimeout(() => {
+        game.autoAdvanceTimer = null;
+        if (currentState !== State.PART_A_ANALYZE) return; // user already advanced
+        game.drawsCompleted++;
+        if (game.drawsCompleted >= DRAWS_PER_EMOTION) {
+          showEmotionGeneralize();
+        } else {
+          game.strokes = []; // clear canvas for next drawing
+          drawFaceGuide();
+          btnUndo.disabled = true;
+          setState(State.PART_A_DRAW);
+        }
+      }, 2000); // 2s so user has time to read result
+    });
+  }
+
+  function showEmotionGeneralize() {
+    const emotion = EMOTIONS[game.emotionIndex];
+    screenResult.classList.add('active');
+    resultEmotionIcon.textContent = '🧠';
+    resultText.textContent = 'I can generalize!';
+    resultSubtext.textContent = EMOTION_GENERALIZE[emotion];
+
+    speakAndShow(EMOTION_GENERALIZE[emotion], () => {
+      game.autoAdvanceTimer = setTimeout(() => {
+        game.autoAdvanceTimer = null;
+        if (currentState !== State.PART_A_ANALYZE) return; // user already moved on
+        game.emotionIndex++;
+        game.drawsCompleted = 0;
+
+        if (game.emotionIndex >= EMOTIONS.length) {
+          // All emotions done - show summary
+          setState(State.PART_A_SUMMARY);
+        } else {
+          // Reset canvas for new emotion
+          game.strokes = [];
+          drawFaceGuide();
+          btnUndo.disabled = true;
+          setState(State.PART_A_DRAW);
+          const nextEmotion = EMOTION_LABELS[EMOTIONS[game.emotionIndex]].toLowerCase();
+          speakAndShow(`Now let's try ${nextEmotion}!`);
+        }
+      }, 3000); // 3s so user can read the generalization
+    });
+  }
+
+  function showPartAResult() {
+    // handled in showPartAAnalyze transition
+  }
+
+  function showPartASummary() {
+    screenSummary.classList.add('active');
+    speakAndShow('You taught me about all three feelings! Let\'s go meet my robot friend!');
+    aiStateDot.className = 'ai-listening';
+  }
+
+  function showPartBIntro() {
+    screenRobot.classList.add('active');
+    game.isRobotMode = true;
+    game.robotEmotion = 'happy';
+
+    // Draw robot with no face initially
+    drawRobot();
+
+    micHint.textContent = 'Tap Happy or use the mic!';
+    setSpeech('This is my robot buddy! But oh no... it has no face. Can you help? Say "Make robot happy!" or tap Happy!');
+    speak('This is my robot buddy! But oh no... it has no face. Can you help? Say "Make robot happy!"');
+    // Don't use callback for state transition — user might tap mic/buttons early
+    setTimeout(() => {
+      if (currentState === State.PART_B_INTRO) {
+        setState(State.PART_B_LISTEN);
+      }
+    }, 10000);
+    // Nudge toward buttons after 4s if mic unavailable
+    startButtonNudge(4000);
+  }
+
+  function showPartBListen() {
+    screenRobot.classList.add('active');
+    if (!sttSupported) {
+      micHint.textContent = 'Tap Happy!';
+      speakAndShow('Tap the HAPPY button to give your robot a face!');
+    } else {
+      micHint.textContent = 'Tap Happy button or use the mic!';
+      speakAndShow('Say "Make robot happy!" or tap the Happy button!');
+    }
+    aiStateDot.className = 'ai-listening';
+    startIdleTimer(12000, 'Tap the Happy button or the microphone!');
+    // Nudge toward buttons after 3s if mic unavailable
+    startButtonNudge(3000);
+  }
+
+  function showPartBGenerate() {
+    // Generate happy face on robot
+    game.robotEmotion = 'happy';
+    drawRobot('happy');
+    speakAndShow('Generating face... Beep boop!');
+
+    setTimeout(() => {
+      setState(State.PART_B_CELEBRATE);
+    }, 800);
+  }
+
+  function showPartBCelebrate() {
+    screenRobot.classList.add('active');
+    drawRobot('happy');
+    // Robot bounce animation via CSS class
+    robotCanvas.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    robotCanvas.style.transform = 'scale(1.05)';
+    setTimeout(() => { robotCanvas.style.transform = 'scale(1)'; }, 400);
+
+    speakAndShow('Your robot is happy! You told it what to feel, and now it has a smile!', () => {
+      setTimeout(() => {
+        setState(State.PART_C_FREE_PLAY);
+      }, 1500);
+    });
+  }
+
+  function showPartCFreePlay() {
+    screenRobot.classList.add('active');
+    micHint.textContent = 'Use mic or tap Happy / Sad / Angry!';
+    speakAndShow('Now YOU are in charge! Tell your robot how to feel!');
+    aiStateDot.className = 'ai-listening';
+    startIdleTimer(12000, 'Tap Happy, Sad, or Angry — or use the mic!');
+  }
+
+  function showGameComplete() {
+    screenCelebration.classList.add('active');
+    speakAndShow('Amazing job! You taught AI all about feelings! Your robot has so much personality!');
+
+    // Launch confetti
+    createConfetti();
+
+    aiStateDot.className = 'ai-listening';
+  }
+
+  // ============================================================
+  // ROBOT COMMAND HANDLER
+  // ============================================================
+  function handleRobotCommand(emotion) {
+    if (game.state === State.GAME_COMPLETE || game.state === State.PART_B_GENERATE) return;
+    if (game.transitionLock) return;
+
+    game.transitionLock = true;
+    clearButtonNudge(); // user is interacting — stop the nudge
+
+    // If in Part B intro or listen, treat "happy" as the expected answer
+    if (currentState === State.PART_B_INTRO || currentState === State.PART_B_LISTEN) {
+      if (emotion === 'happy') {
+        window.speechSynthesis.cancel(); // stop intro speech immediately
+        game.transitionLock = false;
+        setState(State.PART_B_GENERATE);
+      } else {
+        speakAndShow('Let\'s start with "Make robot happy" first!');
+        game.transitionLock = false; // release immediately — hint shouldn't block
+        return;
+      }
+    } else if (currentState === State.PART_C_FREE_PLAY) {
+      // Part C: any valid emotion
+      game.robotEmotion = emotion;
+      game.robotCommandCount++;
+      drawRobot(emotion);
+
+      // Bounce animation
+      robotCanvas.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      robotCanvas.style.transform = 'scale(1.08)';
+      setTimeout(() => { robotCanvas.style.transform = 'scale(1)'; }, 350);
+
+      const confirmations = {
+        happy: 'Your robot is HAPPY! Great choice!',
+        sad: 'Your robot is SAD! You\'re giving it so many feelings!',
+        angry: 'Your robot is ANGRY! What a strong expression!'
+      };
+
+      speakAndShow(confirmations[emotion]);
+      game.transitionLock = false; // release immediately — don't block button mashing
+
+      if (game.robotCommandCount >= 3) {
+        setTimeout(() => {
+          if (currentState === State.PART_C_FREE_PLAY) {
+            setState(State.GAME_COMPLETE);
+          }
+        }, 2000);
+      }
+    } else {
+      game.transitionLock = false;
+    }
+  }
+
+  // ============================================================
+  // UTILITY
+  // ============================================================
+  function pickRandom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  function createConfetti() {
+    const container = document.createElement('div');
+    container.className = 'confetti-container';
+    const colors = ['#FFD166', '#FF8C66', '#4A90D9', '#5CB85C', '#E07A5F', '#FF6B6B', '#A8B8C4'];
+    for (let i = 0; i < 40; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      piece.style.left = Math.random() * 100 + '%';
+      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.width = (8 + Math.random() * 10) + 'px';
+      piece.style.height = (8 + Math.random() * 10) + 'px';
+      piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      piece.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+      piece.style.animationDelay = (Math.random() * 1.5) + 's';
+      container.appendChild(piece);
+    }
+    document.body.appendChild(container);
+    setTimeout(() => container.remove(), 5000);
+  }
+
+  function updateProgressDots() {
+    progressDots.innerHTML = '';
+    const total = EMOTIONS.length + 3; // 3 emotions + robot + celebration
+    const progressMap = {
+      [State.INIT]: 0,
+      [State.INTRO]: 0,
+      [State.PART_A_INTRO]: 1,
+      [State.PART_A_DRAW]: 1,
+      [State.PART_A_ANALYZE]: 1,
+      [State.PART_A_RESULT]: 1,
+      [State.PART_A_SUMMARY]: 3,
+      [State.PART_B_INTRO]: 4,
+      [State.PART_B_LISTEN]: 4,
+      [State.PART_B_GENERATE]: 4,
+      [State.PART_B_CELEBRATE]: 4,
+      [State.PART_C_FREE_PLAY]: 5,
+      [State.GAME_COMPLETE]: 6,
+    };
+    const activeDots = progressMap[currentState] || 0;
+    const totalDots = 6;
+    for (let i = 0; i < totalDots; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'progress-dot';
+      if (i < activeDots) dot.classList.add('done');
+      if (i === activeDots) dot.classList.add('active');
+      progressDots.appendChild(dot);
+    }
+  }
+
+  // ============================================================
+  // IDLE TIMER
+  // ============================================================
+  function startIdleTimer(delay, message) {
+    clearIdleTimer();
+    game.idleTimer = setTimeout(() => {
+      showIdlePrompt(message);
+    }, delay);
+  }
+
+  function clearIdleTimer() {
+    if (game.idleTimer) {
+      clearTimeout(game.idleTimer);
+      game.idleTimer = null;
+    }
+    hideIdlePrompt();
+    clearButtonNudge(); // also clear button nudge on state change
+  }
+
+  function resetIdleTimer() {
+    if (game.state === State.PART_A_DRAW || game.state === State.PART_B_LISTEN || game.state === State.PART_C_FREE_PLAY) {
+      clearIdleTimer();
+      startIdleTimer(12000, 'Need help? Just draw on the circle!' );
+    }
+  }
+
+  function showIdlePrompt(message) {
+    idlePromptText.textContent = message || 'Need some help?';
+    idleOverlay.classList.add('active');
+  }
+
+  function hideIdlePrompt() {
+    idleOverlay.classList.remove('active');
+  }
+
+  // ============================================================
+  // BUTTON NUDGE — guide kids toward tap buttons when mic is unavailable
+  // ============================================================
+  function startButtonNudge(delay) {
+    clearButtonNudge();
+    if (sttSupported || delay <= 0) return;
+    game.buttonNudgeTimer = setTimeout(() => {
+      game.buttonNudgeTimer = null;
+      // Pulse the Happy button
+      document.querySelector('.cmd-happy')?.classList.add('glow');
+      speakAndShow('Tap the Happy button to give your robot a face!');
+    }, delay);
+  }
+
+  function clearButtonNudge() {
+    if (game.buttonNudgeTimer) {
+      clearTimeout(game.buttonNudgeTimer);
+      game.buttonNudgeTimer = null;
+    }
+    document.querySelectorAll('.cmd-btn').forEach(b => b.classList.remove('glow'));
+  }
+
+  // ============================================================
+  // EVENT BINDINGS
+  // ============================================================
+  function bindEvents() {
+    // Start button
+    btnStart.addEventListener('click', () => {
+      if (game.transitionLock) return;
+      game.transitionLock = true;
+      setupCanvas();
+      setState(State.PART_A_DRAW);
+      setTimeout(() => { game.transitionLock = false; }, 800);
+    });
+
+    btnHome.addEventListener('click', () => {
+      resetGame();
+    });
+
+    btnSound.addEventListener('click', () => {
+      game.soundEnabled = !game.soundEnabled;
+      soundIcon.innerHTML = game.soundEnabled
+        ? '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>'
+        : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>';
+    });
+
+    // Color buttons
+    colorBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        colorBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        game.selectedColor = btn.dataset.color;
+      });
+    });
+
+    // Undo
+    btnUndo.addEventListener('click', () => {
+      if (game.strokes.length === 0) return;
+      game.strokes.pop();
+      drawFaceGuide();
+      btnUndo.disabled = game.strokes.length === 0;
+    });
+
+    // Done drawing
+    btnDone.addEventListener('click', () => {
+      if (game.transitionLock) return;
+      if (game.strokes.length === 0) {
+        // No drawing — gentle prompt
+        speakAndShow('Start by drawing a mouth on the circle!');
+        return;
+      }
+      game.transitionLock = true;
+      setState(State.PART_A_ANALYZE);
+      setTimeout(() => { game.transitionLock = false; }, 1000);
+    });
+
+    // Next draw (result screen) - manual advance cancels auto-advance timer
+    btnNextDraw.addEventListener('click', () => {
+      if (game.transitionLock) return;
+      // Cancel any pending auto-advance to prevent double-increment
+      if (game.autoAdvanceTimer) {
+        clearTimeout(game.autoAdvanceTimer);
+        game.autoAdvanceTimer = null;
+      }
+      game.transitionLock = true;
+      window.speechSynthesis.cancel();
+      game.soundEnabled = false;
+
+      // If currently in generalisation, advance to next emotion
+      if (game.drawsCompleted >= DRAWS_PER_EMOTION && currentState === State.PART_A_ANALYZE) {
+        game.emotionIndex++;
+        game.drawsCompleted = 0;
+        if (game.emotionIndex >= EMOTIONS.length) {
+          setState(State.PART_A_SUMMARY);
+        } else {
+          game.strokes = [];
+          drawFaceGuide();
+          btnUndo.disabled = true;
+          setState(State.PART_A_DRAW);
+          speakAndShow(`Now let's try ${EMOTION_LABELS[EMOTIONS[game.emotionIndex]].toLowerCase()}!`);
+        }
+        setTimeout(() => { game.soundEnabled = true; game.transitionLock = false; }, 500);
+        return;
+      }
+
+      // Normal result: advance to next drawing
+      game.drawsCompleted++;
+      if (game.drawsCompleted >= DRAWS_PER_EMOTION) {
+        showEmotionGeneralize();
+      } else {
+        game.strokes = []; // clear canvas for next drawing
+        drawFaceGuide();
+        btnUndo.disabled = true;
+        setState(State.PART_A_DRAW);
+      }
+      setTimeout(() => {
+        game.soundEnabled = true;
+        game.transitionLock = false;
+      }, 500);
+    });
+
+    // To robot
+    btnToRobot.addEventListener('click', () => {
+      if (game.transitionLock) return;
+      game.transitionLock = true;
+      setState(State.PART_B_INTRO);
+      setTimeout(() => { game.transitionLock = false; }, 800);
+    });
+
+    // Play again
+    btnPlayAgain.addEventListener('click', () => {
+      resetGame();
+    });
+
+    // Microphone
+    micBtn.addEventListener('click', () => {
+      if (game.isListening) return;
+      clearButtonNudge(); // user is trying the mic — stop nudge
+      if (game.state === State.PART_B_INTRO || game.state === State.PART_B_LISTEN || game.state === State.PART_C_FREE_PLAY) {
+        aiStateDot.className = 'ai-thinking';
+
+        // If STT is unsupported, show fallback immediately
+        if (!sttSupported) {
+          setSpeech('Voice not available here — you can type or tap a button below!');
+          showSttFallback();
+          return;
+        }
+
+        setSpeech('Listening...');
+        startListening(
+          (emotion) => {
+            handleRobotCommand(emotion);
+          },
+          (error) => {
+            aiStateDot.className = 'ai-listening';
+            switch (error) {
+              case 'unsupported':
+              case 'exhausted':
+                setSpeech('Let me show you the buttons instead!');
+                break;
+              case 'permission':
+                setSpeech('Microphone permission denied. Tap a button below!');
+                showSttFallback();
+                break;
+              case 'low_confidence':
+              case 'unrecognized':
+                setSpeech('I didn\'t catch that. Tap "Happy" below or try again!');
+                break;
+              default:
+                setSpeech('Mic had a glitch! Try tapping a button below.');
+                if (game.sttRetries < game.maxSttRetries) {
+                  setTimeout(() => showSttFallback(), 3000);
+                } else {
+                  showSttFallback();
+                }
+            }
+          }
+        );
+      }
+    });
+
+    // Emotion command buttons
+    emotionCommands.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const emotion = btn.dataset.emotion;
+        handleRobotCommand(emotion);
+      });
+    });
+
+    // Hard-bypass "Next →" button — always gets past the robot screen
+    const btnSkip = $('btn-skip-robot');
+    if (btnSkip) {
+      btnSkip.addEventListener('click', () => {
+        if (game.state === State.GAME_COMPLETE) return;
+        window.speechSynthesis.cancel();
+        clearButtonNudge();
+        game.transitionLock = false; // force-unlock anything stuck
+        setState(State.PART_B_GENERATE);
+      });
+    }
+
+    // STT fallback
+    sttSend.addEventListener('click', () => {
+      const text = sttInput.value.toLowerCase().trim();
+      sttInput.value = '';
+      let emotion = null;
+      if (text.includes('happy')) emotion = 'happy';
+      else if (text.includes('sad')) emotion = 'sad';
+      else if (text.includes('angry') || text.includes('mad')) emotion = 'angry';
+
+      if (emotion) {
+        hideSttFallback();
+        handleRobotCommand(emotion);
+      } else {
+        setSpeech('Try typing "happy", "sad", or "angry"!');
+      }
+    });
+
+    sttInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sttSend.click();
+    });
+
+    // Idle action button
+    idleActionBtn.addEventListener('click', () => {
+      hideIdlePrompt();
+      if (game.state === State.PART_A_DRAW) {
+        setSpeech('Start by drawing a mouth on the circle!');
+      } else       if (game.state === State.PART_B_INTRO || game.state === State.PART_B_LISTEN) {
+        setSpeech('Tap the Happy button or use the mic!');
+      } else if (game.state === State.PART_C_FREE_PLAY) {
+        setSpeech('Tap a button to change the robot\'s feeling!');
+      }
+      startIdleTimer(15000, 'Try drawing on the circle!');
+    });
+
+    // Window resize
+    window.addEventListener('resize', () => {
+      if (game.state === State.PART_A_DRAW) {
+        const prevStrokes = game.strokes;
+        setupCanvas();
+        game.strokes = prevStrokes;
+        drawFaceGuide();
+      }
+    });
+
+    // Visibility change - resume TTS
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && game.isSpeaking) {
+        // TTS resumes automatically
+      }
+    });
+
+    // Load voices
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices(); // Prime the pump
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = () => {
+          window.speechSynthesis.getVoices();
+        };
+      }
+    }
+
+    // Init STT
+    initSTT();
+  }
+
+  // ============================================================
+  // RESET
+  // ============================================================
+  function resetGame() {
+    window.speechSynthesis.cancel();
+    game.state = State.INIT;
+    currentState = State.INIT;
+    game.emotionIndex = 0;
+    game.drawsCompleted = 0;
+    game.allDrawings = { happy: [], sad: [], angry: [] };
+    game.strokes = [];
+    game.currentStroke = null;
+    game.robotEmotion = 'happy';
+    game.robotCommandCount = 0;
+    game.sttRetries = 0;
+    game.isSpeaking = false;
+    game.isListening = false;
+    game.transitionLock = false;
+    if (game.autoAdvanceTimer) {
+      clearTimeout(game.autoAdvanceTimer);
+      game.autoAdvanceTimer = null;
+    }
+    game.isRobotMode = false;
+    hideSttFallback();
+    clearIdleTimer();
+
+    // Reset canvas
+    if (ctx) {
+      ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+      drawFaceGuide();
+    }
+    btnUndo.disabled = true;
+
+    // Reset robot
+    if (robotCtx) {
+      robotCtx.clearRect(0, 0, robotCanvas.width, robotCanvas.height);
+    }
+
+    setState(State.INTRO);
+  }
+
+  // ============================================================
+  // POLYFILL roundRect
+  // ============================================================
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      if (r > w/2) r = w/2;
+      if (r > h/2) r = h/2;
+      this.moveTo(x + r, y);
+      this.lineTo(x + w - r, y);
+      this.quadraticCurveTo(x + w, y, x + w, y + r);
+      this.lineTo(x + w, y + h - r);
+      this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      this.lineTo(x + r, y + h);
+      this.quadraticCurveTo(x, y + h, x, y + h - r);
+      this.lineTo(x, y + r);
+      this.quadraticCurveTo(x, y, x + r, y);
+      this.closePath();
+      return this;
+    };
+  }
+
+  // ============================================================
+  // INIT
+  // ============================================================
+  function init() {
+    bindEvents();
+    initCanvasEvents();
+    setState(State.INTRO);
+
+    // Setup canvas on first paint
+    requestAnimationFrame(() => {
+      setupCanvas();
+    });
+  }
+
+  // Start when DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+</body>
+</html>

@@ -2,11 +2,9 @@
 //
 // Planner + pregame + city-builder share ONE origin so localStorage carries the
 // student's layout from "🌆 View my city" straight into the 3D city (no file
-// download/upload round-trip). This only exists in the BUILT bundle, so the
-// spec requires E2E_DOCROOT=deploy/city-sim (which `npm run test:e2e` sets).
+// download/upload round-trip). The source server provides the same route aliases.
 import { test, expect } from '@playwright/test';
 
-test.skip(!process.env.E2E_DOCROOT, 'journey spec needs the built bundle (E2E_DOCROOT=deploy/city-sim)');
 
 const LAYOUT_KEY = 'p5_city_planner_layout_v1';
 const PROGRESS_KEY = 'p5_pregame_progress';
@@ -54,6 +52,8 @@ test('planner opens directly — Academy is a companion, not a lock', async ({ p
   await page.goto('/planner/', { waitUntil: 'load' });
   await page.waitForTimeout(800);
   await expect(page.locator('#lock-overlay')).toHaveCount(0);
+  if (await page.locator('#coach-modal').isVisible()) await page.locator('#coach-done').click();
+  await page.locator('#planner-more > summary').click();
   await expect(page.locator('#btn-academy')).toBeVisible();
   await expect(page.locator('canvas')).toBeVisible({ timeout: 15000 });
 });
@@ -84,5 +84,7 @@ test('pregame finale saves a portable progress file and opens the planner', asyn
   // The planner is open (no gate exists any more).
   await page.waitForTimeout(800);
   await expect(page.locator('#lock-overlay')).toHaveCount(0);
+  if (await page.locator('#coach-modal').isVisible()) await page.locator('#coach-done').click();
+  await page.locator('#planner-more > summary').click();
   await expect(page.locator('#btn-academy')).toBeVisible();
 });

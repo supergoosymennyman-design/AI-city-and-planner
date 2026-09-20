@@ -1,9 +1,0 @@
-{
-  "files": [],
-  "references": [
-    { "path": "./packages/contract" },
-    { "path": "./packages/debug" },
-    { "path": "./packages/toolbox" },
-    { "path": "./games/kindergarten/k2-03-color-the-rainbow" }
-  ]
-}

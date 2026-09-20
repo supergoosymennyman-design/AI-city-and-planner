@@ -39,6 +39,10 @@ export const CF_KEYS = {
   milestones: 'p5_city_milestones_v1',
   caps: 'p5_city_capabilities_v1',
   cityName: 'p5_city_save_name_v1',
+  customModels: 'hk_ai_city_custom_models_v1',
+  cityLook: 'p5_city_look_v1',
+  groundTexture: 'p5_city_ground_texture_v1',
+  trafficVehicles: 'p5_city_traffic_vehicles_v1',
 };
 
 /** Read every known key as its raw string (absent keys omitted). */
@@ -59,7 +63,7 @@ export function collectState(storage = defaultStorage()) {
  * state and leaving the child with a fragmented city.
  */
 export function writeState(state, storage = defaultStorage()) {
-  const entries = Object.entries(state || {}).filter(([key, raw]) => CF_KEYS[key] && typeof raw === 'string');
+  const entries = Object.entries(state || {}).filter(([key, raw]) => Object.hasOwn(CF_KEYS, key) && typeof raw === 'string');
   const failed = [];
   let wrote = 0;
   if (storage) {
@@ -91,6 +95,9 @@ export function composeChampionFile(state, label) {
  * (the apps re-validate their own data on boot).
  */
 export function sanitizeChampionFile(parsed) {
+  try { return sanitizeChampionFileValue(parsed); } catch { return { ok: false, error: 'Invalid Champion File values.' }; }
+}
+function sanitizeChampionFileValue(parsed) {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return { ok: false, error: 'That file is not a Champion File.' };
   }
@@ -100,6 +107,7 @@ export function sanitizeChampionFile(parsed) {
   if (parsed.version !== CHAMPION_FILE_VERSION) {
     return { ok: false, error: `This Champion File is version ${parsed.version} — this app knows version ${CHAMPION_FILE_VERSION}.` };
   }
+  if (!withinImportLimit(JSON.stringify(parsed))) return { ok: false, error: 'File is too large (maximum 5 MiB).' };
   const state = parsed.state;
   if (!state || typeof state !== 'object' || Array.isArray(state)) {
     return { ok: false, error: 'The Champion File has no saved state.' };
@@ -142,5 +150,21 @@ export function lastSavedAt(storage = defaultStorage()) {
 }
 
 function defaultStorage() {
-  return (typeof window !== 'undefined' && window.localStorage) || null;
+  try { return (typeof window !== 'undefined' && window.localStorage) || null; } catch { return null; }
+}
+
+// Total UTF-8 size, checked before FileReader and before parsing pasted JSON.
+export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+export function withinImportLimit(raw) {
+  return typeof raw === 'string' && raw.length <= MAX_IMPORT_BYTES && new TextEncoder().encode(raw).byteLength <= MAX_IMPORT_BYTES;
+}
+export function downloadState(state, label) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(composeChampionFile(state, label), null, 2)], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = championFilename(label);
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }

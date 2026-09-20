@@ -1,3 +1,18 @@
+import { displayName } from '../city-common/display-names.js';
+import { installModalOwnership, activeModal, ambientDelta, bindHold } from '../city-common/interface.js';
+installModalOwnership();
+window.addEventListener('i18n:change', () => {
+  applyPlanChip();
+  updateDriveButtons();
+  document.querySelectorAll('[data-display-type]').forEach(el => { el.textContent = displayName(el.dataset.displayType,currentLang()); });
+});
+import { PURPOSES } from '../city-common/building-purposes.js';
+import { mountMyWork } from './my-work.js';
+import { mountFocusedCityUI } from './focused-ui.js';
+import { METRIC_KEYS } from '../city-common/metrics.js';
+import { allowedGameUrl } from '../city-common/game-url.js';
+import { restoreActive, restoreChampion } from '../city-common/restore-session.js';
+import { MAX_IMPORT_BYTES, withinImportLimit } from '../city-common/champion-file.js';
 /**
  * city-builder/city-builder.js — Realistic 3D template for a student-designed city.
  *
@@ -24,7 +39,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { design as questDesign } from '../hong-kong-real/quest-buildings.js';
-import { QUESTS, loadQuestState, questStatus, questTheme, questComplete } from '../hong-kong-real/quests.js';
+import { QUESTS, recordLegacyActivity } from '../hong-kong-real/quests.js';
 import { createChampion, WALK_SPEED } from '../hong-kong-real/champion-real.js';
 import { createDrones } from '../hong-kong-real/drones.js';
 import { createDecoTaxis } from '../hong-kong-real/deco-taxis.js';
@@ -32,6 +47,16 @@ import { createSkySentinels } from '../hong-kong-real/sky-sentinels.js';
 import { createFlyingTaxi } from '../champion-city/taxi.js';
 import { createTraffic } from './traffic.js';
 import { createPedestrians } from './pedestrians.js';
+import {createParkLandscape} from './park-landscape.js';
+import {batchBuildings,prepareBuildingMaterials} from './building-batches.js';
+import { createTimeOfDay } from './time-of-day.js';
+import { CITY_LOOK_KEY, CITY_LOOKS, readCityLook, validCityLook, mountCityLookPicker } from './city-looks.js';
+import { GROUND_TEXTURES, readGroundTexture, validGroundTexture, mountGroundTexturePicker } from './ground-textures.js';
+import { CITY_PALETTE as DUSK } from './city-palette.js';
+import { createNeighbourhood, createStreetLife } from '../city-common/neighbourhood.js';
+import { buildTrafficNetwork, isRoadsideSceneryClear, resolveRoadCarriageway } from '../city-common/traffic-network.js';
+import { PARK_VEGETATION_ASSETS, createParkVegetation } from '../city-common/park-vegetation.js';
+import { createPublicSpaces } from './public-spaces.js';
 import { createClouds } from './clouds.js';
 import { createStreetProps } from './street-props.js';
 import { scatterStreetDeco } from './street-deco.js';
@@ -51,15 +76,19 @@ import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout, typeSpec } f
 import { LIBRARY, libraryUrl, libraryItem } from '../city-common/library.js';
 import { buildSampleCity } from '../city-common/sample-city.js';
 import { isRoadVehicle, vehicleTargetLength } from '../city-common/vehicle-scale.js';
-import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt, lastSavedAt, CF_KEYS } from '../city-common/champion-file.js';
+import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, rememberSavedAt, lastSavedAt, CF_KEYS } from '../city-common/champion-file.js';
 import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
 import { readMilestones, milestoneSectionHTML } from '../city-common/milestones.js';
-import { parseCapability, capabilityDescriptor, stage1Note, runInference } from '../city-common/cap-runtime.js';
+import { parseCapability, capabilityDescriptor, stage1Note } from '../city-common/cap-runtime.js';
 import { mountPropLibrary } from './prop-library.js';
+import { customModelStore, readCustomManifest, resolveCustomOverride } from '../city-common/custom-models.js';
 import { createGrabSystem } from '../shared/grab.js';
 import { createDrivableCar } from './drive.js';
-import { initI18n, applyStatic, mountLangToggle, t, tf } from './i18n.js';
+import { currentLang, initI18n, applyStatic, mountLangToggle, t, tf } from './i18n.js';
 import { HOME_URL, WORKSHOP_URL } from '../shared/links.js';
+import { createBootOwner, createLoadQueue, withDeadline } from './loading-lifecycle.js';
+import { createLearningVisuals } from './learning-visuals.js';
+import { environmentQuality, loadEnvironmentHDRI } from './environment-assets.js';
 
 const ASSET_BASE = '../champion-city/assets/';
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
@@ -68,51 +97,35 @@ const STORAGE_KEY = 'p5_city_planner_layout_v1';
 // any. Created at boot from IndexedDB and handed to spawnChampion + skins.
 let _customSkinUrl = null;
 
-// The recycling centre opens the Workshop platform (where the student builds
-// the recycling-sorting AI) instead of the shared P3 waste-sorters demo.
-const QUEST_GAME_URL_OVERRIDES = {
-  14: WORKSHOP_URL, // Recycling Lab → Workshop platform
-};
-
-// Resolve the playable game URL for a quest id (override wins, else the
-// quest's own gameUrl). Returns null when there is no game yet.
-function questGameUrl(questId) {
-  if (QUEST_GAME_URL_OVERRIDES[questId]) return QUEST_GAME_URL_OVERRIDES[questId];
-  const q = QUESTS.find((qq) => qq.id === questId);
-  return q && q.gameUrl ? q.gameUrl : null;
+/** Save a fitted Champion GLB locally and make its object URL available to the
+ * current city session. The entry screen and in-city wardrobe deliberately
+ * share this path so their validation and privacy behaviour cannot drift. */
+async function importCustomChampion(file) {
+  if (!await looksLikeGlb(file)) return { ok: false, message: t('ui.skinFile') };
+  try {
+    await saveCustomSkin(file);
+    if (_customSkinUrl) revokeObjectUrl(_customSkinUrl);
+    _customSkinUrl = blobToObjectUrl(file);
+    if (!_customSkinUrl) throw new Error('Could not create Champion URL');
+    equipCustomDefault();
+    return { ok: true, skin: { url: _customSkinUrl, name: file.name } };
+  } catch (e) {
+    console.warn('[city-builder] custom skin save failed', e);
+    return { ok: false, message: t('ui.skinFail') };
+  }
 }
 
-// Does this building type have a playable game to enter?
-function questHasGameForType(type) {
-  const spec = catalogType(type);
-  if (!spec || !spec.questId) return false;
-  return !!questGameUrl(spec.questId);
-}
+// Legacy optional game links remain independent of building purposes.
+function questHasGameForType(type) { return Object.hasOwn(PURPOSES, type); }
+let myWork = null;
+let focusedUI = null;
+let learningVisuals = null;
+let skinSidebar = null;
+function openPurpose(type) { myWork?.open(type); }
 
-// ── Minigame origin allowlist (audit A8) ─────────────────────────────────────
-// Every quest `gameUrl` (and the Workshop override) must be a programme-owned
-// Cloudflare Workers host before it is allowed into the #game-frame iframe. A
-// relative path ("/project/…") is same-origin and always allowed. Anything else
-// is refused by openMinigame() and shows the same friendly "no game yet" toast —
-// so a tampered layout/link can never silently load an arbitrary third-party
-// frame inside the city.
-const MINIGAME_ORIGIN_SUFFIXES = [
-  '.ai-education.workers.dev',        // quest minigames + the Workshop platform
-  '.clover-marquis.workers.dev',      // p5-home / p5-city-sim
-  // Owner-confirmed (2026-09-10) but not a professional public domain; kept so the
-  // three legacy quests keep working. Migrate these gameUrls to *.ai-education and
-  // delete this suffix when the quests move.
-  '.supergoosymennyman.workers.dev',
-];
-
+// Destinations come from the static registry, including approved legacy games.
 function isAllowedMinigameUrl(rawUrl) {
-  if (typeof rawUrl !== 'string' || !rawUrl) return false;
-  if (rawUrl.startsWith('/')) return true; // same-origin relative route
-  let u;
-  try { u = new URL(rawUrl, window.location.href); } catch { return false; }
-  if (u.origin === window.location.origin) return true;
-  if (u.protocol !== 'https:') return false;
-  return MINIGAME_ORIGIN_SUFFIXES.some((suffix) => u.hostname.endsWith(suffix));
+  return allowedGameUrl(rawUrl, window.location.href, [...QUESTS.map(q => q.gameUrl), WORKSHOP_URL]);
 }
 
 const IS_MOBILE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || window.innerWidth <= 768;
@@ -123,6 +136,7 @@ const LOW_END = IS_MOBILE && (
   (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
   (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
 );
+const ENV_QUALITY = environmentQuality({ mobile: IS_MOBILE, lowEnd: LOW_END });
 
 // ─── Dynamic resolution governor ──────────────────────────────────────────
 // Cap the absolute backing-store size (bigger than devicePixelRatio alone, a
@@ -144,6 +158,7 @@ function applyResolution() {
 }
 
 function adaptQuality(fps) {
+  if (fps < 26 && citizens?.reduceAnimationBudget?.()) return;
   if (fps < 26 && resScale > 0.5) { resScale = Math.max(0.5, resScale - 0.15); applyResolution(); }
   else if (fps > 55 && resScale < 1) { resScale = Math.min(1, resScale + 0.15); applyResolution(); }
 }
@@ -170,7 +185,7 @@ function getWindowTexture() {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const lit = ((r * 7 + c * 13) % 5) < 4;
-      ctx.fillStyle = lit ? '#00f2fe' : '#12203a';
+      ctx.fillStyle = lit ? DUSK.window : '#253238';
       ctx.globalAlpha = lit ? 0.4 + 0.4 * (((r * 31 + c * 17) % 10) / 10) : 1;
       ctx.fillRect(c * cw + 3, r * ch + 3, cw - 6, ch - 6);
     }
@@ -215,25 +230,194 @@ function getWindowBumpTexture() {
 // ~800 m from the camera, so the "world ends in a straight line" artefact can
 // never reappear regardless of exposure or lighting on the ground.
 let _groundMat = null;   // ref for the per-frame camera uniform
-function groundDistanceFade(material) {
-  _groundMat = material;
+const _grassMats = new Set();
+let _cityLook = readCityLook();
+let _cityLookPicker = null;
+let _groundTexture = readGroundTexture();
+let _groundTexturePicker = null;
+let _citySkyTexture = null;
+const _environmentTextures = new Map();
+// The selected ground map remains the student's choice. Leafy Grass gets a
+// deliberately quiet moonlit grade: its real PBR albedo, normal and roughness
+// maps still do the work, but the very vivid source scan is softened toward
+// olive/brown and broken up by a little world-space terrain colour.
+const GRASS_PBR_TREATMENTS = Object.freeze({
+  leafy: { saturation: 0.74, albedoMix: 0.90, tint: '#d2c89a', tintStrength: 0.12, terrainNormal: 0.16, parkNormal: 0.12, parkLift: 0.07 },
+  sparse: { saturation: 0.90, albedoMix: 0.96, tint: '#ffffff', tintStrength: 0.00, terrainNormal: 0.18, parkNormal: 0.14, parkLift: 0.05 },
+  withered: { saturation: 0.86, albedoMix: 0.96, tint: '#e0d0a6', tintStrength: 0.05, terrainNormal: 0.16, parkNormal: 0.13, parkLift: 0.05 },
+  // Hardscape choices retain their photographed PBR albedo without the grass
+  // grade; normals stay deliberately quiet for a clean aerial city view.
+  pavers: { saturation: 1, albedoMix: 1, tint: '#ffffff', tintStrength: 0, terrainNormal: 0.10, parkNormal: 0.12, parkLift: 0 },
+  asphalt: { saturation: 1, albedoMix: 1, tint: '#ffffff', tintStrength: 0, terrainNormal: 0.10, parkNormal: 0.12, parkLift: 0 },
+});
+
+function loadEnvironmentTexture(file, { color = false, repeat = 1 } = {}) {
+  const key = `${file}|${color}|${repeat}`;
+  if (_environmentTextures.has(key)) return _environmentTextures.get(key);
+  const pending = new Promise((resolve, reject) => new THREE.TextureLoader().load(file, texture => {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(repeat, repeat);
+    texture.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    texture.anisotropy = Math.min(renderer?.capabilities?.getMaxAnisotropy?.() || 1, IS_MOBILE ? 4 : 8);
+    resolve(texture);
+  }, undefined, reject));
+  _environmentTextures.set(key, pending);
+  return pending;
+}
+
+function applyCityLook(id) {
+  _cityLook = validCityLook(id);
+  const look = CITY_LOOKS[_cityLook];
+  try { localStorage.setItem(CITY_LOOK_KEY, _cityLook); } catch { /* storage is optional */ }
+  if (timeOfDay?.setLook) timeOfDay.setLook(look);
+  if (!look.realistic) {
+    duskSky.visible = true;
+    scene.background = new THREE.Color(look.horizon);
+    duskSky.material.uniforms.useEquirect.value = 0;
+    _citySkyTexture = null;
+    _roadMats.sw.map = _roadMats.sw.normalMap = _roadMats.sw.roughnessMap = null; _roadMats.sw.needsUpdate = true;
+    return;
+  }
+  applyGroundTexture(_groundTexture);
+  // Sample the equirectangular JPG on the sky dome itself. Do not assign this
+  // to scene.background: Three converts equirect backgrounds into a small cube
+  // texture, throwing away the panorama's horizontal detail.
+  const skyFile = (!IS_MOBILE && !LOW_END) ? look.skyDesktopFile : look.skyFile;
+  loadEnvironmentTexture(skyFile, { color: true }).then(texture => {
+    if (_cityLook !== id) return;
+    _citySkyTexture = texture; scene.background = new THREE.Color(look.horizon); duskSky.material.uniforms.equirectMap.value = texture;
+    duskSky.material.uniforms.equirectSaturation.value = look.equirectSaturation ?? 1;
+    duskSky.material.uniforms.equirectContrast.value = look.equirectContrast ?? 1;
+    duskSky.material.uniforms.equirectTint.value.set(look.equirectTint ?? '#ffffff');
+    duskSky.material.uniforms.useEquirect.value = 1; duskSky.visible = true;
+  }).catch(error => console.warn('[city-look] sky unavailable; using procedural sky', error));
+  // Sidewalk maps belong to a realistic City Look. Ground maps are a separate
+  // student choice and are deliberately never overwritten here.
+  Promise.all([
+    loadEnvironmentTexture('assets/textures/concrete_pavers_03_diff_1k.jpg', { color: true, repeat: 24 }),
+    loadEnvironmentTexture('assets/textures/concrete_pavers_03_nor_gl_1k.jpg', { repeat: 24 }),
+    loadEnvironmentTexture('assets/textures/concrete_pavers_03_rough_1k.jpg', { repeat: 24 }),
+  ]).then(([pavers, paversNormal, paversRough]) => {
+    if (_cityLook !== id) return;
+    _roadMats.sw.map = pavers; _roadMats.sw.normalMap = paversNormal; _roadMats.sw.normalScale.setScalar(0.12); _roadMats.sw.roughnessMap = paversRough; _roadMats.sw.needsUpdate = true;
+  }).catch(error => console.warn('[city-look] environment textures unavailable; using procedural surfaces', error));
+}
+
+function applyGroundTexture(id) {
+  _groundTexture = validGroundTexture(id);
+  const selectedTexture = _groundTexture;
+  const terrainChoice = GROUND_TEXTURES[_groundTexture];
+  const terrainTreatment = GRASS_PBR_TREATMENTS[_groundTexture];
+  // Parks remain welcoming green lawns, even when a student chooses paving or
+  // asphalt for the surrounding open city terrain.
+  const parkChoice = GROUND_TEXTURES.leafy;
+  const parkTreatment = GRASS_PBR_TREATMENTS.leafy;
+  try { localStorage.setItem('p5_city_ground_texture_v1', _groundTexture); } catch {}
+  // Toy Town is intentionally map-free for both open terrain and park lawns.
+  if (!CITY_LOOKS[_cityLook]?.realistic) {
+    for (const mat of _grassMats) { mat.map = mat.normalMap = mat.roughnessMap = null; mat.userData.grassTextureDetail = 0; mat.userData.__uGrassTextureDetail && (mat.userData.__uGrassTextureDetail.value = 0); mat.needsUpdate = true; }
+    return;
+  }
+  const root = 'assets/textures/';
+  Promise.all([
+    loadEnvironmentTexture(root + terrainChoice.files[0], { color: true, repeat: 180 }),
+    loadEnvironmentTexture(root + terrainChoice.files[1], { repeat: 180 }),
+    loadEnvironmentTexture(root + terrainChoice.files[2], { repeat: 180 }),
+    loadEnvironmentTexture(root + parkChoice.files[0], { color: true, repeat: 180 }),
+    loadEnvironmentTexture(root + parkChoice.files[1], { repeat: 180 }),
+    loadEnvironmentTexture(root + parkChoice.files[2], { repeat: 180 }),
+  ]).then(([terrainAlbedo, terrainNormal, terrainRoughness, parkAlbedo, parkNormal, parkRoughness]) => {
+    if (_groundTexture !== selectedTexture || !CITY_LOOKS[_cityLook]?.realistic) return;
+    for (const mat of _grassMats) {
+      const park = mat.userData.grassSurface === 'park';
+      const albedo = park ? parkAlbedo : terrainAlbedo;
+      const normal = park ? parkNormal : terrainNormal;
+      const roughness = park ? parkRoughness : terrainRoughness;
+      const treatment = park ? parkTreatment : terrainTreatment;
+      mat.map = albedo; mat.normalMap = normal;
+      // Keep detail tactile at street level without noisy, repeating normals
+      // in the aerial view. Park lawns are mown, so their bump is quieter.
+      mat.normalScale.setScalar((IS_MOBILE ? 0.86 : 1) * (park ? treatment.parkNormal : treatment.terrainNormal));
+      mat.roughnessMap = roughness; mat.roughness = 1;
+      mat.userData.grassTextureDetail = 1;
+      mat.userData.grassPbrTreatment = treatment;
+      mat.userData.__uGrassTextureDetail && (mat.userData.__uGrassTextureDetail.value = 1);
+      mat.userData.__uGrassPbrSaturation && (mat.userData.__uGrassPbrSaturation.value = treatment.saturation);
+      mat.userData.__uGrassPbrAlbedoMix && (mat.userData.__uGrassPbrAlbedoMix.value = treatment.albedoMix);
+      mat.userData.__uGrassPbrTint && mat.userData.__uGrassPbrTint.value.set(treatment.tint);
+      mat.userData.__uGrassPbrTintStrength && (mat.userData.__uGrassPbrTintStrength.value = treatment.tintStrength);
+      mat.userData.__uGrassParkLift && (mat.userData.__uGrassParkLift.value = park ? treatment.parkLift : 0);
+      mat.needsUpdate = true;
+    }
+  }).catch(error => console.warn('[ground-texture] maps unavailable; using Toy Town fallback', error));
+}
+function stylizedGrassMaterial({park=false,distanceFade=false}={}) {
+  const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,metalness:0});
+  _grassMats.add(material);
+  material.addEventListener('dispose',()=>_grassMats.delete(material));
+  if(distanceFade)_groundMat=material;
+  material.userData.grassSurface=park?'park':'terrain';
+  material.userData.grassTextureDetail=0;
+  material.userData.grassPbrTreatment=GRASS_PBR_TREATMENTS.leafy;
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.uFogColor = { value: new THREE.Color(0x1c2b5a) };
+    shader.uniforms.uFogColor = { value: new THREE.Color(DUSK.horizon) };
     shader.uniforms.uCamPos = { value: new THREE.Vector3(1000, 220, 1000) };
     shader.uniforms.uFadeNear = { value: 800 };
     shader.uniforms.uFadeFar = { value: 1700 };
+    shader.uniforms.uGrassNight = { value: 0.55 };
+    shader.uniforms.uGrassWarmth = { value: 0.0 };
+    shader.uniforms.uGrassDayTint = { value: new THREE.Color(0xffffff) };
+    shader.uniforms.uGrassDayBrightness = { value: 0 };
+    // Realistic looks keep the PBR albedo's photographed leaf, soil and blade
+    // detail. The procedural palette remains only as the map-free Toy Town fallback.
+    shader.uniforms.uGrassTextureDetail = { value: material.userData.grassTextureDetail || 0 };
+    const treatment = material.userData.grassPbrTreatment;
+    shader.uniforms.uGrassPbrSaturation = { value: treatment.saturation };
+    shader.uniforms.uGrassPbrAlbedoMix = { value: treatment.albedoMix };
+    shader.uniforms.uGrassPbrTint = { value: new THREE.Color(treatment.tint) };
+    shader.uniforms.uGrassPbrTintStrength = { value: treatment.tintStrength };
+    shader.uniforms.uGrassParkLift = { value: park ? treatment.parkLift : 0 };
+    // Shader literals are linear values. Keeping the palette as Three Colors
+    // avoids accidentally treating display-space green values as linear (the
+    // reason the first pass looked pale under the city's bright daylight).
+    shader.uniforms.uGrassMoss = { value: new THREE.Color('#33502a') };
+    shader.uniforms.uGrassLeaf = { value: new THREE.Color('#4c7c3f') };
+    shader.uniforms.uGrassSun = { value: new THREE.Color('#6a8f4e') };
+    shader.uniforms.uGrassDry = { value: new THREE.Color('#9a9450') };
+    // Parks are mown, welcoming lawns: use the same civic greens, but keep
+    // their blend distinctly more even than the open city ground.
+    shader.uniforms.uParkLawn = { value: new THREE.Color('#4c7c3f') };
     // Keep a live handle to the compiled uniform so the frame loop can move it.
     material.userData.__uCamPos = shader.uniforms.uCamPos;
+    material.userData.__uFogColor = shader.uniforms.uFogColor;
+    material.userData.__uGrassNight = shader.uniforms.uGrassNight;
+    material.userData.__uGrassWarmth = shader.uniforms.uGrassWarmth;
+    material.userData.__uGrassDayTint = shader.uniforms.uGrassDayTint;
+    material.userData.__uGrassDayBrightness = shader.uniforms.uGrassDayBrightness;
+    material.userData.__uGrassTextureDetail = shader.uniforms.uGrassTextureDetail;
+    material.userData.__uGrassPbrSaturation = shader.uniforms.uGrassPbrSaturation;
+    material.userData.__uGrassPbrAlbedoMix = shader.uniforms.uGrassPbrAlbedoMix;
+    material.userData.__uGrassPbrTint = shader.uniforms.uGrassPbrTint;
+    material.userData.__uGrassPbrTintStrength = shader.uniforms.uGrassPbrTintStrength;
+    material.userData.__uGrassParkLift = shader.uniforms.uGrassParkLift;
+    material.userData.__uGrassPalette = {
+      moss:shader.uniforms.uGrassMoss,leaf:shader.uniforms.uGrassLeaf,
+      sun:shader.uniforms.uGrassSun,dry:shader.uniforms.uGrassDry,
+      park:shader.uniforms.uParkLawn,
+    };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vGndWorld;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gndW = modelMatrix * vec4(transformed, 1.0); vGndWorld = gndW.xyz;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vGndWorld;\nuniform vec3 uFogColor;\nuniform vec3 uCamPos;\nuniform float uFadeNear;\nuniform float uFadeFar;')
-      .replace('#include <color_fragment>',
-        '#include <color_fragment>\n' +
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGndWorld;\nuniform vec3 uFogColor;\nuniform vec3 uCamPos;\nuniform float uFadeNear;\nuniform float uFadeFar;\nuniform float uGrassNight;\nuniform float uGrassWarmth;\nuniform vec3 uGrassDayTint;\nuniform float uGrassDayBrightness;\nuniform vec3 uGrassMoss;\nuniform vec3 uGrassLeaf;\nuniform vec3 uGrassSun;\nuniform vec3 uGrassDry;\nuniform vec3 uParkLawn;\nuniform float uGrassPbrSaturation;\nuniform float uGrassPbrAlbedoMix;\nuniform vec3 uGrassPbrTint;\nuniform float uGrassPbrTintStrength;\nuniform float uGrassParkLift;\nfloat grassHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat grassNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(grassHash(i),grassHash(i+vec2(1.,0.)),f.x),mix(grassHash(i+vec2(0.,1.)),grassHash(i+vec2(1.)),f.x),f.y);}\nfloat grassFbm(vec2 p){float n=grassNoise(p)*.56;p=mat2(.82,-.57,.57,.82)*p*2.03;n+=grassNoise(p)*.28;p=mat2(.76,.65,-.65,.76)*p*2.01;n+=grassNoise(p)*.16;return n;}')
+      .replace('#include <color_fragment>', '#include <color_fragment>\nvec2 grassP=vGndWorld.xz;float grassMacro=grassFbm(grassP*.006);float grassMid=grassFbm(mat2(.84,-.54,.54,.84)*grassP*.045);float grassFine=grassFbm(grassP*.32);vec3 grassTone=mix(uGrassLeaf,uGrassMoss,(1.0-grassMacro)*.18);grassTone=mix(grassTone,uGrassSun,smoothstep(.64,.88,grassMid)*.10);grassTone*=mix(.97,1.03,grassFine);'+(park?'grassTone=mix(grassTone,uParkLawn,.62);':'grassTone=mix(grassTone,uGrassDry,smoothstep(.78,.92,grassFbm(grassP*.009))*.035);')+'grassTone=mix(grassTone,grassTone*vec3(1.08,.96,.82),max(0.0,uGrassWarmth)*.22);grassTone=mix(grassTone,grassTone*uGrassDayTint,uGrassDayBrightness);grassTone*=1.0+uGrassDayBrightness;grassTone=mix(grassTone,grassTone*vec3(.55,.67,.63),uGrassNight*.44);vec3 grassDetail=diffuseColor.rgb;grassDetail=mix(vec3(dot(grassDetail,vec3(.2126,.7152,.0722))),grassDetail,uGrassPbrSaturation);grassDetail=mix(grassDetail,grassDetail*uGrassPbrTint,uGrassPbrTintStrength);grassDetail*=1.0+uGrassParkLift;diffuseColor.rgb=mix(grassTone,grassDetail,uGrassTextureDetail*uGrassPbrAlbedoMix);')
+      .replace('#include <fog_fragment>',
+        '#include <fog_fragment>\n' +
+        (distanceFade?
         'float gndDist = distance(vGndWorld.xz, uCamPos.xz);\n' +
         'float gndFade = smoothstep(uFadeNear, uFadeFar, gndDist);\n' +
-        'diffuseColor.rgb = mix(diffuseColor.rgb, uFogColor, gndFade);');
+        'gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(uFogColor, 1.0)).rgb, gndFade);':''));
+    shader.fragmentShader = shader.fragmentShader.replace('uniform float uGrassDayBrightness;', 'uniform float uGrassDayBrightness;\nuniform float uGrassTextureDetail;');
   };
   return material;
 }
@@ -275,7 +459,8 @@ function asphaltSurfaceDetail(material) {
         '#include <color_fragment>\n' +
         'vec2 rp = floor(vRoadXZ / 90.0);\n' +
         'float hsh = fract(sin(dot(rp, vec2(127.1, 311.7))) * 43758.5453);\n' +
-        'float mottle = (hsh - 0.5) * 0.24;\n' +
+        'float grain = fract(sin(dot(floor(vRoadXZ / 13.0), vec2(269.5, 183.3))) * 43758.5453);\n' +
+        'float mottle = (hsh - 0.5) * 0.18 + (grain - 0.5) * 0.055;\n' +
         'diffuseColor.rgb *= 1.0 + mottle;')
       .replace('#include <roughnessmap_fragment>',
         '#include <roughnessmap_fragment>\n' +
@@ -363,6 +548,12 @@ function sampleLayout() {
 // ─── Boot ────────────────────────────────────────────────────────────────
 const stage = document.getElementById('stage');
 let scene, camera, renderer, composer, labelRenderer;
+let timeOfDay = null, parkLandscape=null;
+let neighbourhood = null, streetLife = null, publicSpaces = null, duskSky = null, environmentMap = null;
+let publicRoads = [], publicCrossings = [], roadBarrierNetwork = null, propObstacleSignature = '';
+let obstacleCheckTime = 0;
+const environmentProps = new Set();
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let _bloomPass = null;   // glow pass ref (altitude backstop drives its strength)
 const buildingLabels = [];   // CSS2D building badges — distance-faded every DOM tick
 let city = {};            // object passed to champion/buddy (scene/camera/renderer/spawnWorld)
@@ -370,9 +561,11 @@ let champion = null;
 let sim = null;
 let layout = null;
 let _bootGen = 0;         // bumped on every boot; stale loops cancel themselves
-let _rafId = 0;           // active requestAnimationFrame id (cancelled on re-boot)
+let _bootOwner = null;     // owns this boot's RAFs, listeners, timers and deferred work
 let _bootWatchdog = 0;    // boot-hang guard (see bootInner)
 const BOOT_TIMEOUT_MS = 60000; // a hung GLB fetch (flaky Wi-Fi) must never leave the loader frozen
+const CHAMPION_TIMEOUT_MS = 12000;
+let _contextPaused = false;
 
 let specialSystem = null; // { beacon, beaconPositions, meshes }
 let championShadow = null;   // low-tier blob shadow under the champion
@@ -383,6 +576,72 @@ const interactMeshes = []; // raycast targets for building entry
 
 // Grab / select / pick-up / move system for placed library models.
 let grab = null;
+let propLibrary = null;
+let placementDust = null;
+let disposeResizePanel = null;
+function cleanupPropTools() {
+  propLibrary?.destroy();
+  propLibrary = null;
+  grab?.destroy();
+  if (window.__grab === grab) delete window.__grab;
+  grab = null;
+  disposeResizePanel?.();
+  disposeResizePanel = null;
+  if (placementDust) {
+    placementDust.points.removeFromParent();
+    placementDust.geometry.dispose();
+    placementDust.material.dispose();
+    placementDust = null;
+  }
+}
+
+function cleanupBootSystems() {
+  cleanupPropTools();
+  _cityLookPicker?.destroy?.(); _cityLookPicker = null;
+  _groundTexturePicker?.destroy?.(); _groundTexturePicker = null;
+  focusedUI?.dispose?.(); focusedUI = null;
+  myWork?.dispose?.(); myWork = null;
+  learningVisuals?.destroy?.(); learningVisuals = null;
+  skinSidebar?.destroy?.(); skinSidebar = null;
+  _aiNodes?.dispose?.(); _aiNodes = null;
+  timeOfDay?.destroy?.(); timeOfDay = null;
+  parkLandscape?.destroy?.(); parkLandscape = null;
+  streetProps?.destroy?.(); streetProps = null;
+  citizens?.destroy?.(); clouds?.destroy?.();
+  publicSpaces?.destroy?.(); streetLife?.destroy?.();
+  citizens = clouds = publicSpaces = streetLife = neighbourhood = null;
+  minimap?.destroy?.(); minimap = null;
+  labelRenderer?.domElement?.remove(); labelRenderer = null;
+  for (const label of buildingLabels.splice(0)) { label.removeFromParent?.(); label.element?.remove?.(); }
+  interactMeshes.length = 0;
+  buildingColliders = [];
+  specialSystem = null;
+  _parkedVehicleState.applied.length = 0;
+  environmentProps.clear(); propObstacleSignature = ''; publicRoads = []; publicCrossings = []; roadBarrierNetwork = null;
+  // Traffic mounts its dynamic InstancedMeshes directly on the shared scene.
+  // Drop those meshes before losing the controller reference; otherwise each
+  // example-city rebuild leaves a stale fleet behind to overlap the next one.
+  traffic?.destroy?.();
+  taxi = decoTaxis = skySentinels = drones = traffic = null;
+  drivingCar = null; driveCars = [];
+  champion = sim = null;
+  for (const key of ['__city','__scene','__layout','__taxi','__drive','__learningVisuals']) {
+    try { delete window[key]; } catch { /* diagnostics only */ }
+  }
+  clearInput();
+}
+function disposeBootRenderer() {
+  try { composer?.dispose?.(); } catch { /* best-effort teardown */ }
+  composer = null;
+  try { renderer?.dispose?.(); } catch { /* best-effort teardown */ }
+  try { renderer?.domElement?.remove(); } catch { /* best-effort teardown */ }
+  renderer = null;
+  scene = null;
+  camera = null;
+}
+window.addEventListener('pagehide', event => {
+  if (!event.persisted) { _bootOwner?.cancel(); cleanupBootSystems(); }
+});
 let selectMode = false;
 let runToggled = false;   // R key — toggle run on/off
 
@@ -392,7 +651,6 @@ let decoTaxis = null;     // decorative skyline taxis
 let skySentinels = null;  // high-altitude drifting lights
 let drones = null;        // patrol drones
 let traffic = null;       // road vehicles
-let pedestrians = null;   // background robot NPCs floating around the city
 let citizens = null;      // human citizens (posed people) near buildings
 let clouds = null;        // drifting clouds in the sky
 let streetProps = null;   // streetlights + benches
@@ -423,7 +681,11 @@ const input = { x: 0, z: 0, running: false, jump: false, wave: false, dance: fal
 let keys = {};
 
 // ─── Scene setup (osm-city look) ─────────────────────────────────────────
-function setupScene() {
+function setupScene(owner) {
+  cleanupBootSystems();
+  _bloomPass = null;
+  if (environmentMap) { environmentMap.dispose(); environmentMap = null; }
+  if(duskSky){duskSky.geometry.dispose();duskSky.material.dispose();duskSky=null;}
   // Re-boot after a failure: dispose the previous renderer/composer so a stale
   // canvas and its GL context don't leak alongside the new one.
   if (renderer) {
@@ -435,12 +697,25 @@ function setupScene() {
       }
     } catch (e) { /* best-effort teardown */ }
   }
+  for(const st of Object.values(glbState)){st.spots=[];st.fallbacks=[];st.applied=[];}
   scene = new THREE.Scene();
   // Background and fog share one colour so the horizon seam disappears: distant
   // buildings fade into the same tone the sky shows at the ground line (design
   // polish — the old mismatch drew a hard edge at the draw distance).
-  scene.background = new THREE.Color(0x1c2b5a);
-  scene.fog = new THREE.FogExp2(0x1c2b5a, 0.0007);
+  scene.background = new THREE.Color(DUSK.horizon);
+  scene.fog = new THREE.FogExp2(DUSK.horizon, 0.00065);
+  // One untextured sky mesh; the horizon colour is shared with fog and ground.
+  // View elevation drives the gradient, so tilting the camera cannot expose a seam.
+  duskSky = new THREE.Mesh(new THREE.SphereGeometry(3900, 48, 24), new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, toneMapped: false,
+    uniforms: { horizon: {value:new THREE.Color(DUSK.horizon)}, zenith:{value:new THREE.Color(DUSK.sky)}, equirectMap:{value:null}, useEquirect:{value:0}, equirectHorizonBlend:{value:new THREE.Vector2(0.05,0.16)}, equirectSaturation:{value:1}, equirectContrast:{value:1}, equirectTint:{value:new THREE.Color(0xffffff)} },
+    vertexShader: 'varying vec3 direction; void main(){direction=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    // Direct equirectangular sampler: this deliberately bypasses the renderer's
+    // scene.background cube conversion and retains the selected 4K panorama.
+    fragmentShader: 'uniform vec3 horizon;uniform vec3 zenith;uniform sampler2D equirectMap;uniform float useEquirect;uniform vec2 equirectHorizonBlend;uniform float equirectSaturation;uniform float equirectContrast;uniform vec3 equirectTint;varying vec3 direction;const float PI=3.14159265359;void main(){vec3 d=normalize(direction);vec3 procedural=mix(horizon,zenith,smoothstep(0.0,0.75,d.y));vec2 uv=vec2(atan(d.z,d.x)/(2.0*PI)+0.5,acos(clamp(d.y,-1.0,1.0))/PI);vec3 panorama=texture2D(equirectMap,uv).rgb;panorama=mix(vec3(dot(panorama,vec3(.2126,.7152,.0722))),panorama,equirectSaturation);panorama=(panorama-.5)*equirectContrast+.5;panorama=clamp(panorama*equirectTint,0.0,1.0);float skyOnly=smoothstep(equirectHorizonBlend.x,equirectHorizonBlend.y,d.y);gl_FragColor=vec4(mix(procedural,panorama,useEquirect*skyOnly),1.0);\n#include <colorspace_fragment>\n}',
+  }));
+  duskSky.renderOrder=-10000;duskSky.frustumCulled=false;scene.add(duskSky);
+
 
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1.0, 8000);
   camera.position.set(1000, 220, 1350);
@@ -455,9 +730,34 @@ function setupScene() {
   renderer.shadowMap.type = IS_MOBILE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   stage.appendChild(renderer.domElement);
 
+  // Image-based lighting is enhancement-only. A missing/offline HDRI leaves
+  // the tuned hemisphere/sun rig and procedural sky in charge.
+  const setEnvironmentPreset = (preset) => {
+    if (!ENV_QUALITY.hdriSize) return;
+    loadEnvironmentHDRI({ renderer, preset, onError: (error, asset) =>
+      console.warn('[environment] HDRI unavailable; using procedural lighting', asset?.file, error)
+    }).then((env) => {
+      if (!env || renderer !== city.renderer) { env?.dispose(); return; }
+      if (environmentMap) environmentMap.dispose();
+      environmentMap = env;
+      scene.environment = env;
+      city.environmentMode = 'hdri';
+    });
+  };
+  city.environmentMode = 'procedural';
+
   // WebGL context loss (driver crash / memory pressure — the classic iPad
   // failure under a heavy city) → friendly overlay, auto-resume on restore.
-  attachContextLossGuard(renderer, { label: 'The city paused' });
+  const contextGuard = attachContextLossGuard(renderer, {
+    label: t('context.title'), detail: t('context.detail'),
+    retryLabel: t('context.retry'), returnLabel: t('context.planner'),
+    recoveryMs: window.__CITY_CONTEXT_RECOVERY_MS__ ?? 12000,
+    onLost: () => { _contextPaused = true; clearInput(); },
+    onRestored: () => { _contextPaused = false; lastT = performance.now(); },
+    onRetry: () => { _contextPaused = false; boot(); },
+    onReturn: () => { window.location.href = '/planner/'; },
+  });
+  owner.own(() => contextGuard.destroy());
   window.__contextGuard = true; // diagnostics/test hook
 
   // Low tier renders straight to the canvas (no EffectComposer at all — the
@@ -466,9 +766,11 @@ function setupScene() {
   // shader vignette the composer normally adds.
   if (LOW_END) {
     const v = document.createElement('div');
+    v.dataset.cityVignette = 'true';
     v.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;' +
       'background:radial-gradient(ellipse at center, transparent 62%, rgba(10,15,29,0.35) 100%);';
     document.body.appendChild(v);
+    owner.own(() => v.remove());
   } else {
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
@@ -477,16 +779,16 @@ function setupScene() {
     // foliage and distant dashes no longer blow out into white haze. Strength
     // scaled down so bloom reads as glow, not glare. Emitters that must keep
     // glowing are re-bumped above the threshold (see facade/beacon passes).
-    const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), IS_MOBILE ? 0.55 : 0.7, 0.4, 0.68);
-    bloom.threshold = 0.68;
-    bloom.strength = IS_MOBILE ? 0.55 : 0.7;
+    const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), IS_MOBILE ? DUSK.mobileBloom : DUSK.bloom, 0.4, 0.70);
+    bloom.threshold = 0.70;
+    bloom.strength = IS_MOBILE ? DUSK.mobileBloom : DUSK.bloom;
     _bloomPass = bloom;
     composer.addPass(bloom);
-    const sat = { uniforms: { tDiffuse: { value: null }, amount: { value: IS_MOBILE ? 1.15 : 1.28 } },
+    const sat = { uniforms: { tDiffuse: { value: null }, amount: { value: 1.025 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
       fragmentShader: 'uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv; const vec3 LUMA=vec3(0.2126,0.7152,0.0722); void main(){ vec4 c=texture2D(tDiffuse,vUv); float luma=dot(c.rgb,LUMA); c.rgb=mix(vec3(luma),c.rgb,amount); gl_FragColor=c; }' };
     composer.addPass(new ShaderPass(sat));
-    const vig = { uniforms: { tDiffuse: { value: null }, intensity: { value: 0.42 } },
+    const vig = { uniforms: { tDiffuse: { value: null }, intensity: { value: 0.16 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
       fragmentShader: 'uniform sampler2D tDiffuse; uniform float intensity; varying vec2 vUv; void main(){ vec4 c=texture2D(tDiffuse,vUv); float d=distance(vUv,vec2(0.5)); float v=1.0-intensity*smoothstep(0.4,0.9,d); gl_FragColor=vec4(c.rgb*v,c.a); }' };
     composer.addPass(new ShaderPass(vig));
@@ -496,8 +798,8 @@ function setupScene() {
     composer.addPass(new OutputPass());
   }
 
-  scene.add(new THREE.HemisphereLight(0x33406e, 0x1a2440, 1.15));
-  const sun = new THREE.DirectionalLight(0xffd9b3, 1.5);
+  const hemi=new THREE.HemisphereLight(DUSK.skyLight,DUSK.groundLight,2);scene.add(hemi);
+  const sun = new THREE.DirectionalLight(DUSK.sun, 2.0);
   sun.position.set(1000, 1600, 1200);
   sun.castShadow = !LOW_END;
   sun.shadow.mapSize.set(IS_MOBILE ? 1024 : 2048, IS_MOBILE ? 1024 : 2048);
@@ -507,7 +809,7 @@ function setupScene() {
   sun.shadow.camera.left = -1200; sun.shadow.camera.right = 1200;
   sun.shadow.camera.top = 1200; sun.shadow.camera.bottom = -1200;
   scene.add(sun);
-  const rim = new THREE.DirectionalLight(0x00f2fe, 0.5);
+  const rim = new THREE.DirectionalLight(DUSK.rim, 0.35);
   rim.position.set(-1400, 900, -1200);
   scene.add(rim);
 
@@ -518,29 +820,12 @@ function setupScene() {
   // desktop and a huge precision win on mobile.
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(6000, 6000),
-    groundDistanceFade(new THREE.MeshStandardMaterial({ color: 0x141a2e, roughness: 0.9 }))
+    stylizedGrassMaterial({distanceFade:true})
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.1;
   ground.receiveShadow = true;
   scene.add(ground);
-
-  // Ground texture (Polyhaven CC0 "Aerial Asphalt 01", 1k) — dark-tinted so it
-  // reads as night asphalt instead of a flat colour. Loaded async; the flat
-  // colour stays until it arrives.
-  new THREE.TextureLoader().load(
-    'assets/textures/ground-asphalt.jpg',
-    (tex) => {
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(300, 300);            // ~20 m per tile across the 6000 m plane
-      tex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-      ground.material.map = tex;
-      ground.material.color.set(0x3a4650); // night tint over the grey asphalt
-      ground.material.needsUpdate = true;
-    },
-    undefined,
-    () => console.warn('[ground] texture failed — keeping flat colour')
-  );
 
   // Night sky: a subtle starfield (PointsMaterial ignores fog so it shows
   // through the atmospheric haze at the horizon).
@@ -559,12 +844,20 @@ function setupScene() {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const mat = new THREE.PointsMaterial({
       color: 0xcfe4ff, size: 1.8, sizeAttenuation: true,
-      transparent: true, opacity: 0.55, fog: false, depthWrite: false,
+      transparent: true, opacity: 0.12, fog: false, depthWrite: false,
     });
     const pts = new THREE.Points(geo, mat);
+    pts.userData.timeStars=true;
     pts.position.set(1000, 0, 1000);
     scene.add(pts);
   })();
+
+  timeOfDay=createTimeOfDay({scene,renderer,sky:duskSky,hemi,sun,rim,ground:()=>_groundMat,grasses:()=>_grassMats,reducedMotion:()=>reducedMotion.matches,getClouds:()=>clouds,onPresetChange:setEnvironmentPreset,post:{bloom:_bloomPass,saturation:composer?composer.passes.find(p=>p.uniforms?.amount)?.uniforms.amount:null,vignette:composer?composer.passes.find(p=>p.uniforms?.intensity)?.uniforms.intensity:null}});
+  city.setTimeOfDay=id=>timeOfDay.setTimeOfDay(id);city.timeOfDay=timeOfDay;
+  _cityLookPicker = mountCityLookPicker({ initial: _cityLook, onChange: applyCityLook });
+  _groundTexturePicker = mountGroundTexturePicker({ initial: _groundTexture, onChange: applyGroundTexture });
+  applyCityLook(_cityLook);
+  applyGroundTexture(_groundTexture);
 
   // Distance/grid gauge for driving is debug-only: at altitude it reads as a
   // faint cyan artefact in the "toy screenshot" sense, so ship builds skip it.
@@ -606,7 +899,7 @@ const ROAD_FX = {
   tileM: 16,            // world metres per texture tile along the road (coarser
                         // than the old 8 m — fewer repeats reduce altitude aliasing)
   asphColor: 0x242a30,  // dark charcoal tint (road stays darker than the ground)
-  asphY: 0.03,
+  asphY: 0.12,
   dashW: 0.5,
   dashLen: 4,
   dashGap: 4,
@@ -616,15 +909,15 @@ const ROAD_FX = {
   // altitude. The edge line ramps down early (see uRamp* in the marking shader)
   // so thin edge circles dissolve before they alias at altitude.
   dashColor: 0xe8f2ff,
-  markY: 0.05,          // markings sit a hair above the asphalt
+  markY: 0.18,          // markings sit a hair above the asphalt
   glowInset: 0.7,       // glowing edge light: just inside the road edge
   glowW: 0.25,          // thin — reads as a light line, not a band
-  glowY: 0.045,
+  glowY: 0.16,
   // Flat sidewalk ribbon: untextured concrete under the asphalt so the road
   // network has figure-ground at altitude without curb geometry.
   swW: 1.8,             // m of pavement on EACH side of the road
-  swY: 0.02,            // a hair below asphalt (0.03) so asphalt sits on it
-  swColor: 0x3a4149,    // cool concrete — lighter than asphalt, darker than ground tint
+  swY: 0.02,            // separated from asphalt to prevent aerial depth flicker
+  swColor: DUSK.pavement,    // cool concrete — lighter than asphalt, darker than ground tint
   // Junction mouth details (baked geometry, one merged layer city-wide).
   zebraGap: 1.2,        // m — spacing between zebra bars along the through road
   zebraLen: 0.45,       // m — bar thickness along the through road
@@ -696,7 +989,7 @@ let _roadTexLoading = false;
 // CC0 asphalt albedo (ground-asphalt.jpg) + matching normal + roughness maps.
 // Roads render flat charcoal until the maps arrive (same async pattern as the
 // ground texture). Maps are Polyhaven "Aerial Asphalt 01", CC0.
-function loadRoadTextures() {
+function loadRoadTextures(gen = _bootGen, targetRenderer = renderer) {
   if (_roadTexLoading) return;
   _roadTexLoading = true;
   const L = new THREE.TextureLoader();
@@ -705,7 +998,7 @@ function loadRoadTextures() {
     // Anisotropy: 16 is wasted on tile-based mobile GPUs — cap 4 there. Aniso
     // only matters at grazing angles; altitude views are near-vertical and the
     // mips handle them.
-    t.anisotropy = Math.min(IS_MOBILE ? 4 : 16, renderer.capabilities.getMaxAnisotropy());
+    t.anisotropy = Math.min(IS_MOBILE ? 4 : 16, targetRenderer.capabilities.getMaxAnisotropy());
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     return t;
   };
@@ -714,6 +1007,7 @@ function loadRoadTextures() {
     new Promise((res, rej) => L.load('assets/textures/aerial_asphalt_01_nor_gl_1k.jpg', (t) => res(cfg(t, false)), undefined, rej)),
     new Promise((res, rej) => L.load('assets/textures/aerial_asphalt_01_rough_1k.jpg', (t) => res(cfg(t, false)), undefined, rej)),
   ]).then(([albedo, normal, rough]) => {
+    if(gen!==_bootGen){albedo.dispose();normal.dispose();rough.dispose();_roadTexLoading=false;return;}
     _roadMats.asph.map = albedo;
     _roadMats.asph.normalMap = normal;
     _roadMats.asph.normalScale.set(0.15, 0.15);   // low — kills high-freq normal aliasing at altitude
@@ -900,6 +1194,11 @@ function buildRoadsInto(group, roads, opts = {}) {
     });
   }
 
+  if (!elevated) {
+    publicRoads = infos.map(info => ({points: info.poly.map(p => [p.x,p.z]), width:info.half*2}));
+    publicCrossings = [];
+    roadBarrierNetwork = buildTrafficNetwork(publicRoads);
+  }
   // Phase 2 — junction contacts (which roads terminate on which).
   const { masks, junctions } = buildJunctionContacts(infos);
 
@@ -954,6 +1253,14 @@ function buildRoadsInto(group, roads, opts = {}) {
         const zb = jc.termArc + inward * (ROAD_FX.stopDist + 1.2 + b * ROAD_FX.zebraGap);
         if (zb < 0 || zb > termInfo.total) continue;
         pushArcBar(P.jct, termInfo, zb, termInfo.half, ROAD_FX.zebraLen / 2, yMark);
+        if (b === 1) {
+          let si=0; while(si<termInfo.poly.length-2 && termInfo.cum[si+1]<zb)si++;
+          const a=termInfo.poly[si],end=termInfo.poly[si+1];
+          const len=Math.hypot(end.x-a.x,end.z-a.z)||1;
+          const t=(zb-termInfo.cum[si])/len, x=a.x+(end.x-a.x)*t,z=a.z+(end.z-a.z)*t;
+          const nx=-(end.z-a.z)/len*(termInfo.half+.95),nz=(end.x-a.x)/len*(termInfo.half+.95);
+          publicCrossings.push({a:{x:x+nx,z:z+nz},b:{x:x-nx,z:z-nz},road:jc.term});
+        }
       }
     }
   }
@@ -1011,40 +1318,53 @@ let _parkModel = null;   // shared park GLB (trees + benches + fountain)
 // Tree instancing: each GLB pack variant is normalised ONCE into a shared
 // single-geometry mesh; addTree() only QUEUES a placement, and flushTrees()
 // (called after carving) writes them into per-variant InstancedMeshes. This
-// collapses ~300 separate tree clones into ~10 instanced draw calls.
+// batches placements by variant and source material, rather than one draw
+// per tree. Bark and textured leaves retain separate material groups.
 let _treeVariants = [];   // [{geo, height}] — normalized, feet on y=0
 let _treePlacements = []; // [{x, z, scale, v}] — queued until flush
+let _treeSafetyPlacements = []; // retained for debug/browser scenery checks
 
-function loadTreeModels() {
+function loadTreeModels(isCurrent = () => true) {
   return Promise.all([
-    _treeLoader.loadAsync(ASSET_BASE + 'models/tree.glb').catch((e) => { console.warn('[city-builder] tree GLB failed', e); return null; }),
-    _treeLoader.loadAsync(ASSET_BASE + 'models/tree-high.glb').catch((e) => { console.warn('[city-builder] tree-high GLB failed', e); return null; }),
+    _treeLoader.loadAsync('../library/nature/kenney-tree_oak.glb').catch((e) => { console.warn('[city-builder] tree GLB failed', e); return null; }),
+    _treeLoader.loadAsync('../library/nature/kenney-tree_default.glb').catch((e) => { console.warn('[city-builder] tree-high GLB failed', e); return null; }),
   ]).then(([a, b]) => {
+    if (!isCurrent()) return null;
     _treeModels = {};
     if (a) _treeModels.tree = a.scene;
     if (b) _treeModels.treeHigh = b.scene;
     return Object.keys(_treeModels).length ? _treeModels : null;
   });
 }
-function loadTreePacks() {
+function loadTreePacks(isCurrent = () => true) {
+  // City canopy trees: the same CC0 Quaternius "Common Tree" models the child
+  // sees in the Decorate library (nat_common_tree / nat_common_tree_2), so the
+  // auto-grown city matches what they can place by hand. Two variants keep the
+  // canopy batched into two InstancedMeshes. Optional — a failed load falls
+  // back to the procedural trees in flushTrees(), never blocks city boot.
   const urls = {
-    normal: 'assets/models/nature/tree-normal.glb',
-    pine: 'assets/models/nature/tree-pine.glb',
-    birch: 'assets/models/nature/tree-birch.glb',
-    maple: 'assets/models/nature/tree-maple.glb',
-    dead: 'assets/models/nature/tree-dead.glb',
+    common1: '../library/nature/quaternius-CommonTree_1.glb',
+    common2: '../library/nature/quaternius-CommonTree_2.glb',
   };
   const keys = Object.keys(urls);
-  return Promise.all(keys.map((k) => _treeLoader.loadAsync(urls[k]).catch((e) => { console.warn('[city-builder] tree pack failed', k, e); return null; })))
-    .then((scenes) => {
-      _treePacks = {};
-      scenes.forEach((s, i) => { if (s) _treePacks[keys[i]] = s.scene; });
-      return _treePacks;
+  return Promise.all(keys.map((key) =>
+    _treeLoader.loadAsync(urls[key]).catch((e) => {
+      console.warn('[city-builder] detailed tree pack failed', key, e);
+      return null;
+    })
+  )).then((scenes) => {
+    if (!isCurrent()) return null;
+    _treePacks = {};
+    scenes.forEach((gltf, i) => {
+      if (gltf?.scene) _treePacks[keys[i]] = gltf.scene;
     });
+    return Object.keys(_treePacks).length ? _treePacks : null;
+  });
 }
-function loadParkModel() {
+function loadParkModel(isCurrent = () => true) {
   return _treeLoader.loadAsync('assets/models/park.glb')
     .then((gltf) => {
+      if (!isCurrent()) return null;
       const m = gltf.scene;
       const box = new THREE.Box3().setFromObject(m);
       const center = box.getCenter(new THREE.Vector3());
@@ -1084,20 +1404,38 @@ function deInterleave(geo) {
 
 // Normalise one tree model into a single shared geometry: bake the clone's
 // transforms into the vertices, merge sub-meshes, centre on origin, feet on
-// y=0. Returns {geo, height} or null. `height` is the tree's natural height so
+// y=0. Returns {geo, materials, height} or null. `height` is the tree's natural height so
 // instances can be scaled to a target size like the old clone path did.
 function normalizeTreeToGeometry(root) {
   try {
     const clone = root.clone(true);
     clone.updateMatrixWorld(true);
     const geos = [];
-    let maxY = -Infinity;
+    const materials = [];
+    const groups = [];
+    let indexOffset = 0;
     clone.traverse((o) => {
       if (o.isMesh && o.geometry) {
         const g = deInterleave(o.geometry.clone());
         g.applyMatrix4(o.matrixWorld);
-        const box = new THREE.Box3().setFromBufferAttribute(g.attributes.position);
-        if (box.max.y > maxY) maxY = box.max.y;
+        // Keep source material groups: dropping them strips leaf alpha maps
+        // and turns textured foliage into opaque white silhouettes.
+        const sourceMaterials = Array.isArray(o.material) ? o.material : [o.material];
+        const materialOffset = materials.length;
+        for (const source of sourceMaterials) {
+          const material = source.clone();
+          // Vegetation is matte; some converted FBX packs declare metalness 1.
+          material.metalness = 0;
+          material.roughness = 0.85;
+          materials.push(material);
+        }
+        const count = g.index ? g.index.count : g.attributes.position.count;
+        const sourceGroups = g.groups.length ? g.groups : [{ start: 0, count, materialIndex: 0 }];
+        for (const group of sourceGroups) {
+          groups.push({ start: indexOffset + group.start, count: group.count,
+            materialIndex: materialOffset + group.materialIndex });
+        }
+        indexOffset += count;
         if (!g.getAttribute('normal')) g.computeVertexNormals();
         geos.push(g);
       }
@@ -1105,12 +1443,13 @@ function normalizeTreeToGeometry(root) {
     if (!geos.length) return null;
     const merged = BufferGeometryUtils.mergeGeometries(geos, false);
     if (!merged) return null;
+    for (const group of groups) merged.addGroup(group.start, group.count, group.materialIndex);
     // Centre X/Z on origin, sit base on y=0.
     const b = new THREE.Box3().setFromBufferAttribute(merged.attributes.position);
     const size = new THREE.Vector3(); b.getSize(size);
     const center = new THREE.Vector3(); b.getCenter(center);
     merged.translate(-center.x, -b.min.y, -center.z);
-    return { geo: merged, height: Math.max(size.y, 0.5) };
+    return { geo: merged, materials, height: Math.max(size.y, 0.5) };
   } catch (e) {
     console.warn('[city-builder] tree normalise failed', e);
     return null;
@@ -1142,37 +1481,49 @@ function buildTreeVariants() {
 }
 
 function addTree(x, z, scale) {
-  if (_treeVariants.length) {
-    const v = Math.floor(Math.random() * _treeVariants.length);
-    _treePlacements.push({ x, z, scale, v });
-    return;
-  }
-  // No GLB trees at all — procedural fallback stays as individual meshes.
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.16, 0.2, 0.8, 8),
-    new THREE.MeshStandardMaterial({ color: 0x6d4c2f, roughness: 0.9 })
-  );
-  trunk.position.set(x, 0.4, z);
-  scene.add(trunk);
-  const leaf = new THREE.Mesh(
-    new THREE.SphereGeometry(0.7, 8, 6),
-    new THREE.MeshStandardMaterial({ color: 0x3d8b4f, roughness: 0.85 })
-  );
-  leaf.position.set(x, 1.1, z);
-  scene.add(leaf);
+  if(layout.autoScenery===false)return;
+  const network=roadBarrierNetwork || buildTrafficNetwork(layout.roads||[]);
+  // Model canopy extends beyond the trunk: reserve a conservative 2.2m body
+  // plus the same junction mouth clearance used by street trees and filler.
+  if(!isRoadsideSceneryClear(network,x,z,2.2,8))return;
+  _treeSafetyPlacements.push({x,z,radius:2.2,scale});
+  // Queue the placement now; the variant is resolved at flush time, AFTER the
+  // (deferred) tree GLBs have loaded. addPark()/scatterStreetTrees() run during
+  // the synchronous boot, so they cannot know _treeVariants yet.
+  _treePlacements.push({ x, z, scale, v: -1 });
 }
 
 // Write queued tree placements into per-variant InstancedMeshes. Call after
 // ALL addTree() calls (park trees + street trees) so capacities are exact.
 function flushTrees() {
   if (!_treePlacements.length) return;
+  const queued = _treePlacements; _treePlacements = [];
+  if (!_treeVariants.length) {
+    // The tree GLBs failed to load — keep the city green with the procedural
+    // trunk+canopy fallback rather than leaving it bare.
+    for (const p of queued) {
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16, 0.2, 0.8, 8),
+        new THREE.MeshStandardMaterial({ color: 0x6d4c2f, roughness: 0.9 })
+      );
+      trunk.position.set(p.x, 0.4, p.z);
+      scene.add(trunk);
+      const leaf = new THREE.Mesh(
+        new THREE.SphereGeometry(0.7, 8, 6),
+        new THREE.MeshStandardMaterial({ color: 0x3d8b4f, roughness: 0.85 })
+      );
+      leaf.position.set(p.x, 1.1, p.z);
+      scene.add(leaf);
+    }
+    return;
+  }
+  for (const p of queued) p.v = hashString(`${p.x}|${p.z}`) % _treeVariants.length;
   const counts = new Array(_treeVariants.length).fill(0);
-  for (const p of _treePlacements) counts[p.v]++;
-  const mats = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+  for (const p of queued) counts[p.v]++;
   const instByVariant = new Map();   // variant index -> InstancedMesh
   _treeVariants.forEach((variant, vi) => {
     if (!counts[vi]) return;
-    const inst = new THREE.InstancedMesh(variant.geo, mats, counts[vi]);
+    const inst = new THREE.InstancedMesh(variant.geo, variant.materials, counts[vi]);
     inst.count = 0;
     inst.castShadow = true;
     inst.receiveShadow = false;
@@ -1185,7 +1536,7 @@ function flushTrees() {
   const scl = new THREE.Vector3();
   const quat = new THREE.Quaternion();
   const placed = new Array(_treeVariants.length).fill(0);
-  for (const p of _treePlacements) {
+  for (const p of queued) {
     const inst = instByVariant.get(p.v);
     if (!inst) continue;
     const variant = _treeVariants[p.v];
@@ -1202,66 +1553,99 @@ function flushTrees() {
   _treePlacements = [];
 }
 
-// ─── Nature filler (bushes/flowers/rocks) ────────────────────────────────
+// ─── Nature filler (dominant grass, occasional flowers/bushes/rocks) ─────
 // Small Kenney Nature Kit (CC0) models scattered inside parks to make the
 // green spaces feel lush. Same two-phase pipeline as trees: load → normalize
 // each variant once → queue placements → flush into per-variant InstancedMesh.
-const NATURE_FILLER_FILES = [
-  'plant_bush.glb', 'plant_bushDetailed.glb', 'plant_bushTriangle.glb',
-  'flower_yellowA.glb', 'flower_yellowB.glb', 'flower_purpleA.glb', 'flower_purpleB.glb',
-  'grass_leafs.glb', 'grass_leafsLarge.glb',
-  'rock_smallA.glb', 'rock_smallB.glb', 'mushroom_redTall.glb',
-];
-let _natureVariants = [];     // [{geo, height}]
-let _naturePlacements = [];   // [{x, z, scale, v}]
+let _natureVariants = [];     // [{geo, height, kind, weight}]
+let _naturePlacements = [];   // [{x, z, scale, rotation, kind}]
 let _natureLoaded = false;
+let _natureBatches = [];
 
-function loadNatureFiller() {
+// These are deliberately applied only to the two Kenney grass GLBs. Their
+// authored turquoise is useful nowhere in the city palette, while flowers,
+// bushes and rocks retain their shipped colours.
+function applyGrassVertexPalette(variant) {
+  const position=variant.geo.getAttribute('position');
+  if (!position) return;
+  const root=new THREE.Color('#33502a');
+  // Keep the supplied warm yellow-green as a sparse tip note, rather than
+  // letting it turn every blade or the whole lawn yellow.
+  const tip=new THREE.Color('#a8c262').lerp(new THREE.Color('#4c7c3f'),.45);
+  const colors=new Float32Array(position.count*3);
+  const height=Math.max(variant.height,.001);
+  const tone=new THREE.Color();
+  for(let i=0;i<position.count;i++){
+    const h=Math.max(0,Math.min(1,position.getY(i)/height));
+    const eased=h*h*(3-2*h);
+    tone.copy(root).lerp(tip,eased).toArray(colors,i*3);
+  }
+  variant.geo.setAttribute('color',new THREE.BufferAttribute(colors,3));
+  for(const material of variant.materials){
+    material.color?.set(0xffffff);
+    material.vertexColors=true;
+    material.roughness=.95;
+    material.metalness=0;
+    material.side=THREE.DoubleSide;
+    material.needsUpdate=true;
+  }
+  variant.grassVertexPalette=true;
+}
+
+function loadNatureFiller(gen = _bootGen) {
   if (_natureLoaded) return;
   _natureLoaded = true;
   const loader = createGLTFLoader();
-  Promise.all(NATURE_FILLER_FILES.map((f) =>
-    loader.loadAsync('assets/models/nature-filler/' + f).catch((e) => { console.warn('[nature-filler] failed', f, e); return null; })
+  Promise.all(PARK_VEGETATION_ASSETS.map((asset) =>
+    loader.loadAsync(asset.file).catch((e) => { console.warn('[nature-filler] failed', asset.file, e); return null; })
   )).then((gltfs) => {
-    for (const gltf of gltfs) {
+    for (let i=0;i<gltfs.length;i++) {
+      const gltf=gltfs[i];
       if (!gltf) continue;
       const n = normalizeTreeToGeometry(gltf.scene);
-      if (n) _natureVariants.push(n);
+      const asset=PARK_VEGETATION_ASSETS[i];
+      if (n) {
+        if (asset.kind.includes('grass')) applyGrassVertexPalette(n);
+        _natureVariants.push({...n,...asset});
+      }
     }
     // If any variants loaded, flush anything queued before load finished.
-    flushNatureFiller();
+    if(gen===_bootGen)flushNatureFiller();
   });
 }
 
-function addNatureFiller(x, z, scale) {
-  if (_natureVariants.length) {
-    const v = Math.floor(Math.random() * _natureVariants.length);
-    _naturePlacements.push({ x, z, scale, v });
-    return;
-  }
-  // Variants not ready yet (async load) — queue; flush runs when they arrive.
-  _naturePlacements.push({ x, z, scale, v: -1 });
+function addNatureFiller(placement) {
+  if(layout.autoScenery===false)return;
+  _naturePlacements.push(placement);
 }
 
 function flushNatureFiller() {
   if (!_natureVariants.length) return;
-  const ready = _naturePlacements.filter((p) => p.v >= 0);
-  const pending = _naturePlacements.filter((p) => p.v < 0);
-  // Assign any pending (queued-before-load) placements to random variants.
-  for (const p of pending) { p.v = Math.floor(Math.random() * _natureVariants.length); ready.push(p); }
+  const ready = _naturePlacements;
   _naturePlacements = [];
   if (!ready.length) return;
   const counts = new Array(_natureVariants.length).fill(0);
-  for (const p of ready) counts[p.v]++;
-  const mats = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+  for (const p of ready) {
+    let v=_natureVariants.findIndex(item=>item.kind===p.kind);
+    if(v<0)v=hashString(`${p.x}|${p.z}`)%_natureVariants.length;
+    p.v=v;counts[v]++;
+  }
   const instByVariant = new Map();
+  _natureBatches=[];
   _natureVariants.forEach((variant, vi) => {
     if (!counts[vi]) return;
-    const inst = new THREE.InstancedMesh(variant.geo, mats, counts[vi]);
+    const inst = new THREE.InstancedMesh(variant.geo, variant.materials, counts[vi]);
     inst.count = 0;
     inst.castShadow = false;                 // tiny props — skip shadow cost
+    inst.receiveShadow = false;
     inst.userData.isNatureFiller = true;
+    inst.userData.natureKind = variant.kind;
+    if(variant.grassVertexPalette){
+      inst.userData.grassVertexColors=true;
+      inst.userData.grassInstanceColors=true;
+    }
     scene.add(inst);
+    _natureBatches.push(inst);
     instByVariant.set(vi, inst);
   });
   const m = new THREE.Matrix4();
@@ -1276,13 +1660,22 @@ function flushNatureFiller() {
     const idx = placed[p.v]++;
     pos.set(p.x, 0, p.z);
     const h = variant.height || 1;
-    scl.setScalar((p.scale * 4) / h);
-    quat.identity();
+    const target={grass:.55,'tall-grass':.9,bush:1.25,'flower-red':.62,'flower-yellow':.62,rock:.65}[variant.kind]||.7;
+    scl.setScalar((p.scale * target) / h);
+    quat.setFromAxisAngle(new THREE.Vector3(0,1,0),p.rotation||0);
     m.compose(pos, quat, scl);
     inst.setMatrixAt(idx, m);
+    if(variant.grassVertexPalette){
+      // Stable, very slight tint/value changes stop a tiled-looking batch
+      // without introducing animation, extra draws, or a new material.
+      const jitter=(hashString(`${p.x.toFixed(2)}|${p.z.toFixed(2)}`)%1000)/999;
+      inst.setColorAt(idx,new THREE.Color().setRGB(.91+jitter*.06,.95+jitter*.04,.88+jitter*.07));
+    }
     inst.count = idx + 1;
     inst.instanceMatrix.needsUpdate = true;
   }
+  for(const inst of _natureBatches)if(inst.userData.grassInstanceColors&&inst.instanceColor)inst.instanceColor.needsUpdate=true;
+  city.natureScenery={batches:_natureBatches,get drawCalls(){return _natureBatches.length;},get instances(){return _natureBatches.reduce((n,b)=>n+b.count,0);},get triangles(){return _natureBatches.reduce((n,b)=>n+b.count*(b.geometry.index?.count||b.geometry.attributes.position.count)/3,0);}};
 }
 
 function addPark(cx, cz, radius) {
@@ -1290,18 +1683,18 @@ function addPark(cx, cz, radius) {
     new THREE.CircleGeometry(radius, 28),
     // Matches the ground texture of the park GLB (dominant #386800 olive green)
     // so the circle blends into the park model instead of clashing with it.
-    new THREE.MeshStandardMaterial({ color: 0x386800, roughness: 0.95 })
+    stylizedGrassMaterial({park:true})
   );
   grass.rotation.x = -Math.PI / 2;
   grass.position.set(cx, 0.02, cz);
   grass.receiveShadow = true;
   scene.add(grass);
   // Shared park model (trees + benches + fountain) in the middle of the circle.
-  if (_parkModel) {
+  if (_parkModel && layout.autoScenery!==false) {
     const clone = _parkModel.clone(true);
     // Scale so the model's footprint (~2.6×2.5m after the baked rotation) fits
     // comfortably inside the circle — about 60% of the diameter.
-    const target = radius * 0.6;
+    const target = Math.min(22,radius * 0.45);
     const box = new THREE.Box3().setFromObject(clone);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
@@ -1315,24 +1708,16 @@ function addPark(cx, cz, radius) {
   const count = Math.max(6, Math.round(radius / 8));
   for (let i = 0; i < count; i++) {
     const ang = (i / count) * Math.PI * 2 + hashString(i + '') * 0.3;
-    const r = radius * (0.4 + 0.55 * ((hashString(i * 7) % 10) / 10));
+    const r = radius * (0.69 + 0.16 * ((hashString(i * 7) % 10) / 10));
     addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.8 + ((hashString(i * 13) % 10) / 10) * 0.6);
   }
   // Fill the mid band (between the centre model and the outer ring).
   const fillCount = Math.max(3, Math.round(radius / 12));
   for (let i = 0; i < fillCount; i++) {
     const ang = hashString(i * 31 + Math.round(cx)) * 0.7 + i * 1.7;
-    const r = radius * (0.18 + 0.28 * ((hashString(i * 17 + Math.round(cz)) % 10) / 10));
+    const centreClear=Math.min(radius*.42,Math.min(22,radius*.45)*.5+3);
+    const r = centreClear+Math.max(0,radius*.46-centreClear)*((hashString(i * 17 + Math.round(cz)) % 10) / 10);
     addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.7 + ((hashString(i * 23) % 10) / 10) * 0.5);
-  }
-  // Nature filler: bushes, flowers, rocks, grass tufts — denser near the
-  // centre model (fountain), sparser toward the ring so the park reads lush
-  // but the trees still stand out.
-  const fillN = Math.max(4, Math.round(radius / 6));
-  for (let i = 0; i < fillN; i++) {
-    const ang = hashString(i * 41 + Math.round(cx * 7)) * 0.9 + i * 2.3;
-    const r = radius * (0.15 + 0.5 * ((hashString(i * 29 + Math.round(cz * 3)) % 10) / 10));
-    addNatureFiller(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.5 + ((hashString(i * 11) % 10) / 10) * 0.7);
   }
 }
 
@@ -1346,7 +1731,8 @@ function buildQuestLandmarks() {
   for (const b of layout.buildings) {
     if (!isSpecial(b.type)) continue;
     const spec = catalogType(b.type);
-    const q = QUESTS.find((qq) => qq.id === spec.questId);
+    const purpose = PURPOSES[b.type];
+    const q = purpose && { type: b.type, labelZh: purpose.zh, labelEn: purpose.en, pos: b.pos };
     if (!q) continue;
     // Student intent is exact — place at the layout position.
     const cx = b.pos[0];
@@ -1410,7 +1796,6 @@ function buildQuestLandmarks() {
 
   // Beacons
   if (beaconPositions.length) {
-    const state = loadQuestState();
     const beacon = new THREE.InstancedMesh(
       new THREE.OctahedronGeometry(2.2, 0),
       new THREE.MeshBasicMaterial({ toneMapped: false, color: new THREE.Color(2.0, 2.0, 2.0) }),
@@ -1423,8 +1808,7 @@ function buildQuestLandmarks() {
       qq.setFromEuler(new THREE.Euler(0, Math.PI / 4, 0.6));
       m.compose(v, qq, ss.set(1, 1, 1));
       beacon.setMatrixAt(i, m);
-      const st = questStatus(questRefs[i].q, state);
-      colour.setHex(st === 'completed' ? 0x00ff9d : st === 'unlocked' ? 0x00f2fe : 0x3a3f46);
+      colour.setHex(0x00f2fe);
       beacon.setColorAt(i, colour);
     });
     beacon.instanceMatrix.needsUpdate = true;
@@ -1437,13 +1821,13 @@ function buildQuestLandmarks() {
   // (colorWrite off so it never renders) centred on the building.
   for (const ref of questRefs) {
     const q = ref.q;
-    if (q.gameUrl) {
+    if (q.type) {
       const hit = new THREE.Mesh(
         new THREE.SphereGeometry(12, 6, 5),
         new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, colorWrite: false, depthWrite: false })
       );
       hit.position.set(ref.cx, Math.max(12, ref.top / 2), ref.cz);
-      hit.userData = { kind: 'quest', questId: q.id, name: q.labelEn, gameUrl: QUEST_GAME_URL_OVERRIDES[q.id] || q.gameUrl };
+      hit.userData = { kind: 'quest', type: q.type };
       scene.add(hit);
       interactMeshes.push(hit);
     }
@@ -1474,7 +1858,7 @@ function addBuildingLabel(zh, en, x, y, z) {
 // Poly Pizza Colosseum stand-in looked bad and was removed.
 const GLB_BUILDING_TYPES = {
   fire: 'assets/models/fire-station.glb',
-  housing: 'assets/models/housing-variants/housing-a.glb',
+  housing: '../library/buildings/kenney-suburban-a.glb',
   school: 'assets/models/school.glb',
   hospital: 'assets/models/hospital.glb',
   shop: 'assets/models/shop.glb',
@@ -1506,40 +1890,9 @@ const SPECIAL_BUILDING_MODELS = {
   atc: 'assets/models/mission/atc.glb',
 };
 // Residential variations — each housing spot renders as a 2×2 block of units;
-// each unit picks a RANDOM variant so a neighbourhood looks lived-in instead of
-// cloned. All CC0: 21 Kenney City Kit (Suburban) houses + 8 extra residential
-// models (Quaternius town houses/houses, CreativeTrio cottage, Kenney 2-storey).
-const HOUSING_VARIANTS = [
-  'assets/models/housing-variants/housing-a.glb',
-  'assets/models/housing-variants/housing-b.glb',
-  'assets/models/housing-variants/housing-c.glb',
-  'assets/models/housing-variants/housing-d.glb',
-  'assets/models/housing-variants/housing-e.glb',
-  'assets/models/housing-variants/housing-f.glb',
-  'assets/models/housing-variants/housing-g.glb',
-  'assets/models/housing-variants/housing-h.glb',
-  'assets/models/housing-variants/housing-i.glb',
-  'assets/models/housing-variants/housing-j.glb',
-  'assets/models/housing-variants/housing-k.glb',
-  'assets/models/housing-variants/housing-l.glb',
-  'assets/models/housing-variants/housing-m.glb',
-  'assets/models/housing-variants/housing-n.glb',
-  'assets/models/housing-variants/housing-o.glb',
-  'assets/models/housing-variants/housing-p.glb',
-  'assets/models/housing-variants/housing-q.glb',
-  'assets/models/housing-variants/housing-r.glb',
-  'assets/models/housing-variants/housing-s.glb',
-  'assets/models/housing-variants/housing-t.glb',
-  'assets/models/housing-variants/housing-u.glb',
-  'assets/models/housing-variants/housing-extra-townhouse-a.glb',
-  'assets/models/housing-variants/housing-extra-townhouse-b.glb',
-  'assets/models/housing-variants/housing-extra-townhouse-c.glb',
-  'assets/models/housing-variants/housing-extra-townhouse-large.glb',
-  'assets/models/housing-variants/housing-extra-house-a.glb',
-  'assets/models/housing-variants/housing-extra-house-b.glb',
-  'assets/models/housing-variants/housing-extra-cottage.glb',
-  'assets/models/housing-variants/housing-extra-2story-a.glb',
-];
+// six compatible CC0 Kenney houses are selected by location, then batched.
+// The full catalogue remains available on demand in the student picker.
+const HOUSING_VARIANTS = ['a','b','c','e','g','i'].map(c=>`../library/buildings/kenney-suburban-${c}.glb`);
 // Facilities that share the generic model until they get their own GLB.
 // Plain facilities without a dedicated GLB — these fall back to the shared
 // generic model. Every generic facility has its own CC0 GLB now, so this list
@@ -1557,32 +1910,39 @@ const glbState = {};   // type → { model, size, spots:[], fallbacks:[], loadin
 const housingVariantModels = [];   // [{ model, size }] loaded in order
 let housingVariantsLoaded = false;
 
-function loadHousingVariants() {
+function loadHousingVariants(gen, queue) {
   if (housingVariantsLoaded) return;
   housingVariantsLoaded = true;
   const loader = createGLTFLoader();
-  for (const url of HOUSING_VARIANTS) {
-    loader.loadAsync(url)
-      .then((gltf) => {
-        const m = gltf.scene;
-        const box = new THREE.Box3().setFromObject(m);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        m.position.sub(center);        // centre on origin, feet near y=0
-        m.position.y -= box.min.y;     // sit base on y=0
-        housingVariantModels.push({ model: m, size });
-        applyBuildingModel('housing'); // re-apply so new units use available variants
-      })
-      .catch((e) => { console.warn('[housing variant] GLB load failed:', url, e); });
-  }
+  Promise.all(HOUSING_VARIANTS.map(url=>queue.add(()=>loader.loadAsync(url)).catch(e=>{console.warn('[housing variant]',url,e);return null;}))).then(gltfs=>{
+    if(gen!==_bootGen){housingVariantsLoaded=false;return;}
+    housingVariantModels.length=0;
+    for(const gltf of gltfs){if(!gltf)continue;const m=new THREE.Group();m.add(gltf.scene);const box=new THREE.Box3().setFromObject(m),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());gltf.scene.position.x-=center.x;gltf.scene.position.z-=center.z;gltf.scene.position.y-=box.min.y;prepareBuildingMaterials(m);housingVariantModels.push({model:m,size});}
+    applyBuildingModel('housing');
+  });
 }
 
-function loadBuildingModel(type, url) {
+const officeVariantModels=[];
+let officeVariantsLoaded=false;
+function loadOfficeVariants(gen,queue){if(officeVariantsLoaded)return;officeVariantsLoaded=true;
+ Promise.all(['a','b','c'].map(c=>queue.add(()=>createGLTFLoader().loadAsync(`../library/buildings/kenney-skyscraper-${c}.glb`)).catch(()=>null))).then(gltfs=>{
+  if(gen!==_bootGen){officeVariantsLoaded=false;return;}
+  for(const g of gltfs){if(!g)continue;const m=new THREE.Group();m.add(g.scene);const box=new THREE.Box3().setFromObject(m),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());g.scene.position.x-=center.x;g.scene.position.z-=center.z;g.scene.position.y-=box.min.y;prepareBuildingMaterials(m);officeVariantModels.push({model:m,size});}applyBuildingModel('office');
+ });
+}
+
+function loadBuildingModel(type, url, gen = _bootGen, queue = null) {
   const st = glbState[type] || (glbState[type] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false });
-  if (st.loading) return;
+  if(st.model){if(gen===_bootGen)applyBuildingModel(type);return Promise.resolve(st.model);}
+  if (st.loading) return Promise.resolve(st.loading).then((value) => {
+    if (value && gen === _bootGen) applyBuildingModel(type);
+    return value;
+  });
+  const run = () => createGLTFLoader().loadAsync(url);
   st.loading = true;
-  createGLTFLoader().loadAsync(url)
+  const promise = (queue ? queue.add(run) : run())
     .then((gltf) => {
+      if (!gltf) return null;
       const m = gltf.scene;
       const box = new THREE.Box3().setFromObject(m);
       const size = box.getSize(new THREE.Vector3());
@@ -1600,14 +1960,43 @@ function loadBuildingModel(type, url) {
           o.geometry.translate(0, lift, 0);
         }
       });
+      if(GLB_BUILDING_TYPES[type] || SPECIAL_BUILDING_MODELS[type] || libraryItem(type)?.category==='buildings')prepareBuildingMaterials(m);
       st.model = m; st.size = size;
-      applyBuildingModel(type);
+      st.loading = false;
+      if(gen===_bootGen)applyBuildingModel(type);
+      return m;
     })
     .catch((e) => {
       console.warn(`[${type}] GLB load failed — keeping procedural`, e);
       st.model = null;
       st.loading = false;   // allow a later retry (e.g. re-boot)
+      return null;
     });
+  st.loading = promise;
+  return promise;
+}
+
+// Student files stay in IndexedDB; only their chosen role is in localStorage.
+// This intentionally falls back to the normal building if a Champion File is
+// opened on another device without its corresponding GLB.
+function loadCustomBuildingModel(type, customId, gen = _bootGen, queue = null) {
+  const st = glbState[type] || (glbState[type] = { model:null, size:null, spots:[], fallbacks:[], applied:[], loading:false });
+  if (st.model || st.loading) return Promise.resolve(st.model);
+  const run = async () => {
+    const saved = await customModelStore.get(customId);
+    if (!saved?.bytes) throw new Error('model is not on this device');
+    return new Promise((resolve, reject) => createGLTFLoader().parse(saved.bytes.slice(0), '', resolve, reject));
+  };
+  st.loading = (queue ? queue.add(run) : run()).then((gltf) => {
+    const m = gltf.scene || gltf.scenes?.[0];
+    if (!m || !m.getObjectByProperty('isMesh', true)) throw new Error('no renderable mesh');
+    const box=new THREE.Box3().setFromObject(m), size=box.getSize(new THREE.Vector3()), center=box.getCenter(new THREE.Vector3());
+    m.position.x-=center.x; m.position.z-=center.z;
+    m.traverse(o=>{ if(o.isMesh&&o.geometry)o.geometry.translate(0,-box.min.y,0); });
+    prepareBuildingMaterials(m); st.model=m; st.size=size; st.loading=false;
+    if(gen===_bootGen)applyBuildingModel(type); return m;
+  }).catch((e) => { console.warn(`[${type}] custom GLB unavailable`,e); st.loading=false; if(gen===_bootGen)showToast('Re-add this building GLB to use its custom look.'); return null; });
+  return st.loading;
 }
 
 function applyBuildingModel(type) {
@@ -1625,23 +2014,23 @@ function applyBuildingModel(type) {
   // the cached source model (clone(true)) — do NOT dispose them here, or the
   // shared buffers are destroyed and every later clone renders black/broken.
   for (const clone of st.applied || []) {
-    scene.remove(clone);
+    scene.remove(clone);clone.traverse(o=>{if(o.isInstancedMesh)o.dispose();});
   }
   st.applied = [];
   // …and place a GLB clone on every spot (geometry shared, cheap).
   for (const spot of st.spots) {
     // Housing renders as a 2×2 block of four smaller units inside the same
     // footprint — one map icon = one residential block, not one tower. Each
-    // unit picks a RANDOM variant from the Kenney suburban pool when any have
+    // unit picks a deterministic variant from the Kenney suburban pool when any have
     // loaded, so a neighbourhood looks varied; otherwise the base housing model.
     if (type === 'housing') {
       const unit = spot.fp[0] / 2 - 1;   // half the footprint minus a tiny gap
       const variants = housingVariantModels.length ? housingVariantModels : [{ model: st.model, size: st.size }];
       for (const [dx, dz] of [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]]) {
-        const v = variants[Math.floor(Math.random() * variants.length)];
+        const v = variants[hashString(`${spot.x}|${spot.z}|${dx}|${dz}`) % variants.length];
         const s = Math.min(
           unit / v.size.x,
-          unit / v.size.z,
+          (spot.fp[1]/2-1) / v.size.z,
           (spot.h || 24) / v.size.y
         );
         const clone = v.model.clone(true);
@@ -1653,7 +2042,8 @@ function applyBuildingModel(type) {
       }
       continue;
     }
-    const clone = st.model.clone(true);
+    const source=type==='office' && officeVariantModels.length?officeVariantModels[hashString(`${spot.x}|${spot.z}`)%officeVariantModels.length]:st;
+    const clone = source.model.clone(true);
     // Facility + mission buildings stretch to fill their footprint AND catalog
     // height (non-uniform) so e.g. an office tower or the Finance Tower actually
     // reads as a tower. Shared library items (nature / props / vehicles via
@@ -1661,15 +2051,15 @@ function applyBuildingModel(type) {
     const stretch = GLB_BUILDING_TYPES[spot.glbType] || SPECIAL_BUILDING_MODELS[spot.glbType];
     if (stretch) {
       clone.scale.set(
-        spot.fp[0] / st.size.x,
-        (spot.h || 24) / st.size.y,
-        spot.fp[1] / st.size.z
+        Math.min(spot.fp[0]/source.size.x,spot.fp[1]/source.size.z),
+        (spot.h || 24) / source.size.y,
+        Math.min(spot.fp[0]/source.size.x,spot.fp[1]/source.size.z)
       );
     } else {
       const s = Math.min(
-        spot.fp[0] / st.size.x,
-        spot.fp[1] / st.size.z,
-        (spot.h || 24) / st.size.y
+        spot.fp[0] / source.size.x,
+        spot.fp[1] / source.size.z,
+        (spot.h || 24) / source.size.y
       );
       clone.scale.setScalar(s);
     }
@@ -1678,6 +2068,7 @@ function applyBuildingModel(type) {
     scene.add(clone);
     st.applied.push(clone);
   }
+  if(type==='housing' || type==='office'){const batch=batchBuildings(st.applied);scene.add(batch);st.applied=[batch];}
 }
 
 function buildGenericFacilities() {
@@ -1713,7 +2104,8 @@ function buildGenericFacilities() {
       if (labelRenderer) {
         const el = document.createElement('div');
         el.className = 'building-label';
-        el.innerHTML = `<div class="bl-en">${spec.name}</div>`;
+        el.dataset.displayType = b.type;
+        el.textContent = displayName(b.type,currentLang());
         const label = new CSS2DObject(el);
         label.position.set(cx, (spec.height || 2) + 1.5, cz);
         label.userData.mesh = box;
@@ -1774,7 +2166,8 @@ function buildGenericFacilities() {
       if (labelRenderer) {
         const el = document.createElement('div');
         el.className = 'building-label';
-        el.innerHTML = `<div class="bl-en">${spec.name}</div>`;
+        el.dataset.displayType = b.type;
+        el.textContent = displayName(b.type,currentLang());
         const label = new CSS2DObject(el);
         label.position.set(cx, h + 6, cz);
         scene.add(label);
@@ -1812,6 +2205,7 @@ function buildGenericFacilities() {
           bumpMap: getWindowBumpTexture(), bumpScale: 0.02,
         }))
       );
+      mesh.material.userData.timeWindow=true;
       mesh.position.set(ux, h / 2, uz);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -1833,7 +2227,8 @@ function buildGenericFacilities() {
     if (labelRenderer) {
       const el = document.createElement('div');
       el.className = 'building-label';
-      el.innerHTML = `<div class="bl-en">${spec.name}</div>`;
+      el.dataset.displayType = b.type;
+        el.textContent = displayName(b.type,currentLang());
       const label = new CSS2DObject(el);
       label.position.set(cx, h + 6, cz);
       scene.add(label);
@@ -1842,10 +2237,7 @@ function buildGenericFacilities() {
   }
 
   // Load the shared-library GLBs used by this city (each loads once, shared).
-  for (const id of libIdsToLoad) {
-    const item = libraryItem(id);
-    if (item) loadBuildingModel(id, item.glb);
-  }
+  return libIdsToLoad;
 }
 
 // ─── Parked vehicles (static, beside department buildings) ───────────────
@@ -1862,14 +2254,17 @@ const PARKED_VEHICLES = {
 
 const _parkedVehicleState = { models: {}, applied: [], loading: new Set() };
 
-function loadParkedVehicleModel(key) {
+function loadParkedVehicleModel(key, gen = _bootGen, queue = null) {
   const cfg = PARKED_VEHICLES[key];
   if (!cfg || _parkedVehicleState.models[key] || _parkedVehicleState.loading.has(key)) return;
   _parkedVehicleState.loading.add(key);
-  createGLTFLoader().loadAsync(cfg.file)
+  const run=()=>createGLTFLoader().loadAsync(cfg.file);
+  (queue?queue.add(run):run())
     .then((gltf) => {
+      if(!gltf)return;
       _parkedVehicleState.models[key] = gltf.scene;
-      placeParkedVehicles();
+      _parkedVehicleState.loading.delete(key);
+      if(gen===_bootGen)placeParkedVehicles();
     })
     .catch((e) => {
       console.warn(`[parked:${key}] GLB load failed — skipping parked vehicles`, e);
@@ -1898,7 +2293,7 @@ function nearestRoadDir(x, z) {
 
 // Analytic ground-height lookup for the champion's feet (no raycast).
 // Returns the TOP of the walkable surface at (x,z):
-//   asphalt   +0.03   when inside a road's carriageway (|d| ≤ half width)
+//   asphalt   +0.12   when inside a road's carriageway (|d| ≤ half width)
 //   sidewalk  +0.02   when within the flat sidewalk ribbon beyond the road edge
 //   bare      −0.10   everywhere else (the ground plane top)
 // These must match the road FX + ground Y values that the meshes actually sit
@@ -1907,7 +2302,7 @@ function nearestRoadDir(x, z) {
 function groundHeightAt(x, z) {
   const BARE = -0.10;
   const SIDEWALK = ROAD_FX.swY;      // +0.02
-  const ASPHALT = ROAD_FX.asphY;     // +0.03
+  const ASPHALT = ROAD_FX.asphY;     // +0.12
   let bestDist = Infinity;
   let bestSide = 0;
   for (const r of layout.roads || []) {
@@ -1927,6 +2322,9 @@ function groundHeightAt(x, z) {
       if (d < bestDist) { bestDist = d; bestSide = side; }
       if (d <= half) return ASPHALT;   // inside the carriageway
     }
+  }
+  for(const space of neighbourhood?.spaces || []) {
+    if(Math.hypot(x-space.x,z-space.z)<space.radius-1.1)return -.05;
   }
   if (bestDist === Infinity) return BARE;           // no roads anywhere
   return bestDist <= bestSide ? SIDEWALK : BARE;    // on the pavement ribbon?
@@ -1976,6 +2374,7 @@ function carveParks() {
   for (const p of layout.parks) {
     addPark(p.cx, p.cz, p.radius);
   }
+  for(const placement of createParkVegetation(layout,{mobile:IS_MOBILE}))addNatureFiller(placement);
 }
 
 function carveRoads() {
@@ -1984,9 +2383,12 @@ function carveRoads() {
 }
 
 // Scatter trees along both sides of every road (street trees), offset from the
-// centreline so they don't sit on the carriageway. Uses the Quaternius packs.
+// centreline so they do not sit on the carriageway. Uses loaded tree variants.
 function scatterStreetTrees() {
-  if (!_treePacks) return;
+  // Street trees queue regardless of whether the GLBs have loaded yet — the
+  // deferred pass flushes them once _treeVariants exists.
+  // Intersections are shared with the traffic graph. A tree must clear both
+  // the junction mouth and every other road ribbon, not merely its own road.
   for (const road of layout.roads || []) {
     const half = (road.width || ROAD_WIDTH[road.class] || ROAD_WIDTH.residential) / 2;
     const off = half + 3.5;
@@ -2005,7 +2407,8 @@ function scatterStreetTrees() {
           const dl = Math.hypot(dx, dz) || 1;
           dx /= dl; dz /= dl;
           const nx = -dz * side, nz = dx * side;
-          addTree(x + nx * off, z + nz * off, 0.9 + ((hashString(i * 5 + k * 3) % 10) / 10) * 0.5);
+          const tx = x + nx * off, tz = z + nz * off;
+          addTree(tx, tz, 0.9 + ((hashString(i * 5 + k * 3) % 10) / 10) * 0.5);
         }
       }
     }
@@ -2076,7 +2479,7 @@ function findSpawn() {
   return { x: cx, z: cz };
 }
 
-async function spawnChampion() {
+async function spawnChampion(isCurrent = () => true) {
   const spawn = findSpawn();
   city.spawnWorld = new THREE.Vector3(spawn.x, 0, spawn.z);
   try {
@@ -2092,6 +2495,9 @@ async function spawnChampion() {
     champion = null;
     return;
   }
+  // A deadline/retry may have replaced this boot while the GLB was decoding.
+  // Never let that late result attach itself to the newer scene.
+  if (!isCurrent()) { champion = null; return; }
   city.champion = champion;     // debug/consumption handle (minimap/buddy/tests)
   // Grow the champion with the densified buildings so proportions stay right.
   if (growScale && growScale !== 1) champion.group.scale.multiplyScalar(growScale);
@@ -2125,8 +2531,7 @@ async function spawnChampion() {
     scene.add(championShadow);
   }
 
-  // Goal ring — marks the current "next quest" building so there's always one
-  // clear nonverbal objective in the world. Colour scaled above the 0.68 bloom
+  // Orientation ring — marks the nearest landmark. Colour scaled above the 0.68 bloom
   // gate so the ring keeps its glow (it must read as a target, not a decal).
   goalRing = new THREE.Mesh(
     new THREE.RingGeometry(1.7, 2.1, 28),
@@ -2138,8 +2543,7 @@ async function spawnChampion() {
   sim = {
     walkSpeed: 5,   // m/s — the champion walks ~5 m/s (was 2: too slow to cross a 2000m city)
     nearQuest: null,
-    // Does a building type have a playable game to enter? (Chat uses this to
-    // decide whether to offer an Enter button.)
+    // Retain the existing Buddy API name; entry now means an ungated purpose panel.
     questHasGame(type) { return questHasGameForType(type); },
     walkTo(building) {
       if (!champion || !building || (taxi && taxi.isActive())) return;
@@ -2147,6 +2551,7 @@ async function spawnChampion() {
       if (drivingCar && drivingCar.isActive()) { drivingCar.exit(); updateDriveButtons(); }
       walkNav = { x: building.pos[0], z: building.pos[1] };
       showToast(tf('toast.walking', { name: buildingName(building) }));
+      return true;
     },
     flyTo(building) {
       if (!champion || !building || !taxi) return;
@@ -2158,17 +2563,16 @@ async function spawnChampion() {
       taxi.setAutoNav(true);
       updateFlyButtons();
       showToast(tf('toast.flying', { name: buildingName(building) }));
+      return true;
     },
     // Enter the quest building the champion is standing near (used by the
     // buddy chat's /enter command + Enter buttons — same path as the floating
     // 🎮 Enter prompt).
     enterNearQuest() {
       const quest = this.nearQuest;
-      if (!quest) return { ok: false, note: 'Walk up to a mission building first, then I can open it!' };
-      const url = questGameUrl(quest.id);
-      if (!url) return { ok: false, note: `The ${quest.labelEn} doesn't have a game yet — try a mission building like the ♻️ Recycling Lab!` };
-      openMinigame({ questId: quest.id, name: quest.labelEn, gameUrl: url });
-      return { ok: true, note: `🎮 Opening the ${quest.labelEn}…` };
+      if (!quest) return { ok: false, note: 'Walk up to a landmark first, then I can open its purpose panel!' };
+      openPurpose(quest.type);
+      return { ok: true, note: `Opening ${quest.labelEn}` };
     },
   };
   setupAirTraffic();
@@ -2176,7 +2580,7 @@ async function spawnChampion() {
 
 function buildingName(b) {
   const spec = typeSpec(b.type);
-  return spec ? spec.name : b.type;
+  return displayName(b.type,currentLang());
 }
 
 /**
@@ -2274,6 +2678,30 @@ function sampleCrowdSpots(layout) {
   return seedShuffle(spots);
 }
 
+function rebuildNeighbourhood(obstacles = []) {
+  const previousActors = streetLife?.actors.slice() || [];
+  publicSpaces?.destroy(); parkLandscape?.destroy(); streetLife?.destroy();
+  // Markings remain visible, but ground residents do not enter carriageways.
+  neighbourhood = createNeighbourhood(layout, { mobile: IS_MOBILE, roads: publicRoads,
+    crossings: [], obstacles });
+  streetLife = createStreetLife(neighbourhood, { mobile: IS_MOBILE, reducedMotion: reducedMotion.matches, previousActors });
+  publicSpaces = createPublicSpaces(scene, neighbourhood, {treeVariants: _treeVariants});
+  parkLandscape=createParkLandscape(scene,layout,neighbourhood,{mobile:IS_MOBILE,lawnMaterial:()=>stylizedGrassMaterial({park:true})});city.parkLandscape=parkLandscape;
+  applyGroundTexture(_groundTexture);
+  city.neighbourhood = neighbourhood; city.streetLife = streetLife; city.publicSpaces = publicSpaces;
+}
+function updateNeighbourhoodObstacles(dt) {
+  obstacleCheckTime += dt; if(obstacleCheckTime<.75)return; obstacleCheckTime=0;
+  const obstacles=[], signature=[];
+  for(const mesh of environmentProps) {
+    if(!mesh.parent)continue;
+    const box=new THREE.Box3().setFromObject(mesh);
+    if(!Number.isFinite(box.min.x))continue;
+    const rect={x0:box.min.x,x1:box.max.x,z0:box.min.z,z1:box.max.z};
+    obstacles.push(rect);signature.push(...Object.values(rect).map(v=>v.toFixed(2)));
+  }
+  const key=signature.join(',');if(key!==propObstacleSignature){propObstacleSignature=key;rebuildNeighbourhood(obstacles);}
+}
 function setupAirTraffic() {
   // Flying taxi: board → rise to cruise height (240 m, clearing the 220 m
   // skyline), then the pilot climbs/descends freely. Buddy "fly to X" auto-nav
@@ -2297,35 +2725,35 @@ function setupAirTraffic() {
   });
   drones = stops.length ? createDrones(scene, 'central', { stops, bounds, mobile: IS_MOBILE }) : null;
 
-  // Road traffic — cars & buses cruising along the student's roads. Counts are
-  // density-based (proportional to total road length) so every design looks
-  // equally busy; tablets just get a lighter multiplier.
-  try { traffic = createTraffic(scene, layout.roads, { density: IS_MOBILE ? 0.55 : 1 }); }
+  // Road traffic — cars & buses cruising along the student's roads. Its fleet
+  // policy uses usable road length with a separate tablet cap; opening cars
+  // favour links near the Champion before fanning out across the city.
+  try {
+    traffic = createTraffic(scene, layout.roads, {
+      density: IS_MOBILE ? 0.8 : 1,
+      mobile: IS_MOBILE,
+      spawn: city.spawnWorld,
+      vehicleIds: readTrafficVehicleIds(),
+    });
+    city.traffic = traffic;
+  }
   catch (e) { console.warn('[city-builder] traffic init failed', e); traffic = null; }
 
   // Pedestrians — two instanced populations for the "living city" layer.
-  // Robots + people spawn spread across the open spots and glide between them
-  // at a walking pace (see pedestrians.js). Async + graceful: if a model fails
-  // to load, that population just spawns fewer members; the city still runs.
-  const crowdSpots = sampleCrowdSpots(layout);
-  createPedestrians(scene, layout, { bounds, count: 90, spots: crowdSpots })
-    .then((p) => {
-      pedestrians = p;
-      if (p) city.pedestrians = p;
-    })
-    .catch((e) => console.warn('[city-builder] pedestrians init failed', e));
-  // Citizens are a separate population so robots and people coexist (and stay
-  // cheap: each is its own set of InstancedMeshes). The module-level `citizens`
-  // handle must be set too — the per-frame update loop drives it, so without
-  // this the people spawn but never move.
-  createPedestrians(scene, layout, { kind: 'human', bounds, count: 60, spots: crowdSpots })
-    .then((p) => { if (p) { city.citizens = p; citizens = p; } })
-    .catch((e) => console.warn('[city-builder] citizens init failed', e));
+  // Only human citizens animate around the city. Robot props/catalogue entries
+  // remain placeable; the former sliding ambient robot population is gone.
+  rebuildNeighbourhood();
+  const crowdGeneration = _bootGen;
+  const crowdOpts = { getLife: () => streetLife, camera, mobile: IS_MOBILE, lowEnd: LOW_END,
+    groundHeightAt, reducedMotion: () => reducedMotion.matches };
+  createPedestrians(scene, layout, { ...crowdOpts, kind: 'human' })
+    .then(p => { if(crowdGeneration!==_bootGen){p?.destroy();return;} citizens=p;city.citizens=p; })
+    .catch(e => console.warn('[city-builder] citizens init failed', e));
 
   // Clouds — merged instanced cloud puffs drifting slowly across the sky.
   // Async + graceful: if they fail to load, the city simply has clear skies.
-  createClouds(scene, layout, { bounds })
-    .then((c) => { clouds = c; if (c) city.clouds = c; })
+  createClouds(scene, layout, { bounds, camera, mobile:IS_MOBILE, reducedMotion:()=>reducedMotion.matches })
+    .then((c) => { if(crowdGeneration!==_bootGen){c?.destroy?.();return;} clouds = c; if (c) city.clouds = c; })
     .catch((e) => console.warn('[city-builder] clouds init failed', e));
 
   // Expose for the minimap + buddy (read-only consumers)
@@ -2335,11 +2763,13 @@ function setupAirTraffic() {
   city.drones = drones;
   buildColliders();
 
-  minimap = createMinimap(city, champion, taxi, { bounds });
+  minimap = createMinimap(city, champion, taxi, { bounds, openDestinations: () => myWork?.open('city_central', 'destinations') });
 }
 
 function updateFlyButtons() {
-  const ride = taxi && taxi.isActive();
+  // `exit()` animates the landing while `active` is still true, so also treat
+  // "exiting" as no longer riding — otherwise Climb/Descend linger after landing.
+  const ride = taxi && taxi.isActive() && !taxi.isExiting?.();
   const up = document.getElementById('btn-flyup');
   const down = document.getElementById('btn-flydown');
   if (up) up.classList.toggle('hidden', !ride);
@@ -2372,6 +2802,18 @@ function drivableCars() {
 }
 
 let _driveOverlay = null;   // car chooser overlay element (created on demand)
+const TRAFFIC_VEHICLES_KEY = CF_KEYS.trafficVehicles;
+const DEFAULT_TRAFFIC_VEHICLE_IDS = Object.freeze(['veh_audi_a7', 'veh_audi_rs_q8']);
+
+function validTrafficVehicles(ids) {
+  const valid = [...new Set(Array.isArray(ids) ? ids : [])].map((id) => libraryItem(id))
+    .filter((item) => item?.category === 'vehicles' && isRoadVehicle(item));
+  return valid.length ? valid.map((item) => item.id) : [...DEFAULT_TRAFFIC_VEHICLE_IDS];
+}
+function readTrafficVehicleIds() {
+  try { return validTrafficVehicles(JSON.parse(localStorage.getItem(TRAFFIC_VEHICLES_KEY) || 'null')); }
+  catch { return [...DEFAULT_TRAFFIC_VEHICLE_IDS]; }
+}
 
 function updateDriveButtons() {
   const driving = drivingCar && drivingCar.isActive();
@@ -2380,7 +2822,8 @@ function updateDriveButtons() {
   const emoji = btn.childNodes[0];
   if (emoji) emoji.textContent = driving ? '🚙' : '🚗';
   const label = btn.querySelector('span');
-  if (label) label.textContent = driving ? 'Exit' : 'Drive';
+  if (label) label.textContent = driving ? t('ui.exitCar') : t('ctl.drive');
+  btn.dataset.contextual = String(!!driving || !!parkedCarNearChampion());
 }
 
 function toggleDrive() {
@@ -2423,6 +2866,7 @@ function openCarChooser() {
   closeDriveOverlay();
   const overlay = document.createElement('div');
   overlay.id = 'drive-overlay';
+  overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label',t('ui.carTitle'));
   overlay.className = 'drive-overlay';
   const panel = document.createElement('div');
   panel.className = 'drive-panel';
@@ -2432,10 +2876,10 @@ function openCarChooser() {
   header.className = 'drive-header';
   const title = document.createElement('div');
   title.className = 'drive-title';
-  title.textContent = '🚗 Choose your car';
+  title.textContent = t('ui.carTitle');
   const sub = document.createElement('div');
   sub.className = 'drive-sub';
-  sub.textContent = 'Pick a car to drive around your city!';
+  sub.textContent = t('ui.carHelp');
   header.appendChild(title);
   header.appendChild(sub);
   panel.appendChild(header);
@@ -2449,7 +2893,7 @@ function openCarChooser() {
     card.style.setProperty('--accent', '#00F2FE');
     card.innerHTML = `
       <div class="drive-emoji" aria-hidden="true">${item.emoji}</div>
-      <div class="drive-name">${item.name}</div>
+      <div class="drive-name">${displayName('lib:'+item.id,currentLang())}</div>
     `;
     card.addEventListener('click', () => {
       closeDriveOverlay();
@@ -2463,7 +2907,7 @@ function openCarChooser() {
   close.type = 'button';
   close.className = 'drive-close';
   close.textContent = '✕';
-  close.setAttribute('aria-label', 'Close');
+  close.setAttribute('aria-label', t('ui.close'));close.setAttribute('data-modal-close','');
   close.addEventListener('click', closeDriveOverlay);
   panel.appendChild(close);
 
@@ -2603,7 +3047,7 @@ async function spawnDriveCar(item) {
 
   // Board: snap the car just in front of the champion.
   car.board(champion);
-  showToast(tf('toast.drivingCar', { name: item.name }));
+  showToast(tf('toast.drivingCar', { name: displayName('lib:'+item.id,currentLang()) }));
   updateDriveButtons();
 }
 
@@ -2630,10 +3074,10 @@ function updateCamera(dt, taxiActive, driveActive) {
     : taxiActive ? orbit.distTaxi
     : (champion ? orbit.distWalk : 62);
   orbit.dist += (wantDist - orbit.dist) * Math.min(1, dt * 2.5);
-  if (!champion || orbit.locked) {
+  if (!reducedMotion.matches && (!champion || orbit.locked)) {
     // gentle auto-orbit when no champion yet / locked view
     orbit.theta += dt * 0.05;
-  } else if ((!taxiActive && !driving) && (performance.now() - orbit.lastOrbitTs) > 8000) {
+  } else if (!reducedMotion.matches && (!taxiActive && !driving) && (performance.now() - orbit.lastOrbitTs) > 8000) {
     // Idle camera auto-reset: after a while without orbit input, ease the
     // camera back behind the champion's heading so walk-forward feels natural
     // (the "where did my camera go" problem for young kids).
@@ -2711,15 +3155,15 @@ const dragState = { on: false, sx: 0, sy: 0, moved: 0 };
 // finger can't reset dragState.moved and turn the first finger's release into a
 // stray tapAt() (accidental quest/entry or node tap while orbiting).
 let _primaryPointerId = null;
-function wireRendererInteraction() {
-  renderer.domElement.addEventListener('pointerdown', (e) => {
+function wireRendererInteraction(owner) {
+  owner.listen(renderer.domElement, 'pointerdown', (e) => {
     if (_primaryPointerId !== null) return;   // a second pointer must not steal the drag
     _primaryPointerId = e.pointerId;
     dragState.on = true;
     dragState.sx = e.clientX; dragState.sy = e.clientY;
     dragState.moved = 0;
   });
-  window.addEventListener('pointermove', (e) => {
+  owner.listen(window, 'pointermove', (e) => {
     if (e.pointerId !== _primaryPointerId) return;
     if (!dragState.on) {
       setNodeHoverCursor(e);   // guarded: fine pointers, not grabbing
@@ -2734,7 +3178,7 @@ function wireRendererInteraction() {
       orbit.phi = Math.max(0.25, Math.min(1.45, orbit.phi - dy * 0.006));
     }
   });
-  window.addEventListener('pointerup', (e) => {
+  owner.listen(window, 'pointerup', (e) => {
     if (e.pointerId !== _primaryPointerId) return;
     const wasOn = dragState.on;
     _primaryPointerId = null;
@@ -2742,7 +3186,7 @@ function wireRendererInteraction() {
     if (!wasOn) return;
     if (dragState.moved <= 6) tapAt(e.clientX, e.clientY);
   });
-  window.addEventListener('pointercancel', (e) => {
+  owner.listen(window, 'pointercancel', (e) => {
     // A gesture-cancelled primary (or a second finger that grabbed the gesture)
     // must never leave a stale drag that fires tapAt() on a later pointerup.
     if (e.pointerId !== _primaryPointerId) return;
@@ -2802,7 +3246,7 @@ function tapAt(clientX, clientY) {
   const hits = raycaster.intersectObjects(interactMeshes, false);
   if (hits.length && hits[0].object.userData.kind === 'quest') {
     const data = hits[0].object.userData;
-    openMinigame(data);
+    openPurpose(data.type);
     return;
   }
   // AI machine nodes (ai-nodes.js): tap a pulsing machine node → open THAT
@@ -2837,18 +3281,13 @@ function openMinigame(data) {
   document.getElementById('game-overlay-title').textContent = data.name;
   frame.src = data.gameUrl;
   overlay.classList.remove('hidden');
-  // mark quest as unlocked/complete-ish flow (keep simple: toast on Done)
+  // Optional historical activity only; never certify skill or lesson completion.
   document.getElementById('game-overlay-done').onclick = () => {
     frame.src = '';
     overlay.classList.add('hidden');
-    const st = loadQuestState();
-    if (!st.completed.includes(data.questId)) {
-      // Centralise completion so cache refresh + next-quest progression cannot
-      // drift from the quest state contract.
-      questComplete(st, data.questId);
-      refreshQuestStateCache();
-    }
-    showToast(tf('toast.questComplete', { name: data.name }));
+    if (!data.questId) return; // Tool visits do not certify or mutate legacy history.
+    const recorded = recordLegacyActivity(data.questId);
+    showToast(recorded ? t('work.activitySaved') : t('work.activityFailed'));
   };
   document.getElementById('game-overlay-close').onclick = () => {
     frame.src = '';
@@ -2857,43 +3296,61 @@ function openMinigame(data) {
 }
 
 // ─── Buddy + skins ────────────────────────────────────────────────────────
-function mountChat() {
+function mountChat(owner) {
   if (!champion) return;   // champion failed to load — skip buddy chat
-  mountCityBuddy(city, champion, sim, layout);
+  mountCityBuddy(city, champion, sim, layout, owner);
 }
 
-function mountSkins() {
+function mountSkins(owner) {
   if (!champion) return;   // champion failed to load — skip skin sidebar
-  // Preload Hunyuan accessory GLBs so equipping doesn't silently no-op.
-  preloadAccessories(ASSET_BASE);
-  mountSkinSidebar(ASSET_BASE, champion, (skin) => showToast(`👑 ${skinLabel(skin)} ${t('toast.skinEquipped')}`),
-    _customSkinUrl ? { url: _customSkinUrl } : null);
+  // Accessories are not needed for first paint. Warm them after the active
+  // layout is usable, and cancel the deferred start when this boot is replaced.
+  owner.defer(() => preloadAccessories(ASSET_BASE), 1500);
+  skinSidebar = mountSkinSidebar(ASSET_BASE, champion, (skin) => showToast(`👑 ${skinLabel(skin)} ${t('toast.skinEquipped')}`),
+    _customSkinUrl ? { url: _customSkinUrl } : null, {
+      onUploadCustom: async (file) => {
+        const result = await importCustomChampion(file);
+        if (!result.ok) {
+          showToast(result.message);
+          return null;
+        }
+        return result.skin;
+      },
+    });
 }
 
 // ─── Main loop ────────────────────────────────────────────────────────────
 let lastT = performance.now();
-function loop(now) {
-  // A newer boot() superseded this loop — stop without re-registering so the
-  // old RAF + renderer/composer don't keep running under the new scene.
-  const gen = _bootGen;
-  _rafId = requestAnimationFrame(loop);
-  if (gen !== _bootGen) return;
+function startLoop(owner) {
+ const loop = (now) => {
+  if (!owner.active || owner.generation !== _bootGen) return;
+  owner.raf(loop);
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
   const tNow = now / 1000;
+  // Keep RAF alive for recovery, but do not compile shaders against a lost GPU context.
+  if(document.hidden || _contextPaused || renderer?.getContext().isContextLost())return;
 
-  // Road traffic
-  if (traffic) traffic.update(dt);
+  timeOfDay?.update(dt);
+  placementDust?.update(dt);
+  updateNeighbourhoodObstacles(dt);
+  if(streetLife) {
+    const player=drivingCar?.isActive() ? [{x:drivingCar.getPos().x,z:drivingCar.getPos().z,speed:12}] : [];
+    streetLife.setReducedMotion(reducedMotion.matches);
+    streetLife.setVehicles([...(traffic?.vehicles || []),...player]);
+    streetLife.update(reducedMotion.matches ? 0 : dt);
+  }
+  // Traffic and pedestrians share crossing occupancy, not separate timers.
+  if (traffic) traffic.update(reducedMotion.matches ? 0 : dt, streetLife);
   // Pedestrians (floating NPCs)
-  if (pedestrians) pedestrians.update(dt, tNow);
-  if (citizens) citizens.update(dt, tNow);
+  if (citizens && ambientDelta(dt)) citizens.update(dt, tNow);
   // Clouds (drifting sky)
-  if (clouds) clouds.update(dt, tNow);
+  if (clouds && ambientDelta(dt)) clouds.update(dt, tNow);
 
   // Air traffic
-  if (decoTaxis) decoTaxis.update(dt, tNow);
-  if (skySentinels) skySentinels.update(dt, tNow);
-  if (drones) drones.update(dt, tNow);
+  if (decoTaxis && !reducedMotion.matches) decoTaxis.update(dt, tNow);
+  if (skySentinels && !reducedMotion.matches) skySentinels.update(dt, tNow);
+  if (drones && !reducedMotion.matches) drones.update(dt, tNow);
 
   const taxiActive = taxi && taxi.isActive();
   const driveActive = drivingCar && drivingCar.isActive();
@@ -2967,6 +3424,19 @@ function loop(now) {
        champion.group.position.x = c.x;
        champion.group.position.z = c.z;
      }
+     // The Champion is a ground walker: keep their body outside the asphalt
+     // ribbon even for buddy auto-walk. Air taxi movement follows a separate
+     // branch above and deliberately remains unrestricted.
+     if (roadBarrierNetwork) {
+       const r = 0.5 * (champion.group.scale.x || 1);
+       const c = resolveRoadCarriageway(roadBarrierNetwork, champion.state.pos.x, champion.state.pos.z, r);
+       const blockedByRoad = Math.hypot(c.x - champion.state.pos.x, c.z - champion.state.pos.z) > .01;
+       champion.state.pos.x = c.x;
+       champion.state.pos.z = c.z;
+       champion.group.position.x = c.x;
+       champion.group.position.z = c.z;
+       if (blockedByRoad && walkNav) walkNav = null;
+     }
       // Blob shadow follows the champion, on the surface under it (all tiers).
       if (championShadow) {
         championShadow.position.x = champion.state.pos.x;
@@ -2982,8 +3452,7 @@ function loop(now) {
   updateQuestPrompt();
   updateCamera(dt, taxiActive, driveActive);
   if (grab) grab.update(dt, tNow);
-  // Goal ring → the next uncompleted quest building (recomputed ~2.5×/s, and
-  // only when not riding the taxi). Gives the child one clear nonverbal target.
+  // Goal ring marks the nearest landmark, independent of achievement history.
   if ((now - _lastGoalTs) > 400) {
     _lastGoalTs = now;
     _goalTarget = findNextQuest();
@@ -3004,11 +3473,12 @@ function loop(now) {
   // thread on a tablet.
   if ((now - _lastDomUpdate) > 33) {
     _lastDomUpdate = now;
-    if (labelRenderer) {
+  if (labelRenderer) {
       updateLabels(buildingLabels, camera);
       labelRenderer.render(scene, camera);
     }
     if (minimap) minimap.update();
+    updateDriveButtons();
     updateDebugHud();
   }
 
@@ -3027,8 +3497,13 @@ function loop(now) {
   // emissive altitude-correct).
   updateRoadLod(camera);
 
+  if(duskSky)duskSky.position.copy(camera.position);
+  renderer.info.autoReset = false;
+  renderer.info.reset();
   if (composer) composer.render();
   else renderer.render(scene, camera);
+  city.renderStats = {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,
+    textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries};
 }
 let _lastDomUpdate = 0;
 
@@ -3060,9 +3535,12 @@ function updateRoadLod(cam) {
   // Bloom altitude backstop: from the taxi the residual glow of far emitters
   // can re-veil the city — scale strength down as the camera climbs.
   if (_bloomPass) {
-    const base = IS_MOBILE ? 0.55 : 0.7;
+    const base = (timeOfDay?.bloom ?? DUSK.bloom) * (IS_MOBILE ? .65 : 1);
     _bloomPass.strength = base * (1 - 0.55 * smooth01(camY, 120, 450));
   }
+ };
+ lastT = performance.now();
+ owner.raf(loop);
 }
 /** 0→1 smoothstep between two world heights. */
 function smooth01(v, a, b) {
@@ -3086,7 +3564,7 @@ function updateDebugHud() {
   }
   const gd = (champion && champion.groundDebug) || null;
   _debugHud.textContent =
-    `people: ${pedestrians ? pedestrians.getCount() : 'null'} + ${citizens ? citizens.getCount() : 'null'} citizens\n` +
+    `people: ${citizens ? citizens.getCount() : 0} citizens\n` +
     `cars/buses: ${traffic ? traffic.vehicles.length : 'null'}\n` +
     `drones: ${drones ? (drones.getCount ? drones.getCount() : '?') : 'null'}\n` +
     (gd
@@ -3106,30 +3584,15 @@ function nearestQuest() {
     const d = Math.hypot(ref.cx - p.x, ref.cz - p.z);
     if (d < bestD) { bestD = d; best = ref; }
   }
-  return best ? QUESTS.find((q) => q.id === best.q.id) : null;
+  return best ? best.q : null;
 }
 
-// Nearest quest building the child has NOT completed yet — the "next quest".
-// Falls back to the nearest quest when everything is done.
-function findNextQuest() {
-  if (!champion || !specialSystem) return null;
-  const p = champion.state.pos;
-  const st = loadQuestState();
-  let best = null, bestD = Infinity;
-  for (const ref of specialSystem.questRefs) {
-    const q = QUESTS.find((x) => x.id === ref.q.id);
-    if (!q || st.completed.includes(q.id)) continue;
-    const d = Math.hypot(ref.cx - p.x, ref.cz - p.z);
-    if (d < bestD) { bestD = d; best = q; }
-  }
-  return best || nearestQuest();
-}
+// Nearest landmark supplies orientation only.
+// Orientation only: nearest landmark, independent of historical completions.
+function findNextQuest() { return nearestQuest(); }
 
 // ─── Quest enter prompt ──────────────────────────────────────────────────
-// When the champion stands near a mission building that has a playable
-// mini-game, show a visible "🎮 Enter" button (the invisible tap-target alone
-// wasn't discoverable for children). Locked / coming-soon buildings show the
-// label without the button.
+// Every nearby landmark opens a purpose panel, regardless of legacy history.
 const _questPromptEl = document.getElementById('quest-prompt');
 const _questPromptLabel = document.getElementById('quest-prompt-label');
 const _questPromptBtn = document.getElementById('quest-prompt-btn');
@@ -3138,52 +3601,27 @@ function updateQuestPrompt() {
   if (!_questPromptEl) return;
   const quest = sim && sim.nearQuest;
   if (!quest) { _questPromptEl.classList.add('hidden'); return; }
-  const st = questStatus(quest, questStateCached());
-  if (st === 'locked') {
-    _questPromptLabel.textContent = `🔒 ${quest.labelZh} ${quest.labelEn}`;
-    _questPromptBtn.classList.add('hidden');
-  } else if (!quest.gameUrl) {
-    // No game deployed for this department yet — show the label but no Enter.
-    _questPromptLabel.textContent = `⏳ ${quest.labelZh} ${quest.labelEn}`;
-    _questPromptBtn.classList.add('hidden');
-  } else {
-    _questPromptLabel.textContent = `🏛️ ${quest.labelZh} ${quest.labelEn}`;
-    _questPromptBtn.classList.remove('hidden');
-  }
+  _questPromptLabel.textContent = `🏛️ ${currentLang() === 'zh-Hant' ? quest.labelZh : quest.labelEn}`;
+  _questPromptBtn.classList.remove('hidden');
   _questPromptEl.classList.remove('hidden');
 }
 
 function wireQuestPrompt() {
-  if (!_questPromptBtn) return;
-  _questPromptBtn.addEventListener('pointerdown', () => {
+  if (!_questPromptBtn || wireQuestPrompt.bound) return;
+  wireQuestPrompt.bound = true;
+  _questPromptBtn.addEventListener('click', () => {
     const quest = sim && sim.nearQuest;
     if (!quest) return;
-    const url = questGameUrl(quest.id);
-    if (!url) return;
-    openMinigame({ questId: quest.id, name: quest.labelEn, gameUrl: url });
+    openPurpose(quest.type);
   });
 }
 
 const _bc = new THREE.Color();
-let _questStateCache = null;   // refreshed on quest completion (invalidation)
-function refreshQuestStateCache() {
-  _questStateCache = loadQuestState();
-}
-function questStateCached() {
-  if (!_questStateCache) refreshQuestStateCache();
-  return _questStateCache;
-}
+
 function updateBeacons(t) {
   if (!specialSystem.beacon) return;
-  const state = questStateCached();
   specialSystem.beaconPositions.forEach((bp, i) => {
-    const st = questStatus(specialSystem.questRefs[i].q, state);
-    if (st === 'locked') { _bc.setHex(0x3a3f46); }
-    else if (st === 'coming_soon') { _bc.setHex(0x8a6420); }
-    else {
-      const pulse = 0.55 + 0.45 * Math.sin(t * 0.003 + i);
-      _bc.setHex(st === 'completed' ? 0x00ff9d : 0x00f2fe).multiplyScalar(pulse);
-    }
+    _bc.setHex(0x00f2fe);
     specialSystem.beacon.setColorAt(i, _bc);
   });
   specialSystem.beacon.instanceColor.needsUpdate = true;
@@ -3192,6 +3630,7 @@ function updateBeacons(t) {
 function showToast(msg) {
   const el = document.createElement('div');
   el.className = 'toast show';
+  el.setAttribute('role','status');
   el.textContent = msg;
   document.getElementById('toasts').appendChild(el);
   setTimeout(() => el.remove(), Math.min(8000, 2600 + msg.length * 30));
@@ -3199,6 +3638,8 @@ function showToast(msg) {
 
 // ─── Input wiring ─────────────────────────────────────────────────────────
 function wireInput() {
+  if (wireInput.bound) return;
+  wireInput.bound = true;
   const isTyping = () => {
     const ae = document.activeElement;
     return ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
@@ -3206,7 +3647,7 @@ function wireInput() {
 
   window.addEventListener('keydown', (e) => {
     // Don't hijack typing in the buddy chat input (or any text field).
-    if (isTyping()) return;
+    if (activeModal() || isTyping() || e.target.closest('button, a, select, summary')) return;
     keys[e.key.toLowerCase()] = true;
     const k = e.key.toLowerCase();
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) || ['w', 'a', 's', 'd', 'r'].includes(k)) e.preventDefault();
@@ -3220,18 +3661,13 @@ function wireInput() {
   // child steers by orbiting the camera (drag to look around).
   const bindHoldMove = (el, run) => {
     if (!el) return;
-    const on = (e) => { e.preventDefault(); keys['dir:up'] = true; if (run) input.running = true; };
-    const off = (e) => { e.preventDefault(); keys['dir:up'] = false; if (run) input.running = false; };
-    el.addEventListener('pointerdown', on);
-    el.addEventListener('pointerup', off);
-    el.addEventListener('pointercancel', off);
-    el.addEventListener('pointerleave', off);
+    bindHold(el, () => { keys['dir:up'] = true; if (run) input.running = true; }, () => { keys['dir:up'] = false; if (run) input.running = false; });
   };
   bindHoldMove(document.getElementById('btn-walk'), false);
   bindHoldMove(document.getElementById('btn-run'), true);
-  document.getElementById('btn-jump').addEventListener('pointerdown', (e) => { e.preventDefault(); input.jump = true; });
-  document.getElementById('btn-wave').addEventListener('pointerdown', (e) => { e.preventDefault(); input.wave = true; });
-  document.getElementById('btn-dance').addEventListener('pointerdown', (e) => { e.preventDefault(); input.dance = true; });
+  document.getElementById('btn-jump').addEventListener('click', () => { input.jump = true; });
+  document.getElementById('btn-wave').addEventListener('click', () => { input.wave = true; });
+  document.getElementById('btn-dance').addEventListener('click', () => { input.dance = true; });
   document.getElementById('orbit-toggle').addEventListener('click', () => { orbit.locked = !orbit.locked; });
 
   // "Take me home" — walk (or fly) the champion back to spawn. Reuses the
@@ -3283,18 +3719,14 @@ function wireInput() {
   const taxiBtn = document.getElementById('btn-taxi');
   const flyUp = document.getElementById('btn-flyup');
   const flyDown = document.getElementById('btn-flydown');
-  taxiBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleTaxi(); });
+  taxiBtn?.addEventListener('click', () => toggleTaxi());
 
   // Drive controls — 🚗 opens the car chooser (default BYD Sealion 7); while
   // driving the same button exits back to walking.
   const driveBtn = document.getElementById('btn-drive');
-  driveBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleDrive(); });
+  driveBtn?.addEventListener('click', () => toggleDrive());
   const hold = (el, key) => {
-    const on = (e) => { e.preventDefault(); input[key] = true; };
-    const off = (e) => { e.preventDefault(); input[key] = false; };
-    el.addEventListener('pointerdown', on);
-    el.addEventListener('pointerup', off);
-    el.addEventListener('pointerleave', off);
+    bindHold(el, () => { input[key] = true; }, () => { input[key] = false; });
   };
   if (flyUp) hold(flyUp, 'ascend');
   if (flyDown) hold(flyDown, 'descend');
@@ -3306,7 +3738,15 @@ function wireInput() {
   try { armAudioGestureUnlock(); } catch (e) { /* no audio */ }
 }
 
+function clearInput() {
+  for (const key of Object.keys(keys)) keys[key] = false;
+  for (const key of ['x','z','running','jump','wave','dance','ascend','descend']) input[key] = 0;
+}
+window.addEventListener('modal:change', clearInput);
+window.addEventListener('blur', clearInput);
+document.addEventListener('visibilitychange', clearInput);
 function readInput() {
+  if (_contextPaused || activeModal() || document.hidden) { clearInput(); return; }
   const k = keys;
   let x = 0, z = 0;
   if (k['arrowup'] || k['w'] || k['dir:up']) z += 1;
@@ -3317,14 +3757,23 @@ function readInput() {
 }
 
 // ─── Layout entry (localStorage / file / paste / sample) ──────────────────
+let originalPlanRaw = null;
+let retryLayoutRaw = null; // serialized selection survives a failed boot/retry
+let retryPending = false;
+let originalGoals = null; // Display-only metadata; geometry normalization drops mode/version.
 function loadLayout(raw) {
   const v = validateLayout(raw);
   if (!v.ok) {
-    showEntryError(v.errors[0]);
+    showEntryError(t('ui.invalid'));
     return false;
   }
+  originalPlanRaw = JSON.stringify(raw);
+  retryLayoutRaw = originalPlanRaw;
+  retryPending = false;
   layout = sanitizeLayout(raw);
-  // Densify: grow buildings/roads/parks + pull positions closer (no overlap).
+  // Geometry-preserving: densifyLayout no longer grows/compresses the plan, so
+  // the 3D city is EXACTLY the layout the child designed in the 2D planner
+  // (sizes, positions and road gaps all match). It only computes `bounds` now.
   const dense = densifyLayout(layout);
   layout = dense.layout;
   growScale = dense.grow;
@@ -3335,6 +3784,7 @@ function loadLayout(raw) {
   // final layout object so the entry overlay + Coding Buddy can echo the plan.
   if (raw && typeof raw === 'object') {
     const g = raw.goals && typeof raw.goals === 'object' ? raw.goals : null;
+    originalGoals = g;
     layout.goals = g && (g.label || g.weights)
       ? { label: String(g.label || 'Balanced'), weights: g.weights && typeof g.weights === 'object' ? g.weights : null }
       : null;
@@ -3348,10 +3798,11 @@ function loadLayout(raw) {
           metrics: pp.metrics
             .filter((r) => r && typeof r.key === 'string' && Number.isFinite(+r.raw) && Number.isFinite(+r.weight))
             .slice(0, 12)
-            .map((r) => ({ key: r.key, raw: Math.round(+r.raw), weight: Math.round(+r.weight), points: Number.isFinite(+r.points) ? +r.points : 0 })),
+            .map((r) => ({ key: r.key, raw: +r.raw, weight: +r.weight, points: Number.isFinite(+r.points) ? +r.points : 0 })),
         }
       : null;
   } else {
+    originalGoals = null;
     layout.goals = null;
     layout.plannerScore = null;
     layout.plannerPlan = null;
@@ -3361,9 +3812,19 @@ function loadLayout(raw) {
 }
 
 // Planner metric keys → bilingual names (mirrors the 2D receipt rows).
-const PLAN_METRIC_KEYS = ['accessibility', 'coverage', 'utilities', 'zoning', 'spread', 'balance'];
+const PLAN_METRIC_KEYS = METRIC_KEYS;
 let _plannerPlan = null;
 
+// Translate structured modes; opaque historical labels remain literal.
+function planGoalLabel() {
+  const goals=originalGoals || layout?.goals;
+  if (goals?.version === 1) {
+    if (goals.mode === 'default') return t('plan.balanced');
+    if (goals.mode === 'custom') return t('plan.customGoals');
+    if (goals.mode === 'mayor' && ['green','healthy','busy','quiet'].includes(goals.mayorId)) return t('plan.mayor.'+goals.mayorId);
+  }
+  return goals?.label ? String(goals.label) : t('plan.balanced');
+}
 /** Echo the planner's AI goals + score in the HUD chip (hidden when absent). */
 function applyPlanChip() {
   const chip = document.getElementById('plan-ai-chip');
@@ -3374,7 +3835,7 @@ function applyPlanChip() {
   const gl = layout && layout.goals && layout.goals.label ? String(layout.goals.label) : null;
   const sc = layout && layout.plannerScore != null ? Math.round(layout.plannerScore) : null;
   if (!gl && sc === null) { chip.hidden = true; return; }
-  const name = gl || t('plan.balanced');
+  const name = planGoalLabel();
   const scorePart = sc !== null ? ' · ' + sc : '';
   chip.textContent = '🌆 ' + name + scorePart;
   chip.title = t('entry.planChip') + (sc !== null ? ' · ' + sc : '');
@@ -3387,7 +3848,8 @@ function openPlanModal() {
   const modal = document.getElementById('plan-modal');
   const body = document.getElementById('plan-body');
   if (!modal || !body || !_plannerPlan) return;
-  const label = layout && layout.goals && layout.goals.label ? String(layout.goals.label) : t('plan.balanced');
+  window.dispatchEvent(new CustomEvent('city:panel-open',{detail:{panel:'plan'}}));
+  const label = planGoalLabel();
   const score = _plannerPlan.score != null ? _plannerPlan.score : (_plannerPlan.metrics.length ? '' : '—');
   // Keep the receipt's row order even if the planner ever sends a subset.
   const byKey = new Map(_plannerPlan.metrics.map((r) => [r.key, r]));
@@ -3397,14 +3859,15 @@ function openPlanModal() {
       const r = byKey.get(k);
       return `<div class="plan-row">
         <span class="plan-row-name">${t('plan.metric.' + k)}</span>
-        <span class="plan-row-math">${r.raw}% × ${r.weight}%</span>
+        <span class="plan-row-math">${Math.round(r.raw)}% × ${Math.round(r.weight)}%</span>
         <span class="plan-row-pts">${(Math.round(r.points * 10) / 10).toFixed(1)}</span>
       </div>`;
     }).join('') || `<p class="plan-note">${t('plan.empty')}</p>`;
   body.innerHTML = `
-    <div class="plan-head">${t('plan.goalLabel')} <strong>${label}</strong> · <strong>${score}</strong>/100</div>
+    <div class="plan-head">${t('plan.goalLabel')} <strong data-plan-label></strong> · <strong>${score}</strong>/100</div>
     <p class="plan-note">${t('plan.note')}</p>
     <div class="plan-rows">${rows}</div>`;
+  body.querySelector('[data-plan-label]').textContent = label;
   modal.classList.remove('hidden');
 }
 
@@ -3420,8 +3883,22 @@ function showEntryError(msg) {
 const CLOUD_CODE_KEY = 'p5_cloud_code_v1';   // device-local pointer; not in CF_KEYS by design
 const SAVE_NAME_KEY = CF_KEYS.cityName;      // single source of truth (was a duplicated literal)
 
+function currentSnapshot() {
+  const state = collectState();
+  if (propLibrary) {
+    const props = propLibrary.snapshot();
+    if (props !== null) state.props = props;
+  }
+  if (originalPlanRaw !== null) {
+    // Retain an unchanged storage section byte-for-byte, including whitespace.
+    let same = false;
+    try { same = JSON.stringify(JSON.parse(state.layout)) === originalPlanRaw; } catch { /* sample or legacy entry */ }
+    if (!same) state.layout = originalPlanRaw;
+  }
+  return state;
+}
 function downloadChampionFile(label) {
-  const file = composeChampionFile(collectState(), label);
+  const file = composeChampionFile(currentSnapshot(), label);
   const json = JSON.stringify(file, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -3437,7 +3914,7 @@ function downloadChampionFile(label) {
 }
 
 async function cloudSave(label) {
-  const file = composeChampionFile(collectState(), label);
+  const file = composeChampionFile(currentSnapshot(), label);
   let lastCode = null;
   try { lastCode = localStorage.getItem(CLOUD_CODE_KEY); } catch { /* ignore */ }
   const res = await fetch('/api/save', {
@@ -3466,20 +3943,21 @@ async function cloudLoad(code) {
 
 /** Import a Champion File: write all state keys, then reload. Returns true if handled. */
 function importChampionFile(raw) {
-  if (typeof raw !== 'string' || !raw.trim()) return false;
+  if (!withinImportLimit(raw)) { showEntryError(t('ui.tooLarge')); return true; }
+  if (!raw.trim()) return false;
   let parsed;
   try { parsed = JSON.parse(raw); } catch { return false; }
   const champ = sanitizeChampionFile(parsed);
+  if (parsed?.kind === 'passiona-champion-file' && !champ.ok) { showEntryError(t('ui.invalid')); return true; }
   if (!champ.ok) return false;
-  const res = writeState(champ.file.state);
-  showToast(res.ok
-    ? tf(champ.file.label ? 'toast.restoredNamed' : 'toast.restored', { label: champ.file.label, n: res.wrote })
-    : tf('toast.restorePartial', { n: res.failed.length }));
-  setTimeout(() => window.location.reload(), 3500);
+  restoreChampion(champ.file.state, currentSnapshot);
   return true;
 }
 
+let saveUiBound = false;
 function wireSaveUi() {
+  if (saveUiBound) return;
+  saveUiBound = true;
   const modal = document.getElementById('save-modal');
   const nameInput = document.getElementById('save-name');
   const cloudResult = document.getElementById('save-cloud-result');
@@ -3487,7 +3965,7 @@ function wireSaveUi() {
   const cloudBtn = document.getElementById('save-cloud');
   const cloudModal = document.getElementById('cloud-modal');
   const cloudCode = document.getElementById('cloud-code');
-  const cloudLoad = document.getElementById('cloud-load');
+  const cloudLoadBtn = document.getElementById('cloud-load');
   const cloudLoadResult = document.getElementById('cloud-load-result');
   const openers = ['entry-save', 'entry-cloud-save', 'btn-save-hud']
     .map((id) => document.getElementById(id)).filter(Boolean);
@@ -3515,12 +3993,12 @@ function wireSaveUi() {
     const name = nameInput.value.trim() || 'my-ai-city';
     try { localStorage.setItem(SAVE_NAME_KEY, name); } catch { /* ignore */ }
     cloudBtn.disabled = true;
-    cloudBtn.textContent = '☁️ Saving…';
+    cloudBtn.textContent = t('ui.cloudSaving');
     try {
       const code = await cloudSave(name);
       if (cloudResult) {
         cloudResult.hidden = false;
-        cloudResult.innerHTML = 'Saved! Your cloud code is <b>' + code + '</b> — write it down to open this city on any device.';
+        cloudResult.textContent = tf('ui.cloudSaved', {code});
       }
     } catch (e) {
       console.error('[city-builder] cloud save failed', e);
@@ -3528,16 +4006,16 @@ function wireSaveUi() {
         cloudResult.hidden = false;
         // Kid-first copy: reassure first, then the concrete next step. The
         // HTTP detail stays in the console — never in a child's sentence.
-        cloudResult.textContent = '⚠️ The cloud isn\u2019t reachable right now — your city is still safe on this tablet, nothing is lost. Tap 💾 Download to keep a backup file you can hold.';
+        cloudResult.textContent = t('ui.cloudFail');
       }
     } finally {
       cloudBtn.disabled = false;
-      cloudBtn.textContent = '☁️ Save to cloud';
+      cloudBtn.textContent = t('saveModal.cloud');
     }
   });
 
   // Open from cloud.
-  if (cloudModal && cloudCode && cloudLoad) {
+  if (cloudModal && cloudCode && cloudLoadBtn) {
     const closeCloud = () => cloudModal.classList.add('hidden');
     cloudModal.querySelectorAll('[data-cloud-close]').forEach((el) => el.addEventListener('click', closeCloud));
     const openCloud = document.getElementById('entry-cloud-open');
@@ -3549,34 +4027,34 @@ function wireSaveUi() {
       cloudCode.select();
     });
     const doLoad = async () => {
+      if (cloudLoadBtn.disabled || restoreActive) return;
       const code = cloudCode.value.trim();
-      if (!code) { cloudLoadResult.textContent = 'Type your code first.'; return; }
-      cloudLoad.disabled = true;
-      cloudLoad.textContent = '☁️ Loading…';
+      if (!code) { cloudLoadResult.textContent = t('ui.cloudNeed'); return; }
+      cloudLoadBtn.disabled = true;
+      cloudLoadBtn.textContent = t('ui.cloudLoading');
       try {
         const data = await cloudLoad(code);
         const champ = sanitizeChampionFile(data);
-        if (!champ.ok) { cloudLoadResult.textContent = '⚠️ ' + champ.error; return; }
-        const res = writeState(champ.file.state);
-        cloudLoadResult.textContent = res.ok
-          ? '✅ Restored (' + res.wrote + ' saved items). Reloading…'
-          : '⚠️ Restored most, but ' + res.failed.length + ' item(s) would not fit. Free some space and try again.';
-        try { localStorage.setItem(CLOUD_CODE_KEY, code); } catch { /* ignore */ }
-        setTimeout(() => window.location.reload(), 3500);
+        if (!champ.ok) { cloudLoadResult.textContent = t('ui.invalid'); return; }
+        restoreChampion(champ.file.state, currentSnapshot, () => {
+          try { localStorage.setItem(CLOUD_CODE_KEY, code); } catch { /* optional device pointer */ }
+        });
       } catch (e) {
-        cloudLoadResult.textContent = '⚠️ Could not load (' + e.message + '). Check the code.';
+        cloudLoadResult.textContent = t('ui.cloudLoadFail');
       } finally {
-        cloudLoad.disabled = false;
-        cloudLoad.textContent = '☁️ Load my city';
+        cloudLoadBtn.disabled = false;
+        cloudLoadBtn.textContent = t('cloud.load');
       }
     };
-    cloudLoad.addEventListener('click', doLoad);
-    cloudCode.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLoad(); });
+    cloudLoadBtn.addEventListener('click', doLoad);
+    cloudCode.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doLoad(); } });
   }
 }
 
 // ── Inspector badge: HUD corner emblem + Logbook shell (MVP: lowest tier) ────
 function mountBadgeUi() {
+  if (mountBadgeUi.bound) return;
+  mountBadgeUi.bound = true;
   const emblem = document.getElementById('badge-emblem');
   if (!emblem) return;
   const modal = document.getElementById('logbook-modal');
@@ -3629,16 +4107,6 @@ function readLastDecisions() {
   try { const m = JSON.parse(localStorage.getItem(CAP_LAST_DEC_KEY) || '{}'); return (m && typeof m === 'object') ? m : {}; }
   catch { return {}; }
 }
-function rememberLastDecision(capId, label) {
-  if (!capId || !label) return;
-  try {
-    const m = readLastDecisions();
-    m[capId] = { label: String(label).slice(0, 40), at: Date.now() };
-    const keys = Object.keys(m);
-    if (keys.length > 8) for (const k of keys.slice(0, keys.length - 8)) delete m[k];
-    localStorage.setItem(CAP_LAST_DEC_KEY, JSON.stringify(m));
-  } catch { /* ignore */ }
-}
 
 let _aiNodes = null;   // visible in-world AI machine nodes (ai-nodes.js)
 
@@ -3646,7 +4114,7 @@ let _aiNodes = null;   // visible in-world AI machine nodes (ai-nodes.js)
 function refreshAiNodes() {
   try {
     if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose();
-    _aiNodes = mountCityAiNodes(scene, city, layout);
+    _aiNodes = mountCityAiNodes(scene, city, layout, {paused:()=>_contextPaused,reducedMotion:()=>reducedMotion.matches});
   } catch (e) {
     console.warn('[city-builder] ai-nodes refresh failed', e);
   }
@@ -3657,7 +4125,7 @@ function readPlantedCaps() {
   catch { return []; }
 }
 function writePlantedCaps(list) {
-  try { localStorage.setItem(CAPS_KEY, JSON.stringify(list.slice(0, 12))); } catch { /* ignore */ }
+  try { localStorage.setItem(CAPS_KEY, JSON.stringify(list)); } catch { /* ignore */ }
 }
 function renderCapPanel() {
   const body = document.getElementById('cap-body');
@@ -3666,6 +4134,7 @@ function renderCapPanel() {
   const caps = readPlantedCaps();
   const lastDec = readLastDecisions();
   const cards = caps.map((cap) => {
+    if (!cap || typeof cap !== 'object' || !Array.isArray(cap.input?.fields) || !Array.isArray(cap.output?.labels)) return `<p>${t('work.unreadableCap')}</p>`;
     const d = capabilityDescriptor(cap);
     const s = d.scores;
     const scoreLine = `study ${s.study ?? '—'} · check ${s.check ?? '—'} · sealed ${s.sealed ?? '—'}`;
@@ -3673,15 +4142,15 @@ function renderCapPanel() {
     return `<div class="cap-card">
       <div class="cap-name">${esc(d.name)}</div>
       <div class="cap-meta">${esc(d.algorithm)} · ${d.labels.length} labels · threshold ${d.threshold}</div>
-      <div class="cap-scores">${scoreLine}</div>
-      ${ld ? `<div class="cap-last">${zh ? '上次它說：' : 'Last time it said: '}<b>${esc(ld.label)}</b></div>` : ''}
+      <div class="cap-scores">${esc(scoreLine)}</div>
+      ${ld ? `<div class="cap-last">${zh ? '歷史紀錄（未重新驗證）：' : 'Historical record (not reverified): '}<b>${esc(ld.label)}</b></div>` : ''}
       <div class="cap-note">${esc(stage1Note(zh))}</div>
-      <button class="cap-try" data-try-cap="${esc(d.id)}">🧪 ${zh ? '試試它' : 'Try it'}</button>
+      <button class="cap-try" data-try-cap="${esc(d.id)}">🧪 ${zh ? '查看證據' : 'Inspect evidence'}</button>
     </div>`;
   }).join('');
   body.innerHTML = (caps.length ? '' : `<div class="cap-empty">${zh
-    ? '還沒有種入的 AI 機器。AI 機器會「思考」——它是在 Workshop（另一個 App）裡造好、存成 .cap 小檔案，再種到這裡。'
-    : 'No planted AI machines yet. An AI machine is a building that thinks — you build it in the Workshop (a separate app), save it as a small .cap file, then plant it here.'}</div>`)
+    ? '尚未匯入機器檔案。第一階段只展示資料與證據，不執行推論。'
+    : 'No imported machine files yet. Stage 1 displays data and evidence only; it does not run inference.'}</div>`)
     + cards
     + `<div class="cap-actions">
          <button id="cap-plant-btn">📦 ${zh ? '種入機器檔案 (.cap)' : 'Plant a machine file (.cap)'}</button>
@@ -3692,70 +4161,15 @@ function renderCapPanel() {
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
-/**
- * Open the "Try my machine" modal for a planted capability. Shared by the 📦
- * panel's cap cards and the in-world AI node taps (tap a pulsing node → watch
- * THAT machine decide). Feeds the planted capability a real input and runs the
- * honest inference: confident → decision, low confidence/missing input → 🤔.
- */
+// Stage 1 node taps inspect imported evidence only; no inference path.
 function openTryPanel(cap) {
   if (!cap) return;
-  const zh = (() => { try { return localStorage.getItem('hk_ai_city_lang_v1') === 'zh-Hant'; } catch { return false; } })();
-  const tryModal = document.getElementById('cap-try-modal');
-  const tryBody = document.getElementById('cap-try-body');
-  if (!tryModal || !tryBody) return;
-  const fields = (cap.input && cap.input.fields) || [];
-  const norm = (cap.input && cap.input.normalization) || {};
-  const mid = (i) => { const lo = norm.min && norm.min[i] != null ? norm.min[i] : 0; const hi = norm.max && norm.max[i] != null ? norm.max[i] : 1; return Math.round(((lo + hi) / 2) * 100) / 100; };
-  const inputs = fields.map((f, i) => `
-    <label class="try-field">${esc(f.name)}
-      <input type="number" step="any" id="try-in-${i}" value="${mid(i)}" aria-label="${esc(f.name)}">
-    </label>`).join('');
-  tryBody.innerHTML = `
-    <p class="try-machine-name">${zh ? '🧪 測試：' : '🧪 Testing: '}<b>${esc(cap.name || cap.id || '')}</b></p>
-    <p class="save-intro">${zh ? '給機器一些真實輸入，看看它會怎麼想。' : 'Give the machine a real input and watch what it decides.'}</p>
-    <div class="try-inputs">${inputs || (zh ? '（沒有輸入欄位）' : '(no input fields)')}</div>
-    <div class="goals-actions"><button id="try-run" class="plan-apply">⚙️ ${zh ? '讓機器思考' : 'Run the machine'}</button></div>
-    <div id="try-result" class="try-result" aria-live="polite"></div>
-    <div class="cap-note">${zh ? '「不確定」也是正確答案 — 當信心不足時，機器不猜。' : 'Saying "not sure" is a correct answer — when confidence is too low, the machine does not guess.'}</div>`;
-  const run = document.getElementById('try-run');
-  if (run) run.addEventListener('click', () => {
-    const event = {};
-    let blank = 0;
-    fields.forEach((f, i) => {
-      const el = document.getElementById('try-in-' + i);
-      const raw = el ? el.value.trim() : '';
-      // Blank input = the field was NOT given → runInference reports it as
-      // "missing fields" and abstains honestly, instead of silently treating
-      // an empty box as the number 0 and skewing the decision.
-      if (raw === '') { blank++; return; }
-      event[f.name] = Number(raw);
-    });
-    const res = runInference(cap, event);
-    rememberLastDecision(cap.id, res.abstained
-      ? (zh ? '🤔 不確定' : '🤔 Not sure')
-      : String(res.decision));
-    refreshAiNodes();
-    const out = document.getElementById('try-result');
-    if (!out) return;
-    if (blank > 0) {
-      out.innerHTML = `<div class="try-decision abstain">${zh ? '🤔 不確定' : '🤔 Not sure'}</div>
-        <div class="try-detail">${zh ? '還有一個輸入欄位是空的' : 'One of the inputs is still empty'} — ${zh ? '機器選擇不猜' : 'the machine chose not to guess'}</div>`;
-      return;
-    }
-    if (res.abstained) {
-      out.innerHTML = `<div class="try-decision abstain">${zh ? '🤔 不確定' : '🤔 Not sure'}</div>
-        <div class="try-detail">${zh ? '信心' : 'Confidence'} ${Math.round(res.confidence * 100)}%${res.abstainReason === 'missing-fields' ? ' — ' + (zh ? '輸入不完整' : 'incomplete input') : ' — ' + (zh ? '機器選擇不猜' : 'the machine chose not to guess')}</div>`;
-    } else {
-      out.innerHTML = `<div class="try-decision">${zh ? '它說' : 'It says'}: <b>${esc(res.decision)}</b></div>
-        <div class="try-detail">${zh ? '信心' : 'Confidence'} ${Math.round(res.confidence * 100)}% · ${zh ? '門檻' : 'threshold'} ${Math.round((cap.model && cap.model.threshold || 0) * 100)}%</div>
-        ${res.evidence && res.evidence.length ? '<div class="try-evidence">' + (zh ? '最近的例子' : 'Nearest examples') + ':</div>' + res.evidence.map((ev) => `<div class="try-evidence-row">• ${esc(ev.label)} — ${zh ? '距離' : 'distance'} ${ev.distance}</div>`).join('') : ''}`;
-    }
-  });
-  tryModal.classList.remove('hidden');
+  myWork?.open('city_central', 'evidence');
 }
 
 function mountCapabilityUi() {
+  if (mountCapabilityUi.bound) return;
+  mountCapabilityUi.bound = true;
   const btn = document.getElementById('cap-btn');
   const modal = document.getElementById('cap-modal');
   const fileInput = document.getElementById('cap-file');
@@ -3766,20 +4180,12 @@ function mountCapabilityUi() {
   btn.addEventListener('click', () => { renderCapPanel(); modal.classList.remove('hidden'); });
   modal.querySelectorAll('[data-cap-close]').forEach((el) => el.addEventListener('click', close));
 
-  // "Try my machine" — feed a planted capability a real input, see the honest
-  // answer. The modal rendering lives in the module-scope openTryPanel() so cap
-  // cards AND in-world AI node taps share one code path.
-  const tryModal = document.getElementById('cap-try-modal');
-  if (tryModal) {
-    tryModal.querySelectorAll('[data-captry-close]').forEach((el) => el.addEventListener('click', () => tryModal.classList.add('hidden')));
-  }
-  // Delegate "Try it" clicks from freshly-rendered cap cards (cards re-render
-  // every panel open, so a single document-level listener is required).
+  // Cards and outdoor nodes inspect the same Stage-1 evidence.
   document.addEventListener('click', (e) => {
     const t = e.target.closest('[data-try-cap]');
     if (!t) return;
     const caps = readPlantedCaps();
-    const cap = caps.find((c) => c.id === t.getAttribute('data-try-cap'));
+    const cap = caps.find((c) => c?.id === t.getAttribute('data-try-cap'));
     if (cap) openTryPanel(cap);
   });
 
@@ -3793,11 +4199,12 @@ function mountCapabilityUi() {
     const r = parseCapability(raw);
     const err = document.getElementById('cap-err');
     if (!r.ok) {
-      if (err) err.textContent = '⚠️ ' + r.error;
+      if (err) err.textContent = t('ui.capInvalid');
       return;
     }
     const caps = readPlantedCaps();
-    if (!caps.some((c) => c.id === r.capability.id)) {
+    if (!caps.some((c) => c?.id === r.capability.id)) {
+      if (caps.length >= 12) { if (err) err.textContent = t('work.capLimit'); return; }
       caps.push(r.capability);
       writePlantedCaps(caps);
     }
@@ -3808,13 +4215,19 @@ function mountCapabilityUi() {
   fileInput.addEventListener('change', () => {
     const f = fileInput.files[0];
     if (!f) return;
+    if (f.size > MAX_IMPORT_BYTES) { showEntryError(t('ui.tooLarge')); fileInput.value = ""; return; }
     const reader = new FileReader();
+    reader.onerror = () => showEntryError(t('ui.readFail'));
     reader.onload = () => { plant(reader.result); fileInput.value = ''; };
     reader.readAsText(f);
   });
 }
 
+let entryBound = false;
+let entryStarting = false;
 function startEntryFlow() {
+  if (entryBound) return;
+  entryBound = true;
   const overlay = document.getElementById('entry-overlay');
   const localBtn = document.getElementById('entry-local');
   const pasteBtn = document.getElementById('entry-paste');
@@ -3862,36 +4275,28 @@ function startEntryFlow() {
   }
 
   const begin = (raw) => {
+    if (entryStarting || restoreActive) return;
     if (!loadLayout(raw)) return;
     if (!isWebGLAvailable()) {
-      showBootError('This device can\u2019t run the 3D view (WebGL is off or blocked). Go back to the 2D planner — your city is saved!');
+      showBootError(t('ui.webgl'));
       return;
     }
+    entryStarting = true;
     overlay.classList.add('hidden');
-    boot();
+    boot().finally(() => { entryStarting = false; });
   };
 
-  // Auto-load from the planner handoff (?from=planner) — "build it, then walk
-  // into it" with zero extra taps. Same-origin localStorage carries the layout.
-  // Fully guarded: corrupt/absent JSON falls through to the normal entry overlay.
-  const fromPlanner = new URLSearchParams(location.search).get('from') === 'planner';
-  if (fromPlanner && saved) {
-    try {
-      begin(JSON.parse(saved));
-      history.replaceState(null, '', '/city-builder/'); // tidy the URL
-      return;
-    } catch (e) {
-      // corrupt save → fall through; the overlay shows "Start my saved city"
-    }
-  }
-
   localBtn.addEventListener('click', () => {
+    if (retryPending && retryLayoutRaw) {
+      try { begin(JSON.parse(retryLayoutRaw)); return; }
+      catch (e) { console.warn('[city-builder] retry layout was unreadable', e); }
+    }
     if (saved) {
       try { begin(JSON.parse(saved)); }
       catch (e) {
         // Saved city JSON is corrupt — fall back to the sample, but say so so
         // the child isn't silently staring at a city they didn't build.
-        showEntryError('Your saved city could not be read — showing the sample instead. You can rebuild it in the planner.');
+        showEntryError(t('ui.badSaved'));
         begin(sampleLayout());
       }
     }
@@ -3904,11 +4309,13 @@ function startEntryFlow() {
   fileInput.addEventListener('change', () => {
     const f = fileInput.files[0];
     if (!f) return;
+    if (f.size > MAX_IMPORT_BYTES) { showEntryError(t('ui.tooLarge')); fileInput.value = ""; return; }
     const reader = new FileReader();
+    reader.onerror = () => showEntryError(t('ui.readFail'));
     reader.onload = () => {
       // Champion File (restore EVERYTHING) or a legacy layout JSON.
       if (!importChampionFile(reader.result)) {
-        try { begin(JSON.parse(reader.result)); } catch (e) { showEntryError('That file is not valid JSON.'); }
+        try { begin(JSON.parse(reader.result)); } catch (e) { showEntryError(t('ui.invalid')); }
       }
     };
     reader.readAsText(f);
@@ -3916,7 +4323,7 @@ function startEntryFlow() {
   pasteBtn.addEventListener('click', () => { pasteWrap.style.display = pasteWrap.style.display === 'none' ? 'block' : 'none'; });
   pasteGo.addEventListener('click', () => {
     if (!importChampionFile(pasteBox.value)) {
-      try { begin(JSON.parse(pasteBox.value)); } catch (e) { showEntryError('That JSON did not parse.'); }
+      try { begin(JSON.parse(pasteBox.value)); } catch (e) { showEntryError(t('ui.invalid')); }
     }
   });
 
@@ -3936,22 +4343,21 @@ function startEntryFlow() {
       const f = skinInput.files[0];
       skinInput.value = '';             // allow re-picking the same file later
       if (!f) return;
-      const ok = await looksLikeGlb(f);
-      if (!ok) {
-        skinStatus.textContent = '⚠️ Please pick a .glb champion file (under 64 MB).';
-        return;
-      }
-      try {
-        await saveCustomSkin(f);
-        if (_customSkinUrl) revokeObjectUrl(_customSkinUrl);
-        _customSkinUrl = blobToObjectUrl(f);
-        equipCustomDefault();           // make it the default next boot
-        skinStatus.textContent = `✅ ${f.name} saved — press Start to wear it!`;
-      } catch (e) {
-        console.warn('[city-builder] custom skin save failed', e);
-        skinStatus.textContent = '⚠️ Could not save that champion — try again.';
-      }
+      const result = await importCustomChampion(f);
+      skinStatus.textContent = result.ok ? tf('ui.skinSaved',{name:f.name}) : result.message;
     });
+  }
+  // Auto-load from the planner handoff (?from=planner) — "build it, then walk
+  // into it" with zero extra taps. Same-origin localStorage carries the layout.
+  // Fully guarded: corrupt/absent JSON falls through to the normal entry overlay.
+  const fromPlanner = new URLSearchParams(location.search).get('from') === 'planner';
+  if (fromPlanner && saved) {
+    try {
+      begin(JSON.parse(saved));
+      history.replaceState(null, '', '/city-builder/'); // tidy the URL
+    } catch (e) {
+      // corrupt save → fall through; the overlay shows "Start my saved city"
+    }
   }
 }
 
@@ -3969,6 +4375,7 @@ function isWebGLAvailable() {
 }
 
 function showBootError(msg) {
+  entryStarting = false;
   // Never leave the loading spinner frozen: surface a clear error + retry.
   clearTimeout(_bootWatchdog);   // boot failed (or watchdog fired) — no more retries needed
   const loading = document.getElementById('loading');
@@ -3977,34 +4384,53 @@ function showBootError(msg) {
   const err = document.getElementById('entry-error');
   if (err) { err.textContent = '⚠️ ' + msg; err.hidden = false; }
   const localBtn = document.getElementById('entry-local');
-  if (localBtn) localBtn.textContent = '↻ Try again';
+  if (localBtn) localBtn.textContent = t('ui.retry');
   const overlay = document.getElementById('entry-overlay');
   if (overlay) overlay.classList.remove('hidden');
   if (loading) loading.classList.add('done');   // hide the loading overlay
 }
 
+function failBoot(gen, stage, error) {
+  if (gen !== _bootGen) return;
+  const diagnostic = { stage, reason: error?.message || String(error), generation: gen };
+  console.error('[city-builder] boot failed', diagnostic, error);
+  window.__bootError = diagnostic;
+  retryPending = !!retryLayoutRaw;
+  _bootOwner?.cancel();
+  cleanupBootSystems();
+  disposeBootRenderer();
+  showBootError(t('ui.bootError'));
+}
+
 async function boot() {
+  window.__bootError = null;
   try {
     await bootInner();
   } catch (e) {
-    console.error('[city-builder] boot failed:', e);
-    window.__bootError = e;   // diagnostics hook — check in the console/Playwright
-    showBootError('Something went wrong building your city — tap to try again.');
+    if (e && e.name === 'StaleBootError') return;
+    failBoot(_bootGen, e?.stage || 'required-city-ready', e);
   }
 }
 
 async function bootInner() {
   // Invalidate any previous boot's loop and tear down its scene/renderer.
-  _bootGen += 1;
-  if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
+  const gen = ++_bootGen;
+  _bootOwner?.cancel();
+  const owner = createBootOwner(gen, window);
+  _bootOwner = owner;
+  const loadQueue = createLoadQueue({ concurrency: IS_MOBILE ? 3 : 4, isActive: () => owner.active && gen === _bootGen });
+  owner.own(() => loadQueue.cancel());
+  _contextPaused = false;
   // Watchdog: if boot hangs (a loadAsync that never settles on a flaky network),
   // surface the retry screen instead of a frozen loading bar. Cleared on success
   // (end of bootInner) and on failure (showBootError).
   clearTimeout(_bootWatchdog);
-  _bootWatchdog = setTimeout(() => {
+  _bootWatchdog = owner.timeout(() => {
     const loading = document.getElementById('loading');
     if (loading && !loading.classList.contains('done')) {
-      showBootError('Building your city is taking too long — check your connection and tap to try again.');
+      const error = new Error(t('ui.bootSlow'));
+      error.stage = 'city-ready-deadline';
+      failBoot(gen, error.stage, error);
     }
   }, BOOT_TIMEOUT_MS);
 
@@ -4013,9 +4439,25 @@ async function bootInner() {
   // gracefully: missing trees/models rather than a blank boot error).
   const warn = (name, e) => console.warn(`[city-builder] ${name} failed (continuing):`, e);
   const safe = (name, fn) => { try { fn(); } catch (e) { warn(name, e); } };
-  const safeAwait = async (name, p) => { try { return await p; } catch (e) { warn(name, e); return null; } };
+  const safeAwait = async (name, p) => { try { const value=await p; return owner.active ? value : null; } catch (e) { warn(name, e); return null; } };
+  const assertActive = () => { if (!owner.active || gen !== _bootGen) { const e=new Error('boot replaced');e.name='StaleBootError';throw e; } };
 
-  setupScene();
+  city = {};
+  // Deterministic test seam for the retry lifecycle; never enabled by normal
+  // application state.
+  const forcedFailure = typeof window.__CITY_FORCE_BOOT_FAILURE__ === 'function'
+    ? window.__CITY_FORCE_BOOT_FAILURE__(gen)
+    : window.__CITY_FORCE_BOOT_FAILURE__;
+  if (forcedFailure) {
+    const error = new Error('forced boot failure');
+    error.stage = 'renderer-setup';
+    throw error;
+  }
+  _naturePlacements=[];_natureBatches=[];
+  _treePlacements=[];_treeSafetyPlacements=[];
+  _grassMats.clear();
+  city.natureScenery={batches:_natureBatches,get drawCalls(){return _natureBatches.length;},get instances(){return 0;},get triangles(){return 0;}};
+  setupScene(owner);
   labelRenderer = createLabelRenderer(stage);
   initI18n();
   applyStatic();
@@ -4023,50 +4465,79 @@ async function bootInner() {
 
   const fill = document.getElementById('loading-fill');
   fill.style.width = '25%';
-  await safeAwait('trees', loadTreeModels());
-  await safeAwait('tree-packs', loadTreePacks());
-  await safeAwait('park', loadParkModel());
-  safe('road-textures', loadRoadTextures);   // async — roads upgrade from flat charcoal to textured asphalt
-  safe('nature-filler', () => loadNatureFiller());   // async — bushes/flowers/rocks for parks
+  safe('road-textures', () => loadRoadTextures(gen, renderer));   // async — roads upgrade from flat charcoal to textured asphalt
+  if(layout.autoScenery!==false)safe('nature-filler', () => loadNatureFiller(gen));   // async — bushes/flowers/rocks for parks
   fill.style.width = '60%';
 
   safe('tree-variants', buildTreeVariants);
   safe('parks', carveParks);
   safe('roads', carveRoads);
-  safe('flush-trees', flushTrees);
+  // (Tree placements are flushed in startDeferredAssets, after the tree GLBs
+  // resolve — flushing here would flush before _treeVariants is populated.)
+  city.scenery={treePlacements:_treeSafetyPlacements,roadNetwork:roadBarrierNetwork,
+    isTreePlacementSafe:(tree)=>isRoadsideSceneryClear(roadBarrierNetwork,tree.x,tree.z,tree.radius,8)};
   safe('flush-nature', flushNatureFiller);  // placements queued during carve; flush what's loaded
   safe('quest-landmarks', buildQuestLandmarks);
-  safe('generic-facilities', buildGenericFacilities);
+  let activeLibraryIds = new Set();
+  safe('generic-facilities', () => { activeLibraryIds = buildGenericFacilities() || new Set(); });
   safe('building-shadows', addBuildingContactShadows);
   fill.style.width = '80%';
-  // Street furniture (streetlights along roads, benches around parks).
-  streetProps = await safeAwait('street-props', createStreetProps(scene, layout));
-  city.streetProps = streetProps;
-  // Playground + street deco (async, non-blocking).
-  safe('street-deco', () => scatterStreetDeco(scene, layout));
-  // Sidewalk furniture from the shared library (hydrants/bins/mailboxes/
-  // planters/parasols) — async, instanced, tiny; degrades per-model on failure.
-  safe('street-furniture', () => {
-    createStreetFurniture(scene, layout).catch((e) => console.warn('[city-builder] street furniture init failed', e));
-  });
-  // Async — replace procedural GLB-backed buildings (office towers, housing) when ready.
-  safe('facility-glbs', () => { for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) loadBuildingModel(type, url); });
-  // Mission buildings — real GLBs for every special type (finance tower, industrial missions…).
-  safe('mission-glbs', () => { for (const [type, url] of Object.entries(SPECIAL_BUILDING_MODELS)) loadBuildingModel(type, url); });
-  safe('housing-variants', loadHousingVariants);
-  // Parked vehicles (ambulance/firetruck/police/bus) — async, decorative.
-  safe('parked-vehicles', () => { for (const key of Object.keys(PARKED_VEHICLES)) loadParkedVehicleModel(key); });
+  // Active-layout models enter one bounded queue first. Procedural buildings
+  // remain useful while a model is delayed or rejected.
+  const customRoleManifest = readCustomManifest();
+  const loadRoleVisual = (type, url) => {
+    const customId = resolveCustomOverride(type, customRoleManifest);
+    return customId ? loadCustomBuildingModel(type, customId, gen, loadQueue) : loadBuildingModel(type, url, gen, loadQueue);
+  };
+  safe('facility-glbs', () => { for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) if(glbState[type]?.spots.length)loadRoleVisual(type, url); });
+  safe('mission-glbs', () => { for (const [type, url] of Object.entries(SPECIAL_BUILDING_MODELS)) if(glbState[type]?.spots.length)loadRoleVisual(type, url); });
+  safe('library-glbs', () => { for (const id of activeLibraryIds) { const item=libraryItem(id); if(item)loadBuildingModel(id,item.glb,gen,loadQueue); } });
+
+  // Cosmetic variants, accessories and street decoration wait until after the
+  // usable city is mounted. Their starts are owned by this boot.
+  const startDeferredAssets = () => {
+    // Landscape and sidewalk GLBs are enhancements only. The procedural park,
+    // trees and road network were built above, so a slow model must never keep
+    // the child on the loading screen.
+    const current = () => owner.active && gen === _bootGen;
+    Promise.all([
+      loadTreeModels(current),
+      loadTreePacks(current),
+      layout.autoScenery !== false ? loadParkModel(current) : null,
+    ]).then(() => { if (current()) { buildTreeVariants(); flushTrees(); } })
+      .catch(e => console.warn('[city-builder] optional landscape unavailable', e));
+    createStreetProps(scene, layout).then(props => {
+      if (!current()) { props?.destroy?.(); return; }
+      streetProps = props;
+      city.streetProps = props;
+    }).catch(e => console.warn('[city-builder] optional street props unavailable', e));
+    if(glbState.housing?.spots.length)loadHousingVariants(gen,loadQueue);
+    if(glbState.office?.spots.length)loadOfficeVariants(gen,loadQueue);
+    if(layout.autoScenery!==false) {
+      for (const key of Object.keys(PARKED_VEHICLES)) loadParkedVehicleModel(key,gen,loadQueue);
+      scatterStreetDeco(scene, layout, {schedule:(task)=>loadQueue.add(task)});
+      const plannedSpaces = createNeighbourhood(layout, {mobile:IS_MOBILE, roads:publicRoads, crossings:publicCrossings}).spaces;
+      createStreetFurniture(scene, layout, {schedule:(task)=>loadQueue.add(task),exclude:(x,z)=>plannedSpaces.some(p=>Math.hypot(p.x-x,p.z-z)<p.radius+2)})
+        .catch((e) => console.warn('[city-builder] street furniture init failed', e));
+    }
+  };
 
   // Load the child's uploaded "fitted champion" GLB (Fit Studio) so it becomes
   // the default skin this session. Read from IndexedDB → object URL.
   const customBlob = await safeAwait('custom-skin', loadCustomSkinBlob());
+  assertActive();
   if (customBlob) {
     if (_customSkinUrl) revokeObjectUrl(_customSkinUrl);
     _customSkinUrl = blobToObjectUrl(customBlob);
   }
 
-  await safeAwait('champion', spawnChampion());
-  safe('renderer-interaction', wireRendererInteraction);
+  let championDeadlineActive = true;
+  await safeAwait('champion', withDeadline(
+    () => spawnChampion(() => championDeadlineActive && owner.active && gen === _bootGen),
+    { owner, ms: CHAMPION_TIMEOUT_MS, label: 'champion', onExpire: () => { championDeadlineActive = false; } },
+  ));
+  assertActive();
+  safe('renderer-interaction', () => wireRendererInteraction(owner));
 
   // Selected-object resize slider (2026-08-29): library models can ship at the
   // wrong size, so let the student calibrate with a slider. Shown while a placed
@@ -4088,7 +4559,10 @@ async function bootInner() {
     slider.addEventListener('input', () => {
       const v = parseFloat(slider.value);
       valueEl.textContent = Math.round(v * 100) + '%';
-      if (grab) grab.setSelectedScale(v);
+      if (grab) {
+        grab.setSelectedScale(v);
+        propLibrary?.updateTransform(grab.getSelected() || grab.holding, true);
+      }
     });
     const style = document.createElement('style');
     style.textContent = `
@@ -4115,6 +4589,7 @@ async function bootInner() {
     `;
     document.head.appendChild(style);
     panel.hidden = true;
+    disposeResizePanel = () => { panel.remove(); style.remove(); _resizePanel = null; };
     _resizePanel = {
       panel,
       setVisible(v) { panel.hidden = !v; },
@@ -4124,6 +4599,7 @@ async function bootInner() {
   }
 
   // Grab / select / pick-up / move system for placed library models.
+  cleanupPropTools();
   safe('grab', () => {
     grab = createGrabSystem(scene, {
       getChampion: () => champion,
@@ -4137,22 +4613,32 @@ async function bootInner() {
         if (sel) rs.reset();
       },
       onDrop: (item) => {
-        // Persist the moved prop's new position — match by unique instance uid
-        // first, falling back to the library id for legacy records.
-        const api = window.__propLibrary;
-        const id = item && (item.userData.uid || item.userData.propId || item.userData.libraryId);
-        if (api && id) api.moveProp(id, item.position.x, item.position.z, item.rotation.y);
+        propLibrary?.updateTransform(item);
       },
     });
     window.__grab = grab;
     window.__drive = { get active() { return drivingCar ? drivingCar.isActive() : false; }, car: drivingCar };
   });
 
-  safe('chat', mountChat);
+  safe('chat', () => mountChat(owner));
   safe('badges', mountBadgeUi);
+  safe('my-work', () => { myWork?.dispose(); learningVisuals?.destroy?.(); learningVisuals = createLearningVisuals(scene); window.__learningVisuals = learningVisuals; myWork = mountMyWork({
+    layout, readPlantedCaps, readLastDecisions, openPlan: openPlanModal,
+    hasPlan: () => !!_plannerPlan, openGame: openMinigame,
+    navigate: (b, fly) => fly ? sim?.flyTo(b) : sim?.walkTo(b),
+    sourceLayout: () => { try { return JSON.parse(originalPlanRaw); } catch { return null; } },
+    showVisitorRoute: result => learningVisuals?.showVisitorRoute(result),
+    clearVisitorRoute: () => learningVisuals?.clearVisitor(),
+    showDelivery: (state, graph) => {
+      const depot = layout.buildings.find(b => b.type === 'delivery') || layout.buildings.find(b => b.type === 'drone_routing');
+      return learningVisuals?.showDelivery(state, graph, depot ? { x: depot.pos[0], z: depot.pos[1] } : { x: 0, z: 0 });
+    },
+    getPropsEnvelope: () => propLibrary?.readEnvelope?.(),
+    replacePropsEnvelope: next => propLibrary?.replaceEnvelope?.(next) || false,
+  }); });
   safe('capabilities', mountCapabilityUi);
-  safe('skins', mountSkins);
-  safe('ai-nodes', () => { try { if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose(); _aiNodes = mountCityAiNodes(scene, city, layout); } catch (e) { console.warn('[city-builder] ai-nodes mount failed', e); } });
+  safe('skins', () => mountSkins(owner));
+  safe('ai-nodes', () => { try { if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose(); _aiNodes = mountCityAiNodes(scene, city, layout, {paused:()=>_contextPaused,reducedMotion:()=>reducedMotion.matches}); } catch (e) { console.warn('[city-builder] ai-nodes mount failed', e); } });
   safe('input', wireInput);
   safe('quest-prompt', wireQuestPrompt);
 
@@ -4162,15 +4648,25 @@ async function bootInner() {
   // Every placed prop is registered with the grab system so it can be selected,
   // picked up and moved around (🎯 button).
   safe('prop-library', () => {
-    const placementDust = new ParticlePool(scene, 40);
-    mountPropLibrary({
+    placementDust = new ParticlePool(scene, 40);
+    propLibrary = mountPropLibrary({
       scene, camera, renderer,
       storageKey: 'hk_ai_city_props_citybuilder_v1',
       onPlaced: (x, z) => placementDust.spawn({ x, y: 0, z }, 6, 0.8, 1.6),
-      onPlacedMesh: (mesh, item) => registerGrabbableProp(mesh, item),
+      onPlacedMesh: (mesh, item) => { environmentProps.add(mesh); registerGrabbableProp(mesh, item); },
+      onRemovedMesh: mesh => { environmentProps.delete(mesh); grab?.unregister(mesh); },
       onPlacementDone: (mesh) => { if (grab && mesh) grab.select(mesh); },
       onPlacementEnd: () => { if (grab) grab.clearSelection(); },
     });
+  });
+  safe('focused-ui', () => {
+    focusedUI?.dispose?.();
+    focusedUI = mountFocusedCityUI({ propLibrary, myWork, onModeChange: (mode) => {
+      selectMode = mode === 'decorate';
+      if (mode === 'decorate') clearInput();
+      if (mode === 'explore') grab?.clearSelection?.();
+    }});
+    window.__focusedCityUI = focusedUI;
   });
 
   document.getElementById('loading').classList.add('done');
@@ -4180,15 +4676,23 @@ async function bootInner() {
   // streets, streetlights, cars or road trees). Let the child know WHY instead
   // of leaving them confused — pure toast, never blocks or traps.
   if (!(layout.roads || []).length) {
-    setTimeout(() => {
+    owner.timeout(() => {
       showToast(t('toast.noRoads'));
     }, 1200);
+  } else if (!traffic) {
+    // Roads exist but form no closed circuit, so ambient traffic deliberately
+    // stays away (no U-turns / vanishing cars). This is a hint, never a block:
+    // the city boots and plays normally. The fix lives in the 2D planner.
+    owner.timeout(() => {
+      showToast(t('toast.noTrafficLoop'));
+    }, 1800);
   }
-  window.addEventListener('resize', () => city.resize());
   window.__scene = scene;   // debug hook (harmless)
   window.__layout = layout; // debug hook
   window.__city = city;     // debug hook (champion/taxi/pedestrians handles)
-  requestAnimationFrame(loop);
+  city.loading = { generation: gen, queue: () => loadQueue.stats() };
+  startLoop(owner);
+  owner.defer(startDeferredAssets, 1200);
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────

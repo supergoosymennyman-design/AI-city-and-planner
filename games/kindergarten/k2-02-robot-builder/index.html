@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Robot Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:#fff8f0;color:#2d2d2d;font-family:'Nunito',sans-serif;-webkit-tap-highlight-color:transparent}
+:root{--fs-xl:30px;--fs-lg:20px;--fs-base:17px;--fs-sm:14px;--touch-min:56px}
+
+#app{display:flex;flex-direction:column;height:100vh;max-height:100dvh;padding:8px 12px;gap:5px;max-width:700px;margin:0 auto;width:100%}
+#top{display:flex;align-items:center;gap:6px;flex-shrink:0}
+#top h1{font-size:var(--fs-lg);font-weight:800;color:#4a90d9;flex:1}
+#back-btn{width:40px;height:40px;border-radius:50%;border:none;background:#e2e8f0;font-size:20px;cursor:pointer;display:none;flex-shrink:0}
+
+#steps{display:flex;gap:4px;flex-shrink:0;justify-content:center}
+.sp{width:26px;height:26px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#94a3b8;transition:all .2s}
+.sp.active{background:#4a90d9;color:#fff;transform:scale(1.15)}
+.sp.done{background:#5cb85c;color:#fff}
+.sld{width:16px;height:2px;background:#e2e8f0;align-self:center;transition:background .2s}
+.sld.done{background:#5cb85c}
+
+#nova{display:flex;align-items:flex-start;gap:8px;flex-shrink:0;padding:7px 12px;background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.07);min-height:48px}
+#nova-av{width:36px;height:36px;border-radius:50%;background:#a8b8c4;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:3px solid #ff6b6b}
+#nova-txt{font-size:var(--fs-sm);color:#555;line-height:1.4;flex:1;padding-top:2px}
+#nova-txt .nm{font-weight:700;color:#ff6b6b}
+
+#content{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;overflow:hidden;padding:4px 0}
+#step-label{font-size:var(--fs-lg);font-weight:800;color:#2d2d2d;text-align:center}
+#choices{display:flex;flex-direction:column;gap:8px;align-items:center;width:100%;max-width:420px}
+
+.shape-opts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.so-btn{width:78px;height:78px;border:none;border-radius:14px;background:#f1f5f9;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all .12s;border:3px solid transparent;font-family:'Nunito',sans-serif}
+.so-btn .si{font-size:30px}
+.so-btn .sl{font-size:12px;font-weight:600;color:#64748b}
+.so-btn.active{border-color:#4a90d9;background:#dbeafe;transform:scale(1.06)}
+.so-btn:active{transform:scale(.93)}
+
+#cpicker{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+.cp{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:all .1s}
+.cp.active{border-color:#222;transform:scale(1.18)}
+
+.confirm-btn{padding:12px 36px;border:none;border-radius:14px;background:#5cb85c;color:#fff;font-family:'Nunito',sans-serif;font-size:17px;font-weight:800;cursor:pointer;transition:all .12s;box-shadow:0 4px 12px rgba(92,184,92,.3);display:none}
+.confirm-btn:active{transform:scale(.97)}
+.surprise-btn{padding:8px 20px;border:none;border-radius:10px;background:#e2e8f0;color:#64748b;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-left:6px}
+.surprise-btn:active{transform:scale(.95)}
+
+/* Color picker row */
+.color-row{width:100%;text-align:center;margin:2px 0}
+.color-row .crl{font-size:13px;font-weight:700;margin-bottom:3px;color:#555}
+
+/* Canvas reveal */
+#canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;background:#fee;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);width:100%;overflow:hidden;position:relative}
+#r-canvas{display:block;width:100%;height:100%}
+#canvas-wrap.wiggle{animation:wiggle .3s ease}
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-2deg)}75%{transform:rotate(2deg)}}
+
+/* Summary card */
+#summary{background:#fff;border-radius:14px;padding:10px 14px;margin-top:6px;font-size:13px;color:#555;width:100%;max-width:420px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:none;text-align:center;line-height:1.6}
+#summary .hl{font-weight:700;color:#4a90d9}
+
+/* Confetti */
+.cfetti{position:fixed;width:10px;height:10px;border-radius:50%;pointer-events:none;z-index:99;animation:fall var(--dur) ease-out forwards}
+@keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(100vh) rotate(720deg)}}
+
+#voice-btn{width:44px;height:44px;border-radius:50%;border:none;background:#e2e8f0;font-size:20px;cursor:pointer;transition:all .12s;flex-shrink:0}
+#voice-btn.listening{background:#ff6b6b;color:#fff;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+#bottom{display:flex;gap:8px;align-items:center;flex-shrink:0;padding:4px 0}
+#bottom button{min-height:42px}
+
+.naming{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:6px 0}
+.nm-btn{padding:8px 16px;border:none;border-radius:10px;background:#f1f5f9;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .1s}
+.nm-btn.active{border-color:#4a90d9;background:#dbeafe;transform:scale(1.05)}
+
+@media(max-width:500px){
+  .so-btn{width:68px;height:68px}.so-btn .si{font-size:24px}
+  #step-label{font-size:var(--fs-base)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <button id="back-btn">←</button>
+    <h1>🤖 Robot Builder</h1>
+    <button class="surprise-btn" id="surprise-btn">✨ Surprise</button>
+  </div>
+  <div id="steps">
+    <span class="sp active">1</span><span class="sld"></span>
+    <span class="sp">2</span><span class="sld"></span>
+    <span class="sp">3</span><span class="sld"></span>
+    <span class="sp">4</span><span class="sld"></span>
+    <span class="sp">5</span><span class="sld"></span>
+    <span class="sp">6</span>
+  </div>
+  <div id="nova">
+    <div id="nova-av">🤖</div>
+    <div id="nova-txt"><span class="nm">Nova Jr.:</span> Let's build a robot! Pick a shape for the <b>body</b> first!</div>
+  </div>
+  <div id="content"></div>
+  <div id="bottom"><button id="voice-btn">🎤</button></div>
+</div>
+<script>
+const STEPS = [
+  { id:'body', label:'Body', shapes:['square','rectangle','circle','triangle'], emoji:{square:'⬛',rectangle:'▬',circle:'⬤',triangle:'△'}, colors:['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#ff6b6b','#1abc9c','#e67e22','#ecf0f1','#95a5a6'] },
+  { id:'head', label:'Head', shapes:['circle','square','triangle'], emoji:{circle:'⬤',square:'⬛',triangle:'△'}, colors:['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#ff6b6b','#1abc9c','#e67e22','#ecf0f1','#95a5a6'] },
+  { id:'arms', label:'Arms', shapes:['rectangle','circle'], emoji:{rectangle:'▬',circle:'⬤'}, colors:['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#ff6b6b','#1abc9c','#e67e22','#ecf0f1','#95a5a6'] },
+  { id:'legs', label:'Legs', shapes:['rectangle','circle'], emoji:{rectangle:'▬',circle:'⬤'}, colors:['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#ff6b6b','#1abc9c','#e67e22','#ecf0f1','#95a5a6'] },
+  { id:'hat', label:'Hat', shapes:['none','propeller','crown','bow'], emoji:{none:'─',propeller:'🌀',crown:'👑',bow:'🎀'}, colors:['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#ff6b6b','#1abc9c','#e67e22','#f5f5dc','#95a5a6'] },
+  { id:'complete', label:'Done', shapes:[], emoji:{} }
+];
+const COL_NAME = {red:'#e74c3c',blue:'#3498db',green:'#2ecc71',yellow:'#f39c12',purple:'#9b59b6',pink:'#ff6b6b',teal:'#1abc9c',orange:'#e67e22',white:'#ecf0f1',gray:'#95a5a6'};
+
+let currentStep=0, choices={}, canvas, ctx, revealMode=false;
+let backHistory=[], recognition=null, isListening=false;
+
+function init(){
+  canvas=document.getElementById('r-canvas');
+  ctx=canvas?.getContext('2d');
+  showStep(0);
+  window.addEventListener('resize',()=>{if(revealMode)resizeCanvas();});
+  document.getElementById('surprise-btn').addEventListener('click',randomAll);
+  document.getElementById('back-btn').addEventListener('click',goBack);
+  setupVoice();
+}
+
+function setupVoice(){
+  document.getElementById('voice-btn').addEventListener('click',()=>{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){alert('Voice needs Chrome');return;}
+    if(isListening){recognition.stop();return;}
+    if(!recognition){
+      recognition=new SR();recognition.continuous=false;recognition.interimResults=false;recognition.lang='en-US';
+      recognition.onresult=e=>{
+        const text=e.results[0][0].transcript.toLowerCase().trim();
+        nova('You said: "'+text+'"');
+        if(currentStep<5){
+          const st=STEPS[currentStep];
+          for(const s of st.shapes)if(text.includes(s)){choices[st.id]=s;showStep(currentStep);shapeSound(s);return;}
+        }
+      };
+      recognition.onend=()=>{isListening=false;document.getElementById('voice-btn').classList.remove('listening');};
+    }
+    try{recognition.start();isListening=true;document.getElementById('voice-btn').classList.add('listening');}
+    catch(e){}
+  });
+}
+
+function nova(msg){document.getElementById('nova-txt').innerHTML='<span class="nm">Nova Jr.:</span> '+msg;}
+
+function shapeSound(name){
+  try{const u=new SpeechSynthesisUtterance(name);u.rate=0.9;u.pitch=1.2;speechSynthesis.speak(u);}catch(e){}
+}
+
+function randomAll(){
+  STEPS.forEach(st=>{
+    if(st.id==='complete')return;
+    choices[st.id]=st.shapes[Math.floor(Math.random()*st.shapes.length)];
+    const ck=Object.keys(COL_NAME);
+    choices[st.id+'_color']=ck[Math.floor(Math.random()*ck.length)];
+  });
+  revealRobot();
+}
+
+function goBack(){
+  if(backHistory.length>0){
+    currentStep=backHistory.pop();
+    if(currentStep>=5){
+      const wrap=document.getElementById('canvas-wrap');
+      if(wrap)wrap.remove();
+      const sum=document.getElementById('summary');
+      if(sum)sum.style.display='none';
+      revealMode=false;
+    }
+    showStep(currentStep);
+  }
+}
+
+function showStep(idx){
+  currentStep=idx;
+  const st=STEPS[idx], cont=document.getElementById('content');
+  revealMode=false;cont.innerHTML='';
+  document.getElementById('back-btn').style.display=idx>0?'inline-flex':'none';
+  document.getElementById('canvas-wrap')?.remove();
+  document.getElementById('summary')?.remove();
+
+  document.querySelectorAll('.sp').forEach((el,i)=>{el.className='sp'+(i<idx?' done':'')+(i===idx?' active':'');});
+  document.querySelectorAll('.sld').forEach((el,i)=>{el.className='sld'+(i<idx?' done':'');});
+
+  if(idx<5){
+    cont.innerHTML='<div id="step-label">Choose the <b>'+st.label+'</b></div><div id="choices"><div class="shape-opts" id="shapes"></div><button class="confirm-btn">Next Step</button></div>';
+    const sd=document.getElementById('shapes');
+    let chosen=choices[st.id]||st.shapes[0];
+    st.shapes.forEach(s=>{
+      const b=document.createElement('button');b.className='so-btn'+(s===chosen?' active':'');
+      b.innerHTML='<span class="si">'+(st.emoji[s]||'●')+'</span><span class="sl">'+s+'</span>';
+      b.addEventListener('click',()=>{
+        choices[st.id]=s;sd.querySelectorAll('.so-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+        document.querySelector('.confirm-btn').style.display='inline-block';
+        shapeSound(s);
+        // If shape is chosen and previously had a color, show confirm immediately
+        if(choices[st.id+'_color'])document.querySelector('.confirm-btn').style.display='inline-block';
+      });
+      if(s===chosen)choices[st.id]=chosen;
+      sd.appendChild(b);
+    });
+    if(st.colors&&choices[st.id]){
+      const cp=document.createElement('div');cp.id='cpicker';cp.style.cssText='display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin:4px 0';
+      st.colors.forEach(c=>{
+        const e=document.createElement('div');e.className='cp';e.style.background=c;
+        const cur=choices[st.id+'_color'];
+        if(c===COL_NAME[cur])e.classList.add('active');
+        const colorKeys=Object.keys(COL_NAME);
+        const cName=colorKeys.find(k=>COL_NAME[k]===c)||'';
+        e.addEventListener('click',()=>{
+          choices[st.id+'_color']=cName;cp.querySelectorAll('.cp').forEach(x=>x.classList.remove('active'));e.classList.add('active');
+          document.querySelector('.confirm-btn').style.display='inline-block';
+        });
+        cp.appendChild(e);
+      });
+      document.getElementById('choices').insertBefore(cp,document.querySelector('.confirm-btn'));
+    }
+    document.querySelector('.confirm-btn').addEventListener('click',()=>{
+      if(!choices[st.id])choices[st.id]=st.shapes[0];
+      if(!choices[st.id+'_color'])choices[st.id+'_color']=Object.keys(COL_NAME)[0];
+      backHistory.push(currentStep);
+      showStep(idx+1);
+    });
+    if(choices[st.id]&&choices[st.id+'_color'])document.querySelector('.confirm-btn').style.display='inline-block';
+    nova('Pick a shape and a color for the <b>'+st.label.toLowerCase()+'</b>! Then press Next.');
+  } else {
+    revealRobot();
+  }
+}
+
+function revealRobot(){
+  revealMode=true;
+  const cont=document.getElementById('content');cont.innerHTML='';
+  document.getElementById('back-btn').style.display='inline-flex';
+  document.querySelectorAll('.sp,.sld').forEach(el=>el.style.display='none');
+  nova('Beep boop! Generating your robot...');
+
+  setTimeout(()=>{
+    const wrap=document.createElement('div');wrap.id='canvas-wrap';wrap.className='wiggle';
+    wrap.innerHTML='<canvas id="r-canvas" style="display:block;width:100%;height:100%"></canvas>';
+    cont.appendChild(wrap);
+    canvas=document.getElementById('r-canvas');ctx=canvas.getContext('2d');
+    resizeCanvas();drawRobot();
+
+    // Confetti
+    for(let i=0;i<30;i++){
+      const el=document.createElement('div');el.className='cfetti';
+      el.style.background=['#ff6b6b','#f39c12','#3498db','#2ecc71','#9b59b6','#4a90d9'][Math.floor(Math.random()*6)];
+      el.style.left=Math.random()*100+'vw';
+      el.style.top='-10px';
+      el.style.setProperty('--dur',(1+Math.random()*2)+'s');
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),3000);
+    }
+
+    // Robot names
+    const names=generateRobotName();
+    let chosenName='';
+    const sumDiv=document.createElement('div');sumDiv.id='summary';
+
+    const nh=Object.entries(choices).filter(([k])=>!k.endsWith('_color')).map(([k,v])=>{
+      const s=STEPS.find(x=>x.id===k);return s?s.emoji[v]||''+(s?s.label:'')+': '+v:'';}).join(', ');
+    const colors=Object.entries(choices).filter(([k])=>k.endsWith('_color')).map(([k,v])=>v).join(', ');
+
+    sumDiv.innerHTML='<div style="font-weight:700;font-size:15px;color:#2d2d2d;margin-bottom:4px">🤖 Your Robot!</div>';
+    sumDiv.innerHTML+='<div>You used: <span class="hl">'+nh+'</span></div>';
+    sumDiv.innerHTML+='<div>Colors: <span class="hl">'+colors+'</span></div>';
+    sumDiv.innerHTML+='<div style="margin-top:6px;font-size:13px">What should we call it?</div>';
+    sumDiv.innerHTML+='<div class="naming">'+names.map(n=>'<button class="nm-btn" data-n="'+n+'">'+n+'</button>').join('')+'</div>';
+    cont.appendChild(sumDiv);
+
+    sumDiv.querySelectorAll('.nm-btn').forEach(b=>{
+      b.addEventListener('click',()=>{
+        chosenName=b.dataset.n;
+        sumDiv.querySelectorAll('.nm-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+        b.textContent='✅ '+chosenName;
+        nova('Meet <b>'+chosenName+'</b>! What a wonderful robot! 🎉');
+        speechSynthesis.speak(new SpeechSynthesisUtterance('Meet '+chosenName+'!'));
+      });
+    });
+
+    document.getElementById('back-btn').style.display='none';
+    // Add rebuild
+    const rebuild=document.createElement('button');
+    rebuild.textContent='🔄 Build Another!';
+    rebuild.style.cssText='padding:10px 28px;border:none;border-radius:12px;background:#4a90d9;color:#fff;font-family:Nunito,sans-serif;font-size:15px;font-weight:800;cursor:pointer;margin-top:6px';
+    rebuild.addEventListener('click',()=>{
+      const wrapEl=document.getElementById('canvas-wrap');if(wrapEl)wrapEl.remove();
+      const sum=document.getElementById('summary');if(sum)sum.style.display='none';
+      rebuild.remove();
+      choices={};backHistory=[];currentStep=0;
+      document.querySelectorAll('.sp,.sld').forEach(el=>el.style.display='');
+      document.getElementById('steps').querySelectorAll('.sp').forEach(el=>el.classList.remove('done','active'));
+      document.getElementById('steps').querySelector('.sp').classList.add('active');
+      showStep(0);
+    });
+    cont.appendChild(rebuild);
+  },300);
+}
+
+function generateRobotName(){
+  const pref=['Bot','Robo','Mech','Gear','Spark','Bolt','Nova','Pixel','Chomp','Zap'];
+  const suff=['y','ie','o','ie','ers','atron','zilla','o','ster','ito'];
+  const r=[];
+  for(let i=0;i<4;i++){
+    const p=pref[Math.floor(Math.random()*pref.length)];
+    const s=suff[Math.floor(Math.random()*suff.length)];
+    const n=p+s+((i<2)?' '+Math.floor(Math.random()*100):'');
+    r.push(n);
+  }
+  return [...new Set(r)].slice(0,3);
+}
+
+function resizeCanvas(){
+  const wrap=document.getElementById('canvas-wrap');
+  if(wrap&&canvas){canvas.width=wrap.clientWidth;canvas.height=wrap.clientHeight;drawRobot();}
+}
+
+function drawRobot(){
+  const w=canvas.width,h=canvas.height;
+  if(w<10||h<10)return setTimeout(drawRobot,100);
+  ctx.clearRect(0,0,w,h);
+  const cx=w/2,base=h/2+30,s=Math.min(w,h)/200;
+
+  function col(id){const k=choices[id+'_color'];return COL_NAME[k]||'#95a5a6';}
+  function sh(id){return choices[id]||'circle';}
+
+  function rRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
+  function dShape(type,x,y,sw,sh,color){
+    ctx.save();ctx.shadowColor='rgba(0,0,0,.1)';ctx.shadowBlur=6;ctx.shadowOffsetY=3;
+    if(type==='square'){const sz=Math.min(sw,sh);rRect(x-sz/2,y-sz/2,sz,sz,sz*.15);ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();}
+    else if(type==='rectangle'){rRect(x-sw/2,y-sh/2,sw,sh,sw*.12);ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();}
+    else if(type==='circle'){const r=Math.min(sw,sh)/2;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();}
+    else if(type==='triangle'){const sz=Math.min(sw,sh);ctx.beginPath();ctx.moveTo(x,y-sz/2);ctx.lineTo(x-sz/2,y+sz/2);ctx.lineTo(x+sz/2,y+sz/2);ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.stroke();}
+    ctx.restore();
+  }
+
+  // Background
+  const grd=ctx.createLinearGradient(0,0,0,h);grd.addColorStop(0,'#f0f8ff');grd.addColorStop(1,'#fff8f0');
+  ctx.fillStyle=grd;rRect(10,10,w-20,h-20,12);ctx.fill();
+
+  // Ground
+  ctx.fillStyle='#8bc34a';rRect(20,h-40,w-40,20,6);ctx.fill();
+  ctx.fillStyle='#689f38';rRect(20,h-40,w-40,4,2);ctx.fill();
+
+  // Stars
+  ctx.fillStyle='rgba(255,200,50,0.4)';
+  for(let i=0;i<5;i++){const sx=30+Math.random()*(w-60),sy=20+Math.random()*50;ctx.beginPath();ctx.arc(sx,sy,3,0,Math.PI*2);ctx.fill();}
+
+  // Body
+  const bw=48*s,bh=52*s,bodyY=base-bh/2-10*s;
+  dShape(sh('body'),cx,bodyY,bw,bh,col('body'));
+  ctx.fillStyle='#fff';const by=bodyY+2*s;
+  for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(cx,by+i*8*s,3.5*s,0,Math.PI*2);ctx.fill();}
+
+  // Head
+  const hd=36*s,headY=bodyY-bh/2-hd/2+6*s;
+  dShape(sh('head'),cx,headY,hd,hd,col('head'));
+  // Eyes
+  ctx.fillStyle='#2d2d2d';const eyeY=headY-2*s,eo=9*s;
+  ctx.beginPath();ctx.arc(cx-eo,eyeY,3.5*s,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(cx+eo,eyeY,3.5*s,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath();ctx.arc(cx-eo+1.5*s,eyeY-1.5*s,1.2*s,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(cx+eo+1.5*s,eyeY-1.5*s,1.2*s,0,Math.PI*2);ctx.fill();
+  // Expression based on shape combos
+  const bType=sh('body'),hType=sh('head');
+  ctx.strokeStyle='#2d2d2d';ctx.lineWidth=3;
+  if(hType==='circle'&&bType==='circle'){ctx.beginPath();ctx.arc(cx,headY+8*s,5*s,0,Math.PI*2);ctx.stroke();} // Surprise O
+  else if(hType==='triangle'){ctx.beginPath();ctx.moveTo(cx-5*s,headY+10*s);ctx.lineTo(cx+5*s,headY+10*s);ctx.stroke();} // Grin
+  else{ctx.beginPath();ctx.arc(cx,headY+6*s,7*s,0.15,Math.PI-0.15);ctx.stroke();} // Smile
+
+  // Cheeks
+  ctx.fillStyle='rgba(255,107,107,.3)';ctx.beginPath();ctx.arc(cx-12*s,headY+6*s,4*s,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(cx+12*s,headY+6*s,4*s,0,Math.PI*2);ctx.fill();
+
+  // Hat
+  const hatType=sh('hat');
+  if(hatType==='propeller'){
+    ctx.strokeStyle='#a8b8c4';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx-10*s,headY-hd/2-2);ctx.lineTo(cx-10*s,headY-hd/2-12*s);ctx.stroke();
+    ctx.fillStyle='#ff6b6b';ctx.beginPath();ctx.arc(cx-10*s,headY-hd/2-14*s,5*s,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,107,107,.5)';ctx.beginPath();ctx.ellipse(cx-10*s,headY-hd/2-14*s,8*s,3*s,0,0,Math.PI*2);ctx.fill();
+  } else if(hatType==='crown'){
+    ctx.fillStyle='#f39c12';ctx.beginPath();ctx.moveTo(cx-14*s,headY-hd/2);ctx.lineTo(cx-10*s,headY-hd/2-14*s);ctx.lineTo(cx-5*s,headY-hd/2-6*s);ctx.lineTo(cx,headY-hd/2-16*s);ctx.lineTo(cx+5*s,headY-hd/2-6*s);ctx.lineTo(cx+10*s,headY-hd/2-14*s);ctx.lineTo(cx+14*s,headY-hd/2);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#e67e22';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='#ff6b6b';ctx.beginPath();ctx.arc(cx-10*s,headY-hd/2-12*s,2*s,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#3498db';ctx.beginPath();ctx.arc(cx,headY-hd/2-14*s,2*s,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#2ecc71';ctx.beginPath();ctx.arc(cx+10*s,headY-hd/2-12*s,2*s,0,Math.PI*2);ctx.fill();
+  } else if(hatType==='bow'){
+    ctx.fillStyle=col('body');ctx.beginPath();ctx.ellipse(cx-10*s,headY-hd/2-6*s,8*s,5*s,-0.3,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx+10*s,headY-hd/2-6*s,8*s,5*s,0.3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(cx,headY-hd/2-6*s,3*s,0,Math.PI*2);ctx.fill();
+  }
+
+  // Arms
+  const aw=16*s,ah=36*s;
+  dShape(sh('arms'),cx-bw/2-aw/2-3*s,bodyY,aw,ah,col('arms'));
+  dShape(sh('arms'),cx+bw/2+aw/2+3*s,bodyY,aw,ah,col('arms'));
+
+  // Legs
+  const lw=18*s,lh=32*s;
+  dShape(sh('legs'),cx-13*s,bodyY+bh/2+lh/2,lw,lh,col('legs'));
+  dShape(sh('legs'),cx+13*s,bodyY+bh/2+lh/2,lw,lh,col('legs'));
+
+  // Feet
+  ctx.fillStyle='#2d2d2d';
+  rRect(cx-20*s,bodyY+bh/2+lh-2,14*s,5*s,3);ctx.fill();
+  rRect(cx+6*s,bodyY+bh/2+lh-2,14*s,5*s,3);ctx.fill();
+}
+
+// Init
+init();
+</script>
+</body>
+</html>

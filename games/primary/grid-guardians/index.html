@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Grid Guardians: The AI Power-Up!</title>
+<style>
+/* ═══════════════════════════════════════
+   ROOT & BASE STYLES
+   ═══════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0d1117;touch-action:manipulation;user-select:none;-webkit-user-select:none;color:#e6edf3}
+#app{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
+
+/* ═══════════════════════════════════════
+   THEME COLORS
+   ═══════════════════════════════════════ */
+:root{
+  --bg-deep:#0d1117;--bg-card:#161b22;--bg-surface:#1c2333;
+  --el-blue:#4da6ff;--el-cyan:#58a6ff;--energy-yellow:#ffd43b;
+  --green:#3fb950;--orange:#d2991d;--red:#f85149;
+  --text:#e6edf3;--text-dim:#8b949e;
+  --glow-blue:0 0 20px rgba(77,166,255,.3);--glow-yellow:0 0 20px rgba(255,212,59,.3);
+  --radius:12px;--radius-sm:8px;
+}
+
+/* ═══════════════════════════════════════
+   PHASES
+   ═══════════════════════════════════════ */
+.phase{display:none;width:100%;height:100%;position:absolute;top:0;left:0;flex-direction:column;align-items:center;padding:16px;overflow-y:auto}
+.phase.active{display:flex}
+.phase::-webkit-scrollbar{width:4px}
+.phase::-webkit-scrollbar-thumb{background:var(--el-blue);border-radius:4px}
+
+/* ═══════════════════════════════════════
+   ANIMATED BG
+   ═══════════════════════════════════════ */
+#bg-grid{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.04;
+  background-image:linear-gradient(#4da6ff 1px,transparent 1px),linear-gradient(90deg,#4da6ff 1px,transparent 1px);
+  background-size:60px 60px}
+#bg-particles{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;overflow:hidden}
+.particle{position:absolute;width:3px;height:3px;background:var(--energy-yellow);border-radius:50%;opacity:0;animation:drift linear infinite}
+@keyframes drift{0%{opacity:0;transform:translateY(100vh)}10%{opacity:.8}90%{opacity:.8}100%{opacity:0;transform:translateY(-10vh)}}
+
+/* ═══════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 28px;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer;transition:transform .15s,box-shadow .15s;font-family:inherit;min-height:48px;min-width:100px;touch-action:manipulation}
+.btn:active{transform:scale(.93)}
+.btn-primary{background:var(--el-blue);color:#fff;box-shadow:0 0 16px rgba(77,166,255,.3)}
+.btn-primary:hover{box-shadow:0 0 24px rgba(77,166,255,.5)}
+.btn-success{background:var(--green);color:#fff;box-shadow:0 0 16px rgba(63,185,80,.3)}
+.btn-glow{animation:btnPulse 2s ease-in-out infinite}
+@keyframes btnPulse{0%,100%{box-shadow:0 0 12px rgba(77,166,255,.3)}50%{box-shadow:0 0 28px rgba(77,166,255,.6)}}
+.btn-sm{padding:10px 18px;font-size:14px;min-height:40px;min-width:80px}
+.btn-outline{background:transparent;border:2px solid var(--el-blue);color:var(--el-blue)}
+.btn-ghost{background:var(--bg-surface);color:var(--text);border:1px solid #30363d}
+.btn-ghost:hover{background:#21262d}
+
+/* ═══════════════════════════════════════
+   SPARKY AVATAR
+   ═══════════════════════════════════════ */
+.sparky{width:64px;height:80px;animation:sparkyFloat 3s ease-in-out infinite;flex-shrink:0}
+@keyframes sparkyFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.sparky svg{width:100%;height:100%;filter:drop-shadow(0 0 8px rgba(77,166,255,.3))}
+
+/* ═══════════════════════════════════════
+   SPEECH BUBBLE
+   ═══════════════════════════════════════ */
+.bubble{background:var(--bg-card);border:2px solid #30363d;border-radius:var(--radius);padding:12px 16px;max-width:420px;font-size:14px;line-height:1.5;position:relative;margin-bottom:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.bubble::after{content:'';position:absolute;top:-8px;left:30px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:8px solid var(--bg-card)}
+.bubble .sparky-name{color:var(--energy-yellow);font-weight:700;font-size:12px;display:block;margin-bottom:4px}
+
+/* ═══════════════════════════════════════
+   MENU
+   ═══════════════════════════════════════ */
+#phase-menu{z-index:10;justify-content:center;gap:12px;padding:40px 16px}
+.menu-title{font-size:36px;font-weight:800;text-align:center;background:linear-gradient(135deg,var(--el-blue),var(--energy-yellow));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.menu-sub{font-size:14px;color:var(--text-dim);text-align:center;margin-top:-4px}
+.level-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:420px;width:100%}
+.level-card{background:var(--bg-card);border:2px solid #30363d;border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;transition:all .2s}
+.level-card:hover{border-color:var(--el-blue);box-shadow:var(--glow-blue)} 
+.level-card:active{transform:scale(.97)}
+.level-card .lv-icon{font-size:28px;display:block;margin-bottom:4px}
+.level-card .lv-title{font-size:14px;font-weight:700}
+.level-card .lv-desc{font-size:11px;color:var(--text-dim);margin-top:2px}
+
+/* ═══════════════════════════════════════
+   LEVEL COMMON
+   ═══════════════════════════════════════ */
+.level-phase{padding:12px;gap:8px;z-index:10}
+.level-header{display:flex;align-items:flex-start;gap:10px;width:100%;max-width:600px;margin-bottom:4px}
+.level-header .sparky{width:48px;height:60px}
+.level-area{width:100%;max-width:600px;background:var(--bg-card);border:1px solid #30363d;border-radius:var(--radius);padding:12px;flex:1;min-height:200px;display:flex;flex-direction:column;gap:8px;position:relative}
+.back-row{display:flex;gap:8px;justify-content:flex-start;width:100%;max-width:600px;margin-bottom:4px}
+
+/* ═══════════════════════════════════════
+   LEVEL 1 — TIMELINE
+   ═══════════════════════════════════════ */
+.timeline{display:flex;gap:4px;width:100%;overflow-x:auto;padding:8px 4px;min-height:100px}
+.time-slot{flex:1;min-width:70px;background:var(--bg-surface);border:2px dashed #30363d;border-radius:var(--radius-sm);padding:6px;text-align:center;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all .2s;position:relative}
+.time-slot.filled{border-color:var(--el-blue);background:rgba(77,166,255,.08)}
+.time-slot .time-label{font-size:10px;color:var(--text-dim)}
+.time-slot .placed-icon{font-size:22px;cursor:grab}
+.icon-tray{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:8px}
+.drag-icon{font-size:28px;padding:8px 14px;background:var(--bg-surface);border:2px solid #30363d;border-radius:var(--radius-sm);cursor:grab;transition:all .15s;touch-action:none}
+.drag-icon:active{transform:scale(.9)}
+.drag-icon.used{opacity:.3;pointer-events:none}
+.drag-icon.hint-bounce{animation:iconBounce 1.4s ease-in-out infinite}
+@keyframes iconBounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}50%{transform:translateY(0)}70%{transform:translateY(-3px)}}
+.power-meter{width:100%;height:30px;background:var(--bg-surface);border-radius:8px;overflow:hidden;position:relative;margin:4px 0}
+.power-fill{height:100%;border-radius:8px;transition:width 1s ease;width:0;position:relative}
+.power-fill.active{background:linear-gradient(90deg,var(--el-blue),var(--energy-yellow),var(--green))}
+.power-fill.high{box-shadow:0 0 20px rgba(255,212,59,.4)}
+.day-cycle{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim)}
+.day-sun{font-size:24px;transition:transform 2s linear}
+
+/* ═══════════════════════════════════════
+   LEVEL 2 — ROUTING
+   ═══════════════════════════════════════ */
+#grid-canvas{width:100%;max-width:600px;height:280px;background:var(--bg-surface);border-radius:var(--radius-sm);cursor:pointer;touch-action:none}
+.rule-area{display:flex;flex-direction:column;gap:6px;padding:8px;background:var(--bg-surface);border-radius:var(--radius-sm);width:100%}
+.rule-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
+.rule-row label{color:var(--text-dim);font-weight:600;min-width:30px}
+.rule-row input{background:var(--bg-card);border:2px solid #30363d;border-radius:var(--radius-sm);padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;flex:1;min-width:120px;outline:none}
+.rule-row input:focus{border-color:var(--el-blue);box-shadow:0 0 8px rgba(77,166,255,.2)}
+.event-log{font-size:12px;color:var(--text-dim);padding:6px;max-height:60px;overflow-y:auto;width:100%;background:var(--bg-surface);border-radius:var(--radius-sm)}
+.suggest-row{display:flex;gap:4px;flex-wrap:wrap}
+.suggest-chip{background:var(--bg-card);border:1px solid #30363d;border-radius:16px;padding:4px 10px;font-size:11px;cursor:pointer;transition:all .15s;color:var(--text-dim);white-space:nowrap;touch-action:manipulation}
+.suggest-chip:hover{border-color:var(--el-blue);color:var(--el-blue);background:rgba(77,166,255,.06)}
+.event-log .evt{display:flex;align-items:center;gap:4px;padding:2px 0}
+.evt.success{color:var(--green)}.evt.warning{color:var(--orange)}.evt.error{color:var(--red)}
+.efficiency-meter{font-size:14px;font-weight:700;color:var(--energy-yellow)}
+
+/* ═══════════════════════════════════════
+   LEVEL 3 — CAMERA
+   ═══════════════════════════════════════ */
+.cam-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.cam-feed{background:var(--bg-surface);border:2px solid #30363d;border-radius:var(--radius-sm);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;cursor:pointer;transition:all .2s;font-size:11px;color:var(--text-dim)}
+.cam-feed:active{transform:scale(.97)}
+.cam-feed .cam-scene{font-size:14px;line-height:1.4;text-align:center;padding:8px}
+.cam-feed .cam-badge{font-size:22px;display:block;margin-bottom:4px}
+.cam-feed .cam-label{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:9px;color:var(--text-dim);background:rgba(0,0,0,.5);padding:3px 4px;border-radius:0 0 6px 6px}
+.cam-feed .cam-status{position:absolute;top:4px;left:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px}
+.cam-feed.needs-check{border-color:var(--orange);animation:pulseOrange 1s ease-in-out infinite}
+@keyframes pulseOrange{0%,100%{box-shadow:0 0 0 0 rgba(210,153,29,.3)}50%{box-shadow:0 0 16px 4px rgba(210,153,29,.2)}}
+.cam-feed.anomaly-found{border-color:var(--green);background:rgba(63,185,80,.08);animation:none;box-shadow:0 0 12px rgba(63,185,80,.2)}
+.cam-feed.is-normal{border-color:#30363d}
+.cam-feed.ai-detected{border-color:var(--red);animation:redAlert .7s ease-in-out infinite}
+@keyframes redAlert{0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,.4)}50%{box-shadow:0 0 20px 6px rgba(248,81,73,.3)}}
+.cam-feed .ai-box{position:absolute;border:2px solid var(--red);border-radius:4px;background:rgba(248,81,49,.12);animation:pulseBox 1s ease-in-out infinite;display:none;pointer-events:none}
+@keyframes pulseBox{0%,100%{border-color:var(--red);background:rgba(248,81,49,.08)}50%{border-color:#ff8a80;background:rgba(248,81,49,.15)}}
+
+/* ═══════════════════════════════════════
+   LEVEL 4 — PATHFINDER BRAIN
+   ═══════════════════════════════════════ */
+#l4-canvas{width:100%;max-width:380px;background:var(--bg-surface);border-radius:var(--radius-sm);touch-action:none;cursor:default;image-rendering:pixelated}
+.l4-legend{display:flex;gap:4px;flex-wrap:wrap;font-size:10px;color:var(--text-dim);padding:4px;background:var(--bg-surface);border-radius:var(--radius-sm)}
+.l4-legend span{display:inline-flex;align-items:center;gap:3px}
+.l4-cell-exp{padding:2px 6px;border-radius:4px;font-size:10px}
+.l4-grid-wrap{display:flex;gap:8px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.l4-info{font-size:12px;color:var(--text-dim);text-align:center}
+.l4-round{font-size:14px;font-weight:700;color:var(--energy-yellow)}
+.l4-score-display{font-size:14px;font-weight:700;color:var(--el-blue)}
+.l4-stars .star{font-size:20px;opacity:.2;transition:opacity .3s}.l4-stars .star.on{opacity:1}
+/* ── Mute button ── */
+#mute-btn{position:fixed;top:8px;left:8px;z-index:100;width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,.08);color:var(--text-dim);font-size:16px;cursor:pointer;transition:all .2s}
+#mute-btn:hover{background:rgba(255,255,255,.12);color:var(--text)}
+/* ── Level select star badges ── */
+.level-card .lv-badge{font-size:10px;padding:2px 6px;border-radius:10px;display:inline-block;margin-top:4px}
+.lv-badge.easy{background:rgba(63,185,80,.15);color:var(--green)}
+.lv-badge.medium{background:rgba(210,153,29,.15);color:var(--orange)}
+.lv-badge.hard{background:rgba(248,81,73,.15);color:var(--red)}
+/* ── Phase fade transition ── */
+.phase{opacity:0;transition:opacity .3s ease}
+.phase.active{opacity:1}
+/* ── Sparky reactions ── */
+.sparky.happy svg rect{stroke:var(--green)!important}
+.sparky.happy svg circle:first-of-type{fill:var(--green)!important}
+.sparky.concerned svg rect{stroke:var(--orange)!important}
+.sparky.concerned svg circle:first-of-type{fill:var(--orange)!important}
+/* ── High score on menu ── */
+.high-score{font-size:11px;color:var(--energy-yellow);text-align:center;margin-top:4px}
+
+/* ═══════════════════════════════════════
+   LEVEL 5 — QUIZ
+   ═══════════════════════════════════════ */
+.quiz-grid{display:grid;gap:8px;width:100%;max-width:500px}
+.quiz-question{font-size:16px;font-weight:600;line-height:1.4;margin-bottom:4px}
+.quiz-option{background:var(--bg-card);border:2px solid #30363d;border-radius:var(--radius-sm);padding:12px 16px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:10px;font-size:14px}
+.quiz-option:hover{border-color:var(--el-blue)}
+.quiz-option:active{transform:scale(.98)}
+.quiz-option.selected{border-color:var(--energy-yellow);background:rgba(255,212,59,.08)}
+.quiz-option.correct{border-color:var(--green);background:rgba(63,185,80,.12)}
+.quiz-option.incorrect{border-color:var(--red);background:rgba(248,81,73,.12)}
+.quiz-option .opt-letter{width:28px;height:28px;border-radius:50%;background:var(--bg-surface);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.quiz-progress{width:100%;max-width:500px;height:6px;background:var(--bg-surface);border-radius:4px;overflow:hidden}
+.quiz-progress-fill{height:100%;background:linear-gradient(90deg,var(--el-blue),var(--energy-yellow));transition:width .5s ease;border-radius:4px}
+.quiz-score{font-size:14px;color:var(--energy-yellow);font-weight:700}
+
+/* ═══════════════════════════════════════
+   DIPLOMA
+   ═══════════════════════════════════════ */
+.diploma{background:var(--bg-card);border:3px solid var(--energy-yellow);border-radius:var(--radius);padding:24px;text-align:center;max-width:400px;width:100%;position:relative}
+.diploma h2{font-size:24px;color:var(--energy-yellow);margin-bottom:4px}
+.diploma .seal{font-size:48px;margin:8px 0;animation:spinSeal 4s linear infinite}
+@keyframes spinSeal{0%{transform:rotateY(0deg)}50%{transform:rotateY(180deg)}100%{transform:rotateY(360deg)}}
+.diploma .sub{font-size:13px;color:var(--text-dim);margin-bottom:6px}
+.diploma .name-field{font-size:18px;font-weight:700;padding:8px;border:2px dashed var(--el-blue);border-radius:var(--radius-sm);margin:8px 0}
+
+/* ═══════════════════════════════════════
+   CONFETTI CANVAS
+   ═══════════════════════════════════════ */
+#confetti-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════ */
+@media(max-width:500px){
+  .menu-title{font-size:26px}
+  .level-grid{grid-template-columns:1fr}
+  .cam-grid{grid-template-columns:1fr 1fr}
+  .timeline{overflow-x:auto}
+  #grid-canvas{height:200px}
+  #l4-canvas{max-width:280px}
+  .btn{font-size:14px;padding:12px 20px;min-height:44px}
+  .bubble{font-size:13px;max-width:300px}
+  .quiz-option{font-size:13px}
+}
+@media(max-height:500px){
+  .level-header .sparky{width:36px;height:44px}
+  .bubble{font-size:12px;padding:8px 12px}
+  #grid-canvas{height:160px}
+  #l4-canvas{max-width:260px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Bg -->
+<div id="bg-grid"></div>
+<div id="bg-particles"></div>
+
+<!-- Confetti -->
+<canvas id="confetti-canvas"></canvas>
+
+<!-- Mute toggle -->
+<button id="mute-btn" title="Sound on/off">🔊</button>
+
+<!-- ═══════════════════ MENU ═══════════════════ -->
+<div id="phase-menu" class="phase active" style="z-index:10">
+  <div class="bubble" id="menu-bubble" style="max-width:340px;font-size:13px;margin-bottom:8px"><span class="sparky-name">⚡ Sparky</span>Welcome, Grid Guardian! Pick a level to start! ⚡</div>
+  <div class="sparky" style="width:80px;height:100px">
+    <svg viewBox="0 0 80 100"><rect x="20" y="25" width="40" height="40" rx="12" fill="#1c2333" stroke="#4da6ff" stroke-width="2.5"/>
+    <circle cx="32" cy="48" r="6" fill="#4da6ff"/><circle cx="48" cy="48" r="6" fill="#4da6ff"/>
+    <circle cx="33" cy="47" r="3" fill="#fff"/><circle cx="49" cy="47" r="3" fill="#fff"/>
+    <path d="M32 58 Q40 65 48 58" stroke="#4da6ff" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <rect x="28" y="10" width="24" height="14" rx="6" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/>
+    <path d="M40 5 L38 12 L42 12 L40 5Z" fill="#ffd43b"/>
+    <circle cx="30" cy="18" r="3" fill="#3fb950"/><circle cx="40" cy="18" r="3" fill="#ffd43b"/><circle cx="50" cy="18" r="3" fill="#f85149"/>
+    <rect x="18" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/>
+    <rect x="52" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/>
+    <circle cx="18" cy="72" r="5" fill="#3fb950"/><circle cx="62" cy="72" r="5" fill="#3fb950"/></svg>
+  </div>
+  <div class="menu-title">Grid Guardians</div>
+  <div class="menu-sub">The AI Power-Up!  ⚡  Learn how AI runs a smart city</div>
+  <div class="level-grid" style="margin-top:8px">
+    <div class="level-card" data-level="1"><span class="lv-icon">🧠⚡</span><div class="lv-title">The Prediction Brain</div><div class="lv-desc">Teach AI to predict power needs</div></div>
+    <div class="level-card" data-level="2"><span class="lv-icon">🗺️⚡</span><div class="lv-title">The Routing Brain</div><div class="lv-desc">Write AI rules for the power grid</div></div>
+    <div class="level-card" data-level="3"><span class="lv-icon">📷⚡</span><div class="lv-title">The Camera Brain</div><div class="lv-desc">Train AI to spot power problems</div></div>
+    <div class="level-card" data-level="4"><span class="lv-icon">🔍⚡</span><div class="lv-title">The Pathfinder Brain</div><div class="lv-desc">Watch AI explore the grid</div><div class="lv-badge hard">⭐⭐⭐</div></div>
+    <div class="level-card" data-level="quiz"><span class="lv-icon">🏆</span><div class="lv-title">Grand Master Quiz</div><div class="lv-desc">Test your AI knowledge!</div></div>
+  </div>
+  <div style="font-size:11px;color:var(--text-dim);margin-top:8px;text-align:center">🔓 All levels unlocked — play in any order!</div>
+  <div class="high-score" id="high-score-display"></div>
+  <div id="menu-completions" style="font-size:11px;color:var(--text-dim);text-align:center;margin-top:2px"></div>
+</div>
+
+<!-- ═══════════════════ LEVEL 1 ═══════════════════ -->
+<div id="phase-level1" class="phase level-phase">
+  <div class="back-row"><button class="btn btn-ghost btn-sm" id="l1-back">← Back to Menu</button></div>
+  <div class="level-header">
+    <div class="sparky"><svg viewBox="0 0 80 100"><rect x="20" y="25" width="40" height="40" rx="12" fill="#1c2333" stroke="#4da6ff" stroke-width="2.5"/><circle cx="32" cy="48" r="6" fill="#4da6ff"/><circle cx="48" cy="48" r="6" fill="#4da6ff"/><circle cx="33" cy="47" r="3" fill="#fff"/><circle cx="49" cy="47" r="3" fill="#fff"/><path d="M32 58 Q40 65 48 58" stroke="#4da6ff" stroke-width="2" fill="none" stroke-linecap="round"/><rect x="28" y="10" width="24" height="14" rx="6" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><path d="M40 5 L38 12 L42 12 L40 5Z" fill="#ffd43b"/><circle cx="30" cy="18" r="3" fill="#3fb950"/><circle cx="40" cy="18" r="3" fill="#ffd43b"/><circle cx="50" cy="18" r="3" fill="#f85149"/><rect x="18" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><rect x="52" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><circle cx="18" cy="72" r="5" fill="#3fb950"/><circle cx="62" cy="72" r="5" fill="#3fb950"/></svg></div>
+    <div class="bubble" id="l1-bubble"><span class="sparky-name">⚡ Sparky</span>Hi! Let's build a Prediction Brain! When does the city need the most power? Drag the icons onto the timeline!</div>
+  </div>
+  <div class="level-area">
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:space-between">
+      <div class="day-cycle" id="l1-day"><span class="day-sun" id="l1-sun">🌞</span> <span id="l1-time">Morning</span></div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <span style="font-size:12px;color:var(--text-dim)">Power: </span>
+        <div style="width:80px;height:16px;background:var(--bg-surface);border-radius:8px;overflow:hidden">
+          <div id="l1-meter" style="height:100%;width:0;background:linear-gradient(90deg,var(--el-blue),var(--energy-yellow));border-radius:8px;transition:width .8s ease"></div>
+        </div>
+      </div>
+    </div>
+    <div class="timeline" id="l1-timeline"></div>
+    <div class="icon-tray" id="l1-tray"></div>
+    <button class="btn btn-success btn-glow" id="l1-train" style="align-self:center">🧠 Train the AI!</button>
+    <button class="btn btn-outline btn-sm" id="l1-reset" style="display:none;align-self:center">↺ Reset & Try Again</button>
+    <div style="font-size:11px;color:var(--text-dim);text-align:center" id="l1-status">Place icons on the timeline to show power usage</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ LEVEL 2 ═══════════════════ -->
+<div id="phase-level2" class="phase level-phase">
+  <div class="back-row"><button class="btn btn-ghost btn-sm" id="l2-back">← Back to Menu</button></div>
+  <div class="level-header">
+    <div class="sparky"><svg viewBox="0 0 80 100"><rect x="20" y="25" width="40" height="40" rx="12" fill="#1c2333" stroke="#4da6ff" stroke-width="2.5"/><circle cx="32" cy="48" r="6" fill="#4da6ff"/><circle cx="48" cy="48" r="6" fill="#4da6ff"/><circle cx="33" cy="47" r="3" fill="#fff"/><circle cx="49" cy="47" r="3" fill="#fff"/><path d="M32 58 Q40 65 48 58" stroke="#4da6ff" stroke-width="2" fill="none" stroke-linecap="round"/><rect x="28" y="10" width="24" height="14" rx="6" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><path d="M40 5 L38 12 L42 12 L40 5Z" fill="#ffd43b"/><circle cx="30" cy="18" r="3" fill="#3fb950"/><circle cx="40" cy="18" r="3" fill="#ffd43b"/><circle cx="50" cy="18" r="3" fill="#f85149"/><rect x="18" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><rect x="52" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><circle cx="18" cy="72" r="5" fill="#3fb950"/><circle cx="62" cy="72" r="5" fill="#3fb950"/></svg></div>
+    <div class="bubble" id="l2-bubble"><span class="sparky-name">⚡ Sparky</span>This is the power grid! Wires connect the power plant to the city. Help the AI route power when things go wrong!</div>
+  </div>
+  <div class="level-area">
+    <canvas id="grid-canvas"></canvas>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--text-dim)">⚡ Events:</span>
+      <span id="l2-events" style="font-size:13px;color:var(--text-dim)">None yet</span>
+      <span style="font-size:12px;color:var(--text-dim);margin-left:auto">Score: <span id="l2-score" style="color:var(--energy-yellow);font-weight:700">0</span></span>
+    </div>
+    <div class="event-log" id="l2-log"></div>
+    <div class="rule-area">
+      <div class="rule-row"><label>IF</label><input id="l2-if" placeholder='e.g. "lightning strikes"' maxlength="40" readonly onfocus="this.removeAttribute('readonly')"><label>THEN</label><input id="l2-then" placeholder='e.g. "reroute power"' maxlength="40" readonly onfocus="this.removeAttribute('readonly')"></div>
+      <div class="suggest-row" id="l2-suggest-if"></div>
+      <div class="rule-row"><label>ALWAYS</label><input id="l2-priority" placeholder='e.g. "protect hospital"' maxlength="40" style="flex:1" readonly onfocus="this.removeAttribute('readonly')"></div>
+      <div class="suggest-row" id="l2-suggest-priority"></div>
+      <button class="btn btn-primary btn-sm btn-glow" id="l2-go" style="align-self:flex-start">⚡ Run AI Rules!</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ LEVEL 3 ═══════════════════ -->
+<div id="phase-level3" class="phase level-phase">
+  <div class="back-row"><button class="btn btn-ghost btn-sm" id="l3-back">← Back to Menu</button></div>
+  <div class="level-header">
+    <div class="sparky"><svg viewBox="0 0 80 100"><rect x="20" y="25" width="40" height="40" rx="12" fill="#1c2333" stroke="#4da6ff" stroke-width="2.5"/><circle cx="32" cy="48" r="6" fill="#4da6ff"/><circle cx="48" cy="48" r="6" fill="#4da6ff"/><circle cx="33" cy="47" r="3" fill="#fff"/><circle cx="49" cy="47" r="3" fill="#fff"/><path d="M32 58 Q40 65 48 58" stroke="#4da6ff" stroke-width="2" fill="none" stroke-linecap="round"/><rect x="28" y="10" width="24" height="14" rx="6" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><path d="M40 5 L38 12 L42 12 L40 5Z" fill="#ffd43b"/><circle cx="30" cy="18" r="3" fill="#3fb950"/><circle cx="40" cy="18" r="3" fill="#ffd43b"/><circle cx="50" cy="18" r="3" fill="#f85149"/><rect x="18" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><rect x="52" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><circle cx="18" cy="72" r="5" fill="#3fb950"/><circle cx="62" cy="72" r="5" fill="#3fb950"/></svg></div>
+    <div class="bubble" id="l3-bubble"><span class="sparky-name">⚡ Sparky</span>My security cameras watch the power towers. Some have problems! Tap the ones that look wrong to teach me what to look for!</div>
+  </div>
+  <div class="level-area">
+    <div class="cam-grid" id="cam-grid"></div>
+    <div style="font-size:12px;color:var(--text-dim);text-align:center" id="l3-status">Tap the problems you see in the camera feeds</div>
+    <button class="btn btn-outline btn-sm" id="l3-reset" style="display:none;align-self:center">↺ Train Again</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ LEVEL 4 — PATHFINDER ═══════════════════ -->
+<div id="phase-level4" class="phase level-phase">
+  <div class="back-row"><button class="btn btn-ghost btn-sm" id="l4-back">← Back to Menu</button></div>
+  <div class="level-header">
+    <div class="sparky"><svg viewBox="0 0 80 100"><rect x="20" y="25" width="40" height="40" rx="12" fill="#1c2333" stroke="#4da6ff" stroke-width="2.5"/><circle cx="32" cy="48" r="6" fill="#4da6ff"/><circle cx="48" cy="48" r="6" fill="#4da6ff"/><circle cx="33" cy="47" r="3" fill="#fff"/><circle cx="49" cy="47" r="3" fill="#fff"/><path d="M32 58 Q40 65 48 58" stroke="#4da6ff" stroke-width="2" fill="none" stroke-linecap="round"/><rect x="28" y="10" width="24" height="14" rx="6" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><path d="M40 5 L38 12 L42 12 L40 5Z" fill="#ffd43b"/><circle cx="30" cy="18" r="3" fill="#3fb950"/><circle cx="40" cy="18" r="3" fill="#ffd43b"/><circle cx="50" cy="18" r="3" fill="#f85149"/><rect x="18" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><rect x="52" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><circle cx="18" cy="72" r="5" fill="#3fb950"/><circle cx="62" cy="72" r="5" fill="#3fb950"/></svg></div>
+    <div class="bubble" id="l4-bubble"><span class="sparky-name">⚡ Sparky</span>I can explore the power grid cell by cell to find the shortest path to every building! Watch the AI search in action!</div>
+  </div>
+  <div class="level-area">
+    <div class="l4-grid-wrap">
+      <canvas id="l4-canvas" width="380" height="380"></canvas>
+      <div style="display:flex;flex-direction:column;gap:4px;min-width:100px">
+        <div class="l4-legend">
+          <span>⚡Start</span><span>🟩Open</span><span>🟥Blocked</span><span>🔵River</span><span>🏥Goal</span>
+        </div>
+        <div class="l4-round" id="l4-round">Round 1/3</div>
+        <div class="l4-score-display" id="l4-score">Score: 0</div>
+        <div class="l4-stars" id="l4-stars"><span class="star">⭐</span><span class="star">⭐</span><span class="star">⭐</span></div>
+        <div class="l4-info" id="l4-info">Cells explored: 0</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center">
+      <button class="btn btn-primary btn-sm" id="l4-search">🔍 Start Search</button>
+      <button class="btn btn-outline btn-sm" id="l4-next" style="display:none">⏭ Next Round ➔</button>
+      <button class="btn btn-ghost btn-sm" id="l4-replay" style="display:none">↺ Watch Again</button>
+      <span id="l4-speed-wrap" style="display:none;gap:4px;align-items:center">
+        <span style="font-size:11px;color:var(--text-dim)">Speed:</span>
+        <button class="btn btn-ghost btn-sm l4-speed-btn" data-speed="1" style="min-width:36px;padding:6px;font-size:12px">1×</button>
+        <button class="btn btn-ghost btn-sm l4-speed-btn" data-speed="3" style="min-width:36px;padding:6px;font-size:12px;background:var(--el-blue);color:#fff">2×</button>
+        <button class="btn btn-ghost btn-sm l4-speed-btn" data-speed="8" style="min-width:36px;padding:6px;font-size:12px">4×</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ LEVEL 5 — QUIZ ═══════════════════ -->
+<div id="phase-quiz" class="phase level-phase">
+  <div class="back-row"><button class="btn btn-ghost btn-sm" id="quiz-back">← Back to Menu</button></div>
+  <div class="level-header">
+    <div class="sparky"><svg viewBox="0 0 80 100"><rect x="20" y="25" width="40" height="40" rx="12" fill="#1c2333" stroke="#4da6ff" stroke-width="2.5"/><circle cx="32" cy="48" r="6" fill="#4da6ff"/><circle cx="48" cy="48" r="6" fill="#4da6ff"/><circle cx="33" cy="47" r="3" fill="#fff"/><circle cx="49" cy="47" r="3" fill="#fff"/><path d="M32 58 Q40 65 48 58" stroke="#4da6ff" stroke-width="2" fill="none" stroke-linecap="round"/><rect x="28" y="10" width="24" height="14" rx="6" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><path d="M40 5 L38 12 L42 12 L40 5Z" fill="#ffd43b"/><circle cx="30" cy="18" r="3" fill="#3fb950"/><circle cx="40" cy="18" r="3" fill="#ffd43b"/><circle cx="50" cy="18" r="3" fill="#f85149"/><rect x="18" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><rect x="52" y="65" width="10" height="14" rx="4" fill="#1c2333" stroke="#4da6ff" stroke-width="2"/><circle cx="18" cy="72" r="5" fill="#3fb950"/><circle cx="62" cy="72" r="5" fill="#3fb950"/></svg></div>
+    <div class="bubble" id="quiz-bubble"><span class="sparky-name">⚡ Sparky</span>Ready for the Grand Master Quiz? Let's see what you've learned about AI!</div>
+  </div>
+  <div class="level-area">
+    <div class="quiz-grid" id="quiz-grid"></div>
+    <div class="quiz-progress"><div class="quiz-progress-fill" id="quiz-progress" style="width:0%"></div></div>
+    <div style="display:flex;justify-content:space-between;width:100%;max-width:500px">
+      <span id="quiz-qnum" style="font-size:12px;color:var(--text-dim)">Question 1 of 5</span>
+      <span class="quiz-score" id="quiz-score">Score: 0/0</span>
+    </div>
+    <button class="btn btn-primary" id="quiz-done" style="display:none;align-self:center">🎓 Get My Diploma!</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ DIPLOMA ═══════════════════ -->
+<div id="phase-diploma" class="phase" style="z-index:20;justify-content:center">
+  <div class="diploma">
+    <div class="seal">🏆</div>
+    <h2>Certified Grid Guardian</h2>
+    <h2 style="font-size:20px;color:var(--el-blue)">AI Engineer</h2>
+    <div class="sub">This certifies that</div>
+    <div class="name-field">You! ⭐</div>
+    <div class="sub">has mastered the core concepts of<br>Artificial Intelligence for Smart Power Grids</div>
+    <div style="margin-top:8px;font-size:12px;color:var(--text-dim)">
+      ✅ Prediction &bull; ✅ Routing &bull; ✅ Computer Vision &bull; ✅ AI Safety
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-primary" id="diploma-replay">🔄 Play Again</button>
+      <button class="btn btn-ghost" id="diploma-menu">🏠 Menu</button>
+    </div>
+  </div>
+</div>
+
+</div>
+<script>
+// ═══════════════════════════════════════
+// GRID GUARDIANS: THE AI POWER-UP! — Main Script
+// ═══════════════════════════════════════
+const App = {
+  state: {
+    phase: 'menu',
+    // Level 1
+    l1Slots: [], l1Trained: false,
+    // Level 2
+    l2Score: 0, l2Events: [], l2Running: false,
+    // Level 3
+    l3Found: [], l3AiReady: false,
+    // Level 4
+    l4Round: 0, l4Score: 0, l4Searching: false, l4Done: false,
+    // Mute
+    muted: false,
+    // Quiz
+    quiz: { q: 0, score: 0, done: false }
+  },
+
+  // ═══════════════════════════════════════
+  // PHASE & NAVIGATION
+  // ═══════════════════════════════════════
+  showPhase(id){
+    document.querySelectorAll('.phase').forEach(p=>p.classList.remove('active'));
+    const el=document.getElementById('phase-'+id);
+    if(el)el.classList.add('active');
+    this.state.phase=id;
+  },
+
+  init(){
+    this.spawnParticles();
+    this.bindMenu();
+    this.bindLevel1();
+    this.bindLevel2();
+    this.bindLevel3();
+    this.bindLevel4();
+    this.bindQuiz();
+    this.bindMute();
+    this.loadHighScore();
+  },
+
+  // ═══════════════════════════════════════
+  // PARTICLES
+  // ═══════════════════════════════════════
+  spawnParticles(){
+    const c=document.getElementById('bg-particles');
+    for(let i=0;i<18;i++){
+      const p=document.createElement('div');p.className='particle';
+      p.style.left=Math.random()*100+'%';p.style.width=p.style.height=(1+Math.random()*2)+'px';
+      p.style.animationDuration=(5+Math.random()*10)+'s';p.style.animationDelay=Math.random()*10+'s';
+      c.appendChild(p);
+    }
+  },
+
+  // ═══════════════════════════════════════
+  // CONFETTI
+  // ═══════════════════════════════════════
+  startConfetti(){
+    const cnv=document.getElementById('confetti-canvas');
+    cnv.width=window.innerWidth;cnv.height=window.innerHeight;
+    const ctx=cnv.getContext('2d');
+    const colors=['#4da6ff','#ffd43b','#3fb950','#f85149','#58a6ff','#d2991d'];
+    const pts=Array.from({length:80},()=>({
+      x:Math.random()*cnv.width,y:-10,vx:(Math.random()-.5)*4,vy:Math.random()*3+1,
+      s:Math.random()*6+3,c:colors[Math.floor(Math.random()*colors.length)],r:Math.random()*360,rv:Math.random()*8-4
+    }));
+    let f=0;
+    function anim(){
+      ctx.clearRect(0,0,cnv.width,cnv.height);
+      pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.r+=p.rv;
+        ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r*Math.PI/180);
+        ctx.fillStyle=p.c;ctx.globalAlpha=Math.max(0,1-f/150);
+        ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s);ctx.restore();
+      });
+      f++;if(f<150)requestAnimationFrame(anim);else ctx.clearRect(0,0,cnv.width,cnv.height);
+    }
+    anim();
+  },
+
+  // ═══════════════════════════════════════
+  // SPARKY SPEAK
+  // ═══════════════════════════════════════
+  speak(bubbleId, text){
+    const el=document.getElementById(bubbleId);
+    if(el)el.innerHTML='<span class="sparky-name">⚡ Sparky</span>'+text;
+  },
+
+  // ═══════════════════════════════════════
+  // SOUND EFFECTS (Web Audio, no files)
+  // ═══════════════════════════════════════
+  _audioCtx: null,
+  _getCtx(){if(!this._audioCtx)this._audioCtx=new(window.AudioContext||window.webkitAudioContext)();return this._audioCtx},
+  playTone(freq,dur,type='sine',vol=.15){
+    if(this.state.muted)return;
+    try{
+      const ctx=this._getCtx();
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.type=type;o.frequency.value=freq;g.gain.value=vol;g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+dur);
+      o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+dur);
+    }catch(e){}
+  },
+  playTick(){this.playTone(660,.06,'sine',.1)},
+  playPing(){this.playTone(880,.25,'sine',.15);setTimeout(()=>this.playTone(1100,.2,'sine',.1),120)},
+  playChime(){this.playTone(523,.15,'sine',.12);setTimeout(()=>this.playTone(659,.15,'sine',.1),150);setTimeout(()=>this.playTone(784,.2,'sine',.1),300)},
+  playBuzz(){this.playTone(200,.3,'sawtooth',.08)},
+
+  bindMute(){
+    const btn=document.getElementById('mute-btn');
+    btn.addEventListener('click',()=>{
+      this.state.muted=!this.state.muted;
+      btn.textContent=this.state.muted?'🔇':'🔊';
+      try{if(this._audioCtx)this._audioCtx.suspend()}catch(e){}
+    });
+  },
+
+  // ═══════════════════════════════════════
+  // HIGH SCORE
+  // ═══════════════════════════════════════
+  loadHighScore(){
+    const hs=localStorage.getItem('gridGuardianHS');
+    const el=document.getElementById('high-score-display');
+    if(hs&&el)el.textContent='🏆 Best Score: '+hs;
+  },
+  saveHighScore(score){
+    const prev=parseInt(localStorage.getItem('gridGuardianHS')||'0');
+    if(score>prev){localStorage.setItem('gridGuardianHS',String(score));this.loadHighScore();}
+  },
+
+  // ═══════════════════════════════════════
+  // SPARKY REACTION
+  // ═══════════════════════════════════════
+  sparkyReaction(mood){
+    document.querySelectorAll('.sparky').forEach(s=>{
+      s.classList.remove('happy','concerned');
+      if(mood)s.classList.add(mood);
+    });
+  },
+
+  // ═══════════════════════════════════════
+  // MENU
+  // ═══════════════════════════════════════
+  bindMenu(){
+    // Sparky greeting on menu
+    setTimeout(()=>this.speak('menu-bubble','Pick a level to start your AI training! I\'ll help you learn how grid AI works! ⚡'),500);
+    document.querySelectorAll('.level-card').forEach(c=>{
+      c.addEventListener('click',()=>{
+        const lv=c.dataset.level;
+        // Track completion
+        this._trackPlay(lv);
+        if(lv==='1')this.startLevel1();
+        else if(lv==='2')this.startLevel2();
+        else if(lv==='3')this.startLevel3();
+        else if(lv==='4')this.startLevel4();
+        else if(lv==='quiz')this.startQuiz();
+      });
+    });
+    this.loadHighScore();
+    this.showCompletions();
+  },
+  // Track which levels have been played (localStorage)
+  _trackPlay(lv){
+    const played=JSON.parse(localStorage.getItem('ggPlayed')||'[]');
+    if(!played.includes(lv)){played.push(lv);localStorage.setItem('ggPlayed',JSON.stringify(played));}
+    this.showCompletions();
+  },
+  showCompletions(){
+    const played=JSON.parse(localStorage.getItem('ggPlayed')||'[]');
+    document.querySelectorAll('.level-card').forEach(c=>{
+      const lv=c.dataset.level;
+      const done=played.includes(lv);
+      const existing=c.querySelector('.lv-complete');
+      if(done&&!existing){const tag=document.createElement('div');tag.className='lv-complete';tag.textContent='✅';tag.style.cssText='font-size:14px;margin-top:4px';c.appendChild(tag);}
+      else if(!done&&existing)existing.remove();
+    });
+    // Update menu greeting based on completions
+    const total=document.querySelectorAll('.level-card').length;
+    const doneCount=played.filter(l=>l!=='quiz'&&document.querySelector(`.level-card[data-level="${l}"]`)).length;
+    if(doneCount>=4)this.speak('menu-bubble','You\'ve explored almost everything! Ready for the <b>Grand Master Quiz</b>? 🏆');
+    else if(doneCount>0)this.speak('menu-bubble','Great progress! Keep learning — every level teaches you something new about AI! ⚡');
+    else this.speak('menu-bubble','Welcome, Grid Guardian! Pick a level to start your AI training! ⚡');
+  },
+
+  // ════════════════════════════════════════════════════
+  // LEVEL 1 — PREDICTION BRAIN
+  // ════════════════════════════════════════════════════
+  l1Icons: ['📺','🍳','🚌','🏭','💡','💻'],
+  l1Times: ['Late Night','Early Morning','Morning','School Time','Afternoon','Evening'],
+
+  startLevel1(){
+    this.showPhase('level1');
+    this.state.l1Trained=false;
+    this.state.l1Slots=this.l1Times.map(()=>null);
+    this.renderL1Timeline();
+    this.renderL1Tray();
+    this.speak('l1-bubble','Hi! Let\'s build a <b>Prediction Brain</b>! When does the city need the most power? Drag the icons onto the timeline to show me!');
+    document.getElementById('l1-train').style.display='';
+    document.getElementById('l1-reset').style.display='none';
+    document.getElementById('l1-meter').style.width='0';
+    document.getElementById('l1-sun').textContent='🌙';
+    document.getElementById('l1-time').textContent='Night';
+    document.getElementById('l1-status').textContent='Place icons on the timeline to show power usage';
+  },
+
+  renderL1Timeline(){
+    const tl=document.getElementById('l1-timeline');tl.innerHTML='';
+    this.l1Times.forEach((t,i)=>{
+      const div=document.createElement('div');div.className='time-slot';
+      if(this.state.l1Slots[i])div.classList.add('filled');
+      div.dataset.idx=i;
+      div.innerHTML=`
+        <div class="time-label">${t}</div>
+        ${this.state.l1Slots[i]?'<div class="placed-icon" data-idx="'+i+'">'+this.state.l1Slots[i]+'</div>':''}
+      `;
+      // Click to remove placed icon
+      if(this.state.l1Slots[i]){
+        div.querySelector('.placed-icon').addEventListener('click',(e)=>{
+          e.stopPropagation();
+          this.state.l1Slots[i]=null;
+          this.renderL1Timeline();
+          this.renderL1Tray();
+        });
+      }
+      div.addEventListener('click',()=>this.l1Drop(i));
+      tl.appendChild(div);
+    });
+  },
+
+  renderL1Tray(){
+    const tray=document.getElementById('l1-tray');tray.innerHTML='';
+    let firstUnused=true;
+    this.l1Icons.forEach(ico=>{
+      const used=this.state.l1Slots.includes(ico);
+      const btn=document.createElement('button');
+      btn.className='drag-icon'+(used?' used':'');
+      btn.textContent=ico;
+      if(!used){
+        if(firstUnused){
+          btn.classList.add('hint-bounce');
+          firstUnused=false;
+        }
+        btn.addEventListener('click',()=>{
+          // Pick an icon — next tap on a slot places it
+          this._l1Picking=ico;
+          document.getElementById('l1-status').textContent='👆 Now tap a time slot above to place the '+ico;
+          tray.querySelectorAll('.drag-icon').forEach(b=>{b.style.outline='none';b.classList.remove('hint-bounce');});
+          btn.style.outline='3px solid var(--energy-yellow)';
+        });
+      }
+      tray.appendChild(btn);
+    });
+  },
+
+  l1Drop(idx){
+    if(!this._l1Picking||this.state.l1Slots[idx])return;
+    this.state.l1Slots[idx]=this._l1Picking;
+    this._l1Picking=null;
+    this.renderL1Timeline();
+    this.renderL1Tray();
+    // Check if all placed
+    const placed=this.state.l1Slots.filter(s=>s).length;
+    document.getElementById('l1-status').textContent=placed+'/'+this.l1Icons.length+' icons placed';
+    if(placed===this.l1Icons.length){
+      document.getElementById('l1-train').style.display='';
+      document.getElementById('l1-status').textContent='✅ All placed! Press "Train the AI!"';
+    }
+  },
+
+  bindLevel1(){
+    document.getElementById('l1-back').addEventListener('click',()=>this.showPhase('menu'));
+    document.getElementById('l1-train').addEventListener('click',()=>this.l1RunAI());
+    document.getElementById('l1-reset').addEventListener('click',()=>this.startLevel1());
+  },
+
+  l1RunAI(){
+    if(this.state.l1Slots.filter(s=>s).length<3){
+      this.speak('l1-bubble','Place at least 3 icons so I can learn the pattern!');
+      return;
+    }
+    this.state.l1Trained=true;
+    document.getElementById('l1-train').style.display='none';
+    document.getElementById('l1-reset').style.display='';
+    this.speak('l1-bubble','🧠 Learning from your data... Watch me predict the power needs!');
+    // Compute power weights per slot
+    const weights=this.state.l1Slots.map((s,i)=>{
+      if(!s)return 10+Math.random()*20;
+      const w={ '📺':60,'🍳':80,'🚌':20,'🏭':90,'💡':40,'💻':50 };
+      return w[s]||30;
+    });
+    // Animate through the day
+    let step=0;
+    const icons=['🌙','🌤️','☀️','🌤️','⛅','🌙'];
+    const times=this.l1Times;
+    const meter=document.getElementById('l1-meter');
+    const sun=document.getElementById('l1-sun');
+    const timeLab=document.getElementById('l1-time');
+    const stat=document.getElementById('l1-status');
+    stat.textContent='🧠 AI is predicting...';
+    const iv=setInterval(()=>{
+      if(step>=this.l1Times.length){
+        clearInterval(iv);
+        stat.textContent='✅ AI trained! The grid now predicts power needs!';
+        this.speak('l1-bubble','Look! The AI now knows when power is needed! ⚡ That\'s <b>Machine Learning</b> — the AI learned patterns from your examples!');
+        document.getElementById('l1-meter').style.width='0';
+        return;
+      }
+      sun.textContent=icons[step];
+      timeLab.textContent=times[step];
+      const w=weights[step];
+      meter.style.width=w+'%';
+      if(w>60)meter.style.boxShadow='0 0 16px rgba(255,212,59,.4)';
+      else meter.style.boxShadow='none';
+      step++;
+    },900);
+  },
+
+  // ════════════════════════════════════════════════════
+  // LEVEL 2 — ROUTING BRAIN
+  // ════════════════════════════════════════════════════
+  startLevel2(){
+    this.showPhase('level2');
+    this.state.l2Score=0;this.state.l2Running=false;
+    this.state.l2Events=[];
+    document.getElementById('l2-score').textContent='0';
+    document.getElementById('l2-log').innerHTML='';
+    document.getElementById('l2-events').textContent='None yet';
+    document.getElementById('l2-if').value='';
+    document.getElementById('l2-then').value='';
+    document.getElementById('l2-priority').value='';
+    this.renderL2Suggestions();
+    this.speak('l2-bubble','Welcome to the power grid! First, build your AI rules by tapping the suggestions below. Then press <b>Run AI Rules</b> to start!');
+    this.drawGrid();
+    // Events fire only after user presses Run AI Rules
+  },
+
+  renderL2Suggestions(){
+    const ifSuggestions=['⚡ lightning strikes','🏭 factory surge','🌊 storm hits','🔌 wire breaks'];
+    const thenSuggestions=['🔄 reroute power','🔧 use backup line','🤖 send repair bot','⚡ increase power'];
+    const prioritySuggestions=['🏥 protect hospital','🏫 power school first','💡 keep lights on','🏠 power homes'];
+    const ifRow=document.getElementById('l2-suggest-if');ifRow.innerHTML='';
+    ifSuggestions.concat(thenSuggestions).forEach(s=>{
+      const chip=document.createElement('span');chip.className='suggest-chip';chip.textContent=s;
+      chip.addEventListener('click',()=>{
+        if(ifSuggestions.includes(s)){document.getElementById('l2-if').value=s;}
+        else{document.getElementById('l2-then').value=s;}
+      });
+      ifRow.appendChild(chip);
+    });
+    const priRow=document.getElementById('l2-suggest-priority');priRow.innerHTML='';
+    prioritySuggestions.forEach(s=>{
+      const chip=document.createElement('span');chip.className='suggest-chip';chip.textContent=s;
+      chip.addEventListener('click',()=>{document.getElementById('l2-priority').value=s;});
+      priRow.appendChild(chip);
+    });
+  },
+
+  // Grid layout: Plant at top, Hospital mid-left, School mid-right, Houses bottom-left, Factory bottom-right
+  l2Nodes:[
+    {id:'plant',x:.5,y:.1,label:'🏭 Power Plant',color:'#4da6ff'},
+    {id:'hospital',x:.15,y:.4,label:'🏥 Hospital',color:'#3fb950'},
+    {id:'school',x:.85,y:.4,label:'🏫 School',color:'#ffd43b'},
+    {id:'houses',x:.15,y:.75,label:'🏠 Houses',color:'#58a6ff'},
+    {id:'factory',x:.85,y:.75,label:'🏭 Factory',color:'#f85149'}
+  ],
+  l2Wires:[
+    ['plant','hospital'],['plant','school'],['hospital','houses'],
+    ['school','factory'],['plant','factory']
+  ],
+
+  drawGrid(){
+    const c=document.getElementById('grid-canvas');
+    const rect=c.parentElement.getBoundingClientRect();
+    c.width=c.parentElement.clientWidth||600;
+    c.height=280;
+    const ctx=c.getContext('2d');
+    const w=c.width, h=c.height;
+    ctx.clearRect(0,0,w,h);
+    // Wires
+    this.l2Wires.forEach(([id1,id2])=>{
+      const n1=this.l2Nodes.find(n=>n.id===id1);
+      const n2=this.l2Nodes.find(n=>n.id===id2);
+      if(!n1||!n2)return;
+      ctx.beginPath();ctx.moveTo(n1.x*w,n1.y*h);ctx.lineTo(n2.x*w,n2.y*h);
+      ctx.strokeStyle='#30363d';ctx.lineWidth=3;ctx.stroke();
+    });
+    // Nodes
+    this.l2Nodes.forEach(n=>{
+      const x=n.x*w, y=n.y*h;
+      ctx.beginPath();ctx.arc(x,y,20,0,Math.PI*2);
+      ctx.fillStyle='#1c2333';ctx.fill();
+      ctx.strokeStyle=n.color;ctx.lineWidth=3;ctx.stroke();
+      ctx.font='18px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle=n.color;
+      ctx.fillText(n.label,x,y);
+    });
+  },
+
+  l2SimulateEvents(){
+    // Simple events that fire every 8-10s
+    setTimeout(()=>{
+      if(this.state.phase!=='level2')return;
+      const evts=['⚡ Lightning!','🏭 Factory surge!','🌊 Storm warning!'];
+      const e=evts[Math.floor(Math.random()*evts.length)];
+      document.getElementById('l2-events').textContent=e + ' — AI handling...';
+      const log=document.getElementById('l2-log');
+      const row=document.createElement('div');row.className='evt warning';
+      row.textContent='⚠️ '+e;
+      log.appendChild(row);log.scrollTop=log.scrollHeight;
+      // Check if rules match
+      this.l2CheckRules(e);
+      // Schedule next event
+      this.l2SimulateEvents();
+    },7000+Math.random()*5000);
+  },
+
+  l2CheckRules(eventText){
+    const ifVal=document.getElementById('l2-if').value.toLowerCase().trim();
+    const thenVal=document.getElementById('l2-then').value.toLowerCase().trim();
+    const priorVal=document.getElementById('l2-priority').value.toLowerCase().trim();
+    const isLightning=eventText.includes('Lightning');
+    const isSurge=eventText.includes('surge');
+    const log=document.getElementById('l2-log');
+    let score=0;
+
+    // Check if user's rules handle the event
+    if(isLightning&&ifVal&&thenVal){
+      if(ifVal.includes('lightning')&&(thenVal.includes('reroute')||thenVal.includes('route'))){
+        score+=20;this.addL2Event('✅ AI rerouted power around the lightning! +20', 'success');
+      }else if(ifVal.includes('lightning')){
+        score+=10;this.addL2Event('✅ AI responded! +10 (try adding "reroute" to do even better)', 'success');
+      }else{
+        this.addL2Event('❌ AI wasn\'t ready for the lightning! Write a rule for it!', 'error');
+      }
+    }else if(isSurge&&ifVal&&thenVal){
+      if(ifVal.includes('factory')||ifVal.includes('surge')){
+        score+=15;this.addL2Event('✅ AI handled the factory surge! +15', 'success');
+      }else{
+        this.addL2Event('❌ AI didn\'t route extra power to the factory!', 'error');
+      }
+    }
+
+    // Check priority rule
+    if(priorVal.includes('hospital')||priorVal.includes('medical')){
+      score+=10;
+      this.addL2Event('✅ Hospital always has power! +10 for safety rules', 'success');
+    }else if(priorVal){
+      this.addL2Event('ℹ️ Priority is set to: "'+priorVal+'"', '');
+    }
+
+    if(ifVal&&thenVal&&!isLightning&&!isSurge){
+      score+=5;
+      this.addL2Event('✅ AI rules are active and watching! +5', 'success');
+    }
+
+    if(score>0){
+      this.state.l2Score+=score;
+      document.getElementById('l2-score').textContent=this.state.l2Score;
+    }
+  },
+
+  addL2Event(text, cls){
+    const log=document.getElementById('l2-log');
+    const row=document.createElement('div');row.className='evt '+(cls||'');
+    row.textContent=text;
+    log.appendChild(row);log.scrollTop=log.scrollHeight;
+    // Animate the canvas
+    if(cls==='success')this.animateGreenPath();
+  },
+
+  animateGreenPath(){
+    const c=document.getElementById('grid-canvas');
+    const ctx=c.getContext('2d');
+    const w=c.width, h=c.height;
+    // Flash a green path along a random wire
+    const wire=this.l2Wires[Math.floor(Math.random()*this.l2Wires.length)];
+    const n1=this.l2Nodes.find(n=>n.id===wire[0]);
+    const n2=this.l2Nodes.find(n=>n.id===wire[1]);
+    if(!n1||!n2)return;
+    let p=0;
+    const iv=setInterval(()=>{
+      p+=.04;
+      if(p>=1||this.state.phase!=='level2'){clearInterval(iv);this.drawGrid();return;}
+      this.drawGrid();
+      ctx.beginPath();
+      const x1=n1.x*w+(n2.x-n1.x)*w*p, y1=n1.y*h+(n2.y-n1.y)*h*p;
+      const x2=n1.x*w+(n2.x-n1.x)*w*Math.min(1,p+.06);
+      const y2=n1.y*h+(n2.y-n1.y)*h*Math.min(1,p+.06);
+      ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);
+      ctx.strokeStyle='#3fb950';ctx.lineWidth=6;ctx.shadowColor='#3fb950';ctx.shadowBlur=12;
+      ctx.stroke();ctx.shadowBlur=0;
+    },50);
+  },
+
+  bindLevel2(){
+    document.getElementById('l2-back').addEventListener('click',()=>this.showPhase('menu'));
+    document.getElementById('l2-go').addEventListener('click',()=>{
+      const ifVal=document.getElementById('l2-if').value.trim();
+      const thenVal=document.getElementById('l2-then').value.trim();
+      const priorVal=document.getElementById('l2-priority').value.trim();
+      if(!ifVal||!thenVal){
+        this.speak('l2-bubble','Write a rule first! Try <b>IF "lightning strikes" THEN "reroute power"</b>');
+        return;
+      }
+      this.addL2Event('⚡ AI rules activated! IF "'+ifVal+'" THEN "'+thenVal+'"', 'success');
+      this.speak('l2-bubble','Great rules! The AI will now follow them when events happen. Watch the grid!');
+      // Score bonus for activating
+      if(priorVal){
+        this.state.l2Score+=5;document.getElementById('l2-score').textContent=this.state.l2Score;
+      }
+      this.l2SimulateEvents();
+    });
+  },
+
+  // ════════════════════════════════════════════════════
+  // LEVEL 3 — CAMERA BRAIN
+  // ════════════════════════════════════════════════════
+  l3Scenes:[
+    {id:'tower1',label:'Tower 1 — North',scene:'🏗️⚡ Normal operation',anomaly:null},
+    {id:'tower2',label:'Tower 2 — East',scene:'🏗️🌿 Tree touching wire',anomaly:{label:'🌿 Tree branch'}},
+    {id:'tower3',label:'Tower 3 — West',scene:'🏗️⚡ All systems good',anomaly:null},
+    {id:'tower4',label:'Tower 4 — South',scene:'🏗️🛸 Object on tower',anomaly:{label:'🛸 Stuck drone'}},
+    {id:'tower5',label:'Tower 5 — Central',scene:'🏗️💔 Panel damage',anomaly:{label:'💔 Cracked panel'}},
+    {id:'tower6',label:'Tower 6 — Heights',scene:'🏗️⚡ Running smoothly',anomaly:null}
+  ],
+
+  startLevel3(){
+    this.showPhase('level3');
+    this.state.l3Found=[];
+    this.state.l3AiReady=false;
+    this.speak('l3-bubble','My cameras watch the power towers. Some have problems! Tap anything that looks <b>wrong</b> to teach the AI what a problem looks like!');
+    document.getElementById('l3-status').textContent='👆 Tap at least 3 problems to train the AI';
+    document.getElementById('l3-reset').style.display='none';
+    this.renderL3Cameras();
+  },
+
+  renderL3Cameras(){
+    const grid=document.getElementById('cam-grid');grid.innerHTML='';
+    this.l3Scenes.forEach((scene,i)=>{
+      const div=document.createElement('div');div.className='cam-feed';
+      div.dataset.idx=i;
+      const hasAnomaly=!!scene.anomaly;
+      const found=this.state.l3Found.includes(i);
+      // Subtle visual cue: anomaly feeds get a faint orange tint, normal feeds stay neutral
+      if(hasAnomaly&&!found)div.classList.add('needs-check');
+      if(found)div.classList.add('anomaly-found');
+      div.innerHTML=`
+        <div class="cam-scene">
+          <span style="font-size:20px;display:block">${scene.scene.split(' ')[0]}</span>
+          <span style="font-size:11px;display:block;margin-top:2px;color:var(--text-dim)">${scene.label}</span>
+          <span style="font-size:10px;display:block;margin-top:4px;color:${hasAnomaly?'var(--orange)':'var(--text-dim)'}">
+            ${hasAnomaly?'Tower status: ⚠️ needs inspection':'Status: ✅ Normal operation'}
+          </span>
+        </div>
+      `;
+      div.addEventListener('click',()=>this.l3CheckFeed(i));
+      grid.appendChild(div);
+    });
+  },
+
+  l3CheckFeed(idx){
+    if(this.state.l3AiReady)return;
+    const scene=this.l3Scenes[idx];
+    if(!scene.anomaly){
+      this.speak('l3-bubble','That one looks normal! Find the feeds with problems — like a tree branch or a broken panel.');
+      return;
+    }
+    if(this.state.l3Found.includes(idx)){
+      this.speak('l3-bubble','You already found that one! Keep looking for more.');
+      return;
+    }
+    this.state.l3Found.push(idx);
+    const feeds=document.querySelectorAll('.cam-feed');
+    if(feeds[idx])feeds[idx].classList.add('anomaly-found');
+    this.speak('l3-bubble','✅ Found it! '+(scene.anomaly.label)+' — You showed me what a problem looks like! ('+this.state.l3Found.length+'/3)');
+    document.getElementById('l3-status').textContent='✅ '+this.state.l3Found.length+'/3 problems found. Keep teaching the AI!';
+
+    if(this.state.l3Found.length>=3){
+      this.l3AiActivate();
+    }
+  },
+
+  l3AiActivate(){
+    this.state.l3AiReady=true;
+    this.speak('l3-bubble','🧠 AI TRAINED! Now I can spot problems with <b>confidence</b>! Watch!');
+    document.getElementById('l3-status').textContent='🤖 AI is scanning with confidence...';
+    const feeds=document.querySelectorAll('.cam-feed');
+    const confidences=[92,97,85];
+    let ci=0;
+    // Animate remaining anomalies
+    this.l3Scenes.forEach((scene,i)=>{
+      if(scene.anomaly&&!this.state.l3Found.includes(i)){
+        setTimeout(()=>{
+          if(this.state.phase!=='level3')return;
+          const feed=feeds[i];
+          if(feed){
+            feed.classList.add('ai-detected');
+            const box=document.createElement('div');box.className='ai-box';
+            box.style.cssText='top:15%;left:15%;right:15%;bottom:25%;display:block';
+            box.innerHTML='<span style="position:absolute;top:-18px;left:0;font-size:10px;color:var(--red);font-weight:700;background:rgba(0,0,0,.6);padding:1px 6px;border-radius:4px">AI: '+confidences[ci]+'% confident</span>';
+            feed.appendChild(box);
+            ci++;
+          }
+          this.playPing();
+          this.speak('l3-bubble','🔍 Anomaly detected with '+confidences[ci-1]+'% confidence! '+scene.anomaly.label+' at '+scene.label+'! Dispatching repair bot!');
+          document.getElementById('l3-status').textContent='🚨 AI found: '+scene.anomaly.label+' (confidence: '+confidences[ci-1]+'%)';
+          this.startConfetti();
+        },(i+1)*1200);
+      }
+    });
+    setTimeout(()=>{
+      if(this.state.phase==='level3'){
+        this.speak('l3-bubble','That\'s <b>Computer Vision</b>! The AI learned from your examples and now detects problems with <b>high confidence</b> — just like real AI! 🌟');
+        document.getElementById('l3-status').textContent='✅ AI trained! Computer Vision active — confidence: 85-97%';
+        document.getElementById('l3-reset').style.display='';
+      }
+    },5500);
+  },
+
+  bindLevel3(){
+    document.getElementById('l3-back').addEventListener('click',()=>this.showPhase('menu'));
+    document.getElementById('l3-reset').addEventListener('click',()=>this.startLevel3());
+  },
+
+  // ════════════════════════════════════════════════════
+  // LEVEL 4 — PATHFINDER BRAIN (BFS Search)
+  // ════════════════════════════════════════════════════
+  l4Maps:[
+    // Round 1 — Easy (2 goals, 3 mountains)
+    {w:10,h:10,start:{x:0,y:0},goals:[{x:9,y:0},{x:4,y:6}],
+     blocks:['2,2','3,2','7,4','8,4','2,5'],rivers:[],name:'Easy Street'},
+    // Round 2 — Medium (3 goals, mountains + river)
+    {w:10,h:10,start:{x:0,y:0},goals:[{x:9,y:0},{x:3,y:7},{x:8,y:8}],
+     blocks:['2,2','3,2','7,1','8,1','5,4','0,7','1,7','1,8'],
+     rivers:['4,4','4,5','4,6','5,5','5,6','5,7'],name:'City Grid'},
+    // Round 3 — Hard (4 goals, many obstacles)
+    {w:10,h:10,start:{x:0,y:0},goals:[{x:7,y:1},{x:2,y:7},{x:9,y:5},{x:5,y:9}],
+     blocks:['1,1','2,1','3,1','5,1','4,3','5,3','6,3','7,3','8,3','9,3',
+             '1,5','2,5','3,5','4,5','6,6','7,6','8,6','0,8','0,9'],
+     rivers:['4,8','5,8','6,8','7,8','8,8','2,3'],name:'Storm Aftermath'}
+  ],
+
+  startLevel4(){
+    this.showPhase('level4');
+    this.state.l4Round=0;this.state.l4Score=0;this.state.l4Searching=false;this.state.l4Done=false;this._l4Final=false;
+    document.getElementById('l4-score').textContent='Score: 0';
+    document.getElementById('l4-next').style.display='none';
+    document.getElementById('l4-replay').style.display='none';
+    document.getElementById('l4-search').style.display='';
+    this.speak('l4-bubble','I can explore the power grid cell by cell to find the shortest path to every building! Press <b>Start Search</b> to watch the AI explore.');
+    this.drawL4Map(0);
+  },
+
+  drawL4Map(roundIdx){
+    const map=this.l4Maps[roundIdx];
+    if(!map){this.l4Complete();return;}
+    const c=document.getElementById('l4-canvas');
+    const ctx=c.getContext('2d');
+    const cellW=c.width/map.w,cellH=c.height/map.h;
+    // Store grid state
+    this._l4Grid=[];
+    for(let y=0;y<map.h;y++){
+      this._l4Grid[y]=[];
+      for(let x=0;x<map.w;x++){
+        let type='open';
+        const key=x+','+y;
+        if(map.start.x===x&&map.start.y===y)type='start';
+        else if(map.goals.some(g=>g.x===x&&g.y===y))type='goal';
+        else if(map.blocks.includes(key))type='block';
+        else if(map.rivers.includes(key))type='river';
+        this._l4Grid[y][x]={type,explored:false,inQueue:false,path:false,parent:null,dist:Infinity};
+      }
+    }
+    this._l4CanvasData={map,cellW,cellH};
+    this._l4RenderGrid();
+    document.getElementById('l4-round').textContent='Round '+(roundIdx+1)+'/3: '+map.name;
+    document.getElementById('l4-info').textContent='Cells explored: 0';
+    this.sparkyReaction(null);
+  },
+
+  _l4RenderGrid(){
+    const c=document.getElementById('l4-canvas');
+    const ctx=c.getContext('2d');
+    const {map,cellW,cellH}=this._l4CanvasData;
+    ctx.clearRect(0,0,c.width,c.height);
+    for(let y=0;y<map.h;y++){
+      for(let x=0;x<map.w;x++){
+        const cell=this._l4Grid[y][x];
+        const px=x*cellW,py=y*cellH;
+        if(cell.type==='start'){ctx.fillStyle='#ffd43b';ctx.fillRect(px,py,cellW,cellH);ctx.fillStyle='#000';ctx.font='18px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⚡',px+cellW/2,py+cellH/2);}
+        else if(cell.type==='block'){ctx.fillStyle='#3d3d3d';ctx.fillRect(px,py,cellW,cellH);ctx.fillStyle='#555';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⛰️',px+cellW/2,py+cellH/2);}
+        else if(cell.type==='river'){ctx.fillStyle='#1a3a5c';ctx.fillRect(px,py,cellW,cellH);ctx.fillStyle='#4da6ff';ctx.globalAlpha=.4;ctx.fillRect(px+2,py+2,cellW-4,cellH-4);ctx.globalAlpha=1;if(!cell.explored&&!cell.path){ctx.fillStyle='#4da6ff';ctx.font='12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🌊',px+cellW/2,py+cellH/2);}}
+        else if(cell.type==='goal'){ctx.fillStyle='#1a3320';ctx.fillRect(px,py,cellW,cellH);ctx.fillStyle='#3fb950';ctx.font='18px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🏥',px+cellW/2,py+cellH/2);}
+        else{ctx.fillStyle=cell.type==='open'?'#0d2818':'#0d1117';ctx.fillRect(px,py,cellW,cellH);}
+        // Grid lines
+        ctx.strokeStyle='#1c2333';ctx.lineWidth=1;ctx.strokeRect(px,py,cellW,cellH);
+        // Explored highlight
+        if(cell.explored&&!cell.path){
+          ctx.fillStyle='rgba(77,166,255,.2)';ctx.fillRect(px+1,py+1,cellW-2,cellH-2);
+          ctx.fillStyle='rgba(77,166,255,.5)';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillText('●',px+cellW/2,py+cellH/2);
+        }
+        // Path highlight
+        if(cell.path){
+          ctx.shadowColor='#3fb950';ctx.shadowBlur=10;
+          ctx.fillStyle='rgba(63,185,80,.35)';ctx.fillRect(px+1,py+1,cellW-2,cellH-2);
+          ctx.shadowBlur=0;
+        }
+      }
+    }
+  },
+
+  l4StartSearch(){
+    if(this.state.l4Searching)return;
+    this.state.l4Searching=true;
+    this.state.l4Done=false;
+    document.getElementById('l4-search').style.display='none';
+    document.getElementById('l4-replay').style.display='none';
+    document.getElementById('l4-next').style.display='none';
+    this.speak('l4-bubble','🧠 Exploring every possible route! Watch the blue dots spread — that\'s the AI <b>searching</b> for the best path!');
+    this.l4RunBFS();
+  },
+
+  l4RunBFS(){
+    const map=this.l4Maps[this.state.l4Round];
+    const {cellW,cellH}=this._l4CanvasData;
+    const queue=[{x:map.start.x,y:map.start.y,dist:0}];
+    this._l4Grid[map.start.y][map.start.x].dist=0;
+    const dirs=[[0,1],[0,-1],[1,0],[-1,0]];
+    let exploredCount=0;
+    let goalsFound=0;
+    let iv=null;
+
+    const step=()=>{
+      if(queue.length===0||goalsFound>=map.goals.length){
+        clearInterval(iv);this.state.l4Searching=false;this.state.l4Done=true;
+        this.playChime();
+        this.sparkyReaction('happy');
+        this.l4ScoreRound(goalsFound,exploredCount);
+        this._l4RenderGrid();
+        return;
+      }
+      const cur=queue.shift();
+      const cell=this._l4Grid[cur.y][cur.x];
+      if(cell.explored||cell.type==='block'){iv=setTimeout(step,10);return;}
+      cell.explored=true;
+      exploredCount++;
+      this.playTick();
+      document.getElementById('l4-info').textContent='Cells explored: '+exploredCount;
+
+      // Check if goal
+      if(cell.type==='goal'){
+        goalsFound++;
+        this.playPing();
+        // Trace back path
+        let p={x:cur.x,y:cur.y};
+        while(p){
+          const pc=this._l4Grid[p.y][p.x];
+          pc.path=true;
+          if(pc.parent){
+            p={x:pc.parent.x,y:pc.parent.y};
+          }else p=null;
+        }
+        this._l4RenderGrid();
+        if(goalsFound>=map.goals.length){
+          this.speak('l4-bubble','🎉 All buildings found! The AI explored <b>'+exploredCount+'</b> cells to find the shortest paths. That\'s <b>Breadth-First Search</b>!');
+          document.getElementById('l4-next').style.display='';
+          document.getElementById('l4-replay').style.display='';
+          this.saveHighScore(this.state.l4Score);
+          clearInterval(iv);this.state.l4Searching=false;this.state.l4Done=true;
+          return;
+        }
+        // Continue searching for next goal (reset distance)
+        iv=setTimeout(step,10);
+        return;
+      }
+      // Enqueue neighbors
+      for(const [dx,dy] of dirs){
+        const nx=cur.x+dx,ny=cur.y+dy;
+        if(nx<0||nx>=map.w||ny<0||ny>=map.h)continue;
+        const nc=this._l4Grid[ny][nx];
+        if(nc.explored||nc.type==='block'||nc.parent)continue;
+        const cost=nc.type==='river'?3:1;
+        if(cur.dist+cost<nc.dist){
+          nc.dist=cur.dist+cost;
+          nc.parent={x:cur.x,y:cur.y};
+          queue.push({x:nx,y:ny,dist:nc.dist});
+        }
+      }
+      // Sort by distance (priority-ish)
+      queue.sort((a,b)=>a.dist-b.dist);
+      this._l4RenderGrid();
+      iv=setTimeout(step,this._l4Speed||80);
+    };
+    this._l4Speed=80; // Default: 80ms (slow enough to see)
+    iv=setTimeout(step,10);
+  },
+
+  l4ScoreRound(goalsFound,explored){
+    const map=this.l4Maps[this.state.l4Round];
+    if(!map)return;
+    const totalGoals=map.goals.length;
+    const base=goalsFound*10;
+    const bonusAll=goalsFound===totalGoals?15:0;
+    const speedBonus=explored<30?20:explored<50?10:0;
+    const score=base+bonusAll+speedBonus;
+    this.state.l4Score+=score;
+    document.getElementById('l4-score').textContent='Score: '+this.state.l4Score;
+    // Stars
+    const stars=document.querySelectorAll('#l4-stars .star');
+    const starCount=score>=50?3:score>=30?2:score>=15?1:0;
+    stars.forEach((s,i)=>s.classList.toggle('on',i<starCount));
+    this.speak('l4-bubble','+'+score+' points! '+(goalsFound===totalGoals?'🌟 Perfect! All buildings connected!':''));
+    this.playChime();
+  },
+
+  l4NextRound(){
+    this.state.l4Round++;
+    if(this.state.l4Round>=this.l4Maps.length){
+      this.l4Complete();
+      return;
+    }
+    document.getElementById('l4-next').style.display='none';
+    document.getElementById('l4-replay').style.display='none';
+    this.drawL4Map(this.state.l4Round);
+    document.getElementById('l4-search').style.display='';
+    this.speak('l4-bubble','New round! The grid has more obstacles. Can the AI still find the path? Press <b>Start Search</b>!');
+  },
+
+  l4Complete(){
+    const score=this.state.l4Score;
+    this.speak('l4-bubble','🏆 All rounds complete! Your total score: <b>'+score+'</b>! The AI explored grids using <b>Breadth-First Search</b> — the same algorithm used in GPS and robot navigation!');
+    document.getElementById('l4-next').textContent='✅ Done — Back to Menu';
+    document.getElementById('l4-next').style.display='';
+    document.getElementById('l4-search').style.display='none';
+    document.getElementById('l4-replay').style.display='none';
+    // Override next click for final state
+    this._l4Final=true;
+    this.saveHighScore(score);
+    this.startConfetti();
+  },
+
+  bindLevel4(){
+    document.getElementById('l4-back').addEventListener('click',()=>this.showPhase('menu'));
+    document.getElementById('l4-search').addEventListener('click',()=>{
+      document.getElementById('l4-speed-wrap').style.display='flex';
+      this.l4StartSearch();
+    });
+    document.getElementById('l4-next').addEventListener('click',()=>{
+      if(this._l4Final){this._l4Final=false;this.showPhase('menu');return;}
+      this.l4NextRound();
+    });
+    document.getElementById('l4-replay').addEventListener('click',()=>{
+      this.drawL4Map(this.state.l4Round);
+      document.getElementById('l4-search').style.display='';
+      document.getElementById('l4-replay').style.display='none';
+      document.getElementById('l4-speed-wrap').style.display='none';
+      this.speak('l4-bubble','Press <b>Start Search</b> to watch the AI explore again!');
+    });
+    // Speed controls
+    document.querySelectorAll('.l4-speed-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const speed=parseInt(btn.dataset.speed);
+        this._l4Speed=speed*80;
+        document.querySelectorAll('.l4-speed-btn').forEach(b=>{b.style.background='';b.style.color='var(--text)'});
+        btn.style.background='var(--el-blue)';btn.style.color='#fff';
+      });
+    });
+  },
+
+  // ════════════════════════════════════════════════════
+  // LEVEL 5 — QUIZ
+  // ════════════════════════════════════════════════════
+  quizData:[
+    {q:'In Level 1, we taught the AI to _______ when the city needs power.',opts:['Predict','Paint','Dance'],correct:0,explain:'AI learns patterns from past data to predict future needs — that\'s Machine Learning!'},
+    {q:'When the AI finds a new path for electricity after a storm, what AI skill is it using?',opts:['Cooking','Routing','Singing'],correct:1,explain:'AI finds the best path for power — that\'s called optimization, like Reinforcment Learning!'},
+    {q:'In the Camera Brain level, the AI learned to spot problems using what skill?',opts:['Computer Vision','Time Travel','Mind Reading'],correct:0,explain:'AI uses Computer Vision to see and find problems in images, just like your camera!'},
+    {q:'What should the AI always do first when routing power?',opts:['Turn off everything','Prioritize hospitals','Check emails'],correct:1,explain:'A smart AI always keeps critical places like hospitals running — that\'s safety-first design!'},
+    {q:'What makes a power grid "smart"?',opts:['It\'s painted blue','AI helps it think and decide','It runs on candy'],correct:1,explain:'A smart grid uses AI to predict demand, route power, and detect problems automatically!'},
+  ],
+
+  startQuiz(){
+    this.showPhase('quiz');
+    this.state.quiz={q:0,score:0,done:false};
+    this.renderQuiz();
+    this.speak('quiz-bubble','Ready for the <b>Grand Master Quiz</b>? Let\'s see what you\'ve learned about AI!');
+  },
+
+  renderQuiz(){
+    const data=this.quizData;
+    const q=this.state.quiz;
+    const grid=document.getElementById('quiz-grid');
+    if(q.q>=data.length){
+      // Quiz done
+      this.showQuizResult();
+      return;
+    }
+    const question=data[q.q];
+    const isLast=q.q>=data.length-1;
+    grid.innerHTML=`
+      <div class="quiz-question">${q.q+1}. ${question.q}</div>
+      ${question.opts.map((opt,i)=>{
+        const letter=String.fromCharCode(65+i);
+        return `<div class="quiz-option" data-idx="${i}">
+          <div class="opt-letter">${letter}</div>
+          <span>${opt}</span>
+        </div>`;
+      }).join('')}
+      <div id="quiz-feedback" style="font-size:13px;padding:8px;border-radius:var(--radius-sm);display:none;background:var(--bg-surface)"></div>
+      <button id="quiz-next-btn" class="btn btn-primary btn-sm" style="display:none;align-self:center;margin-top:4px">${isLast?'🎓 See Results ➔':'➡ Next Question'}</button>
+    `;
+    document.getElementById('quiz-qnum').textContent=`Question ${q.q+1} of ${data.length}`;
+    document.getElementById('quiz-progress').style.width=((q.q)/data.length*100)+'%';
+    document.getElementById('quiz-score').textContent=`Score: ${q.score}/${q.q}`;
+
+    grid.querySelectorAll('.quiz-option').forEach(el=>{
+      el.addEventListener('click',()=>this.quizAnswer(parseInt(el.dataset.idx)));
+    });
+  },
+
+  quizAnswer(idx){
+    const q=this.state.quiz;
+    const data=this.quizData[q.q];
+    if(q.answered)return;
+    q.answered=true;
+    const feedback=document.getElementById('quiz-feedback');
+    const options=document.querySelectorAll('.quiz-option');
+    options.forEach((el,i)=>{
+      if(i===data.correct)el.classList.add('correct');
+      else if(i===idx)el.classList.add('incorrect');
+    });
+    if(idx===data.correct){
+      q.score++;
+      this.startConfetti();
+      feedback.innerHTML='✅ Correct! '+data.explain;
+      feedback.style.display='block';
+    }else{
+      feedback.innerHTML='❌ Not quite. '+data.explain;
+      feedback.style.display='block';
+    }
+    document.getElementById('quiz-score').textContent=`Score: ${q.score}/${q.q+1}`;
+    // Show Next button and advance on click (or timeout fallback)
+    const nextBtn=document.getElementById('quiz-next-btn');
+    if(nextBtn){
+      nextBtn.style.display='';
+      nextBtn.onclick=()=>{
+        if(this.state.phase!=='quiz')return;
+        q.q++;q.answered=false;
+        if(q.q>=data.length)this.showQuizResult();
+        else this.renderQuiz();
+      };
+    }
+    // Fallback auto-advance after 6s if kid doesn't tap Next
+    setTimeout(()=>{
+      if(this.state.phase!=='quiz'||q.answered===false)return;
+      q.q++;q.answered=false;
+      if(q.q>=data.length)this.showQuizResult();
+      else this.renderQuiz();
+    },6000);
+  },
+
+  showQuizResult(){
+    const q=this.state.quiz;
+    const total=this.quizData.length;
+    const grid=document.getElementById('quiz-grid');
+    const pct=Math.round(q.score/total*100);
+    let grade='⭐';
+    if(pct>=80)grade='🏆 Amazing!';
+    else if(pct>=60)grade='🌟 Great job!';
+    else grade='👍 Keep learning!';
+
+    grid.innerHTML=`
+      <div style="text-align:center;padding:16px">
+        <div style="font-size:48px;margin-bottom:8px">${pct===100?'🎉':pct>=80?'🌟':'👍'}</div>
+        <div style="font-size:22px;font-weight:700">${grade}</div>
+        <div style="font-size:16px;color:var(--text-dim);margin:8px 0">You scored <span style="color:var(--energy-yellow);font-weight:700">${q.score}/${total}</span></div>
+        <div style="font-size:13px;color:var(--text-dim)">${pct===100?'Perfect score! You\'re a true AI Engineer!':pct>=80?'Almost perfect! You really know your AI!':'Review the levels to learn more!'}</div>
+      </div>
+    `;
+    document.getElementById('quiz-progress').style.width='100%';
+    document.getElementById('quiz-qnum').textContent='Complete!';
+    document.getElementById('quiz-score').textContent=`Final: ${q.score}/${total}`;
+    const doneBtn=document.getElementById('quiz-done');
+    doneBtn.style.display='';
+    doneBtn.classList.add('btn-glow');
+    if(pct>=80)this.startConfetti();
+    this.speak('quiz-bubble',pct===100?'PERFECT SCORE! Click "Get My Diploma" below to finish! 🎉':'Great work! Click "Get My Diploma" below to finish!');
+  },
+
+  bindQuiz(){
+    document.getElementById('quiz-back').addEventListener('click',()=>this.showPhase('menu'));
+    document.getElementById('quiz-done').addEventListener('click',()=>this.showDiploma());
+    document.getElementById('diploma-replay').addEventListener('click',()=>{
+      this.state.quiz={q:0,score:0,done:false};
+      this.showPhase('menu');
+    });
+    document.getElementById('diploma-menu').addEventListener('click',()=>this.showPhase('menu'));
+  },
+
+  showDiploma(){
+    this.showPhase('diploma');
+    this.startConfetti();
+  }
+};
+
+document.addEventListener('DOMContentLoaded',()=>App.init());
+</script>
+</body>
+</html>

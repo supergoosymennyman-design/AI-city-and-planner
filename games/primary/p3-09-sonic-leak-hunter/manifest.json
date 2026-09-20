@@ -1,0 +1,18 @@
+{
+  "name": "Sonic Leak Hunter",
+  "short_name": "Leak Hunter",
+  "description": "Train an AI to find hidden water leaks using sound wave patterns!",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0C2D48",
+  "theme_color": "#0C2D48",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230C2D48'/><text x='50' y='65' text-anchor='middle' font-size='48' fill='%2335B5C8'>💧</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

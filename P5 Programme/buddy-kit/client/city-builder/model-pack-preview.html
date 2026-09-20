@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Passiona model packs</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101b29; color: #f8fafc; }
+  body { margin: 0; padding: 28px; }
+  main { max-width: 1200px; margin: auto; }
+  h1 { margin: 0; font-size: 28px; } p { color: #b6c4d4; }
+  nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+  button { border: 1px solid #41516a; border-radius: 9px; padding: 10px 14px; background: #182638; color: inherit; font: inherit; cursor: pointer; }
+  button[aria-pressed="true"] { background: #0f766e; border-color: #5eead4; }
+  #count { margin: 14px 0; color: #b6c4d4; }
+  #models { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 12px; }
+  article { min-height: 170px; padding: 10px; border: 1px solid #334257; border-radius: 10px; background: #1b293a; }
+  img { display: block; width: 100%; height: 105px; object-fit: contain; background: #263549; border-radius: 6px; }
+  strong { display: block; margin-top: 8px; font-size: 13px; overflow-wrap: anywhere; }
+  small { color: #83ded9; }
+</style>
+<main>
+  <h1>Passiona model packs</h1>
+  <p>Standalone preview of the shared-library models available in each themed pack.</p>
+  <nav id="packs" aria-label="Model packs"></nav>
+  <div id="count" role="status"></div>
+  <section id="models" aria-label="Pack models"></section>
+</main>
+<script type="module">
+  import { LIBRARY } from '../city-common/library.js';
+  import { LIBRARY_PACKS, libraryByPack } from '../city-common/asset-packs.js';
+
+  const packs = document.querySelector('#packs');
+  const count = document.querySelector('#count');
+  const models = document.querySelector('#models');
+  function show(id) {
+    const items = libraryByPack(LIBRARY, id).filter(item => item.picker !== false);
+    for (const button of packs.children) button.setAttribute('aria-pressed', String(button.dataset.pack === id));
+    count.textContent = `${items.length} models in ${LIBRARY_PACKS.find(pack => pack.id === id).label}`;
+    models.replaceChildren(...items.map(item => {
+      const card = document.createElement('article');
+      card.innerHTML = `<img src="../library/thumbnails/${item.id}.png" alt=""><strong></strong><small>${item.category}</small>`;
+      card.querySelector('strong').textContent = `${item.emoji || '◆'} ${item.name}`;
+      card.querySelector('img').addEventListener('error', event => event.currentTarget.style.visibility = 'hidden');
+      return card;
+    }));
+  }
+  for (const pack of LIBRARY_PACKS) {
+    const button = document.createElement('button');
+    button.dataset.pack = pack.id;
+    button.textContent = `${pack.icon} ${pack.label}`;
+    button.addEventListener('click', () => show(pack.id));
+    packs.append(button);
+  }
+  show(LIBRARY_PACKS[0].id);
+</script>
+</html>

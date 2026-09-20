@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nova's AI Sorting Lab — P3 Sentiment Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="game-container">
+
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <p>Waking up Nova...</p>
+  </div>
+
+  <!-- Menu Screen -->
+  <div id="menu-screen">
+    <div class="menu-icon">🤗</div>
+    <h1>Nova's AI Sorting Lab</h1>
+    <p class="subtitle">Hi! I'm Nova! I just got hired at the City Help Center. Companies send me emails, but I have no idea where they go! Will you teach me?</p>
+    <div class="menu-skills">
+      <span class="concept-badge">🧠 Keyword Classification</span>
+      <span class="concept-badge">🧠 Sentiment Analysis</span>
+      <span class="concept-badge">🧠 Priority Routing</span>
+      <span class="concept-badge">🧠 Pattern Recognition</span>
+      <span class="concept-badge">🧠 Disambiguation</span>
+      <span class="concept-badge">🧠 Crisis Response</span>
+      <span class="concept-badge">🧠 Autonomous AI</span>
+    </div>
+    <button id="start-btn" class="start-btn">Teach Me! 🚀</button>
+  </div>
+
+  <!-- Top Bar -->
+  <div id="top-bar">
+    <div class="game-title">🧠 <span class="accent">Nova's</span> AI Sorting Lab</div>
+    <div class="level-tabs">
+      <button class="level-tab" data-level="1">L1</button>
+      <button class="level-tab" data-level="2">L2</button>
+      <button class="level-tab" data-level="3">L3</button>
+      <button class="level-tab" data-level="4">L4</button>
+      <button class="level-tab" data-level="5">L5</button>
+      <button class="level-tab" data-level="6">L6</button>
+      <button class="level-tab" data-level="7">L7</button>
+      <button class="level-tab level-tab-ai" data-level="8">L8 🔒</button>
+      <button class="level-tab" data-level="9" style="background:var(--accent);color:#000;font-weight:700">L9 🧠</button>
+    </div>
+    <div id="score-stars" class="score-display"></div>
+    <span id="level-label" data-level="1"></span>
+    <div class="top-actions">
+      <button id="ld-toggle" class="icon-btn" title="Nova's Knowledge" aria-label="Nova's Knowledge Dashboard">📊</button>
+      <button id="settings-toggle" class="icon-btn" title="Settings" aria-label="Settings">⚙️</button>
+      <button id="transcript-toggle" class="icon-btn" title="Conversation History" aria-label="Conversation History">📝</button>
+      <button id="debug-btn" class="icon-btn" title="Debug" aria-label="Debug Mode">🔧</button>
+    </div>
+  </div>
+
+  <!-- Main Area -->
+  <div id="main-area">
+
+    <!-- Instruction Bar -->
+    <div id="instruction-bar">
+      <span class="level-badge">📋</span> Select a lesson — 🧠 7 AI concepts to teach Nova!
+      <button id="btn-level-menu" class="icon-btn" style="margin-left:auto" title="Level Menu" aria-label="Level Menu">📋</button>
+    </div>
+
+    <!-- Keyword Sorter (Level 1) -->
+    <div id="keyword-sorter-area" class="special-area" style="display:none">
+      <div id="keyword-belt" class="keyword-belt"></div>
+      <div id="keyword-count" class="special-progress">0/0</div>
+      <div class="keyword-departments">
+        <div class="keyword-zone" data-department="parks">
+          <div class="kw-zone-header">🌳 Parks &amp; Rec</div>
+          <div id="kw-zone-body-parks" class="kw-zone-body"></div>
+        </div>
+        <div class="keyword-zone" data-department="transit">
+          <div class="kw-zone-header">🚌 Transit Authority</div>
+          <div id="kw-zone-body-transit" class="kw-zone-body"></div>
+        </div>
+        <div class="keyword-zone" data-department="waste">
+          <div class="kw-zone-header">♻️ Waste Management</div>
+          <div id="kw-zone-body-waste" class="kw-zone-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Priority Order (Level 2) -->
+    <div id="priority-order-area" class="special-area" style="display:none">
+      <div class="priority-legend">
+        <span class="legend-item urgent">🔴 Urgent (negative)</span>
+        <span class="legend-item happy">🟢 Happy (positive)</span>
+      </div>
+      <div id="priority-list" class="priority-list"></div>
+      <div class="priority-actions">
+        <button id="priority-submit-btn" class="priority-btn priority-submit-btn">Check Order</button>
+      </div>
+    </div>
+
+    <!-- Conveyor Belt -->
+    <div id="belt-area">
+      <div id="belt-track"></div>
+    </div>
+
+    <!-- Department Chutes -->
+    <div id="chute-area">
+      <div id="chute-parks" class="department-chute chute-parks">
+        <span class="chute-icon">🌳</span>
+        <span class="chute-label">Parks</span>
+      </div>
+      <div id="chute-transit" class="department-chute chute-transit">
+        <span class="chute-icon">🚌</span>
+        <span class="chute-label">Transit</span>
+      </div>
+      <div id="chute-waste" class="department-chute chute-waste">
+        <span class="chute-icon">🗑️</span>
+        <span class="chute-label">Waste</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Bar — Nova's unified area -->
+  <div id="bottom-bar">
+    <div id="nova-area">
+      <div id="nova-speech">
+        <div class="speech-sender">Nova</div>
+        <span id="nova-speech-text"></span>
+      </div>
+      <div id="text-input-area" class="text-input-area">
+        <input id="nova-text-input" type="text" placeholder="Ask Nova..." aria-label="Type a message for Nova">
+        <button id="text-send-btn">Send</button>
+      </div>
+      <div id="nova-avatar" data-confidence="low" role="button" tabindex="0" aria-label="Nova, your AI assistant"></div>
+    </div>
+  </div>
+
+  <!-- Nova Learn Notification -->
+  <div id="nova-learn-notif"></div>
+
+  <!-- Result Overlay -->
+  <div id="result-overlay">
+    <div class="result-card">
+      <div id="result-emoji" class="result-emoji">🏆</div>
+      <h2 id="result-title">Lesson Passed!</h2>
+      <div id="result-score" class="result-score">⭐⭐⭐</div>
+      <p id="result-message">Nova learned from your routing!</p>
+      <button id="retry-btn" class="result-btn primary">Try Again</button>
+      <button id="next-btn" class="result-btn primary">Next Lesson</button>
+      <button id="result-menu-btn" class="result-btn secondary">Lesson Menu</button>
+    </div>
+  </div>
+
+  <!-- Celebration Screen -->
+  <div id="celebration-screen">
+    <div class="trophy">🏆</div>
+    <h1>City Hero!</h1>
+    <div id="celebration-stars" class="stars-display"></div>
+    <div id="celebration-summary" class="summary">You taught Nova through all the lessons!</div>
+    <button id="celebrate-btn">Continue →</button>
+  </div>
+
+  <!-- AI Demo Screen -->
+  <div id="ai-demo-screen">
+    <div id="ai-demo-panel">
+      <div class="ai-panel-header">
+        <span class="ai-panel-title">🧠 AI Demo — Nova in Action</span>
+        <span id="ai-panel-status" class="ai-panel-status">Starting demo...</span>
+      </div>
+      <div id="ai-panel-body" class="ai-panel-table">
+        <div class="ai-panel-row header">
+          <span>Lesson</span>
+          <span>You</span>
+          <span>Nova</span>
+        </div>
+      </div>
+      <div id="ai-panel-actions" class="ai-panel-actions" style="display:none">
+        <button id="ai-replay-btn" class="ai-panel-btn">Watch Again</button>
+        <button id="ai-continue-btn" class="ai-panel-btn secondary">Finish</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exam Overlay -->
+  <div id="exam-overlay" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width:480px">
+      <h2 id="exam-header" style="margin-bottom:4px">📝 AI Exam</h2>
+      <div class="exam-progress" id="exam-progress" style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-bottom:10px">
+        <div id="exam-progress-fill" style="height:100%;width:0;background:#38BDF8;border-radius:2px;transition:width .3s"></div>
+      </div>
+      <div id="exam-question-area">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span id="exam-badge" style="background:rgba(56,189,248,0.12);color:#38BDF8;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px">Concept</span>
+          <span id="exam-count" style="font-size:10px;color:var(--text-muted)">1/8</span>
+        </div>
+        <p id="exam-question" style="font-size:15px;color:var(--text);line-height:1.5;margin-bottom:12px"></p>
+        <div id="exam-choices" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div>
+        <div id="exam-feedback" style="display:none;margin-top:8px">
+          <div id="exam-concept-card" style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:8px;padding:10px;text-align:left;margin-bottom:8px">
+            <div id="exam-result" style="font-size:14px;font-weight:700;margin-bottom:4px">✅ Correct!</div>
+            <div id="exam-concept-name" style="font-size:11px;font-weight:700;color:#38BDF8;margin-bottom:4px"></div>
+            <div id="exam-explanation" style="font-size:12px;color:var(--text-dim);line-height:1.4"></div>
+          </div>
+          <button id="exam-next-btn" class="priority-btn priority-submit-btn" style="width:100%">Next →</button>
+        </div>
+      </div>
+      <div id="exam-complete" style="display:none;text-align:center">
+        <div id="exam-stars" style="font-size:28px;margin-bottom:4px"></div>
+        <p id="exam-score" style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">0/8</p>
+        <p id="exam-msg" style="font-size:13px;color:var(--text-dim);line-height:1.5;margin-bottom:10px"></p>
+        <div id="exam-recap" style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:10px;text-align:left"></div>
+        <button id="exam-menu-btn" class="priority-btn priority-submit-btn">↩ Back to Lessons</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level Menu -->
+  <div id="level-menu" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h2>📋 Select a Lesson</h2>
+      <div id="level-grid" class="level-grid">
+        <button class="level-btn" data-level="1">L1 <small>Keyword Sorter</small></button>
+        <button class="level-btn" data-level="2">L2 <small>Priority Queue</small></button>
+        <button class="level-btn" data-level="3">L3 <small>Find the Dept</small></button>
+        <button class="level-btn" data-level="4">L4 <small>Neg Priority</small></button>
+        <button class="level-btn" data-level="5">L5 <small>Multi-Chute</small></button>
+        <button class="level-btn" data-level="6">L6 <small>Tricky Filter</small></button>
+        <button class="level-btn" data-level="7">L7 <small>Chaos Shift</small></button>
+        <button class="level-btn level-btn-ai" data-level="8">L8 🔒 <small>AI Demo</small></button>
+      </div>
+      <button id="btn-exam" class="btn-exam" style="margin-top:8px;width:100%;padding:10px;border:2px solid #fbbf24;border-radius:10px;background:rgba(251,191,36,0.1);color:#fbbf24;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">📝 AI Exam</button>
+      <button id="btn-close-menu" class="btn-secondary">Close</button>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h2>⚙️ Settings</h2>
+      <div class="setting-group">
+        <label>Speech Speed <span id="rate-value" class="value">0.9x</span></label>
+        <input id="speech-rate" type="range" min="0.3" max="2.0" step="0.1" value="0.85">
+      </div>
+      <div class="setting-group">
+        <label>Volume <span id="volume-value" class="value">90%</span></label>
+        <input id="speech-volume" type="range" min="0" max="1" step="0.1" value="0.9">
+      </div>
+      <div class="setting-group">
+        <label>Voice</label>
+        <select id="voice-select"></select>
+      </div>
+      <div class="toggle-row">
+        <label>Mute</label>
+        <label class="toggle-switch">
+          <input id="mute-toggle" type="checkbox">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <label>Microphone</label>
+        <label class="toggle-switch">
+          <input id="mic-toggle" type="checkbox" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <button class="modal-close-btn">Done</button>
+    </div>
+  </div>
+
+  <!-- Transcript Drawer -->
+  <div id="transcript-drawer">
+    <div class="drawer-header">
+      <span class="drawer-title">📝 Conversation History</span>
+      <button class="drawer-close">✕</button>
+    </div>
+    <div id="transcript-list" class="transcript-list"></div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Learning Dashboard (narrative layer) -->
+  <div id="learning-dashboard" class="ld-panel">
+    <div class="ld-header">
+      <span class="ld-title">📊 Nova's Knowledge</span>
+      <button class="ld-close-btn" onclick="if(window.LearningDashboard)LearningDashboard.hide()">✕</button>
+    </div>
+    <div class="ld-metrics">
+      <div class="ld-metric">
+        <span class="ld-label">📖 Keywords</span>
+        <div class="ld-bar-bg"><div id="ld-kw-bar" class="ld-bar ld-bar-kw" style="width:0%"></div></div>
+        <span id="ld-kw-count" class="ld-value">0</span>
+      </div>
+      <div class="ld-metric">
+        <span class="ld-label">💬 Sentiment</span>
+        <div class="ld-bar-bg"><div id="ld-sent-bar" class="ld-bar ld-bar-sent" style="width:0%"></div></div>
+        <span id="ld-sent-count" class="ld-value">0%</span>
+      </div>
+      <div class="ld-metric">
+        <span class="ld-label">🔍 Topics</span>
+        <div class="ld-bar-bg"><div id="ld-topic-bar" class="ld-bar ld-bar-topic" style="width:0%"></div></div>
+        <span id="ld-topic-count" class="ld-value">0%</span>
+      </div>
+    </div>
+    <div id="ld-detail-content" class="ld-detail">
+      <div class="ld-empty">Start sorting to teach Nova!</div>
+    </div>
+  </div>
+
+  <!-- Narrative Recap Overlay -->
+  <div id="narrative-overlay" class="narr-overlay">
+    <div id="recap-panel" class="recap-panel"></div>
+  </div>
+
+  <!-- Comic Intro Overlay (Level 0 opening sequence) -->
+  <div id="comic-intro" class="comic-overlay">
+    <div class="comic-panel" id="comic-panel-0"></div>
+  </div>
+
+</div>
+
+<!-- Scripts – Loaded in dependency order -->
+<script src="nova-svg.js"></script>
+<script src="nova-comic.js"></script>
+<script src="narrative-data.js"></script>
+<script src="learning-dashboard.js"></script>
+<script src="narrative.js"></script>
+<script src="data.js"></script>
+<script src="intents.js"></script>
+<script src="transcript.js"></script>
+<script src="settings.js"></script>
+<script src="drag.js"></script>
+<script src="belt.js"></script>
+<script src="game.js"></script>
+<script src="conversation.js"></script>
+<script src="main.js"></script>
+
+</body>
+</html>

@@ -17,7 +17,7 @@ const CLOUD_MODELS = [
 
 const CLOUDS_PER_TYPE = 6;       // ~24 clouds total (fuller sky)
 const CLOUD_FOOTPRINT = 90;      // m — target horizontal size per cloud
-const Y_MIN = 150, Y_MAX = 320;  // m — sky height band
+const Y_MIN = 150, Y_MAX = 320;  // m — broad sky band, visible from every camera
 const DRIFT_MIN = 2, DRIFT_MAX = 7;   // m/s — slow drift
 
 // Make a geometry safe for merging: keep only position/normal/uv.
@@ -59,7 +59,6 @@ export async function createClouds(scene, layout, opts = {}) {
     gltf.scene.traverse((o) => {
       if (!o.isMesh) return;
       const mm = new THREE.Matrix4().copy(o.matrixWorld);
-      mm.elements[12] = mm.elements[13] = mm.elements[14] = 0;   // drop translation
       const geo = normalizeGeo(o.geometry.clone());
       geo.applyMatrix4(mm);
       geos.push(geo);
@@ -77,7 +76,7 @@ export async function createClouds(scene, layout, opts = {}) {
 
     const inst = new THREE.InstancedMesh(
       merged,
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: false, opacity: 1, side: THREE.FrontSide }),
       CLOUDS_PER_TYPE
     );
     inst.count = 0;
@@ -105,10 +104,10 @@ export async function createClouds(scene, layout, opts = {}) {
     });
   }
 
-  // Subtle per-instance tint — soft slate blues so clouds read as moonlit
-  // shapes, NOT glowing white (the scene has an UnrealBloom pass, so bright
-  // whites blow out).
-  const TINTS = [0x7d8fa8, 0x8ea2c0, 0x6f81a0, 0x93a7c4];
+  // Per-instance tint — deep night slate-blue so clouds read as moonlit shapes
+  // darker than the city, never bright paper (the scene has an UnrealBloom
+  // pass, so anything luminous above the gate blows out; these sit well under).
+  const TINTS = [0xb6c3c2, 0xc6cdbe, 0xafbfc2, 0xc1c9c2];
   for (let t = 0; t < numTypes; t++) {
     for (let j = 0; j < CLOUDS_PER_TYPE; j++) {
       insts[t].setColorAt(j, new THREE.Color(TINTS[(t + j) % TINTS.length]));
@@ -123,7 +122,7 @@ export async function createClouds(scene, layout, opts = {}) {
   const wrap = spread + 250;
 
   // ── Stars: tiny twinkling points far above the city ──
-  const STAR_COUNT = 600;
+  const STAR_COUNT = opts.mobile ? 96 : 180;
   const starPos = new Float32Array(STAR_COUNT * 3);
   const starPhase = new Float32Array(STAR_COUNT);
   const starSize = new Float32Array(STAR_COUNT);
@@ -145,7 +144,7 @@ export async function createClouds(scene, layout, opts = {}) {
   const starMat = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
-    uniforms: { uTime: { value: 0 } },
+    uniforms: { uTime: { value: 0 }, uVisibility: { value: 0 } },
     vertexShader: `
       attribute float phase;
       attribute float size;
@@ -159,13 +158,14 @@ export async function createClouds(scene, layout, opts = {}) {
     `,
     fragmentShader: `
       uniform float uTime;
+      uniform float uVisibility;
       varying float vPhase;
       void main() {
         vec2 c = gl_PointCoord - 0.5;
         float d = length(c);
         if (d > 0.5) discard;
         float tw = 0.55 + 0.45 * sin(uTime * 1.6 + vPhase * 6.28318);
-        float a = smoothstep(0.5, 0.02, d) * tw;
+        float a = smoothstep(0.5, 0.02, d) * tw * 0.18 * uVisibility;
         if (a < 0.01) discard;
         gl_FragColor = vec4(1.0, 1.0, 1.0, a);
       }
@@ -193,7 +193,14 @@ export async function createClouds(scene, layout, opts = {}) {
   }
   writeMatrices();
 
+  let alive=true;
   function update(dt, tNow) {
+    if(!alive || document.hidden)return;
+    // Clouds are a sky layer, not street decoration: keep them present at
+    // overview and street-level camera heights. Reduced motion freezes drift.
+    insts.forEach(inst=>{inst.visible=true;});
+    starMat.uniforms.uTime.value = tNow || 0;
+    if(opts.reducedMotion?.())return;
     for (const c of clouds) {
       c.x += c.vx * dt;
       c.z += c.vz * dt;
@@ -203,9 +210,18 @@ export async function createClouds(scene, layout, opts = {}) {
       if (c.z > cz + wrap) c.z -= wrap * 2;
       else if (c.z < cz - wrap) c.z += wrap * 2;
     }
-    starMat.uniforms.uTime.value = tNow || 0;
     writeMatrices();
   }
 
-  return { update, getCount: () => clouds.length };
+  function setTimeOfDay(p) {
+    for (const inst of insts) inst.material.color.copy(p.cloud);
+    const visibility = p.starVisibility ?? 0;
+    stars.visible = visibility > 0;
+    starMat.uniforms.uVisibility.value = visibility;
+  }
+  return {
+    update, setTimeOfDay, getCount: () => clouds.length,
+    getPresentationState: () => ({ cloudsVisible:insts.every(inst=>inst.visible), starVisibility:starMat.uniforms.uVisibility.value, starCount:STAR_COUNT }),
+    destroy(){alive=false;for(const inst of insts){inst.removeFromParent();inst.geometry.dispose();inst.material.dispose();inst.dispose();}stars.removeFromParent();starGeo.dispose();starMat.dispose();}
+  };
 }

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0D1117" />
+  <meta name="description" content="Pixel Patrol — train Iris the AI to see through visual noise using edge detection. A P3 AI-literacy game." />
+  <title>👁️ Pixel Patrol — Train Iris the AI</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230D1117'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%2300FF41'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%230D1117'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ================= TOP BAR ================= -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-icon">👁️</span>
+        <span class="brand-name">Pixel Patrol</span>
+      </div>
+      <nav class="level-nav" id="levelNav" aria-label="Select a level — all unlocked"></nav>
+      <div class="top-actions">
+        <button id="btnDebug" class="icon-btn" title="Debug: reveal objects" aria-label="Debug">🔧</button>
+        <button id="btnTranscript" class="icon-btn" title="Transcript" aria-label="Open transcript">📝</button>
+        <button id="btnSettings" class="icon-btn" title="Settings" aria-label="Open settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- ================= LEVEL BANNER ================= -->
+    <div id="banner" class="level-banner" role="status" aria-live="polite">
+      <span class="banner-icon" aria-hidden="true">👁️</span>
+      <span class="banner-text">LEVEL 1: SUPERVISED LABELING</span>
+    </div>
+
+    <!-- ================= MAIN PLAY AREA ================= -->
+    <main class="play-area">
+      <section class="stage-column">
+        <div class="stage-wrap">
+          <canvas id="stage" width="800" height="600" aria-label="Surveillance camera view"></canvas>
+
+          <!-- Mode toggle overlay (L2-L5) -->
+          <div id="modeToggle" class="mode-toggle" hidden>
+            <button id="btnRGB" class="mode-btn active">🌈 RGB</button>
+            <button id="btnEdge" class="mode-btn">🌐 Edge</button>
+          </div>
+
+          <!-- Round / countdown HUD -->
+          <div class="stage-hud">
+            <div id="roundInfo" class="round-info">Round 1 / 3</div>
+            <div id="countInfo" class="count-info">Found: 0</div>
+            <div id="timerInfo" class="timer-info" hidden>⏱ <span id="secondsLeft">30</span>s</div>
+          </div>
+
+          <!-- Flash overlay -->
+          <div id="flash" class="flash" aria-live="polite"></div>
+        </div>
+
+        <!-- ================= CONTROLS ================= -->
+        <div id="controls" class="controls">
+          <!-- Level 1: Label buttons -->
+          <div id="labelControls" class="label-controls" hidden>
+            <button id="btnPerson" class="label-btn" data-label="person">🚶 Person</button>
+            <button id="btnCar" class="label-btn" data-label="car">🚗 Car</button>
+            <button id="btnBike" class="label-btn" data-label="bike">🚲 Bike</button>
+          </div>
+
+          <!-- Level 3: Detail slider -->
+          <div id="sliderControls" class="slider-controls" hidden>
+            <label>🔍 Detail Level: <strong id="detailVal">5</strong></label>
+            <input id="detailSlider" type="range" min="1" max="10" value="5" step="1" aria-label="Detail separation level" />
+            <button id="btnConfirmCount" class="primary-btn">Confirm Count</button>
+          </div>
+
+          <!-- Level 5: Dual sliders -->
+          <div id="filterControls" class="filter-controls" hidden>
+            <label>📏 Line Thickness: <strong id="thickVal">5</strong></label>
+            <input id="thickSlider" type="range" min="1" max="10" value="5" step="1" />
+            <label>🎚️ Sensitivity: <strong id="sensVal">5</strong></label>
+            <input id="sensSlider" type="range" min="1" max="10" value="5" step="1" />
+            <button id="btnConfirmFilter" class="primary-btn">Confirm Settings</button>
+          </div>
+
+          <!-- Level 4: Type counting -->
+          <div id="countControls" class="count-controls" hidden>
+            <div class="count-row">
+              <span>🚶 People: <strong id="ctPeople">0</strong></span>
+              <button class="cnt-btn" data-type="person">+1</button>
+              <button class="cnt-btn" data-type="person" data-neg>−1</button>
+            </div>
+            <div class="count-row">
+              <span>🚗 Cars: <strong id="ctCars">0</strong></span>
+              <button class="cnt-btn" data-type="car">+1</button>
+              <button class="cnt-btn" data-type="car" data-neg>−1</button>
+            </div>
+            <div class="count-row">
+              <span>🚲 Bikes: <strong id="ctBikes">0</strong></span>
+              <button class="cnt-btn" data-type="bike">+1</button>
+              <button class="cnt-btn" data-type="bike" data-neg>−1</button>
+            </div>
+            <button id="btnConfirmCounts" class="primary-btn">Confirm Counts</button>
+          </div>
+
+          <button id="btnRetry" class="secondary-btn" hidden>↻ Try Again</button>
+        </div>
+      </section>
+
+      <!-- ================= IRIS DASHBOARD ================= -->
+      <aside id="iris-dashboard" class="iris-dashboard" aria-label="Iris AI training dashboard">
+        <div class="iris-header">
+          <span class="iris-face">👁️</span>
+          <span class="iris-title">Iris</span>
+          <span class="iris-state-dot" id="irisStateDot"></span>
+        </div>
+        <div class="iris-status-badge" id="irisStatusBadge">🟡 UNTRAINED</div>
+        <div class="dash-section">
+          <div class="dash-label">Concepts Mastered</div>
+          <div class="concept-row" data-concept="labeling">
+            <span class="concept-dot">⬜</span><span class="concept-name">Labeling</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+          <div class="concept-row" data-concept="extraction">
+            <span class="concept-dot">⬜</span><span class="concept-name">Extraction</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+          <div class="concept-row" data-concept="segmentation">
+            <span class="concept-dot">⬜</span><span class="concept-name">Segmentation</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+          <div class="concept-row" data-concept="detection">
+            <span class="concept-dot">⬜</span><span class="concept-name">Detection</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+          <div class="concept-row" data-concept="filtering">
+            <span class="concept-dot">⬜</span><span class="concept-name">Filtering</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+        </div>
+        <div class="dash-section iris-stats">
+          <div class="dash-label">Stats</div>
+          <div class="stat-line"><span>Objects found</span><strong id="statFound">0</strong></div>
+          <div class="stat-line"><span>Correct</span><strong id="statCorrect">0</strong></div>
+          <div class="stat-line"><span>Accuracy</span><strong id="statAccuracy">—</strong></div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ================= IRIS SPEECH BAR ================= -->
+    <footer class="iris-bar">
+      <div class="iris-avatar-mini" id="irisAvatarMini" role="button" tabindex="0" aria-label="Tap Iris for help">
+        <svg viewBox="0 0 48 48" width="42" height="42">
+          <circle cx="24" cy="24" r="21" fill="#00FF41" opacity="0.3"/>
+          <circle cx="24" cy="24" r="14" fill="#00FF41" opacity="0.2"/>
+          <circle cx="24" cy="24" r="7" fill="#0D1117"/>
+          <circle cx="24" cy="24" r="4" fill="#00FF41"/>
+        </svg>
+        <span class="mini-state" id="miniState"></span>
+      </div>
+      <div class="iris-speech" id="irisSpeech" aria-live="polite">
+        <span class="speech-text" id="speechText">Tap a shape or say "Iris" for help!</span>
+      </div>
+      <div class="iris-input">
+        <button id="btnMic" class="mic-btn" aria-label="Toggle microphone">🎤</button>
+        <input id="textInput" class="text-input" type="text" placeholder="Type to ask Iris…" aria-label="Type a message" autocomplete="off" />
+        <button id="btnSend" class="send-btn" aria-label="Send">➤</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ================= MENU SCREEN ================= -->
+  <div id="menuScreen" class="screen menu-screen">
+    <div class="menu-card">
+      <div class="menu-logo">👁️</div>
+      <h1 class="menu-title">Pixel Patrol</h1>
+      <p class="menu-sub">WaterCity's new AI camera system <strong>sees everything</strong> — which is the problem.
+        Shadows, glare, rain, and crowds all confuse it.</p>
+      <p class="menu-mission">The <strong>Safety Department</strong> needs you to train their camera AI. Teach Iris to see through the noise,
+        find the real objects, and count what matters.</p>
+      <button id="btnStart" class="primary-btn">▶ Start Training Iris</button>
+      <p class="menu-hint">All 6 levels are unlocked.</p>
+    </div>
+  </div>
+
+  <!-- ================= RESULT SCREEN ================= -->
+  <div id="resultScreen" class="screen result-screen" hidden>
+    <div class="result-card">
+      <div class="result-icon" id="resultIcon">🧠</div>
+      <h2 class="result-title" id="resultTitle">Level Complete!</h2>
+      <p class="result-teach" id="resultTeach"></p>
+      <div class="result-actions">
+        <button id="btnNextLevel" class="primary-btn">Next Level →</button>
+        <button id="btnReplayLevel" class="secondary-btn">↻ Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CERTIFICATE SCREEN ================= -->
+  <div id="certScreen" class="screen cert-screen" hidden>
+    <div class="cert-card">
+      <canvas id="certCanvas" width="820" height="560" aria-label="Certificate"></canvas>
+      <div class="cert-actions">
+        <button id="btnCertDownload" class="primary-btn">⬇ Save</button>
+        <button id="btnCertMenu" class="secondary-btn">🏠 Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS ================= -->
+  <div id="settingsModal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head"><h2>⚙️ Settings</h2><button id="btnCloseSettings" class="icon-btn">✕</button></div>
+      <div class="modal-body">
+        <label class="set-row"><span>Speech speed</span><input id="setRate" type="range" min="0.5" max="2" step="0.05" value="0.9" /><output id="setRateVal">0.9×</output></label>
+        <label class="set-row"><span>Volume</span><input id="setVolume" type="range" min="0" max="100" step="1" value="90" /><output id="setVolumeVal">90%</output></label>
+        <label class="set-row"><span>Voice</span><select id="setVoice"></select></label>
+        <label class="set-row switch-row"><span>Mute Iris</span><input id="setMute" type="checkbox" /></label>
+        <label class="set-row switch-row"><span>Microphone</span><input id="setMic" type="checkbox" checked /></label>
+        <button id="btnResetProgress" class="danger-btn">Reset Iris training</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TRANSCRIPT ================= -->
+  <div id="transcriptDrawer" class="drawer" hidden>
+    <div class="drawer-head"><h2>📝 Conversation</h2><button id="btnCloseTranscript" class="icon-btn">✕</button></div>
+    <div id="transcriptList" class="drawer-body" aria-live="polite"></div>
+    <button id="btnClearTranscript" class="secondary-btn">Clear</button>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="transcript.js"></script>
+  <script src="settings.js"></script>
+  <script src="intents.js"></script>
+  <script src="renderer.js"></script>
+  <script src="quiz.js"></script>
+  <script src="iris.js"></script>
+  <script src="game.js"></script>
+  <script src="comic.js"></script>
+  <script>
+    // WaterCity's new camera AI — Iris's origin story.
+    window.COMIC_PANELS = [
+      {
+        art: '📷', title: 'Iris Sees Everything',
+        text: 'WaterCity just installed Iris — a brand-new surveillance AI camera system.',
+        subtext: 'She watches the streets, the plazas, and the night markets. She sees EVERYTHING — which is exactly the problem.',
+        tts: 'WaterCity just installed Iris — a brand new surveillance AI camera system. She watches the streets, the plazas, and the night markets. She sees everything, which is exactly the problem.',
+        color: '#00FF41',
+      },
+      {
+        art: '🌫️', title: 'The Noise',
+        text: 'Shadows, rain, glare, and crowds all confuse her.',
+        subtext: 'A swaying tree looks like a person. A rain puddle looks like a hazard. Iris can\'t tell what is real from what is noise.',
+        tts: 'Shadows, rain, glare, and crowds all confuse Iris. A swaying tree looks like a person, and a rain puddle looks like a hazard. She cannot tell what is real from what is noise.',
+        color: '#F59E0B',
+      },
+      {
+        art: '🎓', title: 'The Safety Department Needs You',
+        text: 'Teach Iris to see through the noise — to find the edges that matter.',
+        subtext: 'The Safety Department asked you to train their camera AI. Every shape you label helps Iris spot real people and vehicles.',
+        tts: 'That is where you come in! The Safety Department asked you to train their camera AI. Teach Iris to see through the noise, and find the edges that matter. Every shape you label trains her to spot real people and vehicles in the dark.',
+        color: '#00FF41',
+      },
+    ];
+    (function () {
+      var btn = document.getElementById('btnStart');
+      if (!btn) return;
+      var done = false;
+      btn.addEventListener('click', function (e) {
+        if (done) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        ComicIntro.play(window.COMIC_PANELS, function () {
+          done = true;
+          btn.click();
+        });
+      }, true);
+    })();
+  </script>
+</body>
+</html>

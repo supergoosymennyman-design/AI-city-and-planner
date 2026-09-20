@@ -201,7 +201,7 @@ test('homeReachRoutes route path distances match the walk engine distances', () 
   const w = computeWalkReach(layout);
   const routes = homeReachRoutes(layout, w, 0);
   // Sum the drawn path's segment lengths — must be ~ the reported dist.
-  for (const r of routes) {
+  for (const r of routes.filter((r) => r.path.length)) {
     let sum = 0;
     for (let i = 0; i < r.path.length - 1; i++) {
       sum += Math.hypot(r.path[i + 1].x - r.path[i].x, r.path[i + 1].z - r.path[i].z);
@@ -210,13 +210,14 @@ test('homeReachRoutes route path distances match the walk engine distances', () 
   }
 });
 
-test('homeReachRoutes returns [] for a non-home or no-road city', () => {
+test('homeReachRoutes reports no selected home and no road access explicitly', () => {
   const noRoad = sanitizeLayout({
     version: 2, scaleMeters: 2000, roads: [], parks: [],
     buildings: [{ type: 'housing', pos: [1000, 1000], footprint: [20, 20], height: 24 }],
   });
   const wNo = computeWalkReach(noRoad);
-  assert.deepEqual(homeReachRoutes(noRoad, wNo, 0), []);
+  assert.equal(homeReachRoutes(noRoad, wNo, 0).length, 9);
+  assert.ok(homeReachRoutes(noRoad, wNo, 0).every((r) => r.status === 'no-road-access' && !r.ok && r.path.length === 0));
 
   const nonHome = sanitizeLayout({
     version: 2, scaleMeters: 2000,
@@ -224,5 +225,5 @@ test('homeReachRoutes returns [] for a non-home or no-road city', () => {
     parks: [], buildings: [{ type: 'school', pos: [1000, 1000], footprint: [26, 24], height: 20 }],
   });
   const wS = computeWalkReach(nonHome);
-  assert.deepEqual(homeReachRoutes(nonHome, wS, 0), []);
+  assert.deepEqual(homeReachRoutes(nonHome, wS, 0), [{ type: null, status: 'no-selected-home', dist: null, ok: false, path: [] }]);
 });

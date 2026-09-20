@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f1923">
+  <title>AI Underworld — Train Nova to Scan</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ============ INTRO SCREEN ============ -->
+  <div id="screen-intro" class="screen active">
+    <div class="intro-content">
+      <div class="drone-animation">
+        <svg class="drone-svg" viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="60" cy="50" rx="25" ry="10" fill="var(--color-primary)" opacity="0.8"/>
+          <rect x="40" y="42" width="40" height="8" rx="4" fill="var(--color-primary)"/>
+          <line x1="35" y1="50" x2="20" y2="35" stroke="var(--color-text-muted)" stroke-width="2"/>
+          <line x1="85" y1="50" x2="100" y2="35" stroke="var(--color-text-muted)" stroke-width="2"/>
+          <line x1="35" y1="50" x2="20" y2="65" stroke="var(--color-text-muted)" stroke-width="2"/>
+          <line x1="85" y1="50" x2="100" y2="65" stroke="var(--color-text-muted)" stroke-width="2"/>
+          <g class="rotor rotor-tl"><ellipse cx="18" cy="30" rx="10" ry="3" fill="var(--color-accent)" opacity="0.6"/></g>
+          <g class="rotor rotor-tr"><ellipse cx="102" cy="30" rx="10" ry="3" fill="var(--color-accent)" opacity="0.6"/></g>
+          <g class="rotor rotor-bl"><ellipse cx="18" cy="70" rx="10" ry="3" fill="var(--color-accent)" opacity="0.6"/></g>
+          <g class="rotor rotor-br"><ellipse cx="102" cy="70" rx="10" ry="3" fill="var(--color-accent)" opacity="0.6"/></g>
+          <circle cx="60" cy="50" r="8" fill="var(--color-primary)" opacity="0.3">
+            <animate attributeName="r" values="8;14;8" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.3;0.1;0.3" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="60" cy="48" r="4" fill="#111"/>
+          <circle cx="60" cy="48" r="2" fill="#333"/>
+        </svg>
+      </div>
+      <h1 class="intro-title">AI Underworld</h1>
+      <p class="intro-subtitle">Train an AI survey drone to find underground hazards<br>before we build the city!</p>
+      <div class="intro-ai-skills">
+        <div class="ai-skill-badge">🧠 Supervised Learning</div>
+        <div class="ai-skill-badge">⚖️ Detection Tradeoffs</div>
+        <div class="ai-skill-badge">🤝 Human + AI Teamwork</div>
+      </div>
+      <p class="intro-hint">Teach, tune, fuse, and verify — you are the AI trainer.</p>
+      <button id="btn-start" class="btn-primary btn-large">Start Survey</button>
+    </div>
+  </div>
+
+  <!-- ============ GAME SCREEN ============ -->
+  <div id="screen-game" class="screen">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="game-title-bar">
+        <span class="game-title-text">AI Underworld</span>
+        <span class="level-label" id="level-label">Level 1</span>
+      </div>
+      <div class="top-bar-controls">
+        <button id="transcript-toggle" class="btn-icon" aria-label="View conversation transcript" title="Transcript">📝</button>
+        <button id="settings-toggle" class="btn-icon" aria-label="Settings">⚙️</button>
+        <button id="btn-menu" class="btn-icon" aria-label="Level menu">☰</button>
+      </div>
+    </header>
+
+    <!-- Level Menu Modal -->
+    <div id="level-menu" class="modal-overlay hidden">
+      <div class="modal-content">
+        <h2>Select Level</h2>
+        <div class="level-grid" id="level-grid">
+          <button class="level-btn" data-level="1">Day 1<br><small>Supervised Learning</small></button>
+          <button class="level-btn" data-level="2">Day 2<br><small>Precision vs Recall</small></button>
+          <button class="level-btn" data-level="3">Day 3<br><small>Sensor Fusion</small></button>
+          <button class="level-btn" data-level="4">Day 4<br><small>Human-in-the-Loop</small></button>
+          <button class="level-btn" data-level="5">Day 5<br><small>Autonomous AI</small></button>
+          <button class="level-btn" data-level="6">Exam<br><small>AI Mastery</small></button>
+        </div>
+        <button class="btn-secondary" id="btn-close-menu">Close</button>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+      <div class="modal-content settings-content">
+        <h2>Settings</h2>
+        <div class="setting-group">
+          <label for="speech-rate">Speech Speed: <span class="value" id="rate-value">0.9x</span></label>
+          <input type="range" id="speech-rate" min="0.5" max="2.0" step="0.1" value="0.9" class="range-slider" aria-label="Speech speed">
+        </div>
+        <div class="setting-group">
+          <label for="speech-volume">Volume: <span class="value" id="volume-value">90%</span></label>
+          <input type="range" id="speech-volume" min="0" max="1" step="0.05" value="0.9" class="range-slider" aria-label="Volume">
+        </div>
+        <div class="setting-group">
+          <label for="voice-select">Voice:</label>
+          <select id="voice-select" class="voice-select" aria-label="Select voice">
+            <option value="">Default (System)</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <div class="toggle-row">
+            <label for="mute-toggle">Mute Nova</label>
+            <label class="toggle">
+              <input type="checkbox" id="mute-toggle" aria-label="Mute Nova's speech">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <label for="mic-toggle">Microphone</label>
+            <label class="toggle">
+              <input type="checkbox" id="mic-toggle" checked aria-label="Enable microphone">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <button class="modal-close-btn" aria-label="Close settings">Done</button>
+      </div>
+    </div>
+
+    <!-- Game Area -->
+    <div class="game-area">
+      <!-- Left: Grid Map -->
+      <div class="map-panel">
+        <div class="map-header">
+          <span class="map-title">Survey Map</span>
+          <span class="map-stats" id="grid-stats">6×6 Grid</span>
+        </div>
+        <div class="grid-map" id="grid-map"></div>
+
+        <!-- Lv5: Confidence legend -->
+        <div class="confidence-legend hidden" id="confidence-legend">
+          <span class="legend-item"><span class="legend-dot confident-hazard"></span> Auto-Hazard</span>
+          <span class="legend-item"><span class="legend-dot confident-safe"></span> Auto-Safe</span>
+          <span class="legend-item"><span class="legend-dot uncertain-cell"></span> Uncertain</span>
+          <span class="legend-item"><span class="legend-dot approved-cell"></span> Confirmed</span>
+        </div>
+
+        <!-- Simple color guide (hidden for Lv4-5) -->
+        <div class="map-legend" id="map-legend">
+          <span class="legend-item"><span class="legend-dot safe-labeled"></span> Safe</span>
+          <span class="legend-item"><span class="legend-dot hazard-labeled"></span> Hazard</span>
+          <span class="legend-item"><span class="legend-dot nova-error"></span> Nova Wrong</span>
+        </div>
+      </div>
+
+      <!-- Right: Device + Controls (3-zone layout: header, controls, footer) -->
+      <div class="device-panel">
+
+        <!-- Zone 1: Header (pinned top) — chart + objective -->
+        <div class="device-header">
+          <div class="device-frame">
+            <div class="device-screen">
+              <canvas id="device-canvas"></canvas>
+            </div>
+            <div class="device-label" id="device-info">Select cells to train Nova</div>
+          </div>
+          <div class="objective-box" id="objective-box">
+            <p id="objective-text">Label signal samples to teach Nova what a hazard looks like!</p>
+            <button class="btn-link" id="btn-show-explanation">🧠 AI Lesson</button>
+          </div>
+        </div>
+
+        <!-- Level explanation overlay -->
+        <div id="explanation-overlay" class="hidden">
+          <div class="explanation-card">
+            <button class="explanation-close" id="btn-close-explanation">&times;</button>
+            <h3 id="explanation-title">How this works</h3>
+            <div id="explanation-body"></div>
+          </div>
+        </div>
+
+        <!-- Zone 2: Controls (scrollable middle) — level-specific panels -->
+        <div class="device-controls">
+
+          <!-- Lv1: Training panel -->
+          <div class="training-panel" id="training-panel">
+            <div class="training-status" id="training-status">
+              <span>Labels: <strong id="label-count">0/4</strong></span>
+              <span class="training-phase" id="training-phase-text">Collecting samples</span>
+            </div>
+            <div class="training-actions">
+              <button id="btn-label-safe" class="btn-training btn-safe" disabled>✓ Safe</button>
+              <button id="btn-label-hazard" class="btn-training btn-hazard" disabled>⚠ Hazard</button>
+              <button id="btn-confirm-lv1" class="btn-primary hidden">Confirm Teaching</button>
+              <button id="btn-submit-as-is" class="btn-secondary hidden" title="Confirm current labels and finish teaching">Submit as-is</button>
+            </div>
+          </div>
+
+          <!-- Lv2: Sensitivity slider -->
+          <div class="sensitivity-panel hidden" id="sensitivity-panel">
+            <div class="sensitivity-slider-row">
+              <span class="sens-label">📻 Sensitivity</span>
+              <input type="range" id="sens-slider" min="1" max="12" value="1" step="1"
+                aria-label="Sensitivity — higher catches more, but more false alarms">
+              <div class="sens-labels">
+                <span>😴 Low (miss things)</span>
+                <span class="sens-value" id="sensitivity-value">1</span>
+                <span>😰 High (false alarms)</span>
+              </div>
+            </div>
+            <div class="sensitivity-meters">
+              <div class="meter-row">
+                <span class="meter-label">Hazards Caught</span>
+                <span class="meter-value" id="meter-hazards">0/6</span>
+              </div>
+              <div class="meter-row">
+                <span class="meter-label">False Alarms</span>
+                <span class="meter-value false" id="meter-false-alarms">0</span>
+              </div>
+            </div>
+            <button id="btn-confirm-sens" class="btn-primary" style="width:100%;margin-top:6px" disabled>Confirm Sensitivity</button>
+          </div>
+
+          <!-- Lv4: Sensor toggle -->
+          <div class="sensor-toggle hidden" id="sensor-toggle">
+            <button id="btn-sensor-seismic" class="btn-sensor active" data-sensor="0">〰 Seismic</button>
+            <button id="btn-sensor-gpr" class="btn-sensor" data-sensor="1">↕ GPR</button>
+            <button id="btn-sensor-em" class="btn-sensor" data-sensor="2">◎ EM</button>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="action-row" id="action-row">
+            <button id="btn-mark" class="btn-primary" disabled>Confirm Hazard</button>
+            <button id="btn-retrain" class="btn-secondary hidden" disabled>🔄 Retrain</button>
+            <button id="btn-confirm" class="btn-secondary hidden">Confirm Survey</button>
+          </div>
+
+          <!-- Lv5: Approve/Correct -->
+          <div class="lv5-actions hidden" id="lv5-actions">
+            <button id="btn-approve" class="btn-primary btn-approve" disabled>⚠ Hazard</button>
+            <button id="btn-correct" class="btn-secondary btn-correct" disabled>✓ Safe</button>
+          </div>
+
+          <!-- Lv4: Sensor Vote Table (code-style readout) -->
+          <div id="vote-table" class="vote-table hidden"></div>
+
+          <div class="action-row">
+            <button id="btn-next-uncertain" class="btn-secondary btn-sm hidden">➡️ Next uncertain cell</button>
+          </div>
+
+          <div class="action-row">
+            <button id="btn-undo" class="btn-secondary btn-sm" disabled title="Undo last action">↩ Undo</button>
+            <button id="btn-reset-level" class="btn-secondary btn-sm">Reset Level</button>
+          </div>
+        </div>
+
+        <!-- Zone 3: Footer (pinned bottom) — Nova + tokens + feedback -->
+        <div class="device-footer">
+
+          <!-- Token counter inside footer -->
+          <div class="token-counter hidden" id="token-counter">
+            <span class="token-icon">🪙</span>
+            <span>Tokens: <strong id="tokens-remaining">0</strong></span>
+            <span class="token-spent" id="tokens-spent">(Spent: 0)</span>
+          </div>
+
+          <!-- Nova AI Area -->
+              <!-- Dr. Chen Character Card -->
+          <div id="chen-card" class="chen-card hidden">
+            <div class="chen-avatar">👨🏻‍🔧</div>
+            <div class="chen-body">
+              <div class="chen-name">Dr. Chen</div>
+              <div class="chen-msg" id="chen-msg">Ready to begin?</div>
+            </div>
+          </div>
+
+          <!-- Nova AI Area -->
+          <div class="nova-area" id="nova-area">
+            <div id="nova-speech" class="nova-speech-bubble" role="status" aria-live="polite">
+              <div class="speech-text" id="speech-text"></div>
+              <div class="text-input-area" id="text-input-area">
+                <input type="text" id="nova-text-input" placeholder="Ask Nova something..." aria-label="Type a message for Nova">
+                <button id="text-send-btn" aria-label="Send message">Send</button>
+              </div>
+            </div>
+            <div id="nova-avatar" class="nova-avatar" role="button" tabindex="0" aria-label="Nova the survey drone. Tap to type a message.">
+              <svg class="nova-drone-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="30" cy="36" rx="15" ry="6" fill="var(--color-primary)" opacity="0.7"/>
+                <rect x="22" y="32" width="16" height="5" rx="3" fill="var(--color-primary)"/>
+                <line x1="18" y1="36" x2="8" y2="24" stroke="var(--color-accent)" stroke-width="1.5" opacity="0.6"/>
+                <line x1="42" y1="36" x2="52" y2="24" stroke="var(--color-accent)" stroke-width="1.5" opacity="0.6"/>
+                <line x1="18" y1="36" x2="8" y2="48" stroke="var(--color-accent)" stroke-width="1.5" opacity="0.6"/>
+                <line x1="42" y1="36" x2="52" y2="48" stroke="var(--color-accent)" stroke-width="1.5" opacity="0.6"/>
+                <circle cx="30" cy="36" r="5" fill="var(--color-primary)" opacity="0.15">
+                  <animate attributeName="r" values="5;9;5" dur="2.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="30" cy="35" r="3" fill="#111"/>
+                <circle cx="31" cy="34" r="1.5" fill="var(--color-accent)" opacity="0.8"/>
+              </svg>
+              <span id="nova-mood" class="nova-mood nova-mood-eager" aria-label="Nova mood">😊</span>
+              <span class="ai-state-dot idle" id="nova-state-dot" aria-label="Nova is idle"></span>
+            </div>
+            <!-- Nova Growth Meter -->
+            <div id="nova-growth" class="nova-growth hidden">
+              <div class="nova-growth-track">
+                <div class="nova-growth-fill" id="nova-growth-fill" style="width:0%"></div>
+              </div>
+              <span class="nova-growth-label" id="nova-growth-label">Surveyor: Novice</span>
+            </div>
+          </div>
+
+          <!-- AI Indicator -->
+          <div class="ai-indicator" id="ai-indicator">
+            <span class="indicator-dot scanning" id="indicator-dot"></span>
+            <span class="indicator-text" id="indicator-text">Ready</span>
+          </div>
+
+          <!-- Feedback -->
+          <div id="feedback-area" class="feedback-area hidden">
+            <p id="feedback-text"></p>
+          </div>
+        </div>
+
+        <!-- Level Complete -->
+        <div id="level-complete" class="level-complete-overlay hidden">
+          <div class="complete-content">
+            <div class="star-rating" id="star-rating"></div>
+            <h2 id="complete-title">Survey Complete!</h2>
+            <p id="complete-message"></p>
+            <div class="complete-buttons">
+              <button id="btn-next-level" class="btn-primary">Next Level</button>
+              <button id="btn-replay-level" class="btn-secondary">Replay</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lv5: Nova Arc End Card (shown after level 5 complete) -->
+        <div id="lv5-end-card" class="level-complete-overlay hidden">
+          <div class="complete-content end-card-content">
+            <h2 class="end-card-title">You Taught Nova!</h2>
+            <div class="end-card-comparison">
+              <div class="end-card-col">
+                <div class="end-card-label">Level 1 Nova</div>
+                <div class="end-card-icon">❌</div>
+                <p>Knew nothing<br>Got cells wrong<br>Needed teaching</p>
+              </div>
+              <div class="end-card-arrow">→</div>
+              <div class="end-card-col">
+                <div class="end-card-label">Level 5 Nova</div>
+                <div class="end-card-icon">✅</div>
+                <p>Surveyed alone<br>8×8 site certified<br>Confident &amp; accurate</p>
+              </div>
+            </div>
+            <p class="end-card-quote">"You taught me. Look what I can do now."</p>
+            <button id="btn-end-card-done" class="btn-primary">Finish Survey</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback Popup (wrong answer explanation) -->
+    <div id="feedback-popup" class="feedback-popup hidden">
+      <div class="feedback-popup-backdrop"></div>
+      <div class="feedback-popup-box">
+        <button class="feedback-popup-close" id="feedback-popup-close">&times;</button>
+        <div class="feedback-popup-icon" id="feedback-popup-icon">⚠️</div>
+        <div class="feedback-popup-text" id="feedback-popup-text"></div>
+        <button class="feedback-popup-btn" id="feedback-popup-btn">Got it</button>
+      </div>
+    </div>
+
+    <!-- Chapter Card Overlay (narrative story card at level start) -->
+    <div id="chapter-card" class="chapter-card hidden">
+      <div class="chapter-card-inner">
+        <div class="chapter-number" id="chapter-number"></div>
+        <h2 class="chapter-title" id="chapter-title"></h2>
+        <p class="chapter-story" id="chapter-story"></p>
+        <p class="chapter-ai-lesson" id="chapter-ai-lesson"></p>
+        <div class="chapter-char">
+          <span class="chapter-char-emoji">👨🏻‍🔧</span>
+          <span class="chapter-char-name">— Dr. Chen</span>
+        </div>
+        <button id="chapter-skip" class="btn-primary chapter-skip">▶ Start</button>
+      </div>
+    </div>
+
+    <!-- Debug mode: hidden — long-press the game title for 2s to activate -->
+  </div>
+
+  <!-- ============ COMPLETION SCREEN ============ -->
+  <div id="screen-complete" class="screen">
+    <div class="complete-screen-content">
+      <div class="trophy-animation">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="trophy-svg">
+          <path d="M30 20h40v10c0 15-10 30-20 35-10-5-20-20-20-35V20z" fill="var(--color-warning)" opacity="0.9"/>
+          <rect x="42" y="65" width="16" height="10" rx="2" fill="var(--color-text-muted)"/>
+          <rect x="35" y="75" width="30" height="6" rx="3" fill="var(--color-text-muted)"/>
+          <path d="M30 25C20 25 15 35 20 40" fill="none" stroke="var(--color-warning)" stroke-width="3" stroke-linecap="round"/>
+          <path d="M70 25C80 25 85 35 80 40" fill="none" stroke="var(--color-warning)" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1 class="complete-title">🎓 AI Trainer Certified!</h1>
+      <p class="complete-subtitle">You taught Nova to survey underground hazards like a pro!</p>
+
+      <div class="final-lesson">
+        <p><strong>🧠 What you learned:</strong></p>
+        <p>1️⃣ <strong>AI learns from examples</strong> — You showed Nova safe vs. hazardous signals, and it found the pattern.</p>
+        <p>2️⃣ <strong>AI needs tuning</strong> — Like a volume knob, you adjusted sensitivity to balance catching hazards vs. false alarms.</p>
+        <p>3️⃣ <strong>AI sees through noise</strong> — When signals got fuzzy, Nova's rule still worked better than human eyes.</p>
+        <p>4️⃣ <strong>Multiple sensors are better</strong> — 3 sensors working together catch things one alone would miss.</p>
+        <p>5️⃣ <strong>AI + Human = Best Team</strong> — Nova handled the easy stuff. You handled the tricky ones. Together, you're unstoppable!</p>
+      </div>
+
+      <div class="final-stats">
+        <div class="stat-item">
+          <span class="stat-value" id="final-total-hazards">0</span>
+          <span class="stat-label">Hazards Found</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="final-accuracy">0%</span>
+          <span class="stat-label">Accuracy</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="final-tokens">0</span>
+          <span class="stat-label">Tokens Spent</span>
+        </div>
+      </div>
+
+      <button id="btn-play-again" class="btn-primary btn-large">Play Again</button>
+    </div>
+  </div>
+
+  <!-- ============ TRANSCRIPT DRAWER ============ -->
+  <div id="transcript-drawer" role="dialog" aria-label="Conversation transcript">
+    <div class="drawer-header">
+      <div class="drawer-title"><span>📝</span> Conversation History</div>
+      <button class="drawer-close" aria-label="Close transcript">&times;</button>
+    </div>
+    <div class="transcript-list" id="transcript-list" role="log" aria-live="off"></div>
+  </div>
+
+  <!-- Scripts — load order: settings → transcript → intents → conversation → classifier → sensors → game → audio → chart → main -->
+  <script src="settings.js?v=2"></script>
+  <script src="transcript.js?v=2"></script>
+  <script src="intents.js?v=2"></script>
+  <script src="conversation.js?v=2"></script>
+  <script src="classifier.js?v=2"></script>
+  <script src="sensors.js?v=2"></script>
+  <script src="game.js?v=2"></script>
+  <script src="audio.js?v=2"></script>
+  <script src="chart.js?v=2"></script>
+  <script src="main.js?v=2"></script>
+</body>
+</html>

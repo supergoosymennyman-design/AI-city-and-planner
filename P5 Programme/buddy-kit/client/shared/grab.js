@@ -330,8 +330,30 @@ export function createGrabSystem(scene, opts) {
     else if (opts.pads) updateAnchorHighlights(opts.pads, !!nearest, nearest);
   }
 
+  // Remove only this registration, including held/selected and raycast refs.
+  function unregister(group) {
+    if (holding === group) { holding = null; mode = 'idle'; }
+    if (selected === group) clearSelection();
+    detachCollider(group);
+    for (const list of [interactables, meshes, surfaces, floors]) {
+      for (let i = list.length - 1; i >= 0; i--) {
+        if (list[i] === group || isPartOf(list[i], group)) list.splice(i, 1);
+      }
+    }
+    group.traverse(o => { delete o.userData._interact; });
+    delete group.userData.interactable;
+  }
+
   return {
     register,
+    unregister,
+    destroy() {
+      [...interactables].forEach(unregister);
+      surfaces.length = floors.length = 0;
+      selBox.removeFromParent();
+      selBox.geometry.dispose();
+      selBox.material.dispose();
+    },
     pickUp,
     grabOrPlace: pickUp,       // backward-compat alias for spaceship/station ✋
     pick,

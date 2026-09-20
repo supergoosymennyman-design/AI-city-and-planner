@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sonic Leak Hunter — Train Piper the AI!</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💧</text></svg>">
+  <meta name="description" content="Train an AI assistant to detect hidden water leaks using sound wave patterns. Learn about supervised learning, classification, noise filtering, and more!">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Prevent FOUC -->
+  <style>
+    #game-container { opacity: 0; }
+    #game-container.ready { opacity: 1; transition: opacity 0.3s; }
+  </style>
+  
+  <!-- Three.js import map (local vendored copy — works offline) -->
+  <script type="importmap">
+  { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+</head>
+<body>
+  
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- GAME CONTAINER -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="game-container">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" role="status" aria-label="Loading game">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Initializing Sonic Sensors...</p>
+    </div>
+
+    <!-- Menu / Intro Screen -->
+    <div id="menu-screen" role="dialog" aria-label="Game Introduction" style="display:none;">
+      <div class="menu-hero" aria-hidden="true">🤖💧</div>
+      <h1>Sonic Leak Hunter</h1>
+      <p class="menu-subtitle">Train Piper the AI to find hidden water leaks!</p>
+      
+      <div class="menu-story">
+        <p><strong>WaterCity</strong> is losing water to hidden underground leaks! The city has deployed <strong>Piper</strong> — an AI assistant with acoustic sensors. But there's a problem: Piper can hear everything, but it <em>doesn't know what a leak sounds like</em>.</p>
+        <p style="margin-top:8px;"><strong>That's where YOU come in!</strong> Train Piper, scan the city, filter out noise, and brief the Water Department on AI leak detection!</p>
+      </div>
+      
+      <button class="start-btn" id="menu-start-btn" aria-label="Start the game">
+        🚀 Start Training Piper
+      </button>
+      
+      <p style="font-family:var(--font-body);font-size:14px;color:var(--color-gray-300);margin-top:8px;">Or jump to any level:</p>
+      <div class="level-select-grid">
+        <button class="level-select-btn" data-level="1" aria-label="Level 1: Sort the Sounds">🎧 Lv1: Sort</button>
+        <button class="level-select-btn" data-level="2" aria-label="Level 2: Tune the Sensitivity">🎛️ Lv2: Tune</button>
+        <button class="level-select-btn" data-level="3" aria-label="Level 3: Edge Case Patrol">🚧 Lv3: Edges</button>
+        <button class="level-select-btn" data-level="4" aria-label="Level 4: Confidence Command">💬 Lv4: Trust</button>
+        <button class="level-select-btn" data-level="5" aria-label="Level 5: Pipe Vision Inspector">🔍 Lv5: Pipes</button>
+        <button class="level-select-btn" data-level="6" aria-label="Level 6: Water Department Briefing">✏️ Lv6: Brief</button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- TOP NAVIGATION BAR -->
+    <!-- ════════════════════════════════════════ -->
+    <div id="top-bar" role="navigation" aria-label="Level navigation" style="display:none;">
+      <div class="game-title">💧 Sonic Leak Hunter</div>
+      
+      <div class="level-tabs" role="tablist" aria-label="Select a level">
+        <button class="level-tab" data-level="1" role="tab" aria-label="Level 1: Sort the Sounds" tabindex="0">L1</button>
+        <button class="level-tab" data-level="2" role="tab" aria-label="Level 2: Tune the Sensitivity" tabindex="0">L2</button>
+        <button class="level-tab" data-level="3" role="tab" aria-label="Level 3: Edge Case Patrol" tabindex="0">🚧</button>
+        <button class="level-tab" data-level="4" role="tab" aria-label="Level 4: Confidence Command" tabindex="0">💬</button>
+        <button class="level-tab" data-level="5" role="tab" aria-label="Level 5: Pipe Vision Inspector" tabindex="0">🔍</button>
+        <button class="level-tab" data-level="6" role="tab" aria-label="Level 6: Water Department Briefing" tabindex="0">📝</button>
+      </div>
+      
+      <div class="top-tools">
+        <button class="tool-btn" id="btn-debug" aria-label="Toggle debug mode" title="Debug: show answers">🔧</button>
+        <button class="tool-btn" id="btn-transcript" aria-label="Toggle conversation transcript" title="Conversation history">📝</button>
+        <button class="tool-btn" id="btn-settings" aria-label="Open settings" title="Settings">⚙️</button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- GAME AREA (visible during PLAYING state) -->
+    <!-- ════════════════════════════════════════ -->
+    <div id="game-area" style="display:none;">
+      
+      <!-- Level Banner -->
+      <div id="level-banner" role="banner" aria-label="Current level information">
+        <span class="banner-icon" aria-hidden="true">📚</span>
+        <div class="banner-text">
+          <span class="banner-title">LEVEL 1: SUPERVISED LEARNING</span>
+          <span class="banner-subtitle">Train the Listener</span>
+        </div>
+      </div>
+      
+      <!-- Level Instruction -->
+      <div id="level-instruction" aria-live="polite"></div>
+      
+      <!-- Canvas Area -->
+      <div id="canvas-container">
+        <!-- Lv1: Side-by-side training -->
+        <canvas id="training-canvas" style="display:none;" aria-label="Waveform comparison — left: safe, right: leak"></canvas>
+        
+        <!-- Lv2–Lv5: Single waveform display -->
+        <canvas id="waveform-canvas" style="display:none;" aria-label="Sound wave visualization"></canvas>
+        
+        <!-- Lv2, Lv5: City grid -->
+        <canvas id="grid-canvas" style="display:none;" aria-label="City block grid — tap to scan"></canvas>
+        
+        <!-- Lv1: Training progress bar -->
+        <canvas id="progress-canvas" style="display:none;" aria-label="AI training progress"></canvas>
+        
+        <!-- Lv6: Quiz display -->
+        <canvas id="quiz-canvas" style="display:none;" aria-label="Quiz question display"></canvas>
+        
+        <!-- Lv3/Lv4: Three.js 3D canvas -->
+        <canvas id="three-canvas" style="display:none;" aria-label="3D waveform oscilloscope"></canvas>
+      </div>
+      
+      <!-- Lv4: Sensitivity Slider -->
+      <div id="slider-container" style="display:none;">
+        <label for="sensitivity-slider">🔊 Sensitivity:</label>
+        <input type="range" id="sensitivity-slider" min="1" max="10" value="10" aria-label="Sensitivity slider">
+        <span id="slider-value">5</span>
+      </div>
+      
+      <!-- Lv4: Counters -->
+      <div id="counters" style="display:none;">
+        <div class="counter-box false-alarms">
+          <span class="counter-label">False Alarms</span>
+          <span class="counter-value" id="false-alarms">0</span>
+        </div>
+        <div class="counter-box leaks-caught">
+          <span class="counter-label">Leaks Caught</span>
+          <span class="counter-value" id="leaks-caught">0</span>
+        </div>
+      </div>
+      
+      <!-- Lv5: Deploy Button -->
+      <button id="deploy-btn" style="display:none;" aria-label="Deploy Piper to scan all blocks">
+        🚀 Deploy Piper
+      </button>
+      
+      <!-- Lv3, Lv4, Lv5, Lv6: Level-specific action buttons -->
+      <div id="level-controls" style="display:none;"></div>
+      
+      <!-- Lv6: Quiz progress -->
+      <div id="quiz-progress" style="display:none;"></div>
+      <div id="quiz-score" style="display:none;"></div>
+      
+      <!-- Feedback area -->
+      <div id="feedback" style="display:none;" aria-live="polite" aria-atomic="true"></div>
+    </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- RESULT SCREEN -->
+    <!-- ════════════════════════════════════════ -->
+    <div id="result-screen" style="display:none;" role="dialog" aria-label="Level result">
+      <h2>🎉 Level Complete!</h2>
+      <p id="end-recap-text"></p>
+      <div id="end-recap-concept"></div>
+      <div class="result-buttons">
+        <button id="btn-retry" aria-label="Retry this level">🔄 Try Again</button>
+        <button id="btn-next" aria-label="Go to next level">▶ Next Level</button>
+        <button id="btn-menu" aria-label="Back to menu">🏠 Menu</button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- CERTIFICATE SCREEN (Lv3 pass) -->
+    <!-- ════════════════════════════════════════ -->
+    <div id="certificate-screen" style="display:none;" role="dialog" aria-label="Water Department clearance">
+      <canvas id="cert-canvas" width="700" height="500" aria-label="Water department AI clearance"></canvas>
+      <canvas id="comparison-canvas" width="500" height="180" aria-label="Piper before and after training comparison"></canvas>
+      <div class="cert-buttons">
+        <button id="btn-retake" aria-label="Re-brief the department">🔄 Re-brief</button>
+        <button id="btn-menu" aria-label="Back to menu">🏠 Menu</button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- PIPER AI ASSISTANT -->
+    <!-- ════════════════════════════════════════ -->
+    <div id="piper-container" aria-label="Piper AI assistant">
+      <div class="piper-bubble-container">
+        <div class="piper-bubble" id="piper-bubble" role="status" aria-live="polite"></div>
+      </div>
+      <div class="piper-text-input" style="display:none;">
+        <input type="text" id="text-input" placeholder="Type a message..." aria-label="Type message to Piper">
+        <button id="text-send" aria-label="Send message">📤</button>
+      </div>
+      <div class="piper-avatar" aria-hidden="true">
+        <svg viewBox="0 0 60 60" width="52" height="52" style="display:block">
+          <!-- sonar ears -->
+          <circle cx="8" cy="30" r="5" fill="none" stroke="#22C55E" stroke-width="2" opacity="0.8"/>
+          <circle cx="52" cy="30" r="5" fill="none" stroke="#22C55E" stroke-width="2" opacity="0.8"/>
+          <!-- water-drop body -->
+          <path d="M30 4 C30 4 18 22 18 34 a12 12 0 0 0 24 0 C42 22 30 4 30 4 Z" fill="#0E7490" stroke="#22D3EE" stroke-width="2"/>
+          <!-- eyes -->
+          <circle cx="25" cy="30" r="3.4" fill="#A5F3FC"/>
+          <circle cx="35" cy="30" r="3.4" fill="#A5F3FC"/>
+          <circle cx="26" cy="29" r="1.2" fill="#0B1220"/>
+          <circle cx="36" cy="29" r="1.2" fill="#0B1220"/>
+          <!-- smile -->
+          <path d="M25 37 Q30 41 35 37" stroke="#A5F3FC" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+          <!-- droplet highlight -->
+          <ellipse cx="25" cy="20" rx="3.5" ry="5" fill="#22D3EE" opacity="0.5"/>
+        </svg>
+        <span class="piper-state-indicator" id="piper-state-indicator" aria-hidden="true"></span>
+      </div>
+      <div id="piper-state">Ready</div>
+    </div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- SETTINGS MODAL CONTAINER -->
+    <!-- ════════════════════════════════════════ -->
+    <div id="settings-container" style="display:none;"></div>
+
+    <!-- ════════════════════════════════════════ -->
+    <!-- TRANSCRIPT DRAWER -->
+    <!-- ════════════════════════════════════════ -->
+    <div id="transcript-drawer" aria-label="Conversation transcript">
+      <div class="transcript-header">
+        <span>📝 Conversation</span>
+        <button class="tool-btn" id="transcript-close" aria-label="Close transcript">✕</button>
+      </div>
+      <div class="transcript-list" role="log" aria-live="polite"></div>
+    </div>
+
+  </div><!-- END #game-container -->
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- SCRIPTS (load in dependency order) -->
+  <!-- ═══════════════════════════════════════════ -->
+  <script src="levels.js?v=8"></script>
+  <script src="waveforms.js?v=5"></script>
+  <script src="renderer.js?v=5"></script>
+  <script src="quiz.js?v=4"></script>
+  <script src="audio.js?v=4"></script>
+  <script src="intents.js?v=5"></script>
+  <script src="transcript.js?v=4"></script>
+  <script src="settings.js?v=4"></script>
+  <script src="piper.js?v=4"></script>
+  <script src="game.js?v=5"></script>
+  <script src="comic.js"></script>
+  <!-- Three.js 3D renderer — module, executes before DOMContentLoaded -->
+  <script type="module" src="three-renderer.js?v=1"></script>
+  <script>
+    // WaterCity's hidden leaks — Piper's origin story.
+    window.COMIC_PANELS = [
+      {
+        art: '💧', title: 'WaterCity Is Losing Water',
+        text: 'Every day, water is vanishing through hidden underground leaks!',
+        subtext: 'Nobody can see them — the pipes run deep under the streets, and the water is gone before anyone notices.',
+        tts: 'WaterCity is losing water every day through hidden underground leaks! Nobody can see them, because the pipes run deep under the streets.',
+        color: '#38BDF8',
+      },
+      {
+        art: '🤖', title: 'Meet Piper',
+        text: 'Piper is a new AI with acoustic sensors that can hear through the ground.',
+        subtext: 'But there\'s a problem: Piper can hear everything, yet it doesn\'t know what a leak sounds like.',
+        tts: 'Meet Piper — a brand new AI with acoustic sensors that can hear through the ground. But there is a problem. Piper can hear everything, yet it does not know what a leak sounds like.',
+        color: '#22C55E',
+      },
+      {
+        art: '🎧', title: 'You Are the Trainer',
+        text: 'Train Piper, scan the city, filter out the noise — help the Water Department!',
+        subtext: 'Every sound you label teaches Piper to spot real leaks and ignore harmless noise.',
+        tts: 'That is where you come in! Train Piper, scan the city, filter out the noise, and help the Water Department. Every sound you label teaches Piper to spot real leaks.',
+        color: '#F59E0B',
+      },
+    ];
+    (function () {
+      var btn = document.getElementById('menu-start-btn');
+      if (!btn) return;
+      var done = false;
+      btn.addEventListener('click', function (e) {
+        if (done) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        ComicIntro.play(window.COMIC_PANELS, function () {
+          done = true;
+          btn.click();
+        });
+      }, true);
+    })();
+  </script>
+
+  <!-- Final initialization -->
+  <script>
+    // Show the game container once everything is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('game-container').classList.add('ready');
+    });
+  </script>
+
+</body>
+</html>

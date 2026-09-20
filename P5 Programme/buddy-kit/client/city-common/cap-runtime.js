@@ -85,8 +85,8 @@ export function capabilityDescriptor(cap) {
 /** A friendly one-line "why does it exist" for the pod. */
 export function stage1Note(zh = false) {
   return zh
-    ? '這台機器已種入城市，但尚未連接 — 它還不會控制任何東西。'
-    : 'This machine is planted in your city, but not connected yet — it is not controlling anything.';
+    ? '第一階段：只展示匯入的資料與證據。不執行推論，也不控制城市。'
+    : 'Stage 1: imported data and evidence on display only. No inference or city control.';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

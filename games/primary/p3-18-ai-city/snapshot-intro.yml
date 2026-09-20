@@ -1,0 +1,136 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e32]:
+      - banner [ref=e33]:
+        - heading "🏙️ AI City" [level=1] [ref=e34]
+        - generic [ref=e35]:
+          - generic [ref=e36] [cursor=pointer]: 1. Build
+          - generic [ref=e37] [cursor=pointer]: 2. Optimise
+          - generic [ref=e38] [cursor=pointer]: 3. Simulate
+        - generic [ref=e39]:
+          - generic [ref=e40]:
+            - text: 🪙
+            - strong [ref=e41]: "500"
+          - button "⚙️" [ref=e42] [cursor=pointer]
+      - generic [ref=e43]:
+        - generic [ref=e44]: 🏗️ Design Phase
+        - generic [ref=e45]: 🔍 Press Scan button, then click green tiles to find 3 hazards!
+      - generic [ref=e46]:
+        - complementary [ref=e47]:
+          - generic [ref=e48]:
+            - generic [ref=e49]:
+              - button "🌐 All" [ref=e50] [cursor=pointer]
+              - button "⚡ Power" [ref=e51] [cursor=pointer]
+              - button "🚚 Logistics" [ref=e52] [cursor=pointer]
+              - button "👥 Social" [ref=e53] [cursor=pointer]
+            - heading "🏗️ Buildings" [level=3] [ref=e54]
+            - generic [ref=e55]:
+              - generic [ref=e56]: power
+              - generic [ref=e57] [cursor=pointer]:
+                - img [ref=e59]
+                - generic [ref=e65]: Solar Farm
+                - generic [ref=e66]: 🪙8
+              - generic [ref=e67] [cursor=pointer]:
+                - img [ref=e69]
+                - generic [ref=e75]: Wind Turbine
+                - generic [ref=e76]: 🪙6
+              - generic [ref=e77] [cursor=pointer]:
+                - img [ref=e79]
+                - generic [ref=e85]: Data Center
+                - generic [ref=e86]: 🪙20
+              - generic [ref=e87] [cursor=pointer]:
+                - img [ref=e89]
+                - generic [ref=e94]: Battery
+                - generic [ref=e95]: 🪙10
+              - generic [ref=e96]: water
+              - generic [ref=e97] [cursor=pointer]:
+                - img [ref=e99]
+                - generic [ref=e104]: Water Tower
+                - generic [ref=e105]: 🪙8
+              - generic [ref=e106]: transport
+              - generic [ref=e107] [cursor=pointer]:
+                - img [ref=e109]
+                - generic [ref=e116]: Bus Stop
+                - generic [ref=e117]: 🪙4
+              - generic [ref=e118] [cursor=pointer]:
+                - img [ref=e120]
+                - generic [ref=e124]: Bus Depot
+                - generic [ref=e125]: 🪙6
+              - generic [ref=e126] [cursor=pointer]:
+                - img [ref=e128]
+                - generic [ref=e130]: Road
+                - generic [ref=e131]: 🪙2
+              - generic [ref=e132] [cursor=pointer]:
+                - img [ref=e134]
+                - generic [ref=e140]: Traffic Light
+                - generic [ref=e141]: 🪙3
+              - generic [ref=e142] [cursor=pointer]:
+                - img [ref=e144]
+                - generic [ref=e151]: Drone Pad
+                - generic [ref=e152]: 🪙8
+              - generic [ref=e153]: health
+              - generic [ref=e154] [cursor=pointer]:
+                - img [ref=e156]
+                - generic [ref=e160]: Hospital
+                - generic [ref=e161]: 🪙20
+              - generic [ref=e162] [cursor=pointer]:
+                - img [ref=e164]
+                - generic [ref=e168]: Clinic
+                - generic [ref=e169]: 🪙8
+              - generic [ref=e170] [cursor=pointer]:
+                - img [ref=e172]
+                - generic [ref=e178]: Green Space
+                - generic [ref=e179]: 🪙3
+              - generic [ref=e180]: waste
+              - generic [ref=e181] [cursor=pointer]:
+                - img [ref=e183]
+                - generic [ref=e188]: Recycling Ctr
+                - generic [ref=e189]: 🪙6
+              - generic [ref=e190] [cursor=pointer]:
+                - img [ref=e192]
+                - generic [ref=e196]: Collection Pt
+                - generic [ref=e197]: 🪙4
+              - generic [ref=e198] [cursor=pointer]:
+                - img [ref=e200]
+                - generic [ref=e206]: Compost
+                - generic [ref=e207]: 🪙5
+              - generic [ref=e208]: safety
+              - generic [ref=e209] [cursor=pointer]:
+                - img [ref=e211]
+                - generic [ref=e216]: CCTV Node
+                - generic [ref=e217]: 🪙6
+              - generic [ref=e218] [cursor=pointer]:
+                - img [ref=e220]:
+                  - generic [ref=e223]: ⚡
+                - generic [ref=e224]: Emergency Stn
+                - generic [ref=e225]: 🪙8
+              - generic [ref=e226] [cursor=pointer]:
+                - img [ref=e228]
+                - generic [ref=e232]: Flood Barrier
+                - generic [ref=e233]: 🪙10
+              - generic [ref=e234] [cursor=pointer]:
+                - img [ref=e236]
+                - generic [ref=e242]: Town Hall
+                - generic [ref=e243]: 🪙12
+              - generic [ref=e244] [cursor=pointer]:
+                - img [ref=e246]
+                - generic [ref=e249]: AI Auditor
+                - generic [ref=e250]: 🪙10
+              - generic [ref=e251] [cursor=pointer]:
+                - img [ref=e253]
+                - generic [ref=e258]: School
+                - generic [ref=e259]: 🪙8
+        - generic [ref=e261]:
+          - img
+      - complementary [ref=e1163]:
+        - generic [ref=e1164]:
+          - heading "ℹ️ Info" [level=3] [ref=e1165]
+          - paragraph [ref=e1168]: Tap a building.
+    - contentinfo [ref=e23]:
+      - generic [ref=e24]:
+        - button "🔍 Scan" [ref=e25] [cursor=pointer]
+        - button "🔍+" [ref=e26] [cursor=pointer]
+        - button "🔍−" [ref=e27] [cursor=pointer]
+        - generic [ref=e28]: 100%
+  - button "🤖" [ref=e30] [cursor=pointer]: 🤖
+  - generic [ref=e1169]: Complete the optimisation phase first!

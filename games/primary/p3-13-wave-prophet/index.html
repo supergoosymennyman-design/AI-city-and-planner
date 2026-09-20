@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0B132B" />
+  <meta name="description" content="Wave Prophet — train Cascade to predict traffic waves before they jam the city." />
+  <title>🌊 Wave Prophet — Train Cascade the AI</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B132B'/%3E%3Cpath d='M4 24 Q12 12 20 24 Q28 12 32 20' stroke='%233498DB' stroke-width='3' fill='none'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-icon">🌊</span><span class="brand-name">Wave Prophet</span></div>
+      <nav class="level-nav" id="levelNav" aria-label="Select a level"></nav>
+      <div class="top-actions">
+        <button id="btnDebug" class="icon-btn" title="Debug" aria-label="Debug">🔧</button>
+        <button id="btnTranscript" class="icon-btn" title="Transcript">📝</button>
+        <button id="btnSettings" class="icon-btn" title="Settings">⚙️</button>
+      </div>
+    </header>
+    <div id="banner" class="level-banner" role="status" aria-live="polite">
+      <span class="banner-icon">🔮</span>
+      <span class="banner-text">LEVEL 1: PREDICTIVE MODELING</span>
+    </div>
+    <main class="play-area">
+      <section class="stage-column">
+        <div class="stage-wrap">
+          <canvas id="stage" width="900" height="580" aria-label="Traffic intersection with forecast bands"></canvas>
+          <!-- Flow Score Gauge overlay -->
+          <div id="scoreGauge" class="score-gauge" hidden>
+            <div class="gauge-label">Flow Score</div>
+            <div class="gauge-bar"><div id="gaugeFill" class="gauge-fill"></div></div>
+            <span id="gaugeText" class="gauge-text">0%</span>
+          </div>
+          <div class="stage-hud">
+            <div id="roundInfo" class="round-info">Round 1 / 3</div>
+            <div id="countInfo" class="timer-info" style="color:#2ECC71"></div>
+            <div id="timerInfo" class="timer-info" hidden>⏱ <span id="secondsLeft">30</span>s</div>
+          </div>
+          <div id="flash" class="flash" aria-live="polite"></div>
+        </div>
+        <div id="controls" class="controls">
+          <div class="time-controls">
+            <span id="currentLane" class="current-lane">Green: N-S</span>
+            <button id="btnDec" class="time-btn" aria-label="Decrease green time">−3s</button>
+            <span id="timerDisplay" class="timer-display">10s</span>
+            <button id="btnInc" class="time-btn" aria-label="Increase green time">+3s</button>
+            <button id="btnSwitch" class="secondary-btn" aria-label="Switch direction">🔄 Switch</button>
+          </div>
+          <div id="flowStatus" class="flow-status"></div>
+          <button id="btnRetry" class="secondary-btn" hidden>↻ Try Again</button>
+        </div>
+      </section>
+      <aside id="cascade-dashboard" class="cascade-dashboard" aria-label="Cascade AI dashboard">
+        <div class="cascade-header">
+          <span class="cascade-face">🌊</span>
+          <span class="cascade-title">Cascade</span>
+          <span class="cascade-state-dot" id="cascadeStateDot"></span>
+        </div>
+        <div class="cascade-status-badge" id="cascadeStatusBadge">🔵 OBSERVER</div>
+        <div class="dash-section">
+          <div class="dash-label">Concepts</div>
+          <div class="concept-row" data-concept="prediction"><span class="concept-dot">⬜</span><span class="concept-name">Prediction</span><div class="progress-bar"><div class="progress-fill"></div></div></div>
+          <div class="concept-row" data-concept="coordination"><span class="concept-dot">⬜</span><span class="concept-name">Coordination</span><div class="progress-bar"><div class="progress-fill"></div></div></div>
+          <div class="concept-row" data-concept="anomaly"><span class="concept-dot">⬜</span><span class="concept-name">Anomaly</span><div class="progress-bar"><div class="progress-fill"></div></div></div>
+          <div class="concept-row" data-concept="optimization"><span class="concept-dot">⬜</span><span class="concept-name">Optimization</span><div class="progress-bar"><div class="progress-fill"></div></div></div>
+        </div>
+        <div class="dash-section cascade-stats">
+          <div class="dash-label">Stats</div>
+          <div class="stat-line"><span>Waves absorbed</span><strong id="statAbsorbed">0</strong></div>
+          <div class="stat-line"><span>Max Flow</span><strong id="statMaxFlow">0%</strong></div>
+        </div>
+      </aside>
+    </main>
+    <footer class="cascade-bar">
+      <div class="cascade-avatar-mini" id="cascadeAvatarMini" role="button" tabindex="0">
+        <svg viewBox="0 0 48 48" width="42" height="42">
+          <circle cx="24" cy="24" r="21" fill="#1A3A5C"/>
+          <path d="M8 36 Q18 18 28 30 Q36 20 42 28" stroke="#3498DB" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="mini-state" id="miniState"></span>
+      </div>
+      <div class="cascade-speech" id="cascadeSpeech" aria-live="polite">
+        <span class="speech-text" id="speechText">Tap a wave or say "Cascade" for help!</span>
+      </div>
+      <div class="cascade-input">
+        <button id="btnMic" class="mic-btn">🎤</button>
+        <input id="textInput" class="text-input" type="text" placeholder="Ask Cascade…" autocomplete="off" />
+        <button id="btnSend" class="send-btn">➤</button>
+      </div>
+    </footer>
+  </div>
+
+  <div id="menuScreen" class="screen menu-screen">
+    <div class="menu-card">
+      <div class="menu-logo">🌊</div>
+      <h1 class="menu-title">Wave Prophet</h1>
+      <p class="menu-sub">Cascade is WaterCity's predictive traffic AI. It can see traffic waves <strong>5 seconds before they arrive</strong>.</p>
+      <p class="menu-mission">The <strong>Transport Department</strong> asked you to act on the predictions — adjusting green light timers to absorb waves before they jam the intersection.</p>
+      <button id="btnStart" class="primary-btn">▶ Start Training Cascade</button>
+    </div>
+  </div>
+
+  <div id="resultScreen" class="screen result-screen" hidden>
+    <div class="result-card">
+      <div class="result-icon" id="resultIcon">🧠</div>
+      <h2 class="result-title" id="resultTitle">Level Complete!</h2>
+      <p class="result-teach" id="resultTeach"></p>
+      <div class="result-actions">
+        <button id="btnNextLevel" class="primary-btn">Next Level →</button>
+        <button id="btnReplayLevel" class="secondary-btn">↻ Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ LEVEL INTRO OVERLAY ═══ -->
+  <div id="levelIntro" class="screen" hidden>
+    <div class="intro-card">
+      <div class="intro-icon" id="introIcon">🔮</div>
+      <h2 class="intro-title" id="introTitle">PREDICTIVE MODELING</h2>
+      <p class="intro-text" id="introText">AI watches traffic trends to FORECAST what will happen next — so you can act BEFORE a jam forms.</p>
+      <p class="intro-goal" id="introGoal">Goal: Extend the green light to let all forecast cars pass through.</p>
+      <button id="btnStartLevel" class="primary-btn">▶ Start Level</button>
+    </div>
+  </div>
+
+  <div id="certScreen" class="screen cert-screen" hidden>
+    <div class="cert-card">
+      <canvas id="certCanvas" width="820" height="560"></canvas>
+      <div class="cert-actions">
+        <button id="btnCertDownload" class="primary-btn">⬇ Save</button>
+        <button id="btnCertMenu" class="secondary-btn">🏠 Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head"><h2>⚙️ Settings</h2><button id="btnCloseSettings" class="icon-btn">✕</button></div>
+      <div class="modal-body">
+        <label class="set-row"><span>Speed</span><input id="setRate" type="range" min="0.5" max="2" step="0.05" value="0.9" /><output id="setRateVal">0.9×</output></label>
+        <label class="set-row"><span>Volume</span><input id="setVolume" type="range" min="0" max="100" step="1" value="90" /><output id="setVolumeVal">90%</output></label>
+        <label class="set-row"><span>Voice</span><select id="setVoice"></select></label>
+        <label class="set-row switch-row"><span>Mute Cascade</span><input id="setMute" type="checkbox" /></label>
+        <label class="set-row switch-row"><span>Mic</span><input id="setMic" type="checkbox" checked /></label>
+        <button id="btnResetProgress" class="danger-btn">Reset Cascade training</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="transcriptDrawer" class="drawer" hidden>
+    <div class="drawer-head"><h2>📝 Conversation</h2><button id="btnCloseTranscript" class="icon-btn">✕</button></div>
+    <div id="transcriptList" class="drawer-body" aria-live="polite"></div>
+    <button id="btnClearTranscript" class="secondary-btn">Clear</button>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="transcript.js"></script>
+  <script src="settings.js"></script>
+  <script src="intents.js"></script>
+  <script src="renderer.js"></script>
+  <script src="quiz.js"></script>
+  <script src="cascade.js"></script>
+  <script src="game.js"></script>
+  <script src="comic.js"></script>
+  <script>
+    // Traffic waves in WaterCity — Cascade's origin story.
+    window.COMIC_PANELS = [
+      {
+        art: '🌊', title: 'The Invisible Waves',
+        text: 'Every afternoon, waves of traffic jams sweep through WaterCity.',
+        subtext: 'They build up long before anyone sees them — by the time drivers notice, the whole intersection is already stuck.',
+        tts: 'Every afternoon, waves of traffic jams sweep through WaterCity. They build up long before anyone sees them, and by the time drivers notice, the whole intersection is already stuck.',
+        color: '#38BDF8',
+      },
+      {
+        art: '🔮', title: 'Meet Cascade',
+        text: 'Cascade can see traffic waves 5 seconds before they arrive.',
+        subtext: 'Forecast bands show exactly when the wave will hit. But seeing isn\'t enough — someone has to ACT on the predictions.',
+        tts: 'Meet Cascade! She can see traffic waves five seconds before they arrive. Forecast bands show exactly when the wave will hit. But seeing is not enough — someone has to act on the predictions.',
+        color: '#818CF8',
+      },
+      {
+        art: '⏱️', title: 'The Transport Department Needs You',
+        text: 'Extend the green light, keep the cars flowing — the Transport Department is counting on you!',
+        subtext: 'The Transport Department asked you to act on Cascade\'s forecasts. Every correct timing keeps WaterCity moving.',
+        tts: 'That is you! The Transport Department asked you to act on Cascade\'s forecasts. Extend the green light, keep the cars flowing, and beat the wave to keep WaterCity moving!',
+        color: '#22C55E',
+      },
+    ];
+    (function () {
+      var btn = document.getElementById('btnStart');
+      if (!btn) return;
+      var done = false;
+      btn.addEventListener('click', function (e) {
+        if (done) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        ComicIntro.play(window.COMIC_PANELS, function () {
+          done = true;
+          btn.click();
+        });
+      }, true);
+    })();
+  </script>
+</body>
+</html>

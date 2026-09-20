@@ -18,6 +18,7 @@ import { mountSkinSidebar } from '../champion-city/skins.js';
 import { preloadAccessories } from '../champion-city/accessories.js';
 import { mountScenarioBuddy } from './scenario-buddy.js';
 import { attachContextLossGuard } from '../champion-city/context-guard.js';
+import { HOME_URL } from './links.js';
 
 const ASSET_BASE = '../champion-city/assets/';
 const CHAMPION_SCALE = 1.0;   // human-scale inside rooms (city keeps 2.0)
@@ -713,7 +714,7 @@ wireResizeTool();
   btn.addEventListener('mousedown', () => { btn.style.transform = 'scale(0.92)'; });
   btn.addEventListener('mouseup', () => { btn.style.transform = 'scale(1)'; });
   btn.addEventListener('click', () => {
-    window.location.href = 'https://p5-home.clover-marquis.workers.dev/';
+    window.location.href = HOME_URL;
   });
   document.body.appendChild(btn);
 })();

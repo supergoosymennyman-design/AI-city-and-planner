@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ai-meet-my-shapes",
+  "main": "_worker.js",
+  "account_id": "a5885f2348a409e2d6246ee1f4b567d1",
+  "compatibility_date": "2026-07-06",
+  "vars": {
+    "DEEPSEEK_API_KEY": ""  // set with: wrangler secret put DEEPSEEK_API_KEY
+  },
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS"
+  }
+}

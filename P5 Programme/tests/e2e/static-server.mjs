@@ -53,6 +53,7 @@ const server = createServer(async (req, res) => {
       res.end();
       return;
     }
+    if (!process.env.E2E_DOCROOT) pathname = pathname.replace(/^\/planner(?=\/|$)/, '/city-planner').replace(/^\/pregame(?=\/|$)/, '/city-pregame');
     if (pathname.endsWith('/')) pathname += 'index.html';
     const file = resolve(join(ROOT, pathname));
     if (!file.startsWith(ROOT)) {

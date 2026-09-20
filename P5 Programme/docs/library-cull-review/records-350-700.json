@@ -1,0 +1,2802 @@
+[
+  {
+    "id": "prop_food_pizza_box",
+    "name": "Pizza Box",
+    "category": "props",
+    "glb": "../library/props/kenney-food-pizza-box.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_hot_dog",
+    "name": "Hot Dog",
+    "category": "props",
+    "glb": "../library/props/kenney-food-hot-dog.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_pizza",
+    "name": "Pizza",
+    "category": "props",
+    "glb": "../library/props/kenney-food-pizza.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_sushi_egg",
+    "name": "Egg Sushi",
+    "category": "props",
+    "glb": "../library/props/kenney-food-sushi-egg.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_sushi_salmon",
+    "name": "Salmon Sushi",
+    "category": "props",
+    "glb": "../library/props/kenney-food-sushi-salmon.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_maki_salmon",
+    "name": "Salmon Maki",
+    "category": "props",
+    "glb": "../library/props/kenney-food-maki-salmon.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_maki_vegetable",
+    "name": "Vegetable Maki",
+    "category": "props",
+    "glb": "../library/props/kenney-food-maki-vegetable.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_dim_sum",
+    "name": "Dim Sum",
+    "category": "props",
+    "glb": "../library/props/kenney-food-dim-sum.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_taco",
+    "name": "Taco",
+    "category": "props",
+    "glb": "../library/props/kenney-food-taco.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_sub",
+    "name": "Sub Sandwich",
+    "category": "props",
+    "glb": "../library/props/kenney-food-sub.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_sandwich",
+    "name": "Sandwich",
+    "category": "props",
+    "glb": "../library/props/kenney-food-sandwich.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_fries",
+    "name": "Fries",
+    "category": "props",
+    "glb": "../library/props/kenney-food-fries.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_donut_chocolate",
+    "name": "Chocolate Donut",
+    "category": "props",
+    "glb": "../library/props/kenney-food-donut-chocolate.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_waffle",
+    "name": "Waffle",
+    "category": "props",
+    "glb": "../library/props/kenney-food-waffle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_donut_sprinkles",
+    "name": "Sprinkle Donut",
+    "category": "props",
+    "glb": "../library/props/kenney-food-donut-sprinkles.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_pancakes",
+    "name": "Pancakes",
+    "category": "props",
+    "glb": "../library/props/kenney-food-pancakes.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_cupcake",
+    "name": "Cupcake",
+    "category": "props",
+    "glb": "../library/props/kenney-food-cupcake.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_cake_birthday",
+    "name": "Birthday Cake",
+    "category": "props",
+    "glb": "../library/props/kenney-food-cake-birthday.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_muffin",
+    "name": "Muffin",
+    "category": "props",
+    "glb": "../library/props/kenney-food-muffin.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_loaf_baguette",
+    "name": "Baguette",
+    "category": "props",
+    "glb": "../library/props/kenney-food-loaf-baguette.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_croissant",
+    "name": "Croissant",
+    "category": "props",
+    "glb": "../library/props/kenney-food-croissant.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_loaf_round",
+    "name": "Bread Loaf",
+    "category": "props",
+    "glb": "../library/props/kenney-food-loaf-round.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_cookie_chocolate",
+    "name": "Chocolate Cookie",
+    "category": "props",
+    "glb": "../library/props/kenney-food-cookie-chocolate.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_candy_bar",
+    "name": "Candy Bar",
+    "category": "props",
+    "glb": "../library/props/kenney-food-candy-bar.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_lollypop",
+    "name": "Lollipop",
+    "category": "props",
+    "glb": "../library/props/kenney-food-lollypop.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_popsicle_chocolate",
+    "name": "Chocolate Popsicle",
+    "category": "props",
+    "glb": "../library/props/kenney-food-popsicle-chocolate.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_ice_cream_cne",
+    "name": "Ice Cream Cone",
+    "category": "props",
+    "glb": "../library/props/kenney-food-ice-cream-cne.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_ice_cream_cup",
+    "name": "Ice Cream Cup",
+    "category": "props",
+    "glb": "../library/props/kenney-food-ice-cream-cup.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_soda_can",
+    "name": "Soda Can",
+    "category": "props",
+    "glb": "../library/props/kenney-food-soda-can.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_frappe",
+    "name": "Frappe",
+    "category": "props",
+    "glb": "../library/props/kenney-food-frappe.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_sundae",
+    "name": "Sundae",
+    "category": "props",
+    "glb": "../library/props/kenney-food-sundae.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_soda_glass",
+    "name": "Soda Glass",
+    "category": "props",
+    "glb": "../library/props/kenney-food-soda-glass.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_cup_tea",
+    "name": "Tea Cup",
+    "category": "props",
+    "glb": "../library/props/kenney-food-cup-tea.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_cup_coffee",
+    "name": "Coffee Cup",
+    "category": "props",
+    "glb": "../library/props/kenney-food-cup-coffee.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_bowl_broth",
+    "name": "Broth Bowl",
+    "category": "props",
+    "glb": "../library/props/kenney-food-bowl-broth.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_glass_wine",
+    "name": "Wine Glass",
+    "category": "props",
+    "glb": "../library/props/kenney-food-glass-wine.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_bowl_soup",
+    "name": "Soup Bowl",
+    "category": "props",
+    "glb": "../library/props/kenney-food-bowl-soup.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_chopstic_decorative",
+    "name": "Chopsticks",
+    "category": "props",
+    "glb": "../library/props/kenney-food-chopstic-decorative.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_salad",
+    "name": "Salad",
+    "category": "props",
+    "glb": "../library/props/kenney-food-salad.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_plate_dinner",
+    "name": "Dinner Plate",
+    "category": "props",
+    "glb": "../library/props/kenney-food-plate-dinner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_egg_cooked",
+    "name": "Cooked Egg",
+    "category": "props",
+    "glb": "../library/props/kenney-food-egg-cooked.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_cheese_cut",
+    "name": "Cheese Slice",
+    "category": "props",
+    "glb": "../library/props/kenney-food-cheese-cut.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_carrot",
+    "name": "Carrot",
+    "category": "props",
+    "glb": "../library/props/kenney-food-carrot.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_banana",
+    "name": "Banana",
+    "category": "props",
+    "glb": "../library/props/kenney-food-banana.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_apple",
+    "name": "Apple",
+    "category": "props",
+    "glb": "../library/props/kenney-food-apple.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_broccoli",
+    "name": "Broccoli",
+    "category": "props",
+    "glb": "../library/props/kenney-food-broccoli.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_strawberry",
+    "name": "Strawberry",
+    "category": "props",
+    "glb": "../library/props/kenney-food-strawberry.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_racer_green",
+    "name": "Green Racer",
+    "category": "vehicles",
+    "glb": "../library/vehicles/kenney-race-car-Green.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_watermelon",
+    "name": "Watermelon",
+    "category": "props",
+    "glb": "../library/props/kenney-food-watermelon.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_corn_dog",
+    "name": "Corn Dog",
+    "category": "props",
+    "glb": "../library/props/kenney-food-corn-dog.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_grandstand_awning",
+    "name": "Covered Grandstand",
+    "category": "props",
+    "glb": "../library/props/kenney-race-grandstand-awning.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_racer_white",
+    "name": "White Racer",
+    "category": "vehicles",
+    "glb": "../library/vehicles/kenney-race-car-White.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_grandstand",
+    "name": "Grandstand",
+    "category": "props",
+    "glb": "../library/props/kenney-race-grandstand.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_racer_orange",
+    "name": "Orange Racer",
+    "category": "vehicles",
+    "glb": "../library/vehicles/kenney-race-car-Orange.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_racer_red",
+    "name": "Red Racer",
+    "category": "vehicles",
+    "glb": "../library/vehicles/kenney-race-car-Red.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_landingpad_small",
+    "name": "Landing Pad (small)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-landingpad_small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_containers_C",
+    "name": "Container C",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-containers_C.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_cargo_A_packed",
+    "name": "Cargo Pack",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-cargo_A_packed.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_containers_D",
+    "name": "Container D",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-containers_D.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_cargo_A_stacked",
+    "name": "Cargo Stack",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-cargo_A_stacked.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_lander_B",
+    "name": "Lander B",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-lander_B.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-barrel",
+    "name": "Barrel",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-barrel.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-barrels",
+    "name": "Barrels",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-barrels.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-craft_cargoA",
+    "name": "Cargo Craft",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-craft_cargoA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-craft_miner",
+    "name": "Miner Craft",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-craft_miner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_lights",
+    "name": "Space Lights",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-lights.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_spacetruck_large",
+    "name": "Space Truck (large)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-spacetruck_large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rocks_A",
+    "name": "Rocks",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-rocks_A.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_drill_structure",
+    "name": "Drill Rig",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kaykit-drill_structure.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-craft_racer",
+    "name": "Racer Craft",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-craft_racer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-craft_speederA",
+    "name": "Speeder A",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-craft_speederA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-craft_speederB",
+    "name": "Speeder B",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-craft_speederB.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-machine_generator",
+    "name": "Generator",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-machine_generator.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-machine_generatorLarge",
+    "name": "Large Generator",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-machine_generatorLarge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-machine_wireless",
+    "name": "Wireless Machine",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-machine_wireless.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-meteor",
+    "name": "Meteor",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-meteor.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-rover",
+    "name": "Rover",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-rover.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-satelliteDish",
+    "name": "Satellite Dish",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-satelliteDish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-satelliteDish_detailed",
+    "name": "Satellite Dish (detailed)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-satelliteDish_detailed.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-rocket_baseA",
+    "name": "Rocket Base",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-rocket_baseA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-rocket_finsA",
+    "name": "Rocket Fins",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-rocket_finsA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-rocket_sidesA",
+    "name": "Rocket Body",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-rocket_sidesA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-rocket_topA",
+    "name": "Rocket Top",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-rocket_topA.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-rock_crystals",
+    "name": "Crystal Rocks",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-rock_crystals.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_space-turret_single",
+    "name": "Turret",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/kenney-space-turret_single.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_rocket",
+    "name": "Rocket (Poly)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/polypizza-rocket.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_space_antenna",
+    "name": "Antenna",
+    "category": "scenarios",
+    "glb": "../library/scenarios/space/polypizza-antenna.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-bottle_C_green",
+    "name": "Bottle C (green)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-bottle_C_green.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-bottle_A_brown",
+    "name": "Bottle A",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-bottle_A_brown.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-bottle_B_brown",
+    "name": "Bottle B",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-bottle_B_brown.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-bottle_C_brown",
+    "name": "Bottle C",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-bottle_C_brown.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-bottle_A_green",
+    "name": "Bottle A (green)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-bottle_A_green.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-bottle_B_green",
+    "name": "Bottle B (green)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-bottle_B_green.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-candle_triple",
+    "name": "Triple Candle",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-candle_triple.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-candle_lit",
+    "name": "Lit Candle",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-candle_lit.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-table_medium",
+    "name": "Lab Table",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-table_medium.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-shelf_large",
+    "name": "Shelf (large)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-shelf_large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-chair",
+    "name": "Lab Chair",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-chair.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-shelf_small",
+    "name": "Shelf (small)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-shelf_small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-table_small",
+    "name": "Small Table",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-table_small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-desk_computer",
+    "name": "Computer",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kenney-lab-desk_computer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-desk_chair",
+    "name": "Desk Chair",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kenney-lab-desk_chair.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-desk_chairArms",
+    "name": "Desk Chair (arms)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kenney-lab-desk_chairArms.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-desk_computerCorner",
+    "name": "Computer Corner",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kenney-lab-desk_computerCorner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-desk_computerScreen",
+    "name": "Computer Screen",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kenney-lab-desk_computerScreen.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-machine_barrel",
+    "name": "Machine Barrel",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kenney-lab-machine_barrel.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_bookcasebooks",
+    "name": "Bookcase with Books",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/polypizza-bookcasebooks.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_computerlarge",
+    "name": "Large Computer",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/polypizza-computerlarge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_potion",
+    "name": "Potion Bottle",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/polypizza-potion.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_cauldron",
+    "name": "Cauldron",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/polypizza-cauldron.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_lab-barrel_small",
+    "name": "Small Barrel",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/kaykit-lab-barrel_small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_bookshelf",
+    "name": "Bookshelf",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/polypizza-bookshelf.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_books",
+    "name": "Books",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/polypizza-books.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_computer",
+    "name": "Computer (Poly)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/polypizza-computer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-raceCarGreen",
+    "name": "Go-Kart (green)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-raceCarGreen.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-raceCarOrange",
+    "name": "Go-Kart (orange)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-raceCarOrange.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-raceCarRed",
+    "name": "Go-Kart (red)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-raceCarRed.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-raceCarWhite",
+    "name": "Go-Kart (white)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-raceCarWhite.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-bannerTowerGreen",
+    "name": "Banner Tower",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-bannerTowerGreen.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_lab_jars",
+    "name": "Jars",
+    "category": "scenarios",
+    "glb": "../library/scenarios/lab/polypizza-jars.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-barrierRed",
+    "name": "Barrier (red)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-barrierRed.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-barrierWhite",
+    "name": "Barrier (white)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-barrierWhite.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-flagGreen",
+    "name": "Green Flag",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-flagGreen.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-grandStand",
+    "name": "Grandstand",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-grandStand.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-flagCheckers",
+    "name": "Checkered Flag",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-flagCheckers.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-tent",
+    "name": "Tent",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-tent.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-tentLong",
+    "name": "Long Tent",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-tentLong.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-treeSmall",
+    "name": "Small Tree",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-treeSmall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-lightPostModern",
+    "name": "Light Post",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-lightPostModern.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-overheadLights",
+    "name": "Overhead Lights",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-overheadLights.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-lightRed",
+    "name": "Red Light",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-lightRed.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_marketstand",
+    "name": "Market Stand",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-marketstand.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_marketstalls",
+    "name": "Market Stalls",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-marketstalls.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_marketstallscompact",
+    "name": "Market Stalls (compact)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-marketstallscompact.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_tent",
+    "name": "Fair Tent",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-tent.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_tenthalf",
+    "name": "Fair Tent (half)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-tenthalf.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_cart",
+    "name": "Fair Cart",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-cart.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_benchq",
+    "name": "Bench",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-benchq.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_icecream",
+    "name": "Ice Cream",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-icecream.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_hotdog",
+    "name": "Hot Dog",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-hotdog.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_burger",
+    "name": "Burger",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-burger.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_park-billboard",
+    "name": "Billboard",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/kenney-park-billboard.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_campfire",
+    "name": "Campfire",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-campfire.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bathroom_cabinet",
+    "name": "Bathroom Cabinet",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bathroomCabinet.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bathroom_cabinet_drawer",
+    "name": "Bathroom Cabinet Drawer",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bathroomCabinetDrawer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bathroom_mirror",
+    "name": "Bathroom Mirror",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bathroomMirror.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_benchk",
+    "name": "Bench (KayKit)",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-benchk.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bathroom_sink",
+    "name": "Bathroom Sink",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bathroomSink.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bathroom_sink_square",
+    "name": "Bathroom Sink Square",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bathroomSinkSquare.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "scn_park_picnic",
+    "name": "Picnic Table",
+    "category": "scenarios",
+    "glb": "../library/scenarios/park/polypizza-picnic.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bathtub",
+    "name": "Bathtub",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bathtub.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bench_cushion",
+    "name": "Bench Cushion",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-benchCushion.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bench_cushion_low",
+    "name": "Bench Cushion Low",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-benchCushionLow.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bed_bunk",
+    "name": "Bed Bunk",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bedBunk.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bookcase_closed",
+    "name": "Bookcase Closed",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bookcaseClosed.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bookcase_closed_doors",
+    "name": "Bookcase Closed Doors",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bookcaseClosedDoors.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bookcase_closed_wide",
+    "name": "Bookcase Closed Wide",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bookcaseClosedWide.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bookcase_open",
+    "name": "Bookcase Open",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bookcaseOpen.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-bookcase_open_low",
+    "name": "Bookcase Open Low",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-bookcaseOpenLow.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-books",
+    "name": "Books",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-books.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-cabinet_bed",
+    "name": "Cabinet Bed",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-cabinetBed.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-cabinet_bed_drawer",
+    "name": "Cabinet Bed Drawer",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-cabinetBedDrawer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-cabinet_bed_drawer_table",
+    "name": "Cabinet Bed Drawer Table",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-cabinetBedDrawerTable.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-cabinet_television",
+    "name": "Cabinet Television",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-cabinetTelevision.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-cabinet_television_doors",
+    "name": "Cabinet Television Doors",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-cabinetTelevisionDoors.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-cardboard_box_closed",
+    "name": "Cardboard Box Closed",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-cardboardBoxClosed.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-cardboard_box_open",
+    "name": "Cardboard Box Open",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-cardboardBoxOpen.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-ceiling_fan",
+    "name": "Ceiling Fan",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-ceilingFan.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-chair_cushion",
+    "name": "Chair Cushion",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-chairCushion.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-chair_modern_cushion",
+    "name": "Chair Modern Cushion",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-chairModernCushion.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-chair_rounded",
+    "name": "Chair Rounded",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-chairRounded.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-coat_rack",
+    "name": "Coat Rack",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-coatRack.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-coat_rack_standing",
+    "name": "Coat Rack Standing",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-coatRackStanding.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-computer_keyboard",
+    "name": "Computer Keyboard",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-computerKeyboard.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-computer_mouse",
+    "name": "Computer Mouse",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-computerMouse.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-hood_large",
+    "name": "Hood Large",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-hoodLarge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-computer_screen",
+    "name": "Computer Screen",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-computerScreen.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_bar",
+    "name": "Kitchen Bar",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenBar.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-dryer",
+    "name": "Dryer",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-dryer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-desk_corner",
+    "name": "Desk Corner",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-deskCorner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-hood_modern",
+    "name": "Hood Modern",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-hoodModern.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_bar_end",
+    "name": "Kitchen Bar End",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenBarEnd.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_blender",
+    "name": "Kitchen Blender",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenBlender.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_cabinet",
+    "name": "Kitchen Cabinet",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenCabinet.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_cabinet_drawer",
+    "name": "Kitchen Cabinet Drawer",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenCabinetDrawer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_cabinet_upper",
+    "name": "Kitchen Cabinet Upper",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenCabinetUpper.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_cabinet_upper_double",
+    "name": "Kitchen Cabinet Upper Double",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenCabinetUpperDouble.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_cabinet_upper_low",
+    "name": "Kitchen Cabinet Upper Low",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenCabinetUpperLow.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_coffee_machine",
+    "name": "Kitchen Coffee Machine",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenCoffeeMachine.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_fridge",
+    "name": "Kitchen Fridge",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenFridge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_fridge_built_in",
+    "name": "Kitchen Fridge Built In",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenFridgeBuiltIn.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_fridge_large",
+    "name": "Kitchen Fridge Large",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenFridgeLarge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_fridge_small",
+    "name": "Kitchen Fridge Small",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenFridgeSmall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_microwave",
+    "name": "Kitchen Microwave",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenMicrowave.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_sink",
+    "name": "Kitchen Sink",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenSink.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_stove",
+    "name": "Kitchen Stove",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenStove.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-kitchen_stove_electric",
+    "name": "Kitchen Stove Electric",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-kitchenStoveElectric.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lamp_round_floor",
+    "name": "Lamp Round Floor",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-lampRoundFloor.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lamp_round_table",
+    "name": "Lamp Round Table",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-lampRoundTable.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lamp_square_ceiling",
+    "name": "Lamp Square Ceiling",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-lampSquareCeiling.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lamp_square_table",
+    "name": "Lamp Square Table",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-lampSquareTable.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lamp_square_floor",
+    "name": "Lamp Square Floor",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-lampSquareFloor.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-laptop",
+    "name": "Laptop",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-laptop.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lamp_wall",
+    "name": "Lamp Wall",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-lampWall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lounge_chair_relax",
+    "name": "Lounge Chair Relax",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-loungeChairRelax.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lounge_chair",
+    "name": "Lounge Chair",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-loungeChair.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lounge_design_chair",
+    "name": "Lounge Design Chair",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-loungeDesignChair.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lounge_design_sofa",
+    "name": "Lounge Design Sofa",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-loungeDesignSofa.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lounge_design_sofa_corner",
+    "name": "Lounge Design Sofa Corner",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-loungeDesignSofaCorner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lounge_sofa",
+    "name": "Lounge Sofa",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-loungeSofa.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lounge_sofa_corner",
+    "name": "Lounge Sofa Corner",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-loungeSofaCorner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lounge_sofa_long",
+    "name": "Lounge Sofa Long",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-loungeSofaLong.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-lounge_sofa_ottoman",
+    "name": "Lounge Sofa Ottoman",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-loungeSofaOttoman.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-plant_small1",
+    "name": "Plant Small1",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-plantSmall1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-plant_small2",
+    "name": "Plant Small2",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-plantSmall2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-plant_small3",
+    "name": "Plant Small3",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-plantSmall3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-potted_plant",
+    "name": "Potted Plant",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-pottedPlant.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-radio",
+    "name": "Radio",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-radio.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-rug_rectangle",
+    "name": "Rug Rectangle",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-rugRectangle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-rug_round",
+    "name": "Rug Round",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-rugRound.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-rug_square",
+    "name": "Rug Square",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-rugSquare.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-side_table",
+    "name": "Side Table",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-sideTable.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-side_table_drawers",
+    "name": "Side Table Drawers",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-sideTableDrawers.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-speaker",
+    "name": "Speaker",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-speaker.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-speaker_small",
+    "name": "Speaker Small",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-speakerSmall.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-stool_bar",
+    "name": "Stool Bar",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-stoolBar.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table",
+    "name": "Table",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-table.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-stool_bar_square",
+    "name": "Stool Bar Square",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-stoolBarSquare.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table_cloth",
+    "name": "Table Cloth",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-tableCloth.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table_coffee",
+    "name": "Table Coffee",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-tableCoffee.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table_coffee_glass",
+    "name": "Table Coffee Glass",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-tableCoffeeGlass.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table_coffee_glass_square",
+    "name": "Table Coffee Glass Square",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-tableCoffeeGlassSquare.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table_coffee_square",
+    "name": "Table Coffee Square",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-tableCoffeeSquare.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table_cross",
+    "name": "Table Cross",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-tableCross.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table_cross_cloth",
+    "name": "Table Cross Cloth",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-tableCrossCloth.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table_glass",
+    "name": "Table Glass",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-tableGlass.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-table_round",
+    "name": "Table Round",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-tableRound.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-television_antenna",
+    "name": "Television Antenna",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-televisionAntenna.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-television_modern",
+    "name": "Television Modern",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-televisionModern.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-toaster",
+    "name": "Toaster",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-toaster.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-toilet",
+    "name": "Toilet",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-toilet.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-toilet_square",
+    "name": "Toilet Square",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-toiletSquare.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-trashcan",
+    "name": "Trashcan",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-trashcan.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-washer",
+    "name": "Washer",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-washer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-washer_dryer_stacked",
+    "name": "Washer Dryer Stacked",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-washerDryerStacked.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kenney-furniture-shower",
+    "name": "Shower",
+    "category": "props",
+    "glb": "../library/props/kenney-furniture-shower.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_barrel_a",
+    "name": "Proto Barrel  A",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Barrel_A.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_box_b",
+    "name": "Proto Box  B",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Box_B.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_box_a",
+    "name": "Proto Box  A",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Box_A.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_barrel_b",
+    "name": "Proto Barrel  B",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Barrel_B.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_can_b",
+    "name": "Proto Can  B",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Can_B.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_box_c",
+    "name": "Proto Box  C",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Box_C.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_coin_a",
+    "name": "Proto Coin  A",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Coin_A.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_can_a",
+    "name": "Proto Can  A",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Can_A.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_coin_b",
+    "name": "Proto Coin  B",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Coin_B.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_pallet_large",
+    "name": "Proto Pallet  Large",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Pallet_Large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_pallet_small",
+    "name": "Proto Pallet  Small",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Pallet_Small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-target_small",
+    "name": "Proto Target Small",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-target_small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-table_medium",
+    "name": "Proto Table Medium",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-table_medium.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-table_medium_long",
+    "name": "Proto Table Medium Long",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-table_medium_long.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-_dummy_base",
+    "name": "Proto Dummy  Base",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-Dummy_Base.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_kaykit-proto-target_stand_a",
+    "name": "Proto Target Stand  A",
+    "category": "props",
+    "glb": "../library/props/kaykit-proto-target_stand_A.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_kaykit-adventurer-knight",
+    "name": "Knight",
+    "category": "characters",
+    "glb": "../library/characters/kaykit-adventurer-Knight.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_kaykit-adventurer-rogue",
+    "name": "Rogue",
+    "category": "characters",
+    "glb": "../library/characters/kaykit-adventurer-Rogue.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_kaykit-adventurer-rogue_hooded",
+    "name": "Rogue Hooded",
+    "category": "characters",
+    "glb": "../library/characters/kaykit-adventurer-Rogue_Hooded.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_kaykit-adventurer-mage",
+    "name": "Mage",
+    "category": "characters",
+    "glb": "../library/characters/kaykit-adventurer-Mage.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_kaykit-adventurer-barbarian",
+    "name": "Barbarian",
+    "category": "characters",
+    "glb": "../library/characters/kaykit-adventurer-Barbarian.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_kaykit-skeleton-skeleton_mage",
+    "name": "Skeleton Mage",
+    "category": "characters",
+    "glb": "../library/characters/kaykit-skeleton-Skeleton_Mage.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_kaykit-skeleton-skeleton_rogue",
+    "name": "Skeleton Rogue",
+    "category": "characters",
+    "glb": "../library/characters/kaykit-skeleton-Skeleton_Rogue.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_kaykit-skeleton-skeleton_minion",
+    "name": "Skeleton Minion",
+    "category": "characters",
+    "glb": "../library/characters/kaykit-skeleton-Skeleton_Minion.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_kaykit-skeleton-skeleton_warrior",
+    "name": "Skeleton Warrior",
+    "category": "characters",
+    "glb": "../library/characters/kaykit-skeleton-Skeleton_Warrior.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_pumpkin_orange_jackolantern",
+    "name": "Jack-o'-Lantern",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-pumpkin_orange_jackolantern.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_pumpkin_orange",
+    "name": "Pumpkin",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-pumpkin_orange.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_pumpkin_yellow_jackolantern",
+    "name": "Jack-o'-Lantern (yellow)",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-pumpkin_yellow_jackolantern.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_pumpkin_orange_small",
+    "name": "Small Pumpkin",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-pumpkin_orange_small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_skull",
+    "name": "Skull",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-skull.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_gravemarker_A",
+    "name": "Grave Marker",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-gravemarker_A.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_skull_candle",
+    "name": "Skull Candle",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-skull_candle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_grave_A",
+    "name": "Grave A",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-grave_A.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_gravestone",
+    "name": "Gravestone",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-gravestone.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_grave_B",
+    "name": "Grave B",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-grave_B.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_lantern_standing",
+    "name": "Standing Lantern",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-lantern_standing.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_candle",
+    "name": "Candle",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-candle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_coffin_decorated",
+    "name": "Decorated Coffin",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-coffin_decorated.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_ribcage",
+    "name": "Ribcage",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-ribcage.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_coffin",
+    "name": "Coffin",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-coffin.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_candle_triple",
+    "name": "Triple Candle",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-candle_triple.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_plaque",
+    "name": "Plaque",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-plaque.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_tree_dead_medium",
+    "name": "Dead Tree",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-tree_dead_medium.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_bench_decorated",
+    "name": "Spooky Bench",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-bench_decorated.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_tree_pine_orange_medium",
+    "name": "Orange Pine Tree",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-tree_pine_orange_medium.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_bone_A",
+    "name": "Bone",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-bone_A.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_halloween_shrine",
+    "name": "Shrine",
+    "category": "props",
+    "glb": "../library/props/kaykit-halloween-shrine.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_cow",
+    "name": "Cow",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-cow.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_bull",
+    "name": "Bull",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-bull.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_sheep",
+    "name": "Sheep",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-sheep.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_horse",
+    "name": "Horse",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-horse.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_whitehorse",
+    "name": "White Horse",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-whitehorse.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_donkey",
+    "name": "Donkey",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-donkey.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_pig",
+    "name": "Pig",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-pig.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_bat",
+    "name": "Bat",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-bat.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_zebra",
+    "name": "Zebra",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-zebra.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_chicken",
+    "name": "Chicken",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-chicken.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_pigeon",
+    "name": "Pigeon",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-pigeon.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_dolphin",
+    "name": "Dolphin",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-dolphin.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_whale",
+    "name": "Whale",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-whale.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_bird",
+    "name": "Bird",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-bird.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_a",
+    "name": "Character A",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-a.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_b",
+    "name": "Character B",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-b.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_c",
+    "name": "Character C",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-c.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animal_shark",
+    "name": "Shark",
+    "category": "characters",
+    "glb": "../library/characters/polypizza-animal-shark.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_d",
+    "name": "Character D",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-d.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_e",
+    "name": "Character E",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-e.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_f",
+    "name": "Character F",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-f.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_g",
+    "name": "Character G",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-g.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_h",
+    "name": "Character H",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-h.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_i",
+    "name": "Character I",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-i.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_j",
+    "name": "Character J",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-j.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_k",
+    "name": "Character K",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-k.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_l",
+    "name": "Character L",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-l.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_m",
+    "name": "Character M",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-m.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_n",
+    "name": "Character N",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-n.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_o",
+    "name": "Character O",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-o.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_p",
+    "name": "Character P",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-p.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_q",
+    "name": "Character Q",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-q.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_blocky_character_r",
+    "name": "Character R",
+    "category": "characters",
+    "glb": "../library/characters/ch_blocky_character-r.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_aid_defibrillator_green",
+    "name": "Aid Defibrillator Green",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_aid-defibrillator-green.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_aid_defibrillator_red",
+    "name": "Aid Defibrillator Red",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_aid-defibrillator-red.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_female_c",
+    "name": "Character Female C",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-female-c.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_female_b",
+    "name": "Character Female B",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-female-b.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_female_a",
+    "name": "Character Female A",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-female-a.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_female_d",
+    "name": "Character Female D",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-female-d.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_female_e",
+    "name": "Character Female E",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-female-e.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_female_f",
+    "name": "Character Female F",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-female-f.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_male_a",
+    "name": "Character Male A",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-male-a.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_male_c",
+    "name": "Character Male C",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-male-c.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_male_b",
+    "name": "Character Male B",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-male-b.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_male_d",
+    "name": "Character Male D",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-male-d.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_male_f",
+    "name": "Character Male F",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-male-f.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_character_male_e",
+    "name": "Character Male E",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_character-male-e.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_wheelchair_deluxe",
+    "name": "Wheelchair Deluxe",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_wheelchair-deluxe.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_wheelchair_power",
+    "name": "Wheelchair Power",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_wheelchair-power.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_mini_wheelchair",
+    "name": "Wheelchair",
+    "category": "characters",
+    "glb": "../library/characters/ch_mini_wheelchair.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_graveyard_character_ghost",
+    "name": "Character Ghost",
+    "category": "characters",
+    "glb": "../library/characters/ch_graveyard_character-ghost.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_graveyard_character_skeleton",
+    "name": "Character Skeleton",
+    "category": "characters",
+    "glb": "../library/characters/ch_graveyard_character-skeleton.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_graveyard_character_vampire",
+    "name": "Character Vampire",
+    "category": "characters",
+    "glb": "../library/characters/ch_graveyard_character-vampire.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_graveyard_character_zombie",
+    "name": "Character Zombie",
+    "category": "characters",
+    "glb": "../library/characters/ch_graveyard_character-zombie.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_castle_tower_hexagon_top",
+    "name": "Tower Hexagon Top",
+    "category": "buildings",
+    "glb": "../library/buildings/bld_castle_tower-hexagon-top.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_castle_tower_hexagon_mid",
+    "name": "Tower Hexagon Mid",
+    "category": "buildings",
+    "glb": "../library/buildings/bld_castle_tower-hexagon-mid.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_castle_tower_square_mid",
+    "name": "Tower Square Mid",
+    "category": "buildings",
+    "glb": "../library/buildings/bld_castle_tower-square-mid.glb",
+    "status": "loaded",
+    "error": null
+  }
+]

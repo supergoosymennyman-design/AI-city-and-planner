@@ -1,0 +1,3080 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>My Own Instrument</title>
+  <style>
+    /* ===================================================================
+       DESIGN TOKENS
+       =================================================================== */
+    :root {
+      /* Core palette */
+      --bg-cream: #FFF9F0;
+      --bg-white: #FFFFFF;
+      --primary: #CC4444;
+      --primary-hover: #B33A3A;
+      --secondary: #1A7A74;
+      --secondary-hover: #156865;
+      --accent-gold: #FFD93D;
+      --accent-gold-hover: #E8C430;
+      --text-dark: #2D2D2D;
+      --text-medium: #666666;
+      --text-light: #999999;
+      --bg-cell-empty: #F0F0F0;
+      --border-cell: #D0D0D0;
+      --shadow: rgba(0,0,0,0.1);
+      --shadow-strong: rgba(0,0,0,0.2);
+      --success: #6BCB77;
+      --error: #FF6B6B;
+
+      /* Sound colors */
+      --sound-1: #FF6B6B;
+      --sound-2: #4ECDC4;
+      --sound-3: #FFD93D;
+      --sound-4: #6BCB77;
+      --sound-5: #A084E8;
+
+      /* Typography */
+      --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --body-size: 20px;
+      --button-size: 18px;
+      --heading-size: 24px;
+
+      /* Spacing */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+
+      /* Border radius */
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --radius-full: 9999px;
+
+      /* Shadows */
+      --shadow-sm: 0 2px 4px var(--shadow);
+      --shadow-md: 0 4px 12px var(--shadow);
+      --shadow-lg: 0 8px 24px var(--shadow);
+
+      /* Robot colors */
+      --robot-body: #D4D4D4;
+      --robot-head: #E8E8E8;
+      --robot-eye-bg: #FFFFFF;
+      --robot-eye-pupil: #333333;
+      --robot-accent: #4ECDC4;
+    }
+
+    /* ===================================================================
+       RESET & BASE
+       =================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font-family);
+      font-size: var(--body-size);
+      line-height: 1.4;
+      color: var(--text-dark);
+      background: var(--bg-cream);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    /* ===================================================================
+       APP LAYOUT
+       =================================================================== */
+    #app {
+      width: 100%;
+      height: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      padding: env(safe-area-inset-top, 44px) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 20px) env(safe-area-inset-left, 16px);
+    }
+
+    /* ===================================================================
+       HEADER
+       =================================================================== */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-sm) 0;
+      flex-shrink: 0;
+      min-height: 56px;
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: var(--space-sm);
+      align-items: center;
+    }
+
+    .header-btn {
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--bg-white);
+      color: var(--text-dark);
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-sm);
+      transition: transform 150ms, box-shadow 150ms;
+      touch-action: manipulation;
+    }
+
+    .header-btn:active {
+      transform: scale(0.92);
+    }
+
+    /* ===================================================================
+       MAIN CONTENT AREA
+       =================================================================== */
+    #main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      padding: var(--space-sm) 0;
+    }
+
+    .screen {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+      animation: fadeIn 300ms ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===================================================================
+       ROBOT CHARACTER
+       =================================================================== */
+    #robot-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: var(--space-sm);
+    }
+
+    .robot-container {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      width: 100%;
+    }
+
+    .robot-svg {
+      width: 80px;
+      height: 80px;
+      flex-shrink: 0;
+    }
+
+    .robot-body {
+      fill: var(--robot-body);
+      stroke: #B0B0B0;
+      stroke-width: 1.5;
+    }
+
+    .robot-head-bg {
+      fill: var(--robot-head);
+      stroke: #B0B0B0;
+      stroke-width: 1.5;
+    }
+
+    .robot-eye {
+      fill: var(--robot-eye-bg);
+      stroke: #999;
+      stroke-width: 1;
+    }
+
+    .robot-pupil {
+      fill: var(--robot-eye-pupil);
+      transition: all 200ms ease;
+    }
+
+    .robot-pupil.happy {
+      fill: var(--secondary);
+    }
+
+    .robot-pupil.amazed {
+      fill: var(--accent-gold);
+      r: 8;
+    }
+
+    .robot-mouth {
+      fill: none;
+      stroke: #999;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .robot-mouth.smile {
+      d: path("M25,55 Q35,62 45,55");
+    }
+
+    .robot-mouth.open {
+      d: path("M28,53 Q35,62 42,53");
+    }
+
+    /* Speech bubble */
+    .speech-bubble {
+      flex: 1;
+      background: var(--bg-white);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md) var(--space-lg);
+      box-shadow: var(--shadow-md);
+      position: relative;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+    }
+
+    .speech-bubble::before {
+      content: '';
+      position: absolute;
+      left: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      border-right: 12px solid var(--bg-white);
+    }
+
+    .speech-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-dark);
+      line-height: 1.5;
+      width: 100%;
+    }
+
+    /* AI State Indicator */
+    #state-indicator {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      margin-top: var(--space-xs);
+      font-size: 14px;
+      color: var(--text-medium);
+    }
+
+    .state-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #CCC;
+      transition: background 300ms;
+    }
+
+    .state-dot.listening {
+      background: #22C55E;
+      animation: pulse-dot 2s infinite;
+    }
+
+    .state-dot.thinking {
+      background: #EAB308;
+      animation: pulse-dot 1s infinite;
+    }
+
+    .state-dot.speaking {
+      background: #3B82F6;
+      animation: wave-dot 1.5s infinite;
+    }
+
+    .state-dot.idle {
+      background: #9CA3AF;
+    }
+
+    .state-dot.error {
+      background: #EF4444;
+    }
+
+    .state-label {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.3); }
+    }
+
+    @keyframes wave-dot {
+      0%, 100% { opacity: 1; transform: scaleY(1); }
+      25% { transform: scaleY(1.5); }
+      50% { transform: scaleY(1); }
+      75% { transform: scaleY(1.3); }
+    }
+
+    /* ===================================================================
+       BUTTONS
+       =================================================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: var(--font-family);
+      font-size: var(--button-size);
+      font-weight: 700;
+      padding: var(--space-md) var(--space-lg);
+      cursor: pointer;
+      transition: transform 150ms, box-shadow 150ms, background 150ms;
+      touch-action: manipulation;
+      min-height: 56px;
+      min-width: 56px;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      pointer-events: none;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 0 var(--primary-hover);
+    }
+
+    .btn-primary:active {
+      box-shadow: 0 1px 0 var(--primary-hover);
+      transform: translateY(3px);
+    }
+
+    .btn-secondary {
+      background: var(--secondary);
+      color: white;
+      box-shadow: 0 4px 0 var(--secondary-hover);
+    }
+
+    .btn-secondary:active {
+      box-shadow: 0 1px 0 var(--secondary-hover);
+      transform: translateY(3px);
+    }
+
+    .btn-accent {
+      background: var(--accent-gold);
+      color: var(--text-dark);
+      box-shadow: 0 4px 0 var(--accent-gold-hover);
+    }
+
+    .btn-accent:active {
+      box-shadow: 0 1px 0 var(--accent-gold-hover);
+      transform: translateY(3px);
+    }
+
+    .btn-white {
+      background: var(--bg-white);
+      color: var(--text-dark);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-white:active {
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-dark);
+      border: 2px solid var(--border-cell);
+    }
+
+    .btn-sm {
+      font-size: 16px;
+      padding: var(--space-sm) var(--space-md);
+      min-height: 48px;
+    }
+
+    .btn-lg {
+      font-size: 22px;
+      padding: var(--space-md) var(--space-xl);
+      min-height: 72px;
+      min-width: 72px;
+    }
+
+    .btn-icon {
+      width: 72px;
+      height: 72px;
+      padding: 0;
+      border-radius: 50%;
+    }
+
+    .btn-icon-sm {
+      width: 56px;
+      height: 56px;
+      padding: 0;
+      border-radius: 50%;
+    }
+
+    /* ===================================================================
+       MIC BUTTON
+       =================================================================== */
+    .mic-btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: none;
+      background: var(--primary);
+      color: white;
+      font-size: 44px;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+      transition: transform 150ms, box-shadow 150ms;
+      touch-action: manipulation;
+    }
+
+    .mic-btn:active {
+      transform: scale(0.95);
+    }
+
+    .mic-btn.recording {
+      animation: mic-pulse 1.5s infinite ease-in-out;
+      box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.5);
+    }
+
+    @keyframes mic-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.5); }
+      50% { box-shadow: 0 0 0 20px rgba(255, 107, 107, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+    }
+
+    .mic-btn svg {
+      width: 48px;
+      height: 48px;
+    }
+
+    /* Recording ring around mic */
+    .recording-ring-container {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .recording-ring {
+      position: absolute;
+      top: -14px;
+      left: -14px;
+      width: 128px;
+      height: 128px;
+      transform: rotate(-90deg);
+    }
+
+    .recording-ring .bg-circle {
+      fill: none;
+      stroke: #E8E8E8;
+      stroke-width: 6;
+    }
+
+    .recording-ring .progress-circle {
+      fill: none;
+      stroke: var(--primary);
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 339.292;
+      stroke-dashoffset: 339.292;
+      transition: stroke-dashoffset 50ms linear;
+    }
+
+    /* ===================================================================
+       SOUND BANK
+       =================================================================== */
+    .sound-bank {
+      display: flex;
+      gap: var(--space-md);
+      justify-content: center;
+      flex-wrap: wrap;
+      padding: var(--space-sm) 0;
+    }
+
+    .sound-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: white;
+      position: relative;
+      transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .sound-icon.pop-in {
+      animation: popIn 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0); }
+      60% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    .sound-icon.future {
+      background: var(--bg-cell-empty);
+      border: 2px dashed var(--border-cell);
+      color: var(--text-light);
+    }
+
+    .sound-icon .sound-abbr {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .sound-icon .sound-check {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 18px;
+      height: 18px;
+      background: var(--success);
+      border-radius: 50%;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    /* ===================================================================
+       NAME SUGGESTION BUTTONS
+       =================================================================== */
+    .name-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      justify-content: center;
+      max-width: 400px;
+    }
+
+    .name-btn {
+      min-width: 80px;
+      height: 56px;
+    }
+
+    /* ===================================================================
+       SEQUENCER GRID
+       =================================================================== */
+    .sequencer-wrapper {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow-x: auto;
+      padding: var(--space-xs) 0;
+    }
+
+    .sequencer-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .seq-header {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding-left: 52px;
+      margin-bottom: 2px;
+    }
+
+    .seq-header .beat-num {
+      width: 44px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-medium);
+      flex-shrink: 0;
+    }
+
+    .seq-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .seq-row-label {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dark);
+      border-radius: var(--radius-sm);
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    .seq-row-label .label-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .seq-cell {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border-cell);
+      background: var(--bg-cell-empty);
+      cursor: pointer;
+      transition: background 150ms, transform 100ms, border-color 150ms;
+      touch-action: manipulation;
+      flex-shrink: 0;
+    }
+
+    .seq-cell:active {
+      transform: scale(0.9);
+    }
+
+    .seq-cell.filled {
+      border-color: transparent;
+      box-shadow: inset 0 2px 4px var(--shadow-strong);
+    }
+
+    .seq-cell.active-beat {
+      outline: 3px solid var(--accent-gold);
+      outline-offset: 2px;
+      transform: scale(1.08);
+      z-index: 2;
+    }
+
+    .seq-cell.sound-0 { background: var(--sound-1); }
+    .seq-cell.sound-1 { background: var(--sound-2); }
+    .seq-cell.sound-2 { background: var(--sound-3); }
+    .seq-cell.sound-3 { background: var(--sound-4); }
+    .seq-cell.sound-4 { background: var(--sound-5); }
+
+    /* Sequencer controls */
+    .seq-controls {
+      display: flex;
+      gap: var(--space-md);
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: var(--space-sm) 0;
+    }
+
+    /* ===================================================================
+       COMPOSING / LOADING
+       =================================================================== */
+    .composing-animation {
+      display: flex;
+      gap: var(--space-md);
+      align-items: flex-end;
+      justify-content: center;
+      height: 80px;
+    }
+
+    .music-note {
+      font-size: 28px;
+      color: var(--secondary);
+      animation: bounce-note 0.6s infinite alternate ease-in-out;
+    }
+
+    .music-note:nth-child(2) { animation-delay: 0.2s; }
+    .music-note:nth-child(3) { animation-delay: 0.4s; }
+    .music-note:nth-child(4) { animation-delay: 0.1s; }
+    .music-note:nth-child(5) { animation-delay: 0.3s; }
+
+    @keyframes bounce-note {
+      from { transform: translateY(0); }
+      to { transform: translateY(-20px); }
+    }
+
+    .composing-progress {
+      width: 200px;
+      height: 8px;
+      background: var(--bg-cell-empty);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    .composing-progress-bar {
+      height: 100%;
+      background: var(--secondary);
+      border-radius: var(--radius-full);
+      width: 0%;
+      transition: width 200ms linear;
+    }
+
+    /* ===================================================================
+       CELEBRATION
+       =================================================================== */
+    .celebration-title {
+      font-size: 28px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .confetti-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 100;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      top: -20px;
+      animation: confetti-fall 2s ease-out forwards;
+    }
+
+    @keyframes confetti-fall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ===================================================================
+       SETTINGS MODAL
+       =================================================================== */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      animation: fadeIn 200ms ease-out;
+    }
+
+    .modal-content {
+      background: var(--bg-white);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      max-width: 400px;
+      width: calc(100% - 32px);
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: var(--space-md);
+      right: var(--space-md);
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: var(--bg-cell-empty);
+      border-radius: 50%;
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-medium);
+    }
+
+    .modal-close-btn:active {
+      background: var(--border-cell);
+    }
+
+    .settings-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: var(--space-lg);
+      padding-right: 40px;
+    }
+
+    .setting-row {
+      margin-bottom: var(--space-md);
+    }
+
+    .setting-label {
+      display: block;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: var(--space-xs);
+      color: var(--text-dark);
+    }
+
+    .setting-control {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .setting-control input[type="range"] {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--bg-cell-empty);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .setting-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--secondary);
+      cursor: pointer;
+      border: 2px solid white;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .setting-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-medium);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .setting-control select {
+      flex: 1;
+      padding: var(--space-sm) var(--space-md);
+      border: 2px solid var(--border-cell);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: var(--font-family);
+      background: var(--bg-white);
+      color: var(--text-dark);
+    }
+
+    .setting-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 28px;
+      display: inline-block;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #CCC;
+      border-radius: 28px;
+      transition: background 200ms;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 22px; height: 22px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 200ms;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--secondary);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(20px);
+    }
+
+    .setting-info {
+      margin-top: var(--space-md);
+      font-size: 13px;
+      color: var(--text-light);
+      text-align: center;
+    }
+
+    /* ===================================================================
+       TRANSCRIPT DRAWER
+       =================================================================== */
+    .transcript-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      max-width: 90vw;
+      height: 100%;
+      background: var(--bg-white);
+      box-shadow: -4px 0 20px var(--shadow);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      animation: slideIn 200ms ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    .transcript-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-md);
+      border-bottom: 1px solid var(--bg-cell-empty);
+    }
+
+    .transcript-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .transcript-close-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: var(--bg-cell-empty);
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-medium);
+    }
+
+    .transcript-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    .transcript-empty {
+      color: var(--text-light);
+      font-size: 14px;
+      text-align: center;
+      padding: var(--space-xl);
+    }
+
+    .transcript-entry {
+      font-size: 14px;
+      padding: var(--space-sm);
+      border-radius: var(--radius-sm);
+      line-height: 1.4;
+    }
+
+    .transcript-child {
+      background: #F0F7FF;
+      align-self: flex-start;
+    }
+
+    .transcript-ai {
+      background: #F5F5F5;
+      align-self: flex-end;
+    }
+
+    .transcript-time {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-right: var(--space-xs);
+    }
+
+    .transcript-label {
+      font-weight: 700;
+      margin-right: var(--space-xs);
+    }
+
+    .transcript-footer {
+      padding: var(--space-sm) var(--space-md);
+      border-top: 1px solid var(--bg-cell-empty);
+    }
+
+    .transcript-clear-btn {
+      width: 100%;
+      padding: var(--space-sm);
+      border: 1px solid var(--border-cell);
+      border-radius: var(--radius-sm);
+      background: var(--bg-white);
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--text-medium);
+    }
+
+    /* ===================================================================
+       SOUND BANK (SEQUENCER SIDEBAR)
+       =================================================================== */
+    .sound-bank-sidebar {
+      display: flex;
+      gap: var(--space-sm);
+      justify-content: center;
+      flex-wrap: wrap;
+      padding: 0;
+    }
+
+    .sound-bank-sidebar .sound-icon {
+      width: 40px;
+      height: 40px;
+      font-size: 11px;
+    }
+
+    /* ===================================================================
+       RESPONSIVE
+       =================================================================== */
+    @media (min-width: 600px) {
+      .seq-cell { width: 64px; height: 64px; }
+      .seq-header .beat-num { width: 64px; }
+      .seq-row-label { width: 56px; height: 64px; font-size: 12px; }
+      .mic-btn { width: 120px; height: 120px; }
+      .recording-ring { width: 148px; height: 148px; top: -14px; left: -14px; }
+    }
+
+    @media (max-width: 380px) {
+      .seq-cell { width: 48px; height: 48px; }
+      .seq-header .beat-num { width: 48px; font-size: 12px; }
+      .seq-row-label { width: 48px; height: 48px; font-size: 10px; }
+      .speech-text { font-size: 16px; }
+      .robot-svg { width: 64px; height: 64px; }
+      .mic-btn { width: 80px; height: 80px; }
+      .recording-ring { width: 108px; height: 108px; top: -14px; left: -14px; }
+      .btn { font-size: 16px; padding: var(--space-sm) var(--space-md); min-height: 48px; }
+      .sound-icon { width: 44px; height: 44px; }
+    }
+
+    @media (orientation: landscape) and (max-height: 500px) {
+      .robot-svg { width: 56px; height: 56px; }
+      #robot-area { margin-bottom: 2px; }
+      .speech-text { font-size: 15px; }
+      .seq-cell { width: 48px; height: 48px; }
+      .seq-header .beat-num { width: 48px; }
+      .seq-row-label { width: 48px; height: 48px; }
+      .btn { min-height: 44px; font-size: 15px; }
+    }
+
+    /* ===================================================================
+       REDUCED MOTION
+       =================================================================== */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+      .screen { animation: none; opacity: 1; transform: none; }
+      .confetti-container { display: none; }
+      .sound-icon.pop-in { animation: none; transform: scale(1); }
+      .mic-btn.recording { animation: none; }
+    }
+
+    /* ===================================================================
+       UTILITY
+       =================================================================== */
+    .text-center { text-align: center; }
+    .text-large { font-size: 22px; font-weight: 700; }
+    .text-small { font-size: 16px; color: var(--text-medium); }
+    .mt-sm { margin-top: var(--space-sm); }
+    .mt-md { margin-top: var(--space-md); }
+    .mt-lg { margin-top: var(--space-lg); }
+    .mb-sm { margin-bottom: var(--space-sm); }
+    .mb-md { margin-bottom: var(--space-md); }
+    .gap-sm { gap: var(--space-sm); }
+    .gap-md { gap: var(--space-md); }
+    .flex-center { display: flex; align-items: center; justify-content: center; }
+    .flex-col { display: flex; flex-direction: column; }
+    .flex-wrap { flex-wrap: wrap; }
+    .w-full { width: 100%; }
+    .sr-only {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header id="header" role="banner">
+      <span class="header-title" id="header-title">My Own Instrument</span>
+      <div class="header-actions">
+        <button class="header-btn" id="transcript-toggle" aria-label="Show conversation transcript" title="Transcript">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </button>
+        <button class="header-btn" id="settings-toggle" aria-label="Open settings" title="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Robot + Speech Bubble -->
+    <div id="robot-area" role="region" aria-label="AI character">
+      <div class="robot-container">
+        <svg class="robot-svg" viewBox="0 0 80 80" aria-hidden="true">
+          <!-- Body -->
+          <rect class="robot-body" x="20" y="45" width="40" height="28" rx="6"/>
+          <!-- Head -->
+          <rect class="robot-head-bg" x="15" y="8" width="50" height="42" rx="10"/>
+          <!-- Antenna -->
+          <line x1="40" y1="2" x2="40" y2="10" stroke="#B0B0B0" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="40" cy="3" r="3" fill="var(--robot-accent)"/>
+          <!-- Eyes -->
+          <circle class="robot-eye" id="robot-eye-l" cx="30" cy="26" r="7"/>
+          <circle class="robot-eye" id="robot-eye-r" cx="50" cy="26" r="7"/>
+          <!-- Pupils -->
+          <circle class="robot-pupil" id="robot-pupil-l" cx="30" cy="26" r="4"/>
+          <circle class="robot-pupil" id="robot-pupil-r" cx="50" cy="26" r="4"/>
+          <!-- Mouth -->
+          <path class="robot-mouth" id="robot-mouth" d="M28,38 Q35,44 42,38" stroke="#999" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <!-- Ears -->
+          <rect x="8" y="18" width="7" height="16" rx="3" fill="var(--robot-body)" stroke="#B0B0B0" stroke-width="1"/>
+          <rect x="65" y="18" width="7" height="16" rx="3" fill="var(--robot-body)" stroke="#B0B0B0" stroke-width="1"/>
+        </svg>
+        <div class="speech-bubble" role="status" aria-live="polite" aria-atomic="true">
+          <p class="speech-text" id="speech-text">Welcome to My Own Instrument!</p>
+        </div>
+      </div>
+      <div id="state-indicator">
+        <span class="state-dot idle" id="state-dot"></span>
+        <span class="state-label" id="state-label">Ready</span>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content" role="main">
+      <!-- All dynamic content rendered here by JS -->
+    </div>
+  </div>
+
+  <!-- Settings modal container -->
+  <div id="modal-container"></div>
+  <!-- Transcript drawer container -->
+  <div id="drawer-container"></div>
+  <!-- Confetti container -->
+  <div id="confetti-container" class="confetti-container" aria-hidden="true"></div>
+
+  <!-- Load conversation modules FIRST -->
+  <script src="conversation.js"></script>
+  <script src="intents.js"></script>
+  <script src="settings.js"></script>
+  <script src="transcript.js"></script>
+
+  <script>
+  /* ===================================================================
+     GAME — My Own Instrument
+     =================================================================== */
+
+  (function() {
+    'use strict';
+
+    // ===================================================================
+    // CONSTANTS
+    // ===================================================================
+    const TOTAL_SOUNDS = 5;
+    const TOTAL_BEATS = 8;
+    const DEFAULT_TEMPO = 120;
+    const RECORD_DURATION = 3000; // 3 seconds
+    const SOUND_COLORS = [
+      'var(--sound-1)',
+      'var(--sound-2)',
+      'var(--sound-3)',
+      'var(--sound-4)',
+      'var(--sound-5)'
+    ];
+    const SOUND_COLOR_HEX = ['#FF6B6B', '#4ECDC4', '#FFD93D', '#6BCB77', '#A084E8'];
+    const RECORD_PROMPTS = [
+      'Make a sound with your voice! Sing, hum, or say something!',
+      'Clap your hands together!',
+      'Stomp your feet on the floor!',
+      'Tap the table or a surface near you!',
+      'Make a funny sound! Whistle, blow a raspberry, or be creative!'
+    ];
+    const NAME_SUGGESTIONS = [
+      ['La-la', 'Ahh', 'Sing', 'Hum', 'Hey'],
+      ['Clap', 'Pat', 'Slap', 'Tap', 'Beat'],
+      ['Stomp', 'Boom', 'Kick', 'Thump', 'Stamp'],
+      ['Tap', 'Tick', 'Knock', 'Click', 'Rap'],
+      ['Whoosh', 'Ding', 'Buzz', 'Zap', 'Boom']
+    ];
+
+    // ===================================================================
+    // GAME STATE
+    // ===================================================================
+    const state = {
+      currentState: 'init',
+      sounds: [],          // Array of { name, color, colorHex, blob, url }
+      soundIndex: 0,       // Current sound being recorded (0-4)
+      playCount: 0,        // Number of full sequencer plays
+      recordingBlob: null, // Temporary blob during record phase
+      isRecording: false,
+      isPlaying: false,
+      currentBeat: -1,
+      grid: [],            // 5x8 boolean grid
+      micGranted: false,
+      useOscillatorFallback: false,
+      idlePromptCount: 0,
+      totalPlaythroughs: 0,
+      idleTimer: null,
+      aiPhraseQueue: [],
+      isTransitioning: false,
+      _cellCooldown: false,      // 150ms debounce for grid cells
+      clearCooldown: false,      // 1.5s cooldown for clear button
+      recordingRetries: 0,       // Silent recording retry counter per sound
+
+      // Sequencer
+      seqSoundSources: [], // Pre-created Audio objects for fast playback
+    };
+
+    // ===================================================================
+    // DOM REFS
+    // ===================================================================
+    const $ = id => document.getElementById(id);
+    const main = $('main-content');
+    const speechText = $('speech-text');
+    const stateDot = $('state-dot');
+    const stateLabel = $('state-label');
+    const headerTitle = $('header-title');
+
+    // ===================================================================
+    // SOUND RECORDER
+    // ===================================================================
+    class SoundRecorder {
+      constructor() {
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.stream = null;
+        this.timerId = null;
+        this.startTime = 0;
+        this.isActive = false;
+        this.onProgress = null;
+        this.onComplete = null;
+        this.onTick = null;
+      }
+
+      async requestMic() {
+        try {
+          this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          return true;
+        } catch (err) {
+          console.warn('Mic access denied:', err);
+          return false;
+        }
+      }
+
+      startRecording(duration = RECORD_DURATION) {
+        if (!this.stream) return;
+        this.audioChunks = [];
+        this.isActive = true;
+        this.startTime = Date.now();
+
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm';
+
+        this.mediaRecorder = new MediaRecorder(this.stream, { mimeType });
+        this.mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) this.audioChunks.push(e.data);
+        };
+        this.mediaRecorder.start();
+
+        // Auto-stop timer
+        this.timerId = setTimeout(() => {
+          this.stopRecording().then(blob => {
+            if (this.onComplete) this.onComplete(blob);
+          });
+        }, duration);
+
+        // Progress tick
+        this._tick(duration);
+      }
+
+      _tick(duration) {
+        if (!this.isActive) return;
+        const elapsed = Date.now() - this.startTime;
+        const progress = Math.min(1, elapsed / duration);
+        const remaining = Math.max(0, duration - elapsed);
+        if (this.onTick) this.onTick(progress, remaining);
+        if (this.isActive && elapsed < duration) {
+          requestAnimationFrame(() => this._tick(duration));
+        }
+      }
+
+      stopRecording() {
+        return new Promise((resolve) => {
+          if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
+            resolve(null);
+            return;
+          }
+          this.isActive = false;
+          if (this.timerId) { clearTimeout(this.timerId); this.timerId = null; }
+          this.mediaRecorder.onstop = () => {
+            if (this.audioChunks.length === 0) { resolve(null); return; }
+            const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
+            resolve(blob);
+          };
+          try { this.mediaRecorder.stop(); } catch (e) { resolve(null); }
+        });
+      }
+
+      playBlob(blob) {
+        return new Promise((resolve) => {
+          if (!blob) { resolve(); return; }
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.play().catch(() => { URL.revokeObjectURL(url); resolve(); });
+        });
+      }
+
+      release() {
+        this.isActive = false;
+        if (this.timerId) { clearTimeout(this.timerId); this.timerId = null; }
+        if (this.stream) {
+          this.stream.getTracks().forEach(t => t.stop());
+          this.stream = null;
+        }
+      }
+    }
+
+    // ===================================================================
+    // BACKING TRACK ENGINE — Drum machine + bass + user sound remix
+    // ===================================================================
+    //
+    // Synthesizes a full backing track using:
+    //   - Kick drum  (sine pitch-sweep)
+    //   - Snare      (triangle body + bandpassed noise)
+    //   - Hi-hat     (square wave → bandpass filter)
+    //   - Bass line  (triangle wave, chord-root pattern)
+    //   - Lead       (twin detuned triangles, pentatonic phrase)
+    //   - User sounds (decoded from blob, played at 30% volume)
+    //
+    // Everything is scheduled via AudioContext.currentTime for
+    // sample-accurate beat sync. Master compressor glues the mix.
+
+    class BackingTrackEngine {
+      constructor(tempo = DEFAULT_TEMPO, totalBeats = TOTAL_BEATS) {
+        this.tempo = tempo;
+        this.totalBeats = totalBeats;
+        this.ctx = null;
+        this._isPlaying = false;
+        this._timeouts = [];
+        this._noiseBuffer = null;
+
+        // Arrangement data
+        this._bassPattern = [];   // Hz per beat (24 beats = 3 loops)
+        this._leadPattern = [];   // Hz per beat
+        this._mood = 'happy';
+      }
+
+      /**
+       * Analyse the grid and design the arrangement.
+       */
+      generate(density, activeCount, grid) {
+        // Choose mood from grid analysis
+        let mood = 'happy';
+        if (density > 0.4 && activeCount >= 4) mood = 'energetic';
+        else if (density < 0.15) mood = 'calm';
+        this._mood = mood;
+
+        // ── Bass pattern (3 loops × 8 beats) ──
+        // Chord roots: C2→F2→G2→C2 (I-IV-V-I in C major)
+        const roots = {
+          happy:     [65.41, 87.31, 98.00, 65.41],  // C2 F2 G2 C2
+          energetic: [65.41, 98.00, 110.00, 87.31], // C2 G2 A2 F2
+          calm:      [110.00, 146.83, 130.81, 110.00], // A2 D3 C3 A2
+        };
+        const rootSet = roots[mood];
+        this._bassPattern = [];
+        for (let loop = 0; loop < 3; loop++) {
+          for (let b = 0; b < this.totalBeats; b++) {
+            const chordIdx = Math.floor(b / 2) % rootSet.length;
+            this._bassPattern.push(rootSet[chordIdx]);
+          }
+        }
+
+        // ── Lead pattern — simple pentatonic phrase ──
+        const scales = {
+          happy:     [523.25, 587.33, 659.25, 783.99, 880.00], // C5 D5 E5 G5 A5
+          energetic: [523.25, 659.25, 783.99, 880.00, 1046.50],
+          calm:      [440.00, 523.25, 587.33, 659.25, 783.99],
+        };
+        const scale = scales[mood];
+        const phrase = [0, 1, 2, 3, 4, 3, 2, 0]; // ascending → descending
+        this._leadPattern = [];
+        for (let loop = 0; loop < 3; loop++) {
+          for (let b = 0; b < this.totalBeats; b++) {
+            const idx = phrase[b % phrase.length];
+            this._leadPattern.push(scale[Math.min(idx, scale.length - 1)]);
+          }
+        }
+
+        return { mood, totalBeats: this.totalBeats * 3 };
+      }
+
+      /**
+       * Play the full arrangement.
+       * Decodes user blobs, schedules all layers, calls onBeat/onComplete.
+       */
+      async play(sounds, grid, onBeat, onComplete) {
+        try {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {
+          if (onComplete) setTimeout(onComplete, 300);
+          return;
+        }
+        if (this.ctx.state === 'suspended') await this.ctx.resume();
+        this._isPlaying = true;
+
+        const beatSec = 60 / this.tempo;
+        const startTime = this.ctx.currentTime + 0.2;
+        const totalLoops = 3;
+        const totalBeats = this.totalBeats * totalLoops;
+
+        // ── Pre-decode user sounds into AudioBuffers ──
+        const decodedBuffers = await Promise.all((sounds || []).map(async (s) => {
+          if (s && s.blob && !s.fallback) {
+            try {
+              const ab = await s.blob.arrayBuffer();
+              return await this.ctx.decodeAudioData(ab);
+            } catch (e) {
+              return null;
+            }
+          }
+          return null;
+        }));
+
+        // ── Shared noise buffer for snare / hi-hat ──
+        this._noiseBuffer = this._createNoiseBuffer(0.3);
+
+        // ── Master chain with compressor ──
+        const compressor = this.ctx.createDynamicsCompressor();
+        compressor.threshold.value = -22;
+        compressor.knee.value = 30;
+        compressor.ratio.value = 12;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.25;
+
+        const masterGain = this.ctx.createGain();
+        masterGain.gain.value = 0.8;
+        compressor.connect(masterGain);
+        masterGain.connect(this.ctx.destination);
+
+        // ── Schedule every beat ──
+        for (let beat = 0; beat < totalBeats; beat++) {
+          const time = startTime + beat * beatSec;
+          const gridBeat = beat % this.totalBeats;
+
+          // 1. Kick on strong beats (0, 2, 4, 6 in each 8-beat cycle)
+          if (gridBeat % 2 === 0) {
+            this._scheduleKick(time, compressor);
+          }
+
+          // 2. Snare on backbeats (1, 3, 5, 7)
+          if (gridBeat % 2 === 1) {
+            this._scheduleSnare(time, compressor);
+          }
+
+          // 3. Hi-hat — 8th-note shuffle
+          this._scheduleHihat(time, compressor);           // on-beat
+          this._scheduleHihat(time + beatSec * 0.5, compressor); // off-beat
+
+          // 4. Bass line
+          if (this._bassPattern[beat]) {
+            this._scheduleBassNote(time, this._bassPattern[beat], beatSec * 0.85, compressor);
+          }
+
+          // 5. User's own sounds stacked on top (direct to destination, no compressor squashing)
+          if (decodedBuffers && grid) {
+            for (let s = 0; s < decodedBuffers.length; s++) {
+              if (grid[s] && grid[s][gridBeat]) {
+                if (decodedBuffers[s]) {
+                  // Real recording — play at full volume, direct to destination (bypass compressor)
+                  this._scheduleUserSound(time, decodedBuffers[s], this.ctx.destination);
+                } else {
+                  // Fallback / silent sound — play a gentle beep instead
+                  this._scheduleFallbackBeep(time, s, beatSec * 0.3, compressor);
+                }
+              }
+            }
+          }
+
+          // 6. Lead melody (only in the last loop, full volume)
+          if (beat >= totalBeats - this.totalBeats) {
+            const leadFreq = this._leadPattern[beat];
+            if (leadFreq) {
+              this._scheduleLeadNote(time, leadFreq, beatSec * 0.55, compressor);
+            }
+          }
+
+          // Beat-highlight callback (for visual sync)
+          const delayMs = (time - this.ctx.currentTime) * 1000;
+          if (delayMs > 0) {
+            const tid = setTimeout(() => {
+              if (this._isPlaying && onBeat) onBeat(gridBeat);
+            }, delayMs);
+            this._timeouts.push(tid);
+          }
+        }
+
+        // ── Schedule completion ──
+        const totalDuration = totalBeats * beatSec + 1.5;
+        setTimeout(() => {
+          if (this._isPlaying) {
+            this._isPlaying = false;
+            this._cleanup();
+            if (onComplete) onComplete();
+          }
+        }, totalDuration * 1000);
+      }
+
+      stop() {
+        this._isPlaying = false;
+        this._cleanup();
+      }
+
+      // ── Internal helpers ──
+
+      _cleanup() {
+        this._timeouts.forEach(t => clearTimeout(t));
+        this._timeouts = [];
+        if (this.ctx) {
+          try { this.ctx.close(); } catch(e) {}
+          this.ctx = null;
+        }
+      }
+
+      _createNoiseBuffer(durationSec) {
+        const len = this.ctx.sampleRate * durationSec;
+        const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+        return buf;
+      }
+
+      // ── Drum synthesis (inspired by sen-ltd/drum-machine and Sound on Sound) ──
+
+      _scheduleKick(time, dest) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        // Pitch sweep: high click → low thud
+        osc.frequency.setValueAtTime(160, time);
+        osc.frequency.exponentialRampToValueAtTime(42, time + 0.06);
+        // Amplitude: instant attack, long decay
+        gain.gain.setValueAtTime(0.85, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.38);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(time);
+        osc.stop(time + 0.4);
+      }
+
+      _scheduleSnare(time, dest) {
+        // Body: triangle tone (rim hit)
+        const body = this.ctx.createOscillator();
+        const bodyGain = this.ctx.createGain();
+        body.type = 'triangle';
+        body.frequency.setValueAtTime(210, time);
+        body.frequency.exponentialRampToValueAtTime(110, time + 0.04);
+        bodyGain.gain.setValueAtTime(0.5, time);
+        bodyGain.gain.exponentialRampToValueAtTime(0.001, time + 0.055);
+        body.connect(bodyGain);
+        bodyGain.connect(dest);
+        body.start(time);
+        body.stop(time + 0.07);
+
+        // Noise burst: white noise → bandpass at 1.5kHz (the rattle)
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this._noiseBuffer;
+        const nf = this.ctx.createBiquadFilter();
+        nf.type = 'bandpass';
+        nf.frequency.value = 1500;
+        nf.Q.value = 0.6;
+        const ng = this.ctx.createGain();
+        ng.gain.setValueAtTime(0.55, time);
+        ng.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+        noise.connect(nf);
+        nf.connect(ng);
+        ng.connect(dest);
+        noise.start(time);
+        noise.stop(time + 0.18);
+      }
+
+      _scheduleHihat(time, dest) {
+        const osc = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';           // square → rich odd harmonics → metallic
+        osc.frequency.setValueAtTime(7800, time);
+        filter.type = 'bandpass';
+        filter.frequency.value = 7500; // 7-8 kHz is where cymbals live
+        filter.Q.value = 12;           // narrow band → ringing
+        gain.gain.setValueAtTime(0.13, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(dest);
+        osc.start(time);
+        osc.stop(time + 0.05);
+      }
+
+      _scheduleBassNote(time, freq, duration, dest) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, time);
+        // Subtle pitch bend for punch
+        osc.frequency.linearRampToValueAtTime(freq * 0.97, time + 0.04);
+        gain.gain.setValueAtTime(0.75, time);
+        gain.gain.linearRampToValueAtTime(0.55, time + duration * 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(time);
+        osc.stop(time + duration + 0.05);
+      }
+
+      _scheduleUserSound(time, buffer, dest) {
+        // Play the user's recording at full volume, directly on top of the mix
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(1.0, time);
+        gain.gain.linearRampToValueAtTime(0.8, time + Math.min(buffer.duration * 0.6, 0.5));
+        gain.gain.exponentialRampToValueAtTime(0.001, time + buffer.duration);
+        source.connect(gain);
+        gain.connect(dest);
+        source.start(time);
+        source.stop(time + buffer.duration);
+      }
+
+      _scheduleFallbackBeep(time, soundIndex, duration, dest) {
+        // Play a gentle beep when no real recording exists (mic denied)
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300 + soundIndex * 80, time);
+        gain.gain.setValueAtTime(0.25, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(time);
+        osc.stop(time + duration + 0.03);
+      }
+
+      _scheduleLeadNote(time, freq, duration, dest) {
+        // Twin detuned oscillators → warm, bell-like tone
+        const o1 = this.ctx.createOscillator();
+        const o2 = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o1.type = 'triangle';
+        o1.frequency.value = freq;
+        o1.detune.value = -2.5;
+        o2.type = 'sine';
+        o2.frequency.value = freq * 2; // one octave up for sparkle
+        o2.detune.value = 3;
+        g.gain.setValueAtTime(0.45, time);
+        g.gain.exponentialRampToValueAtTime(0.001, time + duration);
+        o1.connect(g);
+        o2.connect(g);
+        g.connect(dest);
+        o1.start(time);
+        o2.start(time);
+        o1.stop(time + duration + 0.03);
+        o2.stop(time + duration + 0.03);
+      }
+    }
+
+    // ===================================================================
+    // AUDIO CONTEXT WARMUP
+    // ===================================================================
+    let audioContextWarmed = false;
+    function warmupAudio() {
+      if (audioContextWarmed) return;
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended') ctx.resume();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(0.01);
+        audioContextWarmed = true;
+        setTimeout(() => ctx.close().catch(()=>{}), 100);
+      } catch(e) {}
+    }
+
+    // ===================================================================
+    // TTS
+    // ===================================================================
+    function speakText(text, onEnd) {
+      if (!text) { if (onEnd) onEnd(); return; }
+      const settings = typeof GameSettings !== 'undefined' ? GameSettings.getAll() : {};
+      if (settings.mute && !onEnd) return;
+
+      window.speechSynthesis.cancel();
+
+      const settingsRate = settings.speechRate || 0.85;
+      const settingsVolume = settings.mute ? 0 : ((settings.volume || 90) / 100);
+      const settingsVoiceURI = settings.voiceURI || '';
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = settingsRate;
+      utterance.pitch = 1.1;
+      utterance.volume = settingsVolume;
+      utterance.lang = 'en-US';
+
+      if (settingsVoiceURI) {
+        const voices = window.speechSynthesis.getVoices();
+        const v = voices.find(x => x.voiceURI === settingsVoiceURI);
+        if (v) utterance.voice = v;
+      }
+
+      if (onEnd) utterance.onend = onEnd;
+      utterance.onerror = () => { if (onEnd) onEnd(); };
+
+      // Update state indicator
+      updateAIState('speaking', 'Speaking');
+      utterance.onstart = () => {
+        updateAIState('speaking', 'Speaking');
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // ===================================================================
+    // AI STATE INDICATOR
+    // ===================================================================
+    function updateAIState(dotClass, label) {
+      stateDot.className = 'state-dot ' + dotClass;
+      stateLabel.textContent = label || '';
+    }
+
+    // ===================================================================
+    // SPEECH BUBBLE
+    // ===================================================================
+    function setSpeechText(text) {
+      speechText.textContent = text || '';
+    }
+
+    // ===================================================================
+    // ROBOT EXPRESSION
+    // ===================================================================
+    function setRobotExpression(expr) {
+      const pupils = document.querySelectorAll('.robot-pupil');
+      const mouth = document.getElementById('robot-mouth');
+      pupils.forEach(p => {
+        p.classList.remove('happy', 'amazed');
+        if (expr === 'happy') p.classList.add('happy');
+        else if (expr === 'amazed') p.classList.add('amazed');
+      });
+      if (expr === 'happy') {
+        mouth.setAttribute('d', 'M28,36 Q35,46 42,36');
+      } else if (expr === 'amazed') {
+        mouth.setAttribute('d', 'M25,35 Q35,40 45,35');
+      } else {
+        mouth.setAttribute('d', 'M28,38 Q35,44 42,38');
+      }
+    }
+
+    // ===================================================================
+    // AI SPEAK + TEXT BUBBLE
+    // ===================================================================
+    function aiSay(text, onEnd, expression) {
+      setSpeechText(text);
+      if (expression) setRobotExpression(expression);
+      speakText(text, () => {
+        setRobotExpression('neutral');
+        if (onEnd) onEnd();
+      });
+      // Add to transcript
+      if (typeof GameTranscript !== 'undefined') {
+        GameTranscript.add('ai', text);
+      }
+    }
+
+    // ===================================================================
+    // SOUND BANK UI HELPERS
+    // ===================================================================
+    function getSoundColor(index) {
+      return SOUND_COLORS[index] || '#CCC';
+    }
+
+    function getSoundColorHex(index) {
+      return SOUND_COLOR_HEX[index] || '#CCCCCC';
+    }
+
+    function getSoundAbbr(name) {
+      if (!name) return '?';
+      return name.substring(0, 3).toUpperCase();
+    }
+
+    // ===================================================================
+    // STATE MACHINE
+    // ===================================================================
+    let currentState = 'init';
+    let recorder = new SoundRecorder();
+    let backingTrack = null;
+    let sequencerInterval = null;
+
+    function transitionTo(newState) {
+      if (state.isTransitioning && newState !== 'init') return;
+      state.isTransitioning = true;
+      clearIdleTimer();
+      currentState = newState;
+      state.currentState = newState;
+      // Hide settings modal if transitioning
+      if (typeof GameSettings !== 'undefined') GameSettings.hide();
+      if (typeof GameTranscript !== 'undefined') GameTranscript.hide();
+      // Stop any active recording
+      if (recorder) recorder.isActive = false;
+      // Stop any sequencer playback
+      stopSequencer();
+      // Render
+      render();
+      state.isTransitioning = false;
+    }
+
+    // Expose for testing/automation
+    window.__gameTest = {
+      transitionTo,
+      getState: () => currentState,
+      state,
+      TOTAL_SOUNDS,
+      TOTAL_BEATS,
+      initGrid,
+      autoFillGrid,
+      speakText,
+      setSpeechText,
+      launchConfetti
+    };
+
+    // ===================================================================
+    // RENDER DISPATCH
+    // ===================================================================
+    function render() {
+      switch (currentState) {
+        case 'init': renderInit(); break;
+        case 'mic_check': renderMicCheck(); break;
+        case 'record': renderRecord(); break;
+        case 'playback': renderPlayback(); break;
+        case 'name_sound': renderNameSound(); break;
+        case 'sound_bank_complete': renderSoundBankComplete(); break;
+        case 'sequencer_intro': renderSequencerIntro(); break;
+        case 'sequencer_edit': renderSequencerEdit(); break;
+        case 'sequencer_play': renderSequencerPlay(); break;
+        case 'lock_song': renderLockSong(); break;
+        case 'ai_composing': renderAIComposing(); break;
+        case 'ai_playing': renderAIPlaying(); break;
+        case 'celebration': renderCelebration(); break;
+        default: renderInit(); break;
+      }
+    }
+
+    // ===================================================================
+    // SCREEN RENDERERS
+    // ===================================================================
+
+    // ---- INIT ----
+    function renderInit() {
+      main.innerHTML = `
+        <div class="screen text-center">
+          <h1 class="celebration-title" style="font-size:32px;font-weight:800;">My Own Instrument</h1>
+          <p class="text-large mt-sm">Build your own instrument with 5 sounds!</p>
+          <p class="text-small mt-sm">Then make a song and hear AI add a melody!</p>
+          <button class="btn btn-primary btn-lg mt-lg" id="btn-start" aria-label="Start the game">
+            Let's Begin!
+          </button>
+        </div>
+      `;
+      headerTitle.textContent = 'My Own Instrument';
+      aiSay('Hi! Ready to build your own instrument?', null, 'neutral');
+      updateAIState('listening', 'Listening');
+      setRobotExpression('neutral');
+
+      document.getElementById('btn-start').addEventListener('click', () => {
+        warmupAudio();
+        transitionTo('mic_check');
+      });
+    }
+
+    // ---- MIC CHECK ----
+    function renderMicCheck() {
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="text-large">I need your microphone to hear your sounds!</p>
+          <p class="text-small mt-sm">Tap the button below and allow microphone access.</p>
+          <button class="btn btn-primary btn-lg mt-lg" id="btn-mic-check" aria-label="Request microphone access">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            Turn On Mic
+          </button>
+          <p class="text-small mt-md" id="mic-error" style="color:var(--error);display:none;"></p>
+          <button class="btn btn-outline btn-sm mt-md" id="btn-mic-skip" style="display:none;">Use built-in sounds instead</button>
+        </div>
+      `;
+      // AI expresses ignorance — the core narrative opener
+      aiSay('I don\'t know what an instrument is yet! Can you teach me by making sounds?', null, 'neutral');
+      updateAIState('listening', 'Listening');
+
+      let retryCount = 0;
+
+      document.getElementById('btn-mic-check').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-mic-check');
+        btn.disabled = true;
+        btn.textContent = 'Requesting...';
+        const granted = await recorder.requestMic();
+        if (granted) {
+          state.micGranted = true;
+          // Initialize conversation if available
+          if (typeof ConversationManager !== 'undefined' && !window._conversation) {
+            try {
+              const conv = new ConversationManager({
+                onStateChange: (s) => updateAIState(s === 'listening' ? 'listening' : s === 'speaking' ? 'speaking' : s === 'thinking' ? 'thinking' : 'idle', s),
+                onTranscription: (t) => {},
+                onUtteranceEnd: (text) => {
+                  if (typeof GameIntents !== 'undefined' && typeof GameTranscript !== 'undefined') {
+                    GameTranscript.add('child', text);
+                    const result = GameIntents.processUtterance(text, {
+                      currentSound: state.sounds[state.soundIndex]?.name
+                    });
+                    if (result.addressed && result.response) {
+                      aiSay(result.response, null, 'happy');
+                    }
+                  }
+                },
+                startListening: true
+              });
+              if (typeof GameSettings !== 'undefined') {
+                conv.connectSettings(GameSettings);
+              }
+              await conv.initialize();
+              window._conversation = conv;
+            } catch (e) {
+              console.warn('Conversation init failed:', e);
+            }
+          }
+          aiSay('Great! Now let\'s make some sounds!', () => {
+            transitionTo('record');
+          }, 'happy');
+        } else {
+          retryCount++;
+          const errEl = document.getElementById('mic-error');
+          errEl.style.display = 'block';
+          if (retryCount >= 3) {
+            errEl.textContent = 'No worries! We can use built-in sounds instead.';
+            document.getElementById('btn-mic-skip').style.display = 'inline-flex';
+            btn.textContent = 'Try Again';
+            btn.disabled = false;
+          } else {
+            errEl.textContent = 'Please allow microphone access to record sounds. Check your browser settings.';
+            btn.textContent = 'Try Again';
+            btn.disabled = false;
+          }
+        }
+      });
+
+      document.getElementById('btn-mic-skip')?.addEventListener('click', () => {
+        state.useOscillatorFallback = true;
+        aiSay('That\'s okay! I have some sounds ready for you to use!', () => {
+          transitionTo('record');
+        }, 'happy');
+      });
+    }
+
+    // ---- RECORD ----
+    function renderRecord() {
+      const idx = state.soundIndex;
+      const prompt = RECORD_PROMPTS[idx] || 'Make a sound!';
+      const soundNum = idx + 1;
+
+      // Build sound bank dots
+      let bankHTML = '';
+      for (let i = 0; i < TOTAL_SOUNDS; i++) {
+        if (i < state.sounds.length) {
+          const s = state.sounds[i];
+          bankHTML += `<span class="sound-icon" style="background:${s.color}">
+            <span class="sound-abbr">${getSoundAbbr(s.name)}</span>
+            <span class="sound-check">&#10003;</span>
+          </span>`;
+        } else if (i === idx) {
+          bankHTML += `<span class="sound-icon" style="background:${getSoundColor(idx)};animation:popIn 300ms">
+            <span class="sound-abbr">${soundNum}</span>
+          </span>`;
+        } else {
+          bankHTML += `<span class="sound-icon future">
+            <span class="sound-abbr">${i + 1}</span>
+          </span>`;
+        }
+      }
+
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="text-large mb-sm">Sound #${soundNum}</p>
+          <p class="text-small mb-md">${prompt}</p>
+          <div class="recording-ring-container">
+            <svg class="recording-ring" viewBox="0 0 120 120">
+              <circle class="bg-circle" cx="60" cy="60" r="54"/>
+              <circle class="progress-circle" id="rec-progress" cx="60" cy="60" r="54"
+                stroke-dasharray="339.292" stroke-dashoffset="339.292"/>
+            </svg>
+            <button class="mic-btn" id="btn-record" aria-label="Record sound number ${soundNum}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <p class="text-small mt-sm" id="record-status">Tap the mic to start!</p>
+          <div class="sound-bank mt-lg">${bankHTML}</div>
+        </div>
+      `;
+
+      setSpeechText(prompt);
+      updateAIState('listening', 'Listening');
+      headerTitle.textContent = `Recording Sound ${soundNum}`;
+
+      const micBtn = document.getElementById('btn-record');
+      const progressCircle = document.getElementById('rec-progress');
+      const statusEl = document.getElementById('record-status');
+      let recordingActive = false;
+
+      function startRecordingSession() {
+        if (recordingActive) return;
+        recordingActive = true;
+        state.isRecording = true;
+
+        micBtn.classList.add('recording');
+        statusEl.textContent = 'Recording...';
+        updateAIState('thinking', 'Recording');
+
+        if (state.useOscillatorFallback) {
+          // Fallback mode: simulate recording with a beep
+          let p = 0;
+          const interval = setInterval(() => {
+            p += 0.05;
+            if (progressCircle) {
+              const offset = 339.292 * (1 - Math.min(1, p));
+              progressCircle.style.strokeDashoffset = offset;
+            }
+            if (p >= 1) {
+              clearInterval(interval);
+              finishFallback();
+            }
+          }, 150);
+          recorder._fallbackInterval = interval;
+        } else {
+          recorder.onTick = (progress) => {
+            if (progressCircle) {
+              const offset = 339.292 * (1 - Math.min(1, progress));
+              progressCircle.style.strokeDashoffset = offset;
+            }
+          };
+          recorder.onComplete = (blob) => {
+            recordingActive = false;
+            state.isRecording = false;
+            micBtn.classList.remove('recording');
+            // Silence detection: check blob size & content
+            const isSilent = !blob || blob.size < 1000;
+            if (blob && !isSilent) {
+              state.recordingRetries = 0; // Reset on success
+              state.recordingBlob = blob;
+              transitionTo('playback');
+            } else if (state.recordingRetries < 3) {
+              state.recordingRetries++;
+              statusEl.textContent = 'I didn\'t hear anything! Try again — make a loud sound!';
+              recordingActive = false;
+            } else {
+              // Accept silent sound after 3 retries
+              state.recordingRetries = 0;
+              statusEl.textContent = 'That\'s okay! A very quiet sound!';
+              if (blob) {
+                state.recordingBlob = blob;
+              } else {
+                state.recordingBlob = null;
+                state._fallbackSound = true;
+              }
+              setTimeout(() => transitionTo('playback'), 1500);
+            }
+          };
+          recorder.startRecording(RECORD_DURATION);
+        }
+      }
+
+      function finishFallback() {
+        recordingActive = false;
+        state.isRecording = false;
+        if (recorder._fallbackInterval) {
+          clearInterval(recorder._fallbackInterval);
+          delete recorder._fallbackInterval;
+        }
+        micBtn.classList.remove('recording');
+        // Generate a synthetic beep blob (simple approach: use oscillator)
+        state.recordingBlob = null; // No real blob for fallback
+        state._fallbackSound = true;
+        transitionTo('playback');
+      }
+
+      micBtn.addEventListener('click', startRecordingSession);
+
+      // Idle timer: prompt after 10s, auto-advance after 3 prompts
+      var recordIdleFn = function() {
+        if (currentState === 'record' && !recordingActive) {
+          if (state.idlePromptCount < 3) {
+            aiSay('Tap the round button and make a sound!', null, 'neutral');
+            state.idlePromptCount++;
+            // Restart idle timer for next check
+            startIdleTimer(10000, recordIdleFn);
+          } else {
+            // Auto-advance with fallback after 30s idle
+            state.idlePromptCount = 0;
+            state.recordingBlob = null;
+            state._fallbackSound = true;
+            transitionTo('playback');
+          }
+        }
+      };
+      startIdleTimer(10000, recordIdleFn);
+    }
+
+    // ---- PLAYBACK ----
+    function renderPlayback() {
+      const idx = state.soundIndex;
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="text-large mb-md">Listen to your sound!</p>
+          <div class="flex-col gap-md" style="align-items:center;">
+            <button class="btn btn-secondary btn-lg" id="btn-playback-play" aria-label="Play back your recording">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5,3 19,12 5,21"/>
+              </svg>
+              Play
+            </button>
+            <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;justify-content:center;">
+              <button class="btn btn-primary" id="btn-keep" aria-label="Keep this sound">
+                &#10003; Keep It!
+              </button>
+              <button class="btn btn-outline" id="btn-retry" aria-label="Try recording again">
+                &#8635; Try Again
+              </button>
+            </div>
+          </div>
+          <div class="sound-bank mt-lg">
+            ${renderSoundBankDots()}
+          </div>
+        </div>
+      `;
+      setSpeechText('Listen to your sound! Do you like it?');
+      updateAIState('listening', 'Listening');
+
+      document.getElementById('btn-playback-play').addEventListener('click', () => {
+        if (state._fallbackSound) {
+          // Play a beep tone as fallback
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 440 + idx * 100;
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.8);
+            setTimeout(() => ctx.close().catch(()=>{}), 1000);
+          } catch(e) {}
+        } else if (state.recordingBlob) {
+          recorder.playBlob(state.recordingBlob);
+        }
+      });
+
+      document.getElementById('btn-keep').addEventListener('click', () => {
+        transitionTo('name_sound');
+      });
+
+      document.getElementById('btn-retry').addEventListener('click', () => {
+        state.recordingBlob = null;
+        state._fallbackSound = false;
+        transitionTo('record');
+      });
+    }
+
+    // ---- NAME SOUND ----
+    function renderNameSound() {
+      const idx = state.soundIndex;
+      const suggestions = NAME_SUGGESTIONS[idx] || ['La-la', 'Clap', 'Boom', 'Ding', 'Whoosh'];
+
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="text-large mb-md">What should we call this sound?</p>
+          <div class="name-suggestions" role="group" aria-label="Sound name suggestions">
+            ${suggestions.map(name => `
+              <button class="btn btn-white name-btn" data-name="${name}" aria-label="Name it ${name}">
+                ${name}
+              </button>
+            `).join('')}
+          </div>
+          <div class="sound-bank mt-lg">
+            ${renderSoundBankDots()}
+          </div>
+        </div>
+      `;
+      setSpeechText('Pick a name for your sound!');
+      updateAIState('listening', 'Listening');
+
+      document.querySelectorAll('.name-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const name = btn.dataset.name;
+          addSound(name);
+        });
+      });
+
+      // Idle timer: prompt after 10s, auto-select after 3 prompts
+      var nameIdleFn = function() {
+        if (currentState === 'name_sound') {
+          if (state.idlePromptCount < 3) {
+            aiSay('Pick a name for your sound! Tap one of these!', null, 'neutral');
+            state.idlePromptCount++;
+            startIdleTimer(10000, nameIdleFn);
+          } else {
+            // Auto-select first suggestion after 30s idle
+            state.idlePromptCount = 0;
+            const suggestions = NAME_SUGGESTIONS[state.soundIndex] || ['La-la', 'Clap', 'Boom', 'Ding', 'Whoosh'];
+            addSound(suggestions[0]);
+          }
+        }
+      };
+      startIdleTimer(10000, nameIdleFn);
+    }
+
+    function addSound(name) {
+      const idx = state.soundIndex;
+      const color = getSoundColor(idx);
+      const colorHex = getSoundColorHex(idx);
+
+      let blob = state.recordingBlob;
+      if (!blob && state._fallbackSound) {
+        // Create a minimal blob for fallback
+        try {
+          blob = new Blob(['dummy'], { type: 'audio/webm' });
+        } catch(e) { blob = null; }
+      }
+
+      const url = blob ? URL.createObjectURL(blob) : null;
+      state.sounds.push({
+        name: name,
+        color: color,
+        colorHex: colorHex,
+        blob: blob,
+        url: url,
+        fallback: !!state._fallbackSound
+      });
+
+      state.recordingBlob = null;
+      state._fallbackSound = false;
+
+      if (typeof GameTranscript !== 'undefined') {
+        GameTranscript.add('child', `Named sound: ${name}`);
+      }
+
+      // Check if done
+      if (state.sounds.length >= TOTAL_SOUNDS) {
+        transitionTo('sound_bank_complete');
+      } else {
+        state.soundIndex++;
+        transitionTo('record');
+      }
+    }
+
+    // ---- SOUND BANK COMPLETE ----
+    function renderSoundBankComplete() {
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="text-large mb-md">Your instrument is ready!</p>
+          <p class="text-small mb-md">You have ${TOTAL_SOUNDS} amazing sounds!</p>
+          <div class="sound-bank mb-lg">
+            ${state.sounds.map((s, i) => `
+              <span class="sound-icon pop-in" style="background:${s.color};animation-delay:${i * 0.1}s">
+                <span class="sound-abbr">${getSoundAbbr(s.name)}</span>
+              </span>
+            `).join('')}
+          </div>
+          <p class="text-small">Now let's make a song with your sounds!</p>
+        </div>
+      `;
+
+      const names = state.sounds.map(s => s.name).join(', ');
+      setSpeechText(`Now I know your instrument! It has 5 sounds: ${names}! Let's make a song!`);
+      updateAIState('listening', 'Listening');
+      setRobotExpression('happy');
+      headerTitle.textContent = 'My Instrument';
+
+      // Auto-transition after robot finishes speaking
+      setTimeout(() => {
+        transitionTo('sequencer_intro');
+      }, 3000);
+    }
+
+    // ---- SEQUENCER INTRO ----
+    function renderSequencerIntro() {
+      initGrid();
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="text-large mb-md">Now let's build your song!</p>
+          <p class="text-small mb-md">Tap the squares to place your sounds on the beat grid.</p>
+          <button class="btn btn-secondary btn-lg mt-md" id="btn-start-grid" aria-label="Start building your song">
+            Start Building!
+          </button>
+        </div>
+      `;
+      setSpeechText('Tap the squares to place your sounds! Each row is a sound, each column is a beat.');
+      updateAIState('listening', 'Listening');
+
+      document.getElementById('btn-start-grid').addEventListener('click', () => {
+        transitionTo('sequencer_edit');
+      });
+    }
+
+    function initGrid() {
+      state.grid = Array.from({ length: TOTAL_SOUNDS }, () => Array(TOTAL_BEATS).fill(false));
+      state.playCount = 0;
+      state.totalPlaythroughs = 0;
+    }
+
+    // ---- SEQUENCER EDIT ----
+    function renderSequencerEdit() {
+      const hasAnyFilled = state.grid.some(row => row.some(cell => cell));
+
+      main.innerHTML = `
+        <div class="screen" style="padding:0;">
+          <div class="sequencer-wrapper" role="grid" aria-label="Beat sequencer grid. 5 sounds across 8 beats.">
+            <div class="seq-header">
+              <span class="seq-row-label" style="background:transparent;"></span>
+              ${Array.from({length: TOTAL_BEATS}, (_, b) =>
+                `<span class="beat-num" role="columnheader">${b + 1}</span>`
+              ).join('')}
+            </div>
+            ${state.sounds.map((s, rowIdx) => `
+              <div class="seq-row" role="row">
+                <span class="seq-row-label" style="color:${s.color};">
+                  <span class="label-dot" style="background:${s.color};"></span>
+                  ${getSoundAbbr(s.name)}
+                </span>
+                ${Array.from({length: TOTAL_BEATS}, (_, beatIdx) => {
+                  const filled = state.grid[rowIdx][beatIdx];
+                  const soundClass = filled ? `sound-${rowIdx} filled` : '';
+                  const activeClass = state.currentBeat === beatIdx ? 'active-beat' : '';
+                  return `<button class="seq-cell ${soundClass} ${activeClass}"
+                    role="gridcell"
+                    aria-label="Sound ${s.name} on beat ${beatIdx + 1}, ${filled ? 'filled' : 'empty'}"
+                    data-row="${rowIdx}" data-beat="${beatIdx}"
+                    aria-pressed="${filled ? 'true' : 'false'}"></button>`;
+                }).join('')}
+              </div>
+            `).join('')}
+          </div>
+          <div class="seq-controls">
+            <button class="btn btn-secondary btn-lg btn-icon-sm" id="btn-seq-play" aria-label="Play your beat sequence">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="6,4 20,12 6,20"/>
+              </svg>
+            </button>
+            <button class="btn btn-outline btn-sm" id="btn-seq-clear" aria-label="Clear all beats"${state.clearCooldown ? ' disabled' : ''}>
+              &#8634; Clear
+            </button>
+          </div>
+          <div class="sound-bank-sidebar mt-sm">
+            ${state.sounds.map((s, i) => `
+              <span class="sound-icon" style="background:${s.color};width:36px;height:36px;font-size:10px;">
+                <span class="sound-abbr">${getSoundAbbr(s.name)}</span>
+              </span>
+            `).join('')}
+          </div>
+          <p class="text-small mt-sm" id="seq-status">
+            ${hasAnyFilled ? 'Tap cells to add or remove sounds. Press play to hear it!' : 'Tap a square to start!'}
+          </p>
+          ${state.totalPlaythroughs >= 2 ? `
+            <button class="btn btn-accent btn-lg mt-sm" id="btn-lock" aria-label="Lock in your song">
+              &#128274; Lock In Song!
+            </button>
+          ` : ''}
+        </div>
+      `;
+
+      setSpeechText(hasAnyFilled
+        ? 'Great pattern! Press play to hear your song!'
+        : 'Tap the empty squares to add your sounds to the beat! Try putting your favorite sound on beat 1!');
+      updateAIState('listening', 'Listening');
+      headerTitle.textContent = 'Build Your Song';
+
+      // Cell toggle
+      document.querySelectorAll('.seq-cell').forEach(el => {
+        el.addEventListener('click', () => {
+          const row = parseInt(el.dataset.row, 10);
+          const beat = parseInt(el.dataset.beat, 10);
+          toggleCell(row, beat);
+        });
+      });
+
+      document.getElementById('btn-seq-play').addEventListener('click', () => {
+        // Check if grid has any sounds
+        const filled = state.grid.some(r => r.some(c => c));
+        if (!filled) {
+          setSpeechText('Your grid is empty! Tap some squares to add sounds first!');
+          return;
+        }
+        transitionTo('sequencer_play');
+      });
+
+      document.getElementById('btn-seq-clear').addEventListener('click', () => {
+        if (state.clearCooldown) return;
+        state.clearCooldown = true;
+        initGrid();
+        renderSequencerEdit();
+        setTimeout(() => { state.clearCooldown = false; }, 1500);
+      });
+
+      const lockBtn = document.getElementById('btn-lock');
+      if (lockBtn) {
+        lockBtn.addEventListener('click', () => {
+          transitionTo('lock_song');
+        });
+      }
+
+      // Idle prompt
+      startIdleTimer(15000, () => {
+        if (currentState === 'sequencer_edit') {
+          const filled = state.grid.some(r => r.some(c => c));
+          if (!filled) {
+            if (state.idlePromptCount < 3) {
+              aiSay('Tap a square to add a sound! Try putting your first sound on beat 1!', null, 'neutral');
+              state.idlePromptCount++;
+            } else {
+              // Auto-fill a simple pattern
+              autoFillGrid();
+              renderSequencerEdit();
+              state.idlePromptCount = 0;
+            }
+          } else {
+            aiSay('Press the play button to hear your song!', null, 'happy');
+          }
+        }
+      });
+    }
+
+    function toggleCell(row, beat) {
+      // 150ms debounce to prevent rapid double-tap
+      if (state._cellCooldown) return;
+      state._cellCooldown = true;
+      setTimeout(() => { state._cellCooldown = false; }, 150);
+
+      if (row >= 0 && row < TOTAL_SOUNDS && beat >= 0 && beat < TOTAL_BEATS) {
+        state.grid[row][beat] = !state.grid[row][beat];
+        // Update the cell visual
+        const cells = document.querySelectorAll(`.seq-cell[data-row="${row}"][data-beat="${beat}"]`);
+        cells.forEach(el => {
+          const filled = state.grid[row][beat];
+          el.classList.toggle('filled', filled);
+          el.classList.toggle(`sound-${row}`, filled);
+          el.setAttribute('aria-pressed', filled ? 'true' : 'false');
+          el.setAttribute('aria-label', `Sound ${state.sounds[row].name} on beat ${beat + 1}, ${filled ? 'filled' : 'empty'}`);
+        });
+        // Update status
+        const status = document.getElementById('seq-status');
+        if (status) {
+          const hasAny = state.grid.some(r => r.some(c => c));
+          status.textContent = hasAny ? 'Tap cells to add or remove sounds. Press play to hear it!' : 'Tap a square to start!';
+        }
+      }
+    }
+
+    function autoFillGrid() {
+      if (state.sounds.length > 0) {
+        // Simple pattern: sound 0 on beats 0,4; sound 1 on beats 2,6 if available
+        state.grid[0][0] = true;
+        state.grid[0][4] = true;
+        if (state.sounds.length > 1) {
+          state.grid[1][2] = true;
+          state.grid[1][6] = true;
+        }
+      }
+    }
+
+    // ---- SEQUENCER PLAY ----
+    function renderSequencerPlay() {
+      // Show the grid with play animation
+      renderSequencerEdit();
+
+      // Start playback
+      startSequencer(() => {
+        state.totalPlaythroughs++;
+        if (state.totalPlaythroughs >= 2) {
+          // Show lock button
+          const existingBtn = document.getElementById('btn-lock');
+          if (!existingBtn) {
+            const controls = document.querySelector('.seq-controls');
+            if (controls) {
+              const lockBtn = document.createElement('button');
+              lockBtn.className = 'btn btn-accent btn-lg mt-sm';
+              lockBtn.id = 'btn-lock';
+              lockBtn.innerHTML = '&#128274; Lock In Song!';
+              lockBtn.setAttribute('aria-label', 'Lock in your song');
+              lockBtn.addEventListener('click', () => {
+                stopSequencer();
+                transitionTo('lock_song');
+              });
+              controls.parentNode.appendChild(lockBtn);
+            }
+          }
+        }
+      });
+    }
+
+    function startSequencer(onComplete) {
+      if (state.isPlaying) return;
+      state.isPlaying = true;
+      state.currentBeat = -1;
+
+      const beatMs = 60000 / DEFAULT_TEMPO;
+
+      function playBeat(beatIndex) {
+        if (!state.isPlaying) return;
+
+        // Clear previous highlight
+        document.querySelectorAll('.seq-cell.active-beat').forEach(el => {
+          el.classList.remove('active-beat');
+        });
+
+        if (beatIndex >= TOTAL_BEATS) {
+          // Loop complete
+          state.isPlaying = false;
+          state.currentBeat = -1;
+          if (onComplete) onComplete();
+          // Return to edit mode
+          if (currentState === 'sequencer_play' || currentState === 'sequencer_edit') {
+            transitionTo('sequencer_edit');
+          }
+          return;
+        }
+
+        state.currentBeat = beatIndex;
+
+        // Highlight current beat column
+        document.querySelectorAll(`.seq-cell[data-beat="${beatIndex}"]`).forEach(el => {
+          el.classList.add('active-beat');
+        });
+
+        // Play sounds on this beat
+        for (let s = 0; s < TOTAL_SOUNDS; s++) {
+          if (state.grid[s][beatIndex] && state.sounds[s]) {
+            playSoundAsset(s);
+          }
+        }
+
+        setTimeout(() => playBeat(beatIndex + 1), beatMs);
+      }
+
+      sequencerInterval = setTimeout(() => playBeat(0), 100);
+    }
+
+    function stopSequencer() {
+      state.isPlaying = false;
+      state.currentBeat = -1;
+      if (sequencerInterval) {
+        clearTimeout(sequencerInterval);
+        sequencerInterval = null;
+      }
+      document.querySelectorAll('.seq-cell.active-beat').forEach(el => {
+        el.classList.remove('active-beat');
+      });
+    }
+
+    function playSoundAsset(soundIndex) {
+      const sound = state.sounds[soundIndex];
+      if (!sound) return;
+      if (sound.fallback || !sound.blob) {
+        // Play oscillator tone as fallback
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = 300 + soundIndex * 80;
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.15);
+          setTimeout(() => ctx.close().catch(()=>{}), 300);
+        } catch(e) {}
+      } else if (sound.url) {
+        try {
+          const audio = new Audio(sound.url);
+          audio.volume = 0.7;
+          audio.play().catch(() => {});
+        } catch(e) {}
+      }
+    }
+
+    // ---- LOCK SONG ----
+    function renderLockSong() {
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="text-large mb-md">Song locked in!</p>
+          <p class="text-small mb-md">Now AI will add a melody to your rhythm!</p>
+          <div class="composing-animation mb-md">
+            <span class="music-note">&#9835;</span>
+            <span class="music-note">&#9833;</span>
+            <span class="music-note">&#9834;</span>
+            <span class="music-note">&#9835;</span>
+            <span class="music-note">&#9833;</span>
+          </div>
+        </div>
+      `;
+      setSpeechText('You made a great song! Now AI will remix it with drums, bass, and a melody!');
+      updateAIState('thinking', 'Composing');
+
+      setTimeout(() => {
+        transitionTo('ai_composing');
+      }, 2000);
+    }
+
+    // ---- AI COMPOSING ----
+    function renderAIComposing() {
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="text-large mb-md">AI is composing...</p>
+          <div class="composing-animation mb-md">
+            <span class="music-note">&#9835;</span>
+            <span class="music-note">&#9833;</span>
+            <span class="music-note">&#9834;</span>
+            <span class="music-note">&#9835;</span>
+            <span class="music-note">&#9833;</span>
+          </div>
+          <div class="composing-progress">
+            <div class="composing-progress-bar" id="compose-progress"></div>
+          </div>
+          <p class="text-small mt-md" id="compose-text">Analyzing your rhythm...</p>
+        </div>
+      `;
+      setSpeechText('I\'m analyzing your rhythm and building a full remix — drums, bass, and melody!');
+      updateAIState('thinking', 'Composing');
+
+      // Analyze pattern
+      const analysis = analyzePattern();
+
+      // Animate progress
+      const progressBar = document.getElementById('compose-progress');
+      const composeText = document.getElementById('compose-text');
+      let progress = 0;
+
+      const messages = [
+        [0, 'Analyzing your rhythm...'],
+        [20, 'Building drum pattern...'],
+        [40, 'Writing a bass line...'],
+        [60, 'Composing a lead melody...'],
+        [80, 'Mixing your sounds with the beat...'],
+        [100, 'Ready to rock!']
+      ];
+      let msgIdx = 0;
+
+      const interval = setInterval(() => {
+        progress += 2;
+        if (progressBar) progressBar.style.width = Math.min(100, progress) + '%';
+        if (msgIdx < messages.length && progress >= messages[msgIdx][0]) {
+          if (composeText) composeText.textContent = messages[msgIdx][1];
+          msgIdx++;
+        }
+        if (progress >= 100) {
+          clearInterval(interval);
+          // Create backing track engine
+          backingTrack = new BackingTrackEngine(DEFAULT_TEMPO, TOTAL_BEATS);
+          const summary = backingTrack.generate(analysis.density, analysis.activeCount, state.grid);
+          console.log('Backing track:', summary);
+          transitionTo('ai_playing');
+        }
+      }, 60);
+    }
+
+    function analyzePattern() {
+      let totalCells = 0;
+      let activeCells = 0;
+      const freq = Array(TOTAL_SOUNDS).fill(0);
+
+      for (let s = 0; s < TOTAL_SOUNDS; s++) {
+        for (let b = 0; b < TOTAL_BEATS; b++) {
+          totalCells++;
+          if (state.grid[s][b]) {
+            activeCells++;
+            freq[s]++;
+          }
+        }
+      }
+
+      const density = activeCells / totalCells;
+      const activeCount = freq.filter(f => f > 0).length;
+
+      return { density, activeCount, freq };
+    }
+
+    // ---- AI PLAYING ----
+    function renderAIPlaying() {
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="text-large mb-md">&#127925; Your Song — AI Remix!</p>
+          <p class="text-small mb-md" id="aiplay-status">Starting the remix...</p>
+          <div class="sequencer-wrapper" style="max-width:420px;">
+            <div class="seq-header" style="padding-left:44px;">
+              ${Array.from({length: TOTAL_BEATS}, (_, b) =>
+                `<span class="beat-num">${b + 1}</span>`
+              ).join('')}
+            </div>
+            ${state.sounds.map((s, rowIdx) => `
+              <div class="seq-row">
+                <span class="seq-row-label" style="width:40px;height:36px;font-size:10px;color:${s.color};">
+                  ${getSoundAbbr(s.name)}
+                </span>
+                ${Array.from({length: TOTAL_BEATS}, (_, beatIdx) => {
+                  const filled = state.grid[rowIdx][beatIdx];
+                  return `<span class="seq-cell ${filled ? `sound-${rowIdx} filled` : ''}"
+                    style="width:36px;height:36px;pointer-events:none;"
+                    data-beat="${beatIdx}"></span>`;
+                }).join('')}
+              </div>
+            `).join('')}
+          </div>
+          <div class="seq-controls mt-sm">
+            <button class="btn btn-secondary" id="btn-aiplay-stop" aria-label="Stop playback">Stop</button>
+          </div>
+        </div>
+      `;
+      setSpeechText('Listen to the AI remix! Your sounds with drums, bass, and a melody!');
+      updateAIState('speaking', 'Playing');
+      setRobotExpression('amazed');
+
+      let playing = true;
+
+      // Start the backing track engine — handles ALL audio (drums, bass, user sounds, lead)
+      if (backingTrack) {
+        backingTrack.play(
+          state.sounds,
+          state.grid,
+          // onBeat — highlight the current beat column
+          (beatIndex) => {
+            if (!playing) return;
+            // Clear previous highlights
+            document.querySelectorAll('.seq-cell.active-beat').forEach(el => {
+              el.classList.remove('active-beat');
+            });
+            // Highlight current beat column
+            document.querySelectorAll(`.seq-cell[data-beat="${beatIndex}"]`).forEach(el => {
+              el.classList.add('active-beat');
+            });
+            // Update status
+            const statusEl = document.getElementById('aiplay-status');
+            if (statusEl) {
+              const emojis = ['🥁', '🎵', '🎶', '🎸', '🎹', '🥁', '🎵', '🎶'];
+              statusEl.textContent = `${emojis[beatIndex] || '🎵'} AI Remix — beat ${beatIndex + 1}`;
+            }
+          },
+          // onComplete — transition to celebration
+          () => {
+            if (playing) {
+              playing = false;
+              document.querySelectorAll('.seq-cell.active-beat').forEach(el => {
+                el.classList.remove('active-beat');
+              });
+              transitionTo('celebration');
+            }
+          }
+        );
+      }
+
+      // Stop button
+      document.getElementById('btn-aiplay-stop').addEventListener('click', () => {
+        playing = false;
+        if (backingTrack) backingTrack.stop();
+        document.querySelectorAll('.seq-cell.active-beat').forEach(el => {
+          el.classList.remove('active-beat');
+        });
+        transitionTo('sequencer_edit');
+      });
+    }
+
+    // ---- CELEBRATION ----
+    function renderCelebration() {
+      main.innerHTML = `
+        <div class="screen text-center">
+          <p class="celebration-title">&#127881; You Taught AI!</p>
+          <p class="text-large mt-md">You taught AI about your instrument,</p>
+          <p class="text-large">and together you made a song!</p>
+          <div class="flex-col gap-md mt-lg" style="align-items:center;">
+            <button class="btn btn-secondary btn-lg" id="btn-replay" aria-label="Play together again!">
+              &#128260; Play Together Again!
+            </button>
+            <button class="btn btn-outline" id="btn-start-over" aria-label="Start over">
+              &#8634; Start Over
+            </button>
+          </div>
+        </div>
+      `;
+      setSpeechText('Amazing! We made a song together! Your sounds + AI drums, bass, and melody! Your instrument rocks!');
+      updateAIState('listening', 'Listening');
+      setRobotExpression('amazed');
+      headerTitle.textContent = 'We Made Music!';
+
+      // Confetti
+      launchConfetti();
+
+      document.getElementById('btn-replay').addEventListener('click', () => {
+        transitionTo('sequencer_edit');
+      });
+
+      document.getElementById('btn-start-over').addEventListener('click', () => {
+        resetGame();
+      });
+    }
+
+    // ===================================================================
+    // CONFETTI
+    // ===================================================================
+    function launchConfetti() {
+      const container = document.getElementById('confetti-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const colors = SOUND_COLOR_HEX;
+      const pieces = 40;
+
+      for (let i = 0; i < pieces; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const left = Math.random() * 100;
+        const delay = Math.random() * 1.5;
+        const size = 8 + Math.random() * 10;
+        piece.style.cssText = `
+          left: ${left}%;
+          background: ${color};
+          width: ${size}px;
+          height: ${size}px;
+          border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+          animation-delay: ${delay}s;
+          animation-duration: ${1.5 + Math.random() * 1}s;
+        `;
+        container.appendChild(piece);
+      }
+
+      // Clean up
+      setTimeout(() => { container.innerHTML = ''; }, 4000);
+    }
+
+    // ===================================================================
+    // IDLE TIMER
+    // ===================================================================
+    function startIdleTimer(delay, callback) {
+      clearIdleTimer();
+      state.idleTimer = setTimeout(callback, delay);
+    }
+
+    function clearIdleTimer() {
+      if (state.idleTimer) {
+        clearTimeout(state.idleTimer);
+        state.idleTimer = null;
+      }
+    }
+
+    // ===================================================================
+    // RESET
+    // ===================================================================
+    function resetGame() {
+      stopSequencer();
+      if (backingTrack) { backingTrack.stop(); backingTrack = null; }
+      recorder.release();
+      // Revoke all blob URLs
+      state.sounds.forEach(s => {
+        if (s.url) URL.revokeObjectURL(s.url);
+      });
+      state.sounds = [];
+      state.soundIndex = 0;
+      state.playCount = 0;
+      state.totalPlaythroughs = 0;
+      state.recordingBlob = null;
+      state.isRecording = false;
+      state.isPlaying = false;
+      state.currentBeat = -1;
+      state.grid = [];
+      state.micGranted = false;
+      state.useOscillatorFallback = false;
+      state.idlePromptCount = 0;
+      state.recordingRetries = 0;
+      state._cellCooldown = false;
+      state.clearCooldown = false;
+      state.isTransitioning = false;
+      if (typeof GameTranscript !== 'undefined') GameTranscript.clear();
+      recorder = new SoundRecorder();
+      // Re-init mic
+      transitionTo('init');
+    }
+
+    // ===================================================================
+    // HELPER: Sound bank dots
+    // ===================================================================
+    function renderSoundBankDots() {
+      let html = '';
+      for (let i = 0; i < TOTAL_SOUNDS; i++) {
+        if (i < state.sounds.length) {
+          const s = state.sounds[i];
+          html += `<span class="sound-icon" style="background:${s.color}">
+            <span class="sound-abbr">${getSoundAbbr(s.name)}</span>
+          </span>`;
+        } else {
+          html += `<span class="sound-icon future">
+            <span class="sound-abbr">${i + 1}</span>
+          </span>`;
+        }
+      }
+      return html;
+    }
+
+    // ===================================================================
+    // EVENT: Visibility change
+    // ===================================================================
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        // Pause
+        if (state.isPlaying) stopSequencer();
+        if (backingTrack) backingTrack.stop();
+        recorder.isActive = false;
+      }
+    });
+
+    // ===================================================================
+    // EVENT: Settings toggle
+    // ===================================================================
+    document.getElementById('settings-toggle').addEventListener('click', () => {
+      if (typeof GameSettings !== 'undefined') GameSettings.show();
+    });
+
+    document.getElementById('transcript-toggle').addEventListener('click', () => {
+      if (typeof GameTranscript !== 'undefined') GameTranscript.show();
+    });
+
+    // ===================================================================
+    // INIT — Wait for DOM + modules
+    // ===================================================================
+    function boot() {
+      // Initialize settings & transcript UI
+      if (typeof GameSettings !== 'undefined') {
+        GameSettings.renderModal(document.getElementById('modal-container'));
+      }
+      if (typeof GameTranscript !== 'undefined') {
+        GameTranscript.renderDrawer(document.getElementById('drawer-container'));
+      }
+      // Start the game
+      transitionTo('init');
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+
+  })();
+  </script>
+</body>
+</html>

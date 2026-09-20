@@ -36,6 +36,8 @@ namespace AI2School.Game
 
             if (Boot.HasArg("-demo"))
                 StartCoroutine(DemoFlow());
+            else if (Boot.HasArg("-demo-shot"))
+                StartCoroutine(DemoShotFlow(Boot.ArgValue("-demo-shot") ?? "/tmp/aiplatform-demo.png"));
             else if (Boot.HasArg("-smoke"))
                 StartCoroutine(SmokeFlow());
             else if (Boot.HasArg("-screenshot"))
@@ -45,7 +47,7 @@ namespace AI2School.Game
 
         void Update()
         {
-            if (Boot.HasArg("-smoke") || Boot.HasArg("-screenshot") || Boot.HasArg("-demo")) return;
+            if (Boot.HasArg("-smoke") || Boot.HasArg("-screenshot") || Boot.HasArg("-demo") || Boot.HasArg("-demo-shot")) return;
 
             // V toggles the orbit camera in ANY mode (planning or simulating) so
             // you can look around the running demo. Single ownership here — the
@@ -64,12 +66,13 @@ namespace AI2School.Game
                 _city.StartSimulation();
         }
 
-        /// <summary>Build the curated demo city idempotently (replaces any existing demo/life).</summary>
+        /// <summary>Build the curated demo city idempotently (replaces any existing demo/life/traffic).</summary>
         void BuildDemoCity()
         {
-            // Remove any existing demo/life so rebuilding is clean.
+            // Remove any existing demo/life/traffic so rebuilding is clean.
             foreach (var d in GetComponents<DemoCity>()) Destroy(d);
             foreach (var l in GetComponents<DemoLife>()) Destroy(l);
+            foreach (var t in GetComponents<TrafficSimulation>()) Destroy(t);
             DemoCity.Build(_city, autoRunSim: true);
             _hudToast("Demo city built — D rebuild · V orbit · R run");
         }
@@ -88,6 +91,18 @@ namespace AI2School.Game
             // DemoCity.Start() self-runs on AddComponent — just attach it.
             DemoCity.Build(_city, autoRunSim: true);
             yield break;
+        }
+
+        /// <summary>Headless demo verification: build demo, let cars + sim run ~7s, capture a shot, quit.</summary>
+        IEnumerator DemoShotFlow(string path)
+        {
+            yield return null; // let Init finish
+            DemoCity.Build(_city, autoRunSim: true);
+            yield return new WaitForSeconds(7f);
+            ScreenCapture.CaptureScreenshot(path);
+            Debug.Log("[DEMOSHOT] captured " + path);
+            yield return new WaitForSeconds(0.8f);
+            Application.Quit(0);
         }
 
         /// <summary>Unattended end-to-end pass for CI / verification on the Minimal path.</summary>

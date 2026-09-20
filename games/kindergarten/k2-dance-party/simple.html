@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🤖 AI Champion Mirror</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body { height: 100%; overflow: hidden; touch-action: manipulation; }
+  body { background: linear-gradient(180deg, #a8dcff 0%, #7ec8f5 50%, #5aa8dd 100%); font-family: 'Chalkboard SE', 'Comic Sans MS', system-ui, sans-serif; color: #fff; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; }
+
+  #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 40px; gap: 12px; }
+
+  .btn {
+    pointer-events: auto;
+    min-width: 220px; min-height: 64px; padding: 14px 36px;
+    font-size: 26px; font-weight: 900; font-family: inherit; color: #fff;
+    border: none; border-radius: 999px; cursor: pointer;
+    background: #4CAF50; box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 12px 24px rgba(0,0,0,0.2);
+  }
+  .btn:active { transform: scale(0.95) translateY(3px); }
+  .btn.off { background: #FF6B6B; }
+
+  #status { background: rgba(0,0,0,0.5); padding: 8px 20px; border-radius: 999px; font-size: 16px; font-weight: 800; }
+  #pip { width: 120px; height: 90px; border-radius: 12px; border: 3px solid #fff; object-fit: cover; display: none; }
+
+  /* Debug portal */
+  #debug-wrap {
+    position: fixed; top: 90px; right: 12px; z-index: 30;
+    display: flex; flex-direction: column; gap: 6px; pointer-events: auto;
+    background: rgba(0,0,0,0.7); border-radius: 12px; padding: 8px;
+  }
+  #debug-cnv-wrap { overflow: hidden; border-radius: 8px; }
+  #debug-cnv { display: block; width: 180px; height: 270px; background: rgba(0,0,0,0.5); }
+  #debug-readout { font: 600 11px/1.5 monospace; color: #7CFC00; padding: 4px; }
+  .btn-debug {
+    position: fixed; top: 12px; right: 12px; z-index: 30;
+    pointer-events: auto; min-width: 70px; min-height: 40px; padding: 6px 14px;
+    font-size: 14px; border-radius: 999px; border: none; cursor: pointer;
+    background: rgba(0,0,0,0.5); color: #fff; font-weight: 800;
+  }
+  .btn-debug.on { background: #FF9800; }
+
+  h1 { position: fixed; top: 20px; left: 0; right: 0; text-align: center; font-size: 34px; text-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 10; }
+  #hint { position: fixed; top: 75px; left: 0; right: 0; text-align: center; font-size: 16px; text-shadow: 0 2px 6px rgba(0,0,0,0.4); z-index: 10; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<h1>🤖 AI Champion Mirror</h1>
+<div id="hint">Press the button, step back, and I'll copy your moves!</div>
+<canvas id="scene"></canvas>
+<div id="ui">
+  <button class="btn" id="btn-camera">📷 START CAMERA</button>
+  <div id="status">Loading champion…</div>
+  <video id="pip" autoplay muted playsinline></video>
+  <div id="debug-wrap" hidden>
+    <div id="debug-cnv-wrap"><canvas id="debug-cnv" width="240" height="360"></canvas></div>
+    <div id="debug-readout"></div>
+  </div>
+  <button class="btn btn-debug" id="btn-debug">🧪 Debug</button>
+</div>
+
+<script src="pose.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ============ THREE.JS SCENE ============
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fd0ff);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x88aaff, 1.1));
+const dir = new THREE.DirectionalLight(0xffffff, 1.6);
+dir.position.set(2, 4, 3);
+scene.add(dir);
+
+// ============ CHAMPION ============
+let champion = null;
+let BONES = {};
+let SKELETON = null;
+let NEUTRAL = {};   // bone name -> neutral quaternion (from GLB idle pose)
+let rigReady = false;
+let cameraActive = false;
+
+// ---- Idle pose: friendly standing, arms slightly out ----
+const IDLE_POSE = {
+  'mixamorigLeftArm':       new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.35, 0, -0.25)),
+  'mixamorigRightArm':      new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.35, 0, 0.25)),
+  'mixamorigLeftForeArm':   new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.2, 0, 0)),
+  'mixamorigRightForeArm':  new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.2, 0, 0)),
+  // NOTE: no leg entries — legs keep their GLTF bind pose (pointing down)
+  'mixamorigSpine':         new THREE.Quaternion(),
+  'mixamorigNeck':          new THREE.Quaternion(),
+};
+
+function applyIdlePose() {
+  if (!rigReady) return;
+  for (const [name, q] of Object.entries(IDLE_POSE)) {
+    const b = BONES[name];
+    if (b) b.quaternion.copy(q);
+  }
+  if (SKELETON) SKELETON.update();
+}
+
+// Per-bone smoothing targets
+const boneTargets = {};
+const SMOOTH = 0.08;  // strong smoothing (was 0.15) — less jitter
+
+function initTargetsFromIdle() {
+  for (const [name, q] of Object.entries(IDLE_POSE)) {
+    boneTargets[name] = q.clone();
+  }
+}
+
+function setBoneQ(name, targetQ) {
+  const b = BONES[name];
+  if (!b) return;
+  if (!boneTargets[name]) boneTargets[name] = b.quaternion.clone();
+  boneTargets[name].copy(targetQ);
+  b.quaternion.slerp(targetQ, SMOOTH);
+}
+
+function setBoneRotation(name, x, y, z) {
+  const b = BONES[name];
+  const n = NEUTRAL[name];
+  if (!b || !n) return;
+  // Apply the motion-capture rotation ON TOP of the neutral idle pose,
+  // so zero angles = the bunny's natural standing pose.
+  const offset = new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z));
+  b.quaternion.copy(n).multiply(offset);
+}
+
+function setBoneQInstant(name, targetQ) {
+  const b = BONES[name];
+  if (!b) return;
+  b.quaternion.copy(targetQ);
+}
+
+const loader = new GLTFLoader();
+loader.load('dancer.glb', (gltf) => {
+  champion = gltf.scene;
+  scene.add(champion);
+
+  // Collect bones + skeleton
+  champion.traverse((o) => {
+    if (o.isBone) BONES[o.name] = o;
+    if (o.isSkinnedMesh) SKELETON = o.skeleton;
+  });
+  // Capture neutral pose (the bunny's natural standing pose from the idle GLB)
+  champion.updateMatrixWorld(true);
+  champion.traverse((o) => {
+    if (o.isBone && !NEUTRAL[o.name]) NEUTRAL[o.name] = o.quaternion.clone();
+  });
+  console.log('Bones:', Object.keys(BONES).length, 'Skeleton:', !!SKELETON);
+
+  // Scale to ~1.5 tall, center on X/Z
+  const box = new THREE.Box3().setFromObject(champion);
+  const size = box.getSize(new THREE.Vector3());
+  const scale = 1.5 / (size.y || 1);
+  champion.scale.setScalar(scale);
+
+  const box2 = new THREE.Box3().setFromObject(champion);
+  const c = box2.getCenter(new THREE.Vector3());
+  champion.position.x = -c.x;
+  champion.position.z = -c.z;
+  // Keep the bunny's feet on the ground plane (Y stays as-is)
+  champion.position.y = -box2.min.y;
+
+  // Wider camera: full body + head visible on any device
+  camera.fov = 55;
+  camera.updateProjectionMatrix();
+  camera.position.set(0, 1.0, 5.0);
+  camera.lookAt(0, 0.6, 0);
+
+  rigReady = true;
+  initTargetsFromIdle();
+  applyIdlePose();
+  document.getElementById('status').textContent = 'Ready! Press Start Camera';
+});
+
+// ============ MOVENET POSE (pose.js) ============
+let poseManager = null;
+let videoEl = document.createElement('video');
+videoEl.autoplay = true; videoEl.muted = true; videoEl.playsInline = true;
+
+async function initPose() {
+  // pose.js exposes window.PoseManager
+  if (!window.PoseManager) throw new Error('pose.js not loaded');
+  poseManager = new window.PoseManager({ minPoseScore: 0.25, detectTimeoutMs: 1500 });
+  // Warm up the detector (loads TF.js + MoveNet)
+  await poseManager.probe();
+}
+
+async function startCamera() {
+  const btn = document.getElementById('btn-camera');
+  const status = document.getElementById('status');
+  const pip = document.getElementById('pip');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false,
+    });
+    videoEl.srcObject = stream;
+    await videoEl.play();
+    pip.srcObject = stream;
+    pip.style.display = 'block';
+    if (!poseManager) await initPose();
+    btn.textContent = '⏹ STOP CAMERA';
+    btn.classList.add('off');
+    // Countdown: let the user step back and get in position
+    status.textContent = 'Step back! 3…';
+    await new Promise(r => setTimeout(r, 1000));
+    status.textContent = 'Step back! 2…';
+    await new Promise(r => setTimeout(r, 1000));
+    status.textContent = 'Step back! 1…';
+    await new Promise(r => setTimeout(r, 1000));
+    cameraActive = true;
+    status.textContent = '✅ Mirroring — move your body!';
+  } catch (e) {
+    console.error('Camera error:', e);
+    status.textContent = 'Camera not available — no mirroring';
+  }
+}
+
+function stopCamera() {
+  cameraActive = false;
+  const btn = document.getElementById('btn-camera');
+  btn.textContent = '📷 START CAMERA';
+  btn.classList.remove('off');
+  document.getElementById('status').textContent = 'Camera off';
+  document.getElementById('pip').style.display = 'none';
+  // Return to idle pose
+  for (const [name, q] of Object.entries(IDLE_POSE)) {
+    const b = BONES[name];
+    if (b) b.quaternion.copy(q);
+  }
+  if (SKELETON) SKELETON.update();
+}
+
+document.getElementById('btn-camera').addEventListener('click', () => {
+  if (cameraActive) stopCamera();
+  else startCamera();
+});
+
+// ============ DEBUG PORTAL ============
+let debugOn = false;
+const debugCnv = document.getElementById('debug-cnv');
+const debugReadout = document.getElementById('debug-readout');
+const debugWrap = document.getElementById('debug-wrap');
+
+document.getElementById('btn-debug').addEventListener('click', () => {
+  debugOn = !debugOn;
+  debugWrap.hidden = !debugOn;
+  document.getElementById('btn-debug').classList.toggle('on', debugOn);
+});
+
+// MoveNet keypoint connections for the stick-figure overlay
+const SKEL = [
+  [0,5],[0,6],[5,7],[7,9],[6,8],[8,10],[5,6],
+  [5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]
+];
+
+function drawDebugSkeleton(lm) {
+  if (!debugOn) return;
+  const ctx = debugCnv.getContext('2d');
+  const W = debugCnv.width, H = debugCnv.height;
+  ctx.clearRect(0, 0, W, H);
+  if (!lm || lm.length < 17) {
+    ctx.fillStyle = '#888'; ctx.font = '14px monospace';
+    ctx.fillText('No person', 60, H/2);
+    return;
+  }
+  // Draw connections
+  ctx.strokeStyle = '#00FF88'; ctx.lineWidth = 3;
+  for (const [a, b] of SKEL) {
+    if (lm[a] && lm[b]) {
+      ctx.beginPath();
+      ctx.moveTo(lm[a].x * W, lm[a].y * H);
+      ctx.lineTo(lm[b].x * W, lm[b].y * H);
+      ctx.stroke();
+    }
+  }
+  // Draw keypoints
+  for (let i = 0; i < lm.length; i++) {
+    if (!lm[i]) continue;
+    ctx.fillStyle = i === 0 ? '#FF4444' : '#FFD700';
+    ctx.beginPath();
+    ctx.arc(lm[i].x * W, lm[i].y * H, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function updateDebugReadout() {
+  if (!debugOn) return;
+  const v = limbAngles;
+  const rows = [
+    ['L Arm X', v.lArmX.cur, v.lArmX.target],
+    ['L Arm Z', v.lArmZ.cur, v.lArmZ.target],
+    ['R Arm X', v.rArmX.cur, v.rArmX.target],
+    ['R Arm Z', v.rArmZ.cur, v.rArmZ.target],
+    ['L Fore X', v.lForeX.cur, v.lForeX.target],
+    ['R Fore X', v.rForeX.cur, v.rForeX.target],
+    ['L UpLeg X', v.lUpLegX.cur, v.lUpLegX.target],
+    ['R UpLeg X', v.rUpLegX.cur, v.rUpLegX.target],
+    ['Spine X', v.spineX.cur, v.spineX.target],
+    ['Neck X', v.neckX.cur, v.neckX.target],
+  ];
+  debugReadout.innerHTML = rows.map(([n, c, t]) =>
+    `${n}: ${c.toFixed(2)} → ${t.toFixed(2)}`
+  ).join('<br>');
+}
+
+function updateDebugPortal(lm) {
+  drawDebugSkeleton(lm);
+  updateDebugReadout();
+}
+
+// ============ POSE → BONE MAPPING ============
+// MoveNet 17 keypoint indices:
+// 0=nose 5=L_shoulder 6=R_shoulder 7=L_elbow 8=R_elbow
+// 9=L_wrist 10=R_wrist 11=L_hip 12=R_hip 13=L_knee 14=R_knee
+// 15=L_ankle 16=R_ankle
+//
+// APPROACH: Convert 2D landmark positions to SCREEN-SPACE ANGLES for each
+// limb, then map to constrained Euler rotations on the correct bone axes.
+// This is far more stable than free quaternions (which caused the "curled
+// up" and "head bobbing" problems) because:
+//   1. Angles are bounded (limbs can't rotate 360° or bend backward)
+//   2. Each bone rotates on anatomically correct axes
+//   3. Heavy smoothing eliminates frame-to-frame jitter
+
+// Per-limb angle state (for smoothing): { cur, target }
+const limbAngles = {
+  lArmX: { cur: -0.35, target: -0.35 }, rArmX: { cur: -0.35, target: -0.35 },
+  lArmZ: { cur: -0.25, target: -0.25 }, rArmZ: { cur: 0.25, target: 0.25 },
+  lForeX: { cur: 0, target: 0 }, rForeX: { cur: 0, target: 0 },
+  lUpLegX: { cur: 0, target: 0 }, rUpLegX: { cur: 0, target: 0 },
+  lLegX: { cur: 0, target: 0 }, rLegX: { cur: 0, target: 0 },
+  spineX: { cur: 0, target: 0 }, spineZ: { cur: 0, target: 0 },
+  neckX: { cur: 0, target: 0 }, neckZ: { cur: 0, target: 0 },
+};
+
+// Angle of a line segment from vertical, in image space (x right, y down)
+function segAngle(x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  if (Math.hypot(dx, dy) < 1e-5) return 0;
+  // angle from vertical: 0 = straight down, positive = right, negative = left
+  return Math.atan2(dx, dy);
+}
+
+// Smooth a state toward its target
+function smoothAngle(state) {
+  state.cur += (state.target - state.cur) * SMOOTH;
+  return state.cur;
+}
+
+async function processPose() {
+  if (!poseManager || !cameraActive || videoEl.readyState < 2) return;
+  const lm = await poseManager.detectPose(videoEl);
+  if (!lm || lm.length < 17) {
+    // Lost the person: smoothly return to idle
+    Object.values(limbAngles).forEach(a => a.target = a.cur * 0.9);
+    return;
+  }
+
+  const pt = (i) => ({ x: lm[i].x, y: lm[i].y });
+  const L = {
+    lsh: pt(5), rsh: pt(6), lel: pt(7), rel: pt(8),
+    lwr: pt(9), rwr: pt(10), lhip: pt(11), rhip: pt(12),
+    lknee: pt(13), rknee: pt(14), lank: pt(15), rank: pt(16),
+    nose: pt(0),
+  };
+
+  // Debug portal: draw skeleton + readouts
+  updateDebugPortal(lm);
+
+  // --- Arms: direct wrist-position mapping ---
+  // Elevation (X rotation = lift): how high the HAND is above the shoulder.
+  // Swing (Z rotation = lateral): how far left/right the HAND is from the shoulder.
+  // This correctly handles horizontal arms (swing out, no lift) vs raised arms (lift).
+  limbAngles.lArmX.target = clampAngle((L.lwr.y - L.lsh.y) * 3.0, -0.6, 1.2);
+  limbAngles.lArmZ.target = clampAngle((L.lwr.x - L.lsh.x) * 2.5, -1.2, 1.2);
+  limbAngles.rArmX.target = clampAngle((L.rwr.y - L.rsh.y) * 3.0, -0.6, 1.2);
+  limbAngles.rArmZ.target = clampAngle((L.rwr.x - L.rsh.x) * 2.5, -1.2, 1.2);
+  // Forearms: wrist elevation relative to elbow (elbow flex)
+  limbAngles.lForeX.target = clampAngle((L.lel.y - L.lwr.y) * 3.0, -1.0, 1.0);
+  limbAngles.rForeX.target = clampAngle((L.rel.y - L.rwr.y) * 3.0, -1.0, 1.0);
+
+  // --- Legs: use VERTICAL OFFSET for upper legs, knee-bend for lower ---
+  // Upper leg: how much the knee is ABOVE the hip in image space (y is down)
+  //   knee above hip -> leg lifted forward (positive X rotation)
+  //   knee below hip -> leg hanging down (near zero)
+  const lKneeUp = (L.lhip.y - L.lknee.y);
+  const rKneeUp = (L.rhip.y - L.rknee.y);
+  limbAngles.lUpLegX.target = clampAngle(lKneeUp * 2.2, -0.15, 1.0);
+  limbAngles.rUpLegX.target = clampAngle(rKneeUp * 2.2, -0.15, 1.0);
+  // Lower leg: knee bend from the angle between upper and lower leg segments
+  const lUpLegA = segAngle(L.lhip.x, L.lhip.y, L.lknee.x, L.lknee.y);
+  const rUpLegA = segAngle(L.rhip.x, L.rhip.y, L.rknee.x, L.rknee.y);
+  const lKneeBend = segAngle(L.lknee.x, L.lknee.y, L.lank.x, L.lank.y) - lUpLegA;
+  const rKneeBend = segAngle(L.rknee.x, L.rknee.y, L.rank.x, L.rank.y) - rUpLegA;
+  limbAngles.lLegX.target = clampAngle(lKneeBend * 0.9, -0.1, 1.5);
+  limbAngles.rLegX.target = clampAngle(rKneeBend * 0.9, -0.1, 1.5);
+
+  // --- Spine: shoulders midpoint vs hips midpoint ---
+  const shMidX = (L.lsh.x + L.rsh.x) / 2, shMidY = (L.lsh.y + L.rsh.y) / 2;
+  const hipMidX = (L.lhip.x + L.rhip.x) / 2, hipMidY = (L.lhip.y + L.rhip.y) / 2;
+  const spineA = segAngle(hipMidX, hipMidY, shMidX, shMidY);
+  limbAngles.spineX.target = clampAngle(-spineA * 0.5, -0.5, 0.5);
+  // Side lean from shoulder offset
+  const shOffset = (L.lsh.x - L.rsh.x);
+  limbAngles.spineZ.target = clampAngle(shOffset * 2.5, -0.5, 0.5);
+
+  // --- Neck: nose relative to shoulder midpoint ---
+  const noseA = segAngle(shMidX, shMidY, L.nose.x, L.nose.y);
+  limbAngles.neckX.target = clampAngle(-noseA * 0.6, -0.6, 0.6);
+  limbAngles.neckZ.target = clampAngle((L.nose.x - shMidX) * 2.0, -0.5, 0.5);
+
+  // Apply smoothed rotations
+  applySmoothed();
+}
+
+function clampAngle(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function applySmoothed() {
+  // Arms
+  setBoneRotation('mixamorigLeftArm', smoothAngle(limbAngles.lArmX), 0, smoothAngle(limbAngles.lArmZ));
+  setBoneRotation('mixamorigRightArm', smoothAngle(limbAngles.rArmX), 0, smoothAngle(limbAngles.rArmZ));
+  setBoneRotation('mixamorigLeftForeArm', smoothAngle(limbAngles.lForeX), 0, 0);
+  setBoneRotation('mixamorigRightForeArm', smoothAngle(limbAngles.rForeX), 0, 0);
+  // Legs
+  setBoneRotation('mixamorigLeftUpLeg', smoothAngle(limbAngles.lUpLegX), 0, 0);
+  setBoneRotation('mixamorigRightUpLeg', smoothAngle(limbAngles.rUpLegX), 0, 0);
+  setBoneRotation('mixamorigLeftLeg', smoothAngle(limbAngles.lLegX), 0, 0);
+  setBoneRotation('mixamorigRightLeg', smoothAngle(limbAngles.rLegX), 0, 0);
+  // Spine + neck
+  setBoneRotation('mixamorigSpine', smoothAngle(limbAngles.spineX), 0, smoothAngle(limbAngles.spineZ));
+  setBoneRotation('mixamorigNeck', smoothAngle(limbAngles.neckX), 0, smoothAngle(limbAngles.neckZ));
+
+  if (SKELETON) SKELETON.update();
+}
+
+// ============ RENDER LOOP ============
+function animate(now) {
+  requestAnimationFrame(animate);
+  if (cameraActive) processPose();
+  if (SKELETON) SKELETON.update();
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(animate);
+
+// ============ RESIZE ============
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "Cool Grid Architect",
+  "short_name": "Cool Grid",
+  "description": "Design WaterCity's AI power grid!",
+  "start_url": "index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0F172A",
+  "theme_color": "#3B82F6",
+  "icons": []
+}

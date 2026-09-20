@@ -66,6 +66,9 @@ export function defaultLayout() {
  * Errors are blocking; warnings are cosmetic (e.g. overlapping footprints).
  */
 export function validateLayout(raw) {
+  try { return validateLayoutValue(raw); } catch { return { ok: false, errors: ['Invalid layout values'], warnings: [] }; }
+}
+function validateLayoutValue(raw) {
   const errors = [];
   const warnings = [];
 
@@ -120,7 +123,7 @@ export function validateLayout(raw) {
       return;
     }
     const fp = b.footprint;
-    if (fp !== undefined && (!Array.isArray(fp) || fp.length !== 2 || fp[0] <= 0 || fp[1] <= 0)) {
+    if (fp !== undefined && (!Array.isArray(fp) || fp.length !== 2 || !Number.isFinite(fp[0]) || !Number.isFinite(fp[1]) || fp[0] <= 0 || fp[1] <= 0)) {
       errors.push(`${tag}: invalid footprint ${JSON.stringify(fp)}`);
     }
     if (b.height !== undefined && (!Number.isFinite(b.height) || b.height <= 0 || b.height > 300)) {
@@ -133,7 +136,7 @@ export function validateLayout(raw) {
   buildings.forEach((b, i) => {
     for (let j = i + 1; j < buildings.length; j++) {
       const c = buildings[j];
-      if (!b.pos || !c.pos) continue;
+      if (!b?.pos || !c?.pos) continue;
       const fp1 = b.footprint || (typeSpec(b.type)?.footprint || [20, 20]);
       const fp2 = c.footprint || (typeSpec(c.type)?.footprint || [20, 20]);
       const overlapX = Math.abs(b.pos[0] - c.pos[0]) < (fp1[0] + fp2[0]) / 2;
@@ -180,6 +183,7 @@ export function sanitizeLayout(raw) {
   const base = defaultLayout();
   const scale = clampScale(raw?.scaleMeters);
   base.scaleMeters = scale;
+  base.autoScenery = raw?.autoScenery !== false;
   base.version = LAYOUT_VERSION;
 
   if (Array.isArray(raw?.buildings)) {
@@ -204,7 +208,7 @@ export function sanitizeLayout(raw) {
           pos: [clamp(px), clamp(pz)],
           ...(fp ? { footprint: fp } : {}),
           ...(Number.isFinite(b.height) ? { height: +b.height } : {}),
-          ...(b.locked === true ? { locked: true } : {}),
+          ...(typeof b.locked === 'boolean' ? { locked: b.locked } : {}),
         };
       })
       .filter((b) => b !== null);
@@ -245,78 +249,33 @@ export function planToWorld(x, y) {
 }
 
 /**
- * Densify a layout for the 3D builder: grow buildings/roads/parks and pull
- * everything closer together so a small design doesn't feel empty in a huge
- * map. Buildings keep their relative layout and character.
+ * Prepare a sanitized layout for the 3D builder.
  *
- * Steps (mutates the layout in place):
- *   1. grow  — multiply building footprints/heights, road widths and park radii
- *   2. compress — pull all positions toward the content centroid
- *   3. separate — iterative no-overlap pass over building footprints
- *   4. re-centre — shift the content bounding box onto the map centre
+ * IMPORTANT: this is now GEOMETRY-PRESERVING. It no longer grows footprints /
+ * heights / road widths, compresses positions toward the centroid, separates
+ * buildings or re-centres. The old transform made a building that was clearly
+ * clear of a road in the 2D planner overlap that road in 3D (sizes ×1.5 while
+ * distances shrank ×0.6) — the planner must not lie about what the child built.
  *
- * @param {object} layout - sanitized layout (mutated in place)
- * @param {{grow?:number, compress?:number, margin?:number, pad?:number}} opts
+ * Kept as a named step because the builder + tests call it and read:
+ *   - `grow`   — the champion scale multiplier (now always 1)
+ *   - `bounds` — minimap + sky-traffic extent (content bounds + padding)
+ *
+ * @param {object} layout - sanitized layout (NOT mutated)
+ * @param {{pad?:number}} opts
  * @returns {{layout:object, grow:number, bounds:{minX,minZ,maxX,maxZ}}}
  */
 export function densifyLayout(layout, opts = {}) {
-  const grow = opts.grow ?? 1.5;
-  const compress = opts.compress ?? 0.6;
-  const margin = opts.margin ?? 3;
   const pad = opts.pad ?? 120;
-
-  const buildings = layout.buildings || [];
-  const roads = layout.roads || [];
-  const parks = layout.parks || [];
   const SCALE = layout.scaleMeters || DEFAULT_SCALE;
-  const CENTER = SCALE / 2;
-
-  // 1. Centroid of building positions (fallback: map centre)
-  let ccx = CENTER, ccz = CENTER;
-  if (buildings.length) {
-    let sx = 0, sz = 0;
-    for (const b of buildings) { sx += b.pos[0]; sz += b.pos[1]; }
-    ccx = sx / buildings.length; ccz = sz / buildings.length;
-  }
-
-  // 2. Grow
-  for (const b of buildings) {
-    if (Array.isArray(b.footprint)) { b.footprint[0] *= grow; b.footprint[1] *= grow; }
-    if (typeof b.height === 'number') b.height *= grow;
-  }
-  for (const r of roads) if (typeof r.width === 'number') r.width *= grow;
-  for (const p of parks) if (typeof p.radius === 'number') p.radius *= grow;
-
-  // 3. Compress positions toward centroid
-  const pull = (x, z) => [ccx + (x - ccx) * compress, ccz + (z - ccz) * compress];
-  for (const b of buildings) { const [x, z] = pull(b.pos[0], b.pos[1]); b.pos = [x, z]; }
-  for (const r of roads) r.points = r.points.map(([x, z]) => pull(x, z));
-  for (const p of parks) { const [x, z] = pull(p.cx, p.cz); p.cx = x; p.cz = z; }
-
-  // 4. No-overlap separation pass
-  separateBuildings(buildings, margin);
-
-  // 5. Re-centre content bounding box on the map centre
-  let bbox = contentBounds(layout, SCALE);
-  const bdx = CENTER - (bbox.minX + bbox.maxX) / 2;
-  const bdz = CENTER - (bbox.minZ + bbox.maxZ) / 2;
-  if (bdx || bdz) {
-    const move = (x, z) => [x + bdx, z + bdz];
-    for (const b of buildings) b.pos = move(b.pos[0], b.pos[1]);
-    for (const r of roads) r.points = r.points.map(([x, z]) => move(x, z));
-    for (const p of parks) { const [x, z] = move(p.cx, p.cz); p.cx = x; p.cz = z; }
-  }
-
-  // Bounds for minimap + sky traffic (clamped to the map)
-  bbox = contentBounds(layout, SCALE);
+  const bbox = contentBounds(layout, SCALE);
   const bounds = {
     minX: Math.max(0, bbox.minX - pad),
     minZ: Math.max(0, bbox.minZ - pad),
     maxX: Math.min(SCALE, bbox.maxX + pad),
     maxZ: Math.min(SCALE, bbox.maxZ + pad),
   };
-
-  return { layout, grow, bounds };
+  return { layout, grow: 1, bounds };
 }
 
 /** Content bounding box (buildings ± footprint, road points, parks ± radius). */
@@ -338,35 +297,4 @@ function contentBounds(layout, SCALE) {
   }
   if (!Number.isFinite(minX)) { minX = minZ = 0; maxX = maxZ = SCALE; }
   return { minX, maxX, minZ, maxZ };
-}
-
-/** Iteratively push overlapping building footprints apart (no overlap). */
-function separateBuildings(buildings, margin, maxIter = 30) {
-  if (buildings.length < 2) return;
-  for (let iter = 0; iter < maxIter; iter++) {
-    let moved = false;
-    for (let i = 0; i < buildings.length; i++) {
-      for (let j = i + 1; j < buildings.length; j++) {
-        const a = buildings[i], b = buildings[j];
-        const fpA = a.footprint || [20, 20], fpB = b.footprint || [20, 20];
-        const dx = b.pos[0] - a.pos[0], dz = b.pos[1] - a.pos[1];
-        const minX = (fpA[0] + fpB[0]) / 2 + margin;
-        const minZ = (fpA[1] + fpB[1]) / 2 + margin;
-        const adx = Math.abs(dx), adz = Math.abs(dz);
-        if (adx >= minX || adz >= minZ) continue;   // no overlap
-        moved = true;
-        const penX = minX - adx, penZ = minZ - adz;
-        let sx = 0, sz = 0;
-        if (penX < penZ) {
-          sx = (dx >= 0 ? 1 : -1) * (penX / 2);
-        } else {
-          sz = (dz >= 0 ? 1 : -1) * (penZ / 2);
-        }
-        if (dx === 0 && dz === 0) { sx = penX / 4; sz = 0; }  // identical centres
-        a.pos[0] -= sx; a.pos[1] -= sz;
-        b.pos[0] += sx; b.pos[1] += sz;
-      }
-    }
-    if (!moved) break;
-  }
 }

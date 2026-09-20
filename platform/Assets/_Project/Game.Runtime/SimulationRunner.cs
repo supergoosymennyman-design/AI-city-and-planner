@@ -53,6 +53,14 @@ namespace AI2School.Game
         /// <summary>If set, citizens are real prefab instances (Resources/Prefabs) instead of instanced cubes.</summary>
         public string CitizenPrefabName { get; set; } = "man-casual";
 
+        /// <summary>Append the current world positions of walking citizens (for crossing checks).</summary>
+        public void CollectCitizenPositions(List<Vector3> into)
+        {
+            if (_agentGos == null) return;
+            for (int i = 0; i < _agentGos.Length; i++)
+                if (_agentGos[i] != null) into.Add(_agentGos[i].transform.position);
+        }
+
         public void Run(List<PlacedPieceData> pieces, Func<string, PalettePieceData> findPalette,
             float coverageRadius, ulong masterSeed, Action onComplete)
         {

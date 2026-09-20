@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My AI City — 3D</title>
   <script>
     // Browser support check: this sim needs ES modules + import maps.
@@ -23,11 +23,13 @@
     })();
   </script>
   <link rel="stylesheet" href="../champion-city/styles.css">
+  <link rel="stylesheet" href="./my-work.css">
+  <link rel="stylesheet" href="./presentation.css">
   <script src="/crash-guard.js"></script>
   <style>
     #entry-overlay {
       position: fixed; inset: 0; z-index: 400;
-      display: flex; align-items: center; justify-content: center;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
       background: linear-gradient(160deg, #0b132b, #16224a);
       font-family: var(--font-ui, sans-serif); color: #eaf2f8;
     }
@@ -39,26 +41,30 @@
       white-space: nowrap;
     }
     .entry-card {
-      width: min(520px, 92vw); text-align: center;
-      background: rgba(20, 30, 60, 0.92);
-      border: 2px solid #00f2fe; border-radius: 20px;
-      padding: 26px 24px;
-      box-shadow: 0 0 60px rgba(0,242,254,0.2);
+      box-sizing: border-box; width: min(540px, 100%); max-height: calc(100dvh - 48px);
+      overflow: auto; text-align: center;
+      background: #121d3d;
+      border: 2px solid #00ddec; border-radius: 22px;
+      padding: 28px 24px 24px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.28);
     }
-    .entry-card h1 { margin: 0 0 6px; font-size: 26px; color: #00f2fe; }
-    .entry-card p { margin: 0 0 16px; font-size: 15px; color: #9fb0c7; }
+    .entry-card h1 { display:flex; justify-content:center; align-items:center; gap:8px; margin: 0 0 8px; font-size: 27px; color: #00e8f4; }
+    .entry-card p { margin: 0 auto 18px; max-width: 430px; font-size: 15px; color: #b8c6dc; text-align:center; line-height:1.4; }
     .entry-btn {
-      display: block; width: 100%;
-      min-height: 54px; margin: 8px 0;
-      border-radius: 14px; border: 2px solid transparent;
-      background: #1a2442; color: #eaf2f8;
+      display: flex; align-items:center; justify-content:center; box-sizing:border-box; width: 100%;
+      min-height: 54px; margin: 10px 0;
+      border-radius: 13px; border: 1px solid transparent;
+      background: #1c294d; color: #f4f8ff;
       font-size: 16px; font-weight: 800; cursor: pointer;
     }
-    .entry-btn:hover { border-color: #00f2fe; }
-    .entry-btn.primary { background: #00ff9d; color: #06283a; }
+    .entry-btn:hover { border-color: #00ddec; }
+    .entry-btn.primary { background: #00e695; color: #06283a; box-shadow: 0 4px 0 #00ab71; }
     .entry-btn.cloud-btn { border-color: rgba(0, 183, 255, 0.55); background: #0f2c4a; color: #bfe9ff; }
-    .entry-save-divider { margin: 12px 0 4px; font-size: 12px; font-weight: 700; color: #6b7a93; letter-spacing: 0.4px; }
-    .entry-hint { font-size: 12px; color: #6b7a93; margin-top: 10px; }
+    .entry-save-divider { margin: 18px 0 7px; font-size: 11px; font-weight: 800; color: #8191ad; letter-spacing: 0.75px; text-align:center; }
+    .entry-hint { max-width:400px; font-size: 12px; color: #8d9bb4; margin: 18px auto 0; text-align:center; line-height:1.4; }
+    #entry-skin { margin-top:0; border-color:rgba(0,221,236,0.5); background:#172b50; color:#effcff; }
+    #entry-skin::after { content:'⌁'; margin-left:10px; color:#00e8f4; font-size:20px; line-height:1; }
+    #skin-status { text-align:center; line-height:1.35; }
     /* Dedicated transient error slot. Deliberately NOT localized by applyStatic()
        and NOT carrying data-i18n — otherwise a later re-localize (boot, language
        toggle) would overwrite the message before the child can read it. */
@@ -77,6 +83,12 @@
       max-width: 92%; line-height: 1.4;
     }
     .skin-status { font-size: 12px; color: #00ff9d; margin-top: 8px; min-height: 14px; }
+    @media (max-width: 520px) {
+      #entry-overlay { padding:16px; align-items:center; }
+      .entry-card { padding:26px 24px 22px; border-radius:20px; }
+      .entry-card h1 { font-size:26px; }
+      .entry-card p { font-size:15px; }
+    }
     #paste-wrap textarea {
       width: 100%; min-height: 90px; margin-top: 8px;
       border-radius: 10px; border: 1px solid #33406e;
@@ -175,8 +187,8 @@
     #btn-hub:hover { border-color: #ffb84c; }
     #btn-hub:active { transform: scale(0.92); background: rgba(255, 184, 76, 0.18); }
     /* 🌆 Plan chip is a <button> so it can open the score breakdown. The base
-       pill style lives here (not city-builder/styles.css, which is not linked
-       — see audit note) so the chip is styled regardless. */
+       pill style lives here; the old city-builder/styles.css was unlinked dead
+       code and has been removed. */
     button.plan-chip {
       margin-left: 10px; display: inline-flex; align-items: center;
       min-height: 44px; padding: 0 14px;
@@ -211,6 +223,7 @@
       -webkit-backdrop-filter: none !important;
     }
   </style>
+  <link rel="stylesheet" href="../city-common/interface.css">
 </head>
 <body>
 <script type="importmap">
@@ -261,17 +274,17 @@
     <input type="file" id="skin-input" accept=".glb,model/gltf-binary" class="visually-hidden">
     <div class="skin-status" id="skin-status"></div>
 
-    <div class="entry-hint">💡 On a school iPad? Tap <b>☁️ Save to cloud</b>, write down the code, then <b>☁️ Open from cloud</b> on any device. Tip: build in the 2D planner, press "🌆 View my city" to land here instantly.</div>
+    <div class="entry-hint">Your city stays on this device. Use Save in the city to make a Champion File or cloud code for another lesson.</div>
   </div>
 </div>
 
 <!-- Save modal: name + Download / Save-to-cloud (shows the code) -->
-<div id="save-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Save my city">
+<div id="save-modal" data-i18n-aria="saveModal.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="Save my city">
   <div class="modal-backdrop" data-save-close></div>
   <div class="modal-card">
     <div class="modal-head">
       <span class="modal-title" data-i18n="saveModal.title">💾 Save my city</span>
-      <button class="modal-close" data-save-close aria-label="Close">✕</button>
+      <button class="modal-close" data-save-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <p class="save-intro" data-i18n="saveModal.intro">Give your city a name so you can find it later — a fun city name is perfect (no need for your real name).</p>
@@ -280,22 +293,22 @@
         <button id="save-download" class="entry-btn" data-i18n="saveModal.download">💾 Download</button>
         <button id="save-cloud" class="entry-btn primary-save" data-i18n="saveModal.cloud">☁️ Save to cloud</button>
       </div>
-      <div id="save-cloud-result" class="save-cloud-result" hidden></div>
+      <div id="save-cloud-result" role="status" class="save-cloud-result" hidden></div>
     </div>
   </div>
 </div>
 
 <!-- Cloud open modal: enter the code -->
-<div id="cloud-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Open from cloud">
+<div id="cloud-modal" data-i18n-aria="cloud.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="Open from cloud">
   <div class="modal-backdrop" data-cloud-close></div>
   <div class="modal-card">
     <div class="modal-head">
       <span class="modal-title" data-i18n="cloud.title">☁️ Open from cloud</span>
-      <button class="modal-close" data-cloud-close aria-label="Close">✕</button>
+      <button class="modal-close" data-cloud-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <p class="save-intro" data-i18n="cloud.intro">Type the code you got when you saved (it looks like <b>tiger-bamboo-river-umbrella</b>).</p>
-      <input id="cloud-code" class="save-input" type="text" maxlength="64" placeholder="tiger-bamboo-river-umbrella" aria-label="Cloud code" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <input id="cloud-code" class="save-input" type="text" maxlength="64" placeholder="tiger-bamboo-river-umbrella" data-i18n-aria="ui.cloudCode" aria-label="Cloud code" autocomplete="off" autocapitalize="none" spellcheck="false">
       <div class="goals-actions"><button id="cloud-load" class="plan-apply" data-i18n="cloud.load">☁️ Load my city</button></div>
       <div id="cloud-load-result" class="save-cloud-result" aria-live="polite"></div>
     </div>
@@ -303,49 +316,37 @@
 </div>
 
 <!-- Inspector's Logbook: tier emblem tap target -->
-<div id="logbook-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Inspector's Logbook">
+<div id="logbook-modal" data-i18n-aria="logbook.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="Inspector's Logbook">
   <div class="modal-backdrop" data-logbook-close></div>
   <div class="modal-card">
     <div class="modal-head">
       <span class="modal-title" data-i18n="logbook.title">🎖️ Inspector's Logbook</span>
-      <button class="modal-close" data-logbook-close aria-label="Close">✕</button>
+      <button class="modal-close" data-logbook-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
     </div>
     <div class="modal-body" id="logbook-body"></div>
   </div>
 </div>
 
 <!-- Capability Panel: planted AI machines (Stage 1 — display only, honest) -->
-<div id="cap-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Your planted AI machines">
+<div id="cap-modal" data-i18n-aria="cap.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="Your planted AI machines">
   <div class="modal-backdrop" data-cap-close></div>
   <div class="modal-card">
     <div class="modal-head">
       <span class="modal-title" data-i18n="cap.title">📦 Your planted AI machines</span>
-      <button class="modal-close" data-cap-close aria-label="Close">✕</button>
+      <button class="modal-close" data-cap-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
     </div>
     <div class="modal-body" id="cap-body"></div>
   </div>
 </div>
 <input type="file" id="cap-file" accept=".json,application/json,.cap" class="visually-hidden">
 
-<!-- Try my machine: feed the planted capability a real input, see the honest answer -->
-<div id="cap-try-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Try my machine">
-  <div class="modal-backdrop" data-captry-close></div>
-  <div class="modal-card">
-    <div class="modal-head">
-      <span class="modal-title" data-i18n="capTry.title">🧪 Try my machine</span>
-      <button class="modal-close" data-captry-close aria-label="Close">✕</button>
-    </div>
-    <div class="modal-body" id="cap-try-body"></div>
-  </div>
-</div>
-
 <!-- My plan: the weighted score breakdown carried from the 2D planner -->
-<div id="plan-modal" class="modal hidden" role="dialog" aria-modal="true" aria-label="My city plan">
+<div id="plan-modal" data-i18n-aria="plan.title" class="modal hidden" role="dialog" aria-modal="true" aria-label="My city plan">
   <div class="modal-backdrop" data-plan-close></div>
   <div class="modal-card">
     <div class="modal-head">
       <span class="modal-title" data-i18n="plan.title">📋 My city plan</span>
-      <button class="modal-close" data-plan-close aria-label="Close">✕</button>
+      <button class="modal-close" data-plan-close data-i18n-aria="ui.close" aria-label="Close">✕</button>
     </div>
     <div class="modal-body" id="plan-body"></div>
   </div>
@@ -353,21 +354,30 @@
 
 <header id="hud-top">
   <div class="hud-left"><span class="hud-title" data-i18n="hud.title">🏙️ My AI City</span></div>
-  <div class="hud-center"><span class="hud-champion">Champion</span></div>
+  <nav id="city-mode-switch" aria-label="City mode">
+    <button type="button" class="city-mode active" data-city-mode="explore" aria-pressed="true" data-i18n="ui.explore">Explore</button>
+    <button type="button" class="city-mode" data-city-mode="decorate" aria-pressed="false" data-i18n="ui.decorate">Decorate</button>
+  </nav>
   <div class="hud-right">
     <span class="hud-mission-count" data-i18n="hud.cityLabel">🤖 Your AI City</span>
     <button class="plan-chip" id="plan-ai-chip" type="button" hidden></button>
-    <button id="btn-save-hud" class="hud-chip" aria-label="Save my city (backup)" title="Save my city"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 19h14"/></g></svg></button>
-    <button id="cap-btn" class="hud-chip" aria-label="Your planted AI machines" title="Your planted AI machines"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v2M12 3v2M15 3v2M9 19v2M12 19v2M15 19v2M3 9h2M3 12h2M3 15h2M19 9h2M19 12h2M19 15h2"/></g></svg></button>
-    <button id="badge-emblem" class="badge-emblem" aria-label="Your inspector badge" title="Inspector badge"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 2 2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 16.9 6.2 19.8l1.1-6.4L2.6 8.8l6.5-.9Z"/></g></svg></button>
+    <button id="btn-save-hud" data-i18n-aria="saveModal.title" class="hud-chip" aria-label="Save my city (backup)" data-i18n-title="saveModal.title" title="Save my city"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 19h14"/></g></svg><span data-i18n="ui.save">Save</span></button>
+    <details id="city-more"><summary data-i18n="ui.optional">More / history</summary><div class="city-secondary">
+    <button id="more-home" class="hud-chip" type="button" data-i18n="ui.homeShort">Home</button>
+    <button id="more-camera" class="hud-chip" type="button" data-i18n="ui.camera">Camera</button>
+    <button id="more-hub" class="hud-chip" type="button" data-i18n="ui.exitHub">Exit to hub</button>
+    <button id="more-drive" class="hud-chip" type="button" data-i18n="ui.carTitle">Choose a car</button>
+    <button id="cap-btn" data-i18n-aria="ui.inspect" class="hud-chip" aria-label="Your planted AI machines" data-i18n-title="ui.inspect" title="Your planted AI machines"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v2M12 3v2M15 3v2M9 19v2M12 19v2M15 19v2M3 9h2M3 12h2M3 15h2M19 9h2M19 12h2M19 15h2"/></g></svg></button>
+    <button id="badge-emblem" data-i18n-aria="ui.badge" class="badge-emblem" aria-label="Your inspector badge" data-i18n-title="ui.badge" title="Inspector badge"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 2 2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 16.9 6.2 19.8l1.1-6.4L2.6 8.8l6.5-.9Z"/></g></svg></button>
+    </div></details>
   </div>
 </header>
 
-<button id="orbit-toggle" aria-label="Look around (rotate camera)" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></g></svg></button>
-<button id="skin-toggle" aria-label="Choose skin" aria-expanded="false"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c.6-3.4 3.5-5 7.5-5s6.9 1.6 7.5 5"/></g></svg></button>
-  <button id="btn-home" aria-label="Take me home" title="Take me home"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/></g></svg></button>
-  <button id="btn-next" aria-label="Select and move things" title="Select and move things"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></g></svg></button>
-  <button id="btn-hub" aria-label="Back to My AI City home page" title="Back to My AI City home page"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4"/><path d="M10 9l-3 3 3 3"/><path d="M7 12h10"/></g></svg></button>
+<button id="orbit-toggle" data-i18n-aria="ui.look" aria-label="Look around (rotate camera)" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></g></svg></button>
+<button id="skin-toggle" data-i18n-aria="ui.skin" aria-label="Choose skin" aria-expanded="false"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c.6-3.4 3.5-5 7.5-5s6.9 1.6 7.5 5"/></g></svg></button>
+  <button id="btn-home" data-i18n-aria="ui.home" aria-label="Take me home" data-i18n-title="ui.home" title="Take me home"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/></g></svg></button>
+  <button id="btn-next" data-i18n-aria="ui.move" aria-label="Select and move things" data-i18n-title="ui.move" title="Select and move things"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></g></svg></button>
+  <button id="btn-hub" data-i18n-aria="ui.hub" aria-label="Back to My AI City home page" data-i18n-title="ui.hub" title="Back to My AI City home page"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4"/><path d="M10 9l-3 3 3 3"/><path d="M7 12h10"/></g></svg></button>
   <div id="skin-panel" aria-hidden="true">
   <div class="skin-panel-title">Choose your champion</div>
   <div id="skin-list"></div>
@@ -375,32 +385,15 @@
 
 <div id="toasts"></div>
 
-<!-- Building-entry vignette + mission card -->
-<div id="enter-vignette" class="hidden"></div>
-<div id="enter-mission" class="hidden">
-  <div class="em-card">
-    <div class="em-number">🔐 MISSION 00</div>
-    <div class="em-icon">🎯</div>
-    <div class="em-title">
-      <div class="em-zh">進入</div>
-      <div class="em-en">Loading…</div>
-    </div>
-    <div class="em-theme">"Ready the AI!"</div>
-    <div class="em-reason"></div>
-    <button class="em-start" data-i18n="mission.start">▶ Start Mission</button>
-    <div class="em-bar"><div class="em-fill"></div></div>
-  </div>
-</div>
-
 <div id="quest-prompt" class="hidden">
   <div class="quest-prompt-label" id="quest-prompt-label">🏛️</div>
-  <button id="quest-prompt-btn" data-i18n="quest.enter">🎮 Enter</button>
+  <button id="quest-prompt-btn" data-i18n="quest.enter">View purpose</button>
 </div>
 
 <!-- Minigame overlay -->
-<div id="game-overlay" class="hidden">
+<div id="game-overlay" class="hidden" role="dialog" aria-modal="true" data-i18n-aria="ui.activity" aria-label="Optional activity">
   <div id="game-overlay-bar">
-    <span id="game-overlay-title">Minigame</span>
+    <span id="game-overlay-title">Optional activity</span><span data-i18n="work.linkHelp">Optional link unavailable or blank? Return to City.</span>
     <div class="game-overlay-actions">
       <button id="game-overlay-done" data-i18n="game.done">✅ 完成 Done</button>
       <button id="game-overlay-close" data-i18n="game.return">↩ 返回城市 Return to City</button>
@@ -421,12 +414,14 @@
       <button class="action-btn hidden" id="btn-flydown">⬇️<span data-i18n="ctl.descend">Descend</span></button>
       <button class="action-btn" id="btn-drive">🚗<span data-i18n="ctl.drive">Drive</span></button>
       <button class="action-btn" id="btn-taxi">🚕<span data-i18n="ctl.taxi">Taxi</span></button>
-      <button class="action-btn" id="btn-wave">👋<span data-i18n="ctl.wave">Wave</span></button>
-      <button class="action-btn" id="btn-dance">💃<span data-i18n="ctl.dance">Dance</span></button>
+      <details id="actions-tray"><summary data-i18n="ui.actions">Actions</summary><div>
+        <button class="action-btn" id="btn-wave">👋<span data-i18n="ctl.wave">Wave</span></button>
+        <button class="action-btn" id="btn-dance">💃<span data-i18n="ctl.dance">Dance</span></button>
+      </div></details>
     </div>
     <div class="walk-run">
-      <button class="move-btn" id="btn-walk" aria-label="Walk forward">🚶<span data-i18n="ctl.walk">Walk</span></button>
-      <button class="move-btn" id="btn-run" aria-label="Run forward">🏃<span data-i18n="ctl.run">Run</span></button>
+      <button class="move-btn" id="btn-walk" data-i18n-aria="ui.walk" aria-label="Walk forward">🚶<span data-i18n="ctl.walk">Walk</span></button>
+      <button class="move-btn" id="btn-run" data-i18n-aria="ui.run" aria-label="Run forward">🏃<span data-i18n="ctl.run">Run</span></button>
     </div>
   </div>
 </div>

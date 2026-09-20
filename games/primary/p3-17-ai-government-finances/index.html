@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nova's AI Pricing Lab — Teach AI to Price</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="game-container">
+
+  <!-- ═══ Comic Intro Overlay ═══ -->
+  <div id="comic-intro" class="comic-overlay">
+    <div class="comic-panel" id="comic-panel-0"></div>
+  </div>
+
+  <!-- ═══ Top Bar ═══ -->
+  <div id="top-bar">
+    <span id="game-title" class="game-title">Nova's AI Pricing Lab</span>
+    <div id="level-tabs" class="level-tabs" role="tablist" aria-label="Level selection">
+      <!-- Level tabs built dynamically -->
+    </div>
+    <span id="score-display" class="score-display"></span>
+    <div class="top-actions">
+      <button id="debug-btn" class="icon-btn" title="Debug analytics" aria-label="Toggle debug analytics"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7.5" cy="16.5" r="4"/><line x1="10.5" y1="13.5" x2="20" y2="4"/><rect x="12" y="1" width="9" height="6" rx="1.5"/></svg></button>
+      <button id="transcript-toggle" class="icon-btn" title="Conversation transcript" aria-label="Show transcript"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></button>
+      <button id="settings-toggle" class="icon-btn" title="Settings" aria-label="Open settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></button>
+    </div>
+  </div>
+
+  <!-- ═══ Main Area ═══ -->
+  <div id="main-area">
+
+    <!-- Dashboard (Left) -->
+    <div id="dashboard" class="dashboard">
+
+      <!-- File Upload Queue -->
+      <div class="dashboard-panel">
+        <h3>File Upload Queue</h3>
+        <div id="file-queue" class="file-zone">
+          <div class="empty-queue">Select a level and press Start to begin.</div>
+        </div>
+      </div>
+
+      <!-- Nova AI Knowledge -->
+      <div id="nova-knowledge-panel" class="dashboard-panel">
+        <h3>🤖 Nova's AI Training</h3>
+        <div id="nova-knowledge-bar" class="nova-knowledge-bar">
+          <div id="nova-knowledge-fill" class="nova-knowledge-fill" style="width:0%"></div>
+        </div>
+        <div id="nova-knowledge-text" class="nova-knowledge-text">Nova is waiting to learn from you...</div>
+        <div id="nova-lesson-display" class="nova-lesson-display" style="display:none"></div>
+        <div class="concept-tracker" id="conceptTrackerL17"></div>
+      </div>
+
+      <!-- Meters -->
+      <div class="dashboard-panel">
+        <h3>System Meters</h3>
+        <div class="meter-group">
+          <div id="ram-meter" class="meter-row meter-ram">
+            <span class="meter-label">RAM <span class="meter-ai-label">AI COMPLEXITY</span></span>
+            <div class="meter-bar-outer">
+              <div id="ram-bar" class="meter-bar-inner" style="width:0%"></div>
+            </div>
+            <span id="ram-value" class="meter-value">0%</span>
+          </div>
+          <div id="load-meter" class="meter-row meter-load">
+            <span class="meter-label">Sys Load <span class="meter-ai-label">AI LOAD BALANCING</span></span>
+            <div class="meter-bar-outer">
+              <div id="load-bar" class="meter-bar-inner" style="width:0%"></div>
+            </div>
+            <span id="load-value" class="meter-value">0%</span>
+          </div>
+          <div id="fairness-meter" class="meter-row meter-fairness" style="display:none">
+            <span class="meter-label">Fairness <span class="meter-ai-label">AI FAIRNESS</span></span>
+            <div class="meter-bar-outer">
+              <div id="fairness-bar" class="meter-bar-inner" style="width:100%"></div>
+            </div>
+            <span id="fairness-value" class="meter-value">100%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls (Right) -->
+    <div id="controls" class="controls">
+
+      <!-- Sliders -->
+      <div class="control-panel">
+        <h3>Billing Parameters</h3>
+
+          <div id="page-slider-group" class="slider-group">
+          <div class="slider-header">
+            <label for="page-slider">Page Count Multiplier</label>
+            <span id="page-slider-value" class="slider-value">1x</span>
+          </div>
+          <div class="slider-ai-label">AI PRICING (by file size)</div>
+          <div class="slider-wrapper">
+            <input type="range" id="page-slider" min="1" max="10" value="1" step="1" aria-label="Page Count Multiplier">
+          </div>
+          <div class="slider-labels">
+            <span>1x</span><span>5x</span><span>10x</span>
+          </div>
+        </div>
+
+        <div id="ram-slider-group" class="slider-group" style="margin-top:var(--sp-md)">
+          <div class="slider-header">
+            <label for="ram-slider">RAM Usage Premium Fee</label>
+            <span id="ram-slider-value" class="slider-value">1x</span>
+          </div>
+          <div class="slider-ai-label">AI FAIRNESS (by complexity)</div>
+          <div class="slider-wrapper">
+            <input type="range" id="ram-slider" min="1" max="10" value="1" step="1" aria-label="RAM Usage Premium Fee">
+          </div>
+          <div class="slider-labels">
+            <span>1x</span><span>5x</span><span>10x</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing Formula Display -->
+      <div id="formula-panel" class="control-panel" style="border-color:var(--color-primary-dim)">
+        <h3>Pricing Formula</h3>
+        <div id="formula-expression" class="formula-expression">Fee = (Pages × PM) + (RAM × RP)</div>
+        <div id="formula-calculation" class="formula-calculation"></div>
+        <div id="formula-target" class="formula-target"></div>
+        <div id="formula-hint" class="formula-hint"></div>
+      </div>
+
+      <!-- Token Counter -->
+      <div class="control-panel">
+        <h3>Revenue Tracker</h3>
+        <div class="token-display">
+          <div>
+            <div class="token-label">Tokens Collected</div>
+            <div id="token-target" class="token-target" style="display:none">Target: 0</div>
+          </div>
+          <span id="token-count" class="token-count">0</span>
+        </div>
+
+        <div id="cost-match-panel" class="cost-match" style="display:none; margin-top:var(--sp-sm)">
+          <div class="match-label" id="cost-match-info">Cost Match</div>
+          <div class="match-value" id="cost-match-value">--</div>
+        </div>
+
+        <div id="timer-display" class="timer-display" style="display:none; margin-top:var(--sp-sm)">
+          <div class="timer-label">Time Remaining</div>
+          <div class="timer-value" id="timer-value">45s</div>
+        </div>
+      </div>
+
+      <!-- Start Button -->
+      <div class="control-panel" style="padding:0; background:transparent; border:none;">
+        <button id="action-btn" class="action-btn"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg> Start Processing Files</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Instruction Bar & Nova Status ═══ -->
+  <div id="instruction-bar">
+    <span id="level-badge" class="level-badge">L1</span>
+    <span id="instruction-text">Select a level and press Start to begin.</span>
+    <span id="nova-status" class="nova-status" style="display:none"></span>
+  </div>
+
+  <!-- ═══ Nova AI Area ═══ -->
+  <div id="nova-area">
+    <div id="nova-speech" class="nova-speech">
+      <div class="speech-sender">Nova</div>
+      <span id="nova-speech-text"></span>
+    </div>
+    <div id="text-input-area" class="text-input-area">
+      <input type="text" id="nova-text-input" placeholder="Type a message to Nova..." aria-label="Type message to Nova">
+      <button id="text-send-btn">Send</button>
+    </div>
+    <div id="nova-avatar" data-confidence="low" tabindex="0" role="button" aria-label="Nova AI assistant"></div>
+  </div>
+
+  <!-- ═══ Level Result Overlay ═══ -->
+  <div id="result-overlay">
+    <div class="result-card">
+      <div id="result-icon" class="result-icon"></div>
+      <h2 id="result-title"></h2>
+      <div id="result-stars" class="result-stars"></div>
+      <div id="result-message" class="result-message"></div>
+      <div id="result-metrics" class="result-metrics"></div>
+      <div class="result-buttons">
+        <button id="retry-btn" class="result-btn retry-btn">Try Again</button>
+        <button id="next-btn" class="result-btn">Next Level &#8594;</button>
+        <button id="result-menu-btn" class="result-btn">Back to Levels</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Level Intro Popup (shows description + AI lesson on tab click) ═══ -->
+  <div id="level-intro-popup" class="level-intro-popup" style="display:none">
+    <div class="level-intro-card">
+      <button class="popup-close" id="li-close">&times;</button>
+      <div class="li-badge" id="li-badge">L1</div>
+      <h2 class="li-title" id="li-title">Day 1</h2>
+      <div class="li-body">
+        <div class="li-task" id="li-task"></div>
+        <div class="li-ailesson" id="li-ailesson"></div>
+        <div class="li-novalesson" id="li-novalesson"></div>
+      </div>
+      <button class="li-btn" id="li-start-btn">▶ Start Level</button>
+    </div>
+  </div>
+
+  <!-- ═══ Crash Overlay ═══ -->
+  <div id="crash-overlay">
+    <div class="crash-flash">SYSTEM CRASH</div>
+  </div>
+
+  <!-- ═══ Debug Analytics Panel ═══ -->
+  <pre id="debug-analytics" class="debug-analytics"></pre>
+
+  <!-- ═══ Master Certification Screen ═══ -->
+  <div id="master-cert" class="ch-overlay" style="display:none">
+    <div class="cert-card">
+      <h2 class="cert-title">🏆 Nova Wins the Council!</h2>
+      <p class="cert-subtitle">All 7 days complete. Here is what Nova learned — and what YOU taught her.</p>
+      <div class="cert-grid-2col" id="certConceptGrid"></div>
+      <div class="cert-stats" id="certStatsL17"></div>
+      <div class="cert-cta">
+        <p class="cert-cta-text"><strong>What a third party sees:</strong> A child just learned how AI pricing, fairness, load balancing, and autonomous systems work — by being Nova's teacher for a week.</p>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+        <button class="btn-primary" id="certBackBtn">↩ Back to Levels</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Final Exam Overlay ═══ -->
+  <div id="exam-overlay-L17" class="ch-overlay" style="display:none">
+    <div class="exam-card">
+      <div id="exam-intro">
+        <div style="font-size:48px;text-align:center;margin-bottom:12px">🧠</div>
+        <h2 style="text-align:center;margin-bottom:8px">AI Pricing & Fairness Exam</h2>
+        <p style="text-align:center;color:var(--color-text-secondary);margin-bottom:16px;line-height:1.5">Answer 8 questions about AI pricing, fairness, and autonomous systems.<br>You can take this exam anytime — no need to complete all levels first.</p>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px;padding:12px;background:rgba(255,255,255,.03);border-radius:8px">
+          <div style="font-size:13px">⭐ 8 questions · Multiple choice · A/B/C/D</div>
+          <div style="font-size:13px">⭐ 7-8 correct = 3 stars · 5-6 correct = 2 stars</div>
+          <div style="font-size:13px">⭐ Covers: Scaling, Complexity, Balance, Fairness, Pressure, Optimization, Autonomy, Enterprise</div>
+        </div>
+        <button id="exam-start-btn" class="btn-primary" style="display:block;width:100%;padding:14px;font-size:16px">▶ Start Exam</button>
+      </div>
+      <div id="exam-question-area" style="display:none">
+        <h3 id="exam-question"></h3>
+        <div id="exam-choices"></div>
+      </div>
+      <div id="exam-feedback" style="display:none">
+        <div id="exam-feedback-icon"></div>
+        <p id="exam-feedback-text"></p>
+      </div>
+      <div id="exam-actions">
+        <button id="exam-next-btn" class="btn-primary" style="display:none">Next →</button>
+      </div>
+      <div id="exam-results" style="display:none">
+        <h2 id="exam-results-title">🏆 AI Pricing & Fairness Exam</h2>
+        <div id="exam-stars-display"></div>
+        <p id="exam-results-text"></p>
+        <div id="exam-recap"></div>
+        <button id="exam-cert-btn" class="btn-primary">View Certification</button>
+      </div>
+      <div id="exam-header" style="display:none">
+        <span id="exam-progress">Question 1 of 8</span>
+        <span id="exam-concept-icon"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Toast Container ═══ -->
+  <div id="toast-container"></div>
+
+  <!-- ═══ Settings Modal ═══ -->
+  <div id="settings-overlay">
+    <div class="settings-card">
+      <h2>Settings <span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></span></h2>
+
+      <!-- Model Status -->
+      <div class="model-status">
+        <div class="ms-label">AI Model</div>
+        <div class="ms-value">Template-based (offline)</div>
+        <div class="model-progress" style="display:none"><div class="fill" style="width:100%"></div></div>
+      </div>
+
+      <!-- Session Metrics -->
+      <div id="session-metrics" class="session-metrics">
+        <div class="sm-label">Session</div>
+        <div class="sm-row"><span>Utterances</span><span>0</span></div>
+      </div>
+
+      <!-- Speech Rate -->
+      <div class="settings-group">
+        <label>Speed <span id="rate-value" class="val">0.85x</span></label>
+        <input type="range" id="speech-rate" min="0.5" max="2.0" step="0.05" value="0.85" aria-label="Speech rate">
+      </div>
+
+      <!-- Volume -->
+      <div class="settings-group">
+        <label>Volume <span id="volume-value" class="val">90%</span></label>
+        <input type="range" id="speech-volume" min="0" max="1" step="0.05" value="0.9" aria-label="Speech volume">
+      </div>
+
+      <!-- Voice -->
+      <div class="settings-group">
+        <label>Voice</label>
+        <select id="voice-select" aria-label="Voice selection">
+          <option value="">Default (System)</option>
+        </select>
+      </div>
+
+      <!-- Mute -->
+      <div class="toggle-row">
+        <span>Mute AI Voice</span>
+        <input type="checkbox" id="mute-toggle" aria-label="Mute AI voice">
+      </div>
+
+      <!-- Mic -->
+      <div class="toggle-row">
+        <span>Microphone</span>
+        <input type="checkbox" id="mic-toggle" checked aria-label="Microphone toggle">
+      </div>
+
+      <button class="settings-close">Close Settings</button>
+    </div>
+  </div>
+
+  <!-- ═══ Transcript Drawer ═══ -->
+  <div id="transcript-drawer">
+    <div class="transcript-header">
+      <h2>Conversation</h2>
+      <button class="drawer-close" aria-label="Close transcript"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div id="transcript-list"></div>
+  </div>
+
+</div>
+
+<!-- ═══ Scripts (load order matters) ═══ -->
+<script src="nova-svg.js"></script>
+<script src="nova-comic.js"></script>
+<script src="citizens.js"></script>
+<script src="audio.js"></script>
+<script src="transcript.js"></script>
+<script src="settings.js"></script>
+<script src="intents.js"></script>
+<script src="conversation.js"></script>
+<script src="game.js"></script>
+<script src="main.js"></script>
+
+</body>
+</html>

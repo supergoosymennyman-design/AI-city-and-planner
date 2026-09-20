@@ -1,0 +1,152 @@
+/* Outdoor My Work uses the City modal vocabulary and touch-sized controls. */
+#my-work-modal .modal-card {
+  width: min(680px, calc(100vw - 24px)); max-height: 85vh; overflow: auto;
+  background: #142330; border: 1px solid #78918b; border-radius: 16px;
+}
+#my-work-modal h2 { font-size: 24px; line-height: 1.25; margin: 0; }
+#my-work-modal p { margin: 12px 0; line-height: 1.5; }
+#my-work-modal button, #my-work-modal select, #my-work-modal summary { min-height: 44px; }
+#my-work-modal button, #my-work-modal select {
+  padding: 10px 14px; font: inherit; font-size: 15px;
+  color: #f4f5ef; background: #233e4b; border: 1px solid #688792; border-radius: 8px;
+}
+#my-work-modal button:hover { background: #345568; }
+#my-work-modal button:focus-visible, #my-work-modal summary:focus-visible,
+#my-work-modal select:focus-visible { outline: 3px solid #e6b95e; outline-offset: 3px; }
+#my-work-modal summary { padding: 12px 0; cursor: pointer; }
+#my-work-modal pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
+#my-work-modal details { margin-top: 16px; }
+#my-work-modal label { display: block; margin-top: 12px; }
+#my-work-modal select { max-width: 100%; }
+#my-work-modal .work-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+#my-work-modal .work-destination { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+#my-work-modal .work-destination span { flex: 1; }
+#my-work-modal #work-optional { border-top: 1px solid #486070; padding-top: 8px; }
+#my-work-modal #work-content { padding: 0 0 8px; }
+.work-route-controls, .delivery-settings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.work-route-controls label, .delivery-settings label { margin-top:0 !important; }
+.route-verdict, #delivery-result { padding:10px 12px; border-left:5px solid #39d98a; background:#1b3037; }
+.route-verdict.over, #delivery-result[data-delivery-status="stranded"], #delivery-result[data-delivery-status="infeasible"] { border-left-color:#ff6b5f; }
+.route-directions, .delivery-rules { padding-left:24px; line-height:1.55; }
+.route-directions li, .delivery-rules li { margin:6px 0; }
+.work-check { display:flex !important; gap:8px; align-items:center; min-height:44px; }
+.work-check input { width:22px; height:22px; flex:0 0 auto; }
+.delivery-buttons { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+.delivery-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.delivery-metrics div { padding:8px; background:#203944; border-radius:7px; }
+.delivery-metrics dt { font-size:12px; color:#c4d5d4; }
+.delivery-metrics dd { margin:3px 0 0; font-size:18px; font-weight:800; }
+.delivery-save { font-size:13px; color:#c4d5d4; }
+#minimap { height: auto; }
+#minimap canvas { display: block; width: 100%; height: auto; pointer-events: auto; }
+#minimap button { pointer-events: auto; color: #f4f5ef; background: #233e4b; border: 1px solid #688792; border-radius: 8px; font: inherit; }
+
+/* Primary work stays visible; historical records remain available in More. */
+#hud-top { height:auto; min-height:56px; align-items:center; }
+#hud-top .hud-right { display:flex; align-items:center; gap:8px; margin-left:auto; }
+#hud-top .hud-chip { flex-shrink:0; }
+#hud-top .hud-mission-count, #hud-top .hud-center { display:none; }
+#btn-save-hud { width:auto; padding:0 12px; display:flex; gap:8px; align-items:center; }
+#btn-save-hud span { font-size:15px; font-weight:800; }
+#my-work-btn { order:-1; width:auto; padding:0 12px; min-height:44px; font-size:15px; }
+#city-more { position:relative; pointer-events:auto; }
+#city-more summary { cursor:pointer; padding:12px; font-size:14px; }
+.city-secondary { position:absolute; top:100%; right:0; display:flex; gap:8px; padding:12px; background:#142330; border:1px solid #78918b; border-radius:8px; }
+body #quest-prompt { top:124px; max-width:calc(100vw - 24px); font-size:14px; }
+.drive-overlay { z-index:2147483500 !important; }
+.drive-panel { max-height:85dvh; overflow:auto; }
+@media(max-width:720px) {
+  .work-route-controls, .delivery-settings, .delivery-metrics { grid-template-columns:1fr; }
+  #hud-top { padding:6px; gap:4px; }
+  #hud-top .hud-left { display:none; }
+  #hud-top .hud-right { width:100%; flex-wrap:wrap; gap:4px; justify-content:flex-start; }
+  #plan-ai-chip { order:5; max-width:110px; overflow:hidden; text-overflow:ellipsis; }
+  .entry-card { max-height:92dvh; overflow:auto; }
+  /* Body specificity overrides the older embedded toolbar positions. */
+  body #orbit-toggle, body #skin-toggle, body #prop-toggle,
+  body #btn-home, body #btn-next, body #btn-hub { top:116px; }
+  body #skin-toggle { left:16px; }
+  body #orbit-toggle { left:72px; }
+  body #prop-toggle { left:128px; }
+  body #btn-home { left:184px; }
+  body #btn-next { left:240px; }
+  body #btn-hub { left:296px; }
+  body #quest-prompt { top:174px; width:calc(100vw - 24px); }
+  body #time-of-day { top:244px; }
+  #minimap { top:auto; bottom:280px; }
+}
+
+/* Focused City chrome: Explore and Decorate never compete for the same space. */
+#city-mode-switch {
+  display:flex; align-items:center; gap:3px; padding:3px;
+  border:1px solid #46576a; border-radius:11px; background:#111d2a;
+}
+.city-mode {
+  min-width:92px; min-height:42px; padding:7px 13px; border:0; border-radius:8px;
+  background:transparent; color:#c4d0dc; font:800 14px/1 "Nunito",sans-serif; cursor:pointer;
+}
+.city-mode.active { background:#d8fbfb; color:#09212a; }
+
+/* Old icon controls retain their event/data owners but are no longer a toolbar. */
+body #orbit-toggle, body #skin-toggle, body #btn-home, body #btn-hub {
+  position:fixed !important; left:-200vw !important; top:0 !important;
+}
+#city-more > summary { min-height:44px; display:flex; align-items:center; }
+.city-secondary {
+  flex-direction:column; width:190px; max-height:calc(100dvh - 72px); overflow:auto;
+  box-shadow:0 12px 32px rgba(0,0,0,.45);
+}
+.city-secondary > button { min-height:44px; padding:8px 12px; border:1px solid #526273; border-radius:8px; background:#1d2d3b; color:#f4f7fa; text-align:left; }
+.city-secondary #time-of-day { position:static !important; inset:auto !important; width:100%; min-height:44px; transform:none !important; text-align:left; }
+
+#minimap { width:128px !important; height:auto !important; pointer-events:auto; overflow:hidden; }
+#minimap canvas { width:128px !important; height:128px !important; cursor:pointer; }
+#minimap button { width:100%; min-height:44px; padding:5px; }
+body.major-panel-open #minimap { opacity:0; pointer-events:none; transform:translateX(12px); }
+
+body[data-city-mode="decorate"] #controls,
+body[data-city-mode="decorate"] #quest-prompt,
+body[data-city-mode="decorate"] .bw-bubble { display:none !important; }
+body[data-city-mode="explore"] #prop-toggle,
+body[data-city-mode="explore"] #btn-next,
+body[data-city-mode="explore"] .resize-panel { display:none !important; }
+body[data-city-mode="decorate"] #prop-toggle,
+body[data-city-mode="decorate"] #btn-next {
+  display:flex !important; align-items:center; justify-content:center; width:auto !important; min-width:116px; height:48px;
+  top:auto !important; bottom:18px !important; border:1px solid #607184; border-radius:11px; background:#132433; color:#f8fafc;
+}
+body[data-city-mode="decorate"] #prop-toggle { left:18px !important; }
+body[data-city-mode="decorate"] #prop-toggle::after { content:' Models'; margin-left:7px; font-weight:800; }
+body[data-city-mode="decorate"] #btn-next { left:146px !important; }
+body[data-city-mode="decorate"] #btn-next::after { content:' Select / Move'; margin-left:7px; font-weight:800; }
+
+#btn-drive { display:none; } /* Nearby drive affordance may reveal this via data-contextual. */
+#btn-drive[data-contextual="true"] { display:flex; }
+#actions-tray { position:relative; }
+#actions-tray > summary {
+  display:grid; place-items:center; width:76px; height:62px; border:1px solid rgba(0,242,254,.45);
+  border-radius:14px; background:#111d2a; color:#f8fafc; font:800 12px/1 "Nunito",sans-serif; cursor:pointer; list-style:none;
+}
+#actions-tray > summary::-webkit-details-marker { display:none; }
+#actions-tray > div { position:absolute; left:0; bottom:calc(100% + 8px); display:flex; gap:8px; padding:8px; border:1px solid #526273; border-radius:12px; background:#111d2a; }
+
+@media(max-width:720px) {
+  #hud-top .hud-right { width:auto; flex-wrap:nowrap; margin-left:0; }
+  #hud-top { justify-content:space-between; }
+  #btn-save-hud span, #my-work-btn { font-size:12px; }
+  #btn-save-hud { width:44px; padding:0; justify-content:center; }
+  #btn-save-hud span { display:none; }
+  .city-mode { min-width:78px; padding-inline:8px; }
+  #minimap { top:66px; right:8px; bottom:auto; }
+}
+
+@media(max-width:520px) {
+  #hud-top { padding:5px 6px; }
+  #my-work-btn { max-width:84px; padding-inline:7px; }
+  .city-mode { min-width:68px; font-size:12px; }
+  #city-more { display:none; }
+  body[data-city-mode="decorate"] #prop-toggle { left:8px !important; bottom:12px !important; }
+  body[data-city-mode="decorate"] #btn-next { left:132px !important; bottom:12px !important; }
+}
+
+#entry-cloud-save, #entry-save { display:none !important; }

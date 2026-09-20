@@ -353,19 +353,20 @@ export function walkPath(graph, fromIdx, toIdx) {
  *
  * `ok` is true when the nearest instance is within WALK_BUDGET (the route is
  * drawn green) and false when the closest is too far (drawn red — the child
- * sees WHY the home is unserved). Deterministic; null when the home has no
- * road attachment or there is no instance of that need at all.
+ * sees WHY the home is unserved). Unavailable destinations have explicit statuses and empty paths.
+ * No selected home returns one no-selected-home status.
  */
 export function homeReachRoutes(layout, walk, homeIdx) {
   const graph = walk && walk.graph;
   const buildings = layout.buildings || [];
   const parks = layout.parks || [];
   const home = buildings[homeIdx];
-  if (!home || home.type !== 'housing' || !graph) return [];
-  const acc = graph.access.buildings[homeIdx];
-  if (!acc) return [];
-
+  const unavailable = (type, status) => ({ type, status, dist: null, ok: false, path: [] });
+  if (!home || home.type !== 'housing') return [unavailable(null, 'no-selected-home')];
   const needs = [...SERVICE_TYPES, ...UTILITY_TYPES, 'park'];
+  const acc = graph?.access.buildings[homeIdx];
+  if (!acc) return needs.map((type) => unavailable(type, 'no-road-access'));
+
   // Node index of every instance of each need (so we can find the nearest).
   const targetNodes = {};
   for (const t of needs) targetNodes[t] = [];
@@ -385,15 +386,19 @@ export function homeReachRoutes(layout, walk, homeIdx) {
   const routes = [];
   for (const t of needs) {
     const nodes = targetNodes[t];
-    if (!nodes.length) continue;
+    if (!nodes.length) {
+      const exists = t === 'park' ? parks.length > 0 : buildings.some((b) => b.type === t);
+      routes.push(unavailable(t, exists ? 'no-road-access' : 'absent-destination'));
+      continue;
+    }
     let bestIdx = -1;
     let best = Infinity;
     for (const n of nodes) {
       if (dist[n] < best) { best = dist[n]; bestIdx = n; }
     }
-    if (bestIdx < 0 || !Number.isFinite(best)) continue;
+    if (bestIdx < 0 || !Number.isFinite(best)) { routes.push(unavailable(t, 'disconnected')); continue; }
     const path = reconstruct(prev, bestIdx).map((i) => ({ x: graph.nodes[i].x, z: graph.nodes[i].z }));
-    routes.push({ type: t, dist: Math.round(best), ok: best <= WALK_BUDGET, path });
+    routes.push({ type: t, status: best <= WALK_BUDGET ? 'reachable' : 'over-budget', dist: Math.round(best), ok: best <= WALK_BUDGET, path });
   }
   return routes;
 }

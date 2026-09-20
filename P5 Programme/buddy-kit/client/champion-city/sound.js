@@ -4,6 +4,7 @@
 // until a user gesture) by resuming on demand.
 
 let ctx = null;
+let _gestureWired = false;
 
 function getCtx() {
   if (!ctx) {
@@ -13,6 +14,37 @@ function getCtx() {
   }
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
   return ctx;
+}
+
+/**
+ * Explicitly unlock audio from a direct user gesture (tap/keydown). iOS Safari
+ * blocks ctx.resume() when it is called asynchronously (e.g. inside a timer or
+ * fetch callback), so every app should call initAudio() on its first "Start /
+ * Continue" button press. Safe to call more than once.
+ */
+export function initAudio() {
+  const c = getCtx();
+  if (c && c.state === 'suspended') {
+    return c.resume().catch(() => {});
+  }
+  return Promise.resolve();
+}
+
+/**
+ * One-time safety net: the very first tap/click/keydown anywhere unlocks the
+ * AudioContext, so a beep triggered slightly later (mission card, alert timer)
+ * is never silently blocked. This runs once per page load.
+ */
+export function armAudioGestureUnlock() {
+  if (_gestureWired || typeof window === 'undefined') return;
+  _gestureWired = true;
+  const unlock = () => {
+    initAudio();
+    // Keep the listeners: subsequent beeps may come after a long idle where the
+    // context re-suspends, and re-arming is harmless.
+  };
+  window.addEventListener('pointerdown', unlock, { passive: true });
+  window.addEventListener('keydown', unlock, { passive: true });
 }
 
 // A single beep with a frequency envelope (optional second tone for dual beeps).

@@ -177,7 +177,7 @@ namespace AI2School.Game
                 string prefabName = PickPrefab(piece, p);
                 if (prefabName != null)
                     go = SpawnModel(prefabName, new Vector3(p.x, 0f, p.z),
-                        piece.footprintMeters[0], piece.footprintMeters[1]);
+                        piece.footprintMeters[0], piece.footprintMeters[1], p.rotationY);
                 if (go == null)
                     go = ProceduralBuildings.Create(piece, p);   // fallback
                 if (go != null) { _visuals.Add(go); go.transform.SetParent(transform, false); }
@@ -202,13 +202,14 @@ namespace AI2School.Game
             return piece.prefab;
         }
 
-        /// <summary>Instantiate a prefab and scale it to fit a footprint (w × d metres), sitting on the ground.</summary>
-        static GameObject SpawnModel(string prefabName, Vector3 pos, float targetW, float targetD)
+        /// <summary>Instantiate a prefab, rotate it, and scale it to fit a footprint (w × d metres), sitting on the ground.</summary>
+        static GameObject SpawnModel(string prefabName, Vector3 pos, float targetW, float targetD, float rotationY)
         {
             var prefab = Resources.Load<GameObject>("Prefabs/" + prefabName);
             if (prefab == null) return null;
             var go = Object.Instantiate(prefab);
             go.transform.position = Vector3.zero;
+            go.transform.rotation = Quaternion.Euler(0f, rotationY, 0f);
             var b = FitBounds(go);
             if (b.size.x > 0.01f && b.size.z > 0.01f)
             {
@@ -415,16 +416,27 @@ namespace AI2School.Game
         public void HudToast(string msg) => _hud?.Toast(msg);
 
         /// <summary>Place a palette piece at world (x,z), snapped to the grid. Public for smoke/UI tests.</summary>
-        public bool TryPlace(string pieceId, float x, float z)
+        public bool TryPlace(string pieceId, float x, float z) => TryPlace(pieceId, x, z, 0f);
+
+        /// <summary>Place a palette piece at world (x,z) rotated (90° steps), snapped to the grid.</summary>
+        public bool TryPlace(string pieceId, float x, float z, float rotationY)
         {
             var piece = FindPalette(pieceId);
             if (piece == null) return false;
             float cx = Mathf.Round(x / CellSize) * CellSize;
             float cz = Mathf.Round(z / CellSize) * CellSize;
-            if (OverlapsAny(cx, cz, piece.footprintMeters)) { _hud?.Toast("Overlaps another building."); return false; }
+            float rot = Mathf.Round(rotationY / 90f) * 90f;
+            // Roads are infrastructure: they may touch/connect, so they don't
+            // participate in the building-overlap check.
+            bool roadExempt = piece.category == "road";
+            if (!roadExempt && OverlapsAny(cx, cz, rot, piece.footprintMeters))
+            {
+                _hud?.Toast("Overlaps another building.");
+                return false;
+            }
             if (BudgetUsed + piece.cost > BudgetMax) { _hud?.Toast("Not enough budget."); return false; }
 
-            Pieces.Add(new PlacedPieceData { pieceId = piece.pieceId, x = cx, z = cz });
+            Pieces.Add(new PlacedPieceData { pieceId = piece.pieceId, x = cx, z = cz, rotationY = rot });
             BudgetUsed += piece.cost;
             ApplyVisuals();
             _hud?.Refresh();
@@ -438,8 +450,8 @@ namespace AI2School.Game
                 var p = Pieces[i];
                 var piece = FindPalette(p.pieceId);
                 var fp = piece?.footprintMeters ?? new[] { 8f, 8f };
-                var half = new Vector2(fp[0] / 2f, fp[1] / 2f);
-                if (Mathf.Abs(world.x - p.x) <= half.x && Mathf.Abs(world.z - p.z) <= half.y)
+                RotatedHalfExtents(fp, p.rotationY, out var hx, out var hz);
+                if (Mathf.Abs(world.x - p.x) <= hx && Mathf.Abs(world.z - p.z) <= hz)
                 {
                     BudgetUsed = Mathf.Max(0, BudgetUsed - (piece?.cost ?? 0));
                     Pieces.RemoveAt(i);
@@ -450,16 +462,30 @@ namespace AI2School.Game
             }
         }
 
-        bool OverlapsAny(float x, float z, float[] fp)
+        bool OverlapsAny(float x, float z, float rotY, float[] fp)
         {
+            RotatedHalfExtents(fp, rotY, out var hx, out var hz);
             foreach (var p in Pieces)
             {
                 var other = FindPalette(p.pieceId);
-                var ofp = other?.footprintMeters ?? new[] { 8f, 8f };
-                if (Mathf.Abs(x - p.x) < (fp[0] + ofp[0]) / 2f + 1f &&
-                    Mathf.Abs(z - p.z) < (fp[1] + ofp[1]) / 2f + 1f) return true;
+                if (other == null) continue;
+                if (other.category == "road") continue;   // roads are infrastructure, not blocking
+                var ofp = other.footprintMeters ?? new[] { 8f, 8f };
+                RotatedHalfExtents(ofp, p.rotationY, out var ohx, out var ohz);
+                if (Mathf.Abs(x - p.x) < hx + ohx + 1f && Mathf.Abs(z - p.z) < hz + ohz + 1f) return true;
             }
             return false;
+        }
+
+        /// <summary>Axis-aligned half-extents of a footprint rotated around Y (90°-step friendly).</summary>
+        static void RotatedHalfExtents(float[] fp, float rotY, out float hx, out float hz)
+        {
+            float rad = rotY * Mathf.Deg2Rad;
+            float w = (fp != null && fp.Length > 0 ? fp[0] : 8f) * 0.5f;
+            float d = (fp != null && fp.Length > 1 ? fp[1] : 8f) * 0.5f;
+            float c = Mathf.Abs(Mathf.Cos(rad)), s = Mathf.Abs(Mathf.Sin(rad));
+            hx = w * c + d * s;
+            hz = w * s + d * c;
         }
 
         // ── Modes (Planning ↔ Simulating with camera tilt) ───────────────────
@@ -601,7 +627,7 @@ namespace AI2School.Game
                     id = LegacyPieceMap(id);
                     if (id == null) continue;   // unknown piece — drop silently
                 }
-                Pieces.Add(new PlacedPieceData { pieceId = id, x = p.x, z = p.z });
+                Pieces.Add(new PlacedPieceData { pieceId = id, x = p.x, z = p.z, rotationY = p.rotationY });
             }
             MasterSeed = data.masterSeed;
             BudgetUsed = 0;

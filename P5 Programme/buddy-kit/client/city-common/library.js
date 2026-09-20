@@ -57,6 +57,10 @@ export const LIBRARY = [
   { id: 'veh_van', name: 'Van', emoji: '🚐', glb: '../library/vehicles/kenney-van.glb', category: 'vehicles', footprint: [1.5, 2.75], height: 1.2 },
   { id: 'veh_truck', name: 'Truck', emoji: '🚚', glb: '../library/vehicles/kenney-truck.glb', category: 'vehicles', footprint: [1.5, 3.25], height: 1.5 },
   { id: 'veh_race', name: 'Race Car', emoji: '🏎️', glb: '../library/vehicles/kenney-race.glb', category: 'vehicles', footprint: [1.2, 2.6], height: 0.63 },
+  // Owner-vetted commercial-use intake. Both files are normalised Y-up, with
+  // their length along Z, and are deliberately the small default traffic pair.
+  { id: 'veh_audi_a7', name: 'Audi A7', nameZh: '奧迪 A7', emoji: '🚗', glb: '../library/vehicles/audi-a7.glb', category: 'vehicles', footprint: [2.13, 4.96], height: 1.43, drivable: true, commercialVehicle: true, targetLength: 5.0, targetWidth: 2.05 },
+  { id: 'veh_audi_rs_q8', name: 'Audi RS Q8', nameZh: '奧迪 RS Q8', emoji: '🚙', glb: '../library/vehicles/audi-rs-q8.glb', category: 'vehicles', footprint: [2.23, 5.00], height: 1.70, drivable: true, commercialVehicle: true, targetLength: 5.1, targetWidth: 2.12 },
   { id: 'ch_bunny', name: 'Bunny', emoji: '🐰', glb: '../library/characters/kenney-bunny.glb', category: 'characters', footprint: [1, 1], height: 1 },
   { id: 'ch_cat', name: 'Cat', emoji: '🐱', glb: '../library/characters/kenney-cat.glb', category: 'characters', footprint: [1, 1], height: 1 },
   { id: 'ch_dog', name: 'Dog', emoji: '🐶', glb: '../library/characters/kenney-dog.glb', category: 'characters', footprint: [1, 1], height: 1 },
@@ -1302,19 +1306,6 @@ export const LIBRARY = [
   { id: 'ch_fish_coral_grouper', name: "Coral Grouper", emoji: '🐠', glb: '../library/characters/quaternius-fish-coral-grouper.glb', category: 'characters', footprint: [3.18, 5.26], height: 2.57 },
   { id: 'ch_fish_royal_gramma', name: "Royal Gramma", emoji: '🐠', glb: '../library/characters/quaternius-fish-royal-gramma.glb', category: 'characters', footprint: [2.64, 4.41], height: 1.95 },
   { id: 'ch_fish_zebra_clownfish', name: "Zebra Clownfish", emoji: '🐠', glb: '../library/characters/quaternius-fish-zebra-clownfish.glb', category: 'characters', footprint: [4.32, 5.25], height: 3.01 },
-  { id: 'bld_farm_barn', name: "Barn", emoji: '🏚️', glb: '../library/buildings/quaternius-farm-barn.glb', category: 'buildings', footprint: [7.73, 8.22], height: 6.01 },
-  { id: 'bld_farm_barn_big', name: "Big Barn", emoji: '🏚️', glb: '../library/buildings/quaternius-farm-barn-big.glb', category: 'buildings', footprint: [7.73, 8.22], height: 7.89 },
-  { id: 'bld_farm_barn_open', name: "Open Barn", emoji: '🏚️', glb: '../library/buildings/quaternius-farm-barn-open.glb', category: 'buildings', footprint: [5.74, 6.18], height: 4.74 },
-  { id: 'bld_farm_barn_small', name: "Small Barn", emoji: '🏚️', glb: '../library/buildings/quaternius-farm-barn-small.glb', category: 'buildings', footprint: [6.08, 6.27], height: 4.96 },
-  { id: 'bld_farm_chicken_coop', name: "Chicken Coop", emoji: '🐔', glb: '../library/buildings/quaternius-farm-chicken-coop.glb', category: 'buildings', footprint: [2.41, 2.15], height: 1.85 },
-  { id: 'bld_farm_silo', name: "Silo", emoji: '🌾', glb: '../library/buildings/quaternius-farm-silo.glb', category: 'buildings', footprint: [3.67, 3.51], height: 9.07 },
-  { id: 'bld_farm_silo_house', name: "Silo House", emoji: '🌾', glb: '../library/buildings/quaternius-farm-silo-house.glb', category: 'buildings', footprint: [5.34, 3.51], height: 9.07 },
-  { id: 'bld_farm_windmill_tower', name: "Windmill Tower", emoji: '🌾', glb: '../library/buildings/quaternius-farm-windmill-tower.glb', category: 'buildings', footprint: [7.92, 4.99], height: 11.41 },
-  { id: 'bld_farm_windmill', name: "Windmill", emoji: '🌾', glb: '../library/buildings/quaternius-farm-windmill.glb', category: 'buildings', footprint: [6.51, 1.9], height: 11.2 },
-  { id: 'bld_farm_water_tower', name: "Water Tower", emoji: '💧', glb: '../library/buildings/quaternius-farm-water-tower.glb', category: 'buildings', footprint: [2.53, 2.49], height: 8.43 },
-  { id: 'prop_farm_well', name: "Farm Well", emoji: '⛲', glb: '../library/props/quaternius-farm-well.glb', category: 'props', footprint: [1.28, 1.49], height: 2.15 },
-  { id: 'prop_farm_fence', name: "Farm Fence", emoji: '🪵', glb: '../library/props/quaternius-farm-fence.glb', category: 'props', footprint: [5.89, 0.17], height: 1.1 },
-  { id: 'prop_farm_fence_2', name: "Farm Fence B", emoji: '🪵', glb: '../library/props/quaternius-farm-fence-2.glb', category: 'props', footprint: [5.89, 0.17], height: 1.17 },
   { id: 'bld_hospital', name: "Hospital", emoji: '🏥', glb: '../library/buildings/quaternius-hospital.glb', category: 'buildings', footprint: [4.1, 3.46], height: 4.75 },
   { id: 'bld_bank', name: "Bank", emoji: '🏦', glb: '../library/buildings/quaternius-bank.glb', category: 'buildings', footprint: [4.01, 4.24], height: 2.92 },
   { id: 'bld_shop', name: "Shop", emoji: '🏪', glb: '../library/buildings/quaternius-shop.glb', category: 'buildings', footprint: [2.48, 1.8], height: 1.4 },
@@ -1426,20 +1417,13 @@ export const LIBRARY = [
   { id: 'nat_crop_apple', name: "Apple Crop", emoji: '🍎', glb: '../library/nature/quaternius-crop-apple.glb', category: 'nature', footprint: [0.16, 0.16], height: 0.17 },
   { id: 'nat_crop_bamboo', name: "Bamboo", emoji: '🎋', glb: '../library/nature/quaternius-crop-bamboo.glb', category: 'nature', footprint: [0.1, 0.1], height: 0.33 },
   { id: 'nat_crop_beet', name: "Beet", emoji: '🥕', glb: '../library/nature/quaternius-crop-beet.glb', category: 'nature', footprint: [0.32, 0.32], height: 0.52 },
-  { id: 'nat_crop_berries', name: "Berry Bush", emoji: '🫐', glb: '../library/nature/quaternius-crop-berries.glb', category: 'nature', footprint: [0.17, 0.17], height: 0.13 },
   { id: 'nat_crop_cactus', name: "Cactus", emoji: '🌵', glb: '../library/nature/quaternius-crop-cactus.glb', category: 'nature', footprint: [0.36, 0.37], height: 0.24 },
   { id: 'nat_crop_carrot', name: "Carrot Crop", emoji: '🥕', glb: '../library/nature/quaternius-crop-carrot.glb', category: 'nature', footprint: [0.24, 0.24], height: 0.88 },
-  { id: 'nat_crop_corn', name: "Corn Crop", emoji: '🌽', glb: '../library/nature/quaternius-crop-corn.glb', category: 'nature', footprint: [0.35, 0.15], height: 0.15 },
   { id: 'nat_crop_flowers', name: "Flower Crop", emoji: '🌸', glb: '../library/nature/quaternius-crop-flowers.glb', category: 'nature', footprint: [0.29, 0.29], height: 0.12 },
   { id: 'nat_crop_lettuce', name: "Lettuce Crop", emoji: '🥬', glb: '../library/nature/quaternius-crop-lettuce.glb', category: 'nature', footprint: [0.38, 0.38], height: 0.41 },
   { id: 'nat_crop_mushroom', name: "Mushroom Crop", emoji: '🍄', glb: '../library/nature/quaternius-crop-mushroom.glb', category: 'nature', footprint: [0.44, 0.44], height: 0.12 },
   { id: 'nat_crop_orange', name: "Orange Crop", emoji: '🍊', glb: '../library/nature/quaternius-crop-orange.glb', category: 'nature', footprint: [0.15, 0.15], height: 0.15 },
   { id: 'nat_crop_palm', name: "Palm Crop", emoji: '🌴', glb: '../library/nature/quaternius-crop-palm.glb', category: 'nature', footprint: [0.22, 0.23], height: 0.22 },
-  { id: 'nat_crop_pumpkin', name: "Pumpkin", emoji: '🎃', glb: '../library/nature/quaternius-crop-pumpkin.glb', category: 'nature', footprint: [0.59, 0.58], height: 0.55 },
-  { id: 'nat_crop_rice', name: "Rice Crop", emoji: '🌾', glb: '../library/nature/quaternius-crop-rice.glb', category: 'nature', footprint: [0.91, 0.39], height: 0.05 },
-  { id: 'nat_crop_tomato', name: "Tomato Crop", emoji: '🍅', glb: '../library/nature/quaternius-crop-tomato.glb', category: 'nature', footprint: [0.18, 0.18], height: 0.15 },
-  { id: 'nat_crop_watermelon', name: "Watermelon", emoji: '🍉', glb: '../library/nature/quaternius-crop-watermelon.glb', category: 'nature', footprint: [0.44, 0.37], height: 0.35 },
-  { id: 'nat_crop_wheat', name: "Wheat Crop", emoji: '🌾', glb: '../library/nature/quaternius-crop-wheat.glb', category: 'nature', footprint: [0.59, 0.76], height: 0.1 },
 ];
 
 /** Lookup by id (safe against unknown keys). */
@@ -1467,3 +1451,6 @@ export function libraryUrl(item) {
   if (LIBRARY_BASE) return LIBRARY_BASE.replace(/\/$/, '') + '/' + item.glb.replace(/^\.\.\//, '');
   return item.glb;
 }
+
+// Optional shelves are derived metadata so legacy records retain their stable
+// ids and schema. Consumers that want themed browsing import asset-packs.js.

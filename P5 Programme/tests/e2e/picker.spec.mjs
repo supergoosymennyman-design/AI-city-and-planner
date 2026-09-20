@@ -29,15 +29,16 @@ test('prop picker opens, renders cards, and first card starts placing', async ({
   await page.goto('/city-builder/', { waitUntil: 'load' });
   await page.waitForTimeout(2500);
   await page.evaluate(() => {
-    const el = [...document.querySelectorAll('button')].find((b) => /empty sample/i.test(b.textContent || ''));
+    const el = [...document.querySelectorAll('button')].find((b) => /example city|empty sample/i.test(b.textContent || ''));
     if (el) el.click();
   });
   await expect(page.locator('canvas')).toBeVisible({ timeout: 60000 });
   await page.waitForTimeout(12000);
 
-  // open the 🧰 panel
+  // open the model-library panel (structural icon is SVG now — target the
+  // control by id, not the emoji it replaced).
   await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button, div[role=button]')].find((e) => /🧰/.test(e.textContent || ''));
+    const btn = document.getElementById('prop-toggle');
     if (btn) btn.click();
   });
   await page.waitForTimeout(1500);

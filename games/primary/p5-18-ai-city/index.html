@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI City Architect — P5-P6</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+<!-- INTRO -->
+<div id="intro-overlay" class="overlay">
+  <div class="intro-card">
+    <div class="intro-icon">🏛️</div>
+    <h1>AI City Architect</h1>
+    <p class="intro-sub">Design a smart city, optimize with causal reasoning, and manage complex crises over simulated decades.</p>
+    <div class="intro-grid">
+      <div class="intro-item"><span class="step">1</span><span>Design</span><small>Place 20+ building types across 6 systems</small></div>
+      <div class="intro-item"><span class="step">2</span><span>Optimize</span><small>Build causal knowledge graphs, override AI</small></div>
+      <div class="intro-item"><span class="step">3</span><span>Simulate</span><small>1× to 1,000,000× speed, cascading crises!</small></div>
+    </div>
+    <div class="intro-budget">🎯 Budget: 150 tokens | 6 systems | 4 crisis events</div>
+    <button id="intro-start" class="btn-primary btn-large">Begin!</button>
+  </div>
+</div>
+
+<!-- MAIN GAME -->
+<div id="game" style="display:none">
+  <header id="top-bar">
+    <h1 id="game-title">🏛️ AI City Architect</h1>
+    <div id="phase-bar">
+      <span class="pstep active" data-p="design">1. Design</span>
+      <span class="pstep" data-p="optimize">2. Optimize</span>
+      <span class="pstep" data-p="simulate">3. Simulate</span>
+    </div>
+    <div id="top-right">
+      <span id="token-display">🪙 <strong id="token-count">150</strong></span>
+      <button id="transcript-btn" class="icon-btn">💬</button>
+      <button id="settings-btn" class="icon-btn">⚙️</button>
+    </div>
+  </header>
+
+  <div id="phase-label">
+    <span id="phase-name">Design Phase</span>
+    <span id="phase-hint">Place buildings to build your AI city</span>
+  </div>
+
+  <div id="main">
+    <!-- Left Panel -->
+    <aside id="left-panel">
+      <div id="palette-section"><h3>🏗️ Buildings</h3><div id="palette"></div></div>
+      <div id="graph-palette" style="display:none"><h3>🔗 Concepts</h3><div id="graph-node-list"></div></div>
+      <div id="mini-dash" style="display:none"><h3>📊 Systems</h3><div id="dash-bars"></div><div id="dash-events"></div></div>
+    </aside>
+
+    <!-- Center -->
+    <div id="center">
+      <div id="grid-container">
+        <!-- Layer toggles -->
+        <div id="layer-toggles">
+          <button class="layer-btn active" data-layer="all">🌐 All</button>
+          <button class="layer-btn" data-layer="power">⚡ Power</button>
+          <button class="layer-btn" data-layer="logistics">🚚 Logistics</button>
+          <button class="layer-btn" data-layer="social">👥 Social</button>
+        </div>
+        <div id="grid"></div>
+        <svg id="grid-svg" class="grid-overlay"></svg>
+        <div id="agent-layer" class="grid-overlay"></div>
+
+        <!-- Scan overlay -->
+        <div id="scan-overlay" class="grid-overlay" style="display:none">
+          <div class="scan-info">
+            <span id="scan-mode-label">🔍 Normal</span>
+            <button id="scan-toggle-btn" class="btn-sm">Turbo</button>
+            <span id="drill-count">🪜 3 drills</span>
+            <button id="scan-exit-btn" class="btn-sm">Done</button>
+          </div>
+        </div>
+
+        <!-- Config panel -->
+        <div id="config-panel" class="floating-panel" style="display:none">
+          <h3 id="config-title">Configure</h3>
+          <div id="config-body"></div>
+          <button id="config-close" class="btn-sm">Close</button>
+        </div>
+
+        <!-- Script editor -->
+        <div id="script-editor" class="floating-panel" style="display:none">
+          <h3>📜 Visual Script</h3>
+          <div id="script-body"></div>
+          <div id="script-actions" style="margin-top:8px;display:flex;gap:4px">
+            <button id="script-save" class="btn-sm btn-primary">Save</button>
+            <button id="script-close" class="btn-sm">Close</button>
+          </div>
+        </div>
+
+        <!-- Graph canvas (Phase 2) -->
+        <div id="graph-canvas" class="grid-overlay" style="display:none">
+          <div class="graph-info">
+            <span id="graph-status">Drag nodes, connect with arrows</span>
+            <button id="graph-analyze-btn" class="btn-sm">Analyze</button>
+            <button id="graph-done-btn" class="btn-sm">Done</button>
+          </div>
+          <div id="graph-editor"></div>
+          <div id="graph-relation-bar" style="display:none">
+            <button class="rel-btn" data-rel="needs">needs</button>
+            <button class="rel-btn" data-rel="provides">provides</button>
+            <button class="rel-btn" data-rel="consumes">consumes</button>
+            <button class="rel-btn" data-rel="produces">produces</button>
+            <button class="rel-btn" data-rel="reduces">reduces</button>
+            <button class="rel-btn" data-rel="increases">increases</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Speed bar -->
+      <div id="speed-bar" style="display:none">
+        <button class="speed-btn active" data-sp="1">🔍 1×</button>
+        <button class="speed-btn" data-sp="1000">📅 1000×</button>
+        <button class="speed-btn" data-sp="1000000">📊 1M×</button>
+        <span id="sim-clock">⏱ 00:00</span>
+        <span id="sim-population">👥 1000</span>
+        <span id="sim-year" style="font-size:var(--fs-xs);color:var(--text2);margin-left:8px">2025</span>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <aside id="right-panel">
+      <div id="info-section"><h3 id="info-title">ℹ️ Info</h3><div id="info-body"><p class="muted">Tap a building.</p></div><div id="info-actions" style="display:none"></div></div>
+      <div id="dash-full" style="display:none">
+        <h3>📊 Dashboard</h3>
+        <div id="dash-metrics"></div>
+        <div id="dash-econ" style="font-size:var(--fs-xs);margin:8px 0;padding:8px;background:var(--bg3);border-radius:var(--r-sm)"></div>
+        <div id="dash-crisis" style="display:none;background:rgba(239,68,68,.1);border:1px solid var(--danger);border-radius:var(--r-md);padding:12px;margin-top:8px">
+          <h4 style="color:var(--danger);font-size:var(--fs-sm)">⚠️ Crisis</h4>
+          <p id="crisis-desc" style="font-size:var(--fs-xs);margin:4px 0"></p>
+          <div id="crisis-actions"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Bottom bar -->
+  <footer id="bottom-bar">
+    <div id="design-btns" class="btns">
+      <button id="scan-btn" class="btn-secondary">🔍 Scan</button>
+      <button id="clear-layer-btn" class="btn-secondary">Layers</button>
+      <button id="design-next-btn" class="btn-primary" style="display:none">Optimize →</button>
+    </div>
+    <div id="optimize-btns" class="btns" style="display:none">
+      <button id="back-to-design" class="btn-secondary">← Back</button>
+      <button id="hilt-btn" class="btn-secondary">👤 HILT</button>
+      <button id="sim-start-btn" class="btn-primary" style="display:none">Start Simulation →</button>
+    </div>
+    <div id="sim-btns" class="btns" style="display:none">
+      <button id="end-sim-btn" class="btn-secondary">End</button>
+    </div>
+  </footer>
+</div>
+
+<!-- NOVA -->
+<div id="nova">
+  <button id="nova-avatar">🤖<span id="nova-dot" class="dot idle"></span></button>
+  <div id="nova-bubble" style="display:none"><p id="nova-text"></p></div>
+  <div id="nova-input-row" style="display:none">
+    <input type="text" id="nova-input" placeholder="Ask Nova..." />
+    <button id="nova-send">Send</button>
+  </div>
+</div>
+
+<!-- HILT Modal -->
+<div id="hilt-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-width:500px">
+    <h3 id="hilt-title">👤 Human-in-the-Loop</h3>
+    <p id="hilt-desc"></p>
+    <div id="hilt-body"></div>
+    <div id="hilt-result" style="display:none;margin-top:12px;font-size:var(--fs-sm)"></div>
+    <button id="hilt-done" class="btn-primary" style="display:none;margin-top:12px">Continue</button>
+  </div>
+</div>
+
+<!-- END SCREEN -->
+<div id="end-screen" class="overlay" style="display:none">
+  <div class="end-card">
+    <h1>🏛️ AI City Complete!</h1>
+    <div class="end-stars" id="end-stars"></div>
+    <div class="end-badge" id="end-badge">Master Architect</div>
+    <div id="end-stats" class="end-stats"></div>
+    <div id="end-nova-msg"></div>
+    <div class="end-btns">
+      <button id="end-restart" class="btn-primary">Build Again</button>
+      <button id="end-export" class="btn-secondary">📷 Export</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- Settings / Transcript -->
+<div id="settings-screen" class="overlay" style="display:none">
+  <div class="set-card"><h2>⚙️ Settings</h2>
+    <div class="set-row"><label>Speed</label><input type="range" id="s-rate" min="0.5" max="2" step="0.05" value="0.85"><span id="s-rate-v">0.85×</span></div>
+    <div class="set-row"><label>Volume</label><input type="range" id="s-vol" min="0" max="1" step="0.05" value="0.9"><span id="s-vol-v">90%</span></div>
+    <div class="set-row"><label>Voice</label><select id="s-voice"><option value="">Default</option></select></div>
+    <div class="set-row"><label>Mute</label><input type="checkbox" id="s-mute"></div>
+    <div class="set-row"><label>Mic</label><input type="checkbox" id="s-mic" checked></div>
+    <button id="s-close" class="btn-primary">Close</button>
+  </div>
+</div>
+<div id="transcript-screen" class="overlay" style="display:none">
+  <div class="set-card"><h2>💬 Conversation</h2><div id="t-list"></div><button id="t-close" class="btn-primary">Close</button></div>
+</div>
+</div>
+
+<script src="audio.js"></script>
+<script src="transcript.js"></script>
+<script src="settings.js"></script>
+<script src="intents.js"></script>
+<script src="conversation.js"></script>
+<script src="game.js"></script>
+<script src="knowledge-graph.js"></script>
+<script src="visual-script.js"></script>
+<script src="simulation.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

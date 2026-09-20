@@ -58,8 +58,8 @@ Apply/Keep review) → "View my city" → 3D.
 **Journey today:** entry → (from planner) auto-loads layout → walk the city → champion →
 missions → external minigames.
 
-**What works:** walking your own layout is the "train-set" payoff; the densify pass makes
-a small plan feel inhabited.
+**What works:** walking your own layout is the "train-set" payoff; the 3D city now renders
+the plan 1:1 (no build-time resize/compression), so what you designed is what you walk.
 
 **What feels thin (child's eye):**
 - Nothing in the 3D world celebrates *why* this layout is good — the score/coverage/

@@ -9,7 +9,6 @@
 // mapping (Walk/Run buttons + WASD produce input.x/z) and the collision pass
 // (resolveCollision on the car's footprint).
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export function createDrivableCar(scene, group, opts = {}) {
   const walkSpeed = opts.walkSpeed ?? 15;   // m/s — city is 2000 m across

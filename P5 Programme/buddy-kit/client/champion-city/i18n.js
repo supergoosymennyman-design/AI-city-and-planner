@@ -41,6 +41,7 @@ export const DICT = {
     'skins.locked': '🔒 Mission locked',
     'skins.empty': 'No items yet in this slot.',
     'skins.removeCustom': 'Remove uploaded champion',
+    'skins.uploadCustom': 'Upload or replace my Champion',
     // Preset skin names (were hardcoded in skins.js) + the custom-champion card.
     'skins.crimson': 'Crimson Guardian',
     'skins.dragon': 'Dragon Emperor',
@@ -133,6 +134,7 @@ export const DICT = {
     'skins.locked': '🔒 完成任務解鎖',
     'skins.empty': '此欄位暫無配件',
     'skins.removeCustom': '移除上傳的冠軍機械人',
+    'skins.uploadCustom': '上傳或更換我的冠軍機械人',
     'skins.crimson': '赤紅守衛',
     'skins.dragon': '龍皇',
     'skins.neondragon': '霓虹龍機甲',

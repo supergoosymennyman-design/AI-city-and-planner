@@ -243,7 +243,16 @@ export function buildQuestBuildings(group, districtId) {
     ? new THREE.Mesh(BufferGeometryUtils.mergeGeometries(bodyGeoms, false), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.3 }))
     : null;
   const accentsMesh = accentGeoms.length
-    ? new THREE.Mesh(BufferGeometryUtils.mergeGeometries(accentGeoms, false), new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }))
+    ? new THREE.Mesh(BufferGeometryUtils.mergeGeometries(accentGeoms, false), new THREE.MeshBasicMaterial({
+        vertexColors: true,
+        toneMapped: false,
+        // Glow discipline: bloom threshold is 0.68 (linear luminance). Accent
+        // vertex colours like 0x00f2fe sit around 0.62–0.67 linear and would go
+        // dark under the raised gate, so scale the emitted radiance up past it —
+        // three multiplies material.color into vertex colours, so this pushes
+        // the cyan/green/amber accents back into bloom as genuine emitters.
+        color: new THREE.Color(1.9, 1.9, 1.9),
+      }))
     : null;
   if (bodiesMesh) group.add(bodiesMesh);
   if (accentsMesh) group.add(accentsMesh);
@@ -252,7 +261,7 @@ export function buildQuestBuildings(group, districtId) {
   const state = loadQuestState();
   const beacon = new THREE.InstancedMesh(
     new THREE.OctahedronGeometry(1.8, 0),
-    new THREE.MeshBasicMaterial({ toneMapped: false }),
+    new THREE.MeshBasicMaterial({ toneMapped: false, color: new THREE.Color(2.0, 2.0, 2.0) }),
     beaconPositions.length
   );
   const m = new THREE.Matrix4(), v = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();

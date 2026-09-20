@@ -38,7 +38,7 @@ test('A6 disclosure key exists in both languages', () => {
 });
 
 test('A11 custom-skin note + champion sidebar keys exist in both languages', () => {
-  for (const key of ['skins.customNote', 'skins.myChampion', 'skins.loading', 'skins.crimson', 'acc.slot.head', 'acc.head_crown']) {
+  for (const key of ['skins.customNote', 'skins.myChampion', 'skins.loading', 'skins.uploadCustom', 'skins.crimson', 'acc.slot.head', 'acc.head_crown']) {
     assert.ok(CHAMPION_CITY.en[key], `champion-city en ${key} missing`);
     assert.ok(CHAMPION_CITY[LANG_KEY][key], `champion-city zh-Hant ${key} missing`);
   }

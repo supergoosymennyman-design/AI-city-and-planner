@@ -2,25 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="planner.title.app">AI City Planner</title>
   <meta name="description" content="Design your own AI city — place buildings, draw roads, paint parks, and improve it with the city optimizer.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>">
   <link rel="stylesheet" href="styles.css">
   <script src="/crash-guard.js"></script>
+  <link rel="stylesheet" href="../city-common/interface.css">
 </head>
 <body>
 
 <header id="topbar">
-  <div class="title" data-i18n="planner.title.app">🏙️ AI City Planner</div>
-  <div class="tools" role="toolbar" data-i18n-aria="planner.toolbar.aria" aria-label="Planning tools">
-    <button class="tool-btn active" data-tool="place" aria-pressed="true" data-i18n="planner.tool.place">🏗️ Place</button>
-    <button class="tool-btn" data-tool="road" aria-pressed="false" data-i18n="planner.tool.road">🛣️ Road</button>
-    <button class="tool-btn" data-tool="park" aria-pressed="false" data-i18n="planner.tool.park">🌳 Park</button>
-    <button class="tool-btn" data-tool="select" aria-pressed="false" data-i18n="planner.tool.move">👆 Move</button>
-  </div>
+  <a class="planner-back" href="/" aria-label="Back to My AI City">←</a>
+  <div class="title"><span class="title-mode">Plan</span><span data-i18n="planner.title.app">AI City Planner</span></div>
   <div class="actions">
-    <button id="btn-undo" class="action-btn" data-i18n="planner.undo" data-i18n-title="planner.undoTitle" title="Undo last change">↩️ Undo</button>
+    <span id="autosave-status" class="autosave-status" aria-live="polite"></span>
+    <button id="btn-save" class="action-btn" data-i18n="planner.save" data-i18n-title="planner.saveTitle" title="Save a copy of your city to keep (download)">💾 Save</button>
+    <button id="btn-export" class="action-btn primary" data-i18n="planner.viewCity" data-i18n-title="planner.viewCityTitle" title="Save your city and see it in 3D">🌆 View in 3D</button>
+    <details id="planner-more"><summary data-i18n="planner.moreTools">Revise / open / learn</summary><div class="secondary-tools">
     <button id="btn-clear" class="action-btn" data-i18n="planner.clear" data-i18n-title="planner.clearTitle" title="Clear the city">🗑️ Clear</button>
     <div class="template-wrap">
       <button id="btn-template" class="action-btn" data-i18n="planner.roads" data-i18n-title="planner.roadsTitle" title="Start from a road template">🛤️ Roads</button>
@@ -42,28 +41,50 @@
         <button id="import-cloud-open" class="import-item" data-i18n="planner.openCloud">☁️ Open from cloud</button>
         <button id="import-paste-toggle" class="import-item" data-i18n="planner.openPasteToggle">📋 Paste JSON</button>
         <div id="import-paste-wrap" class="import-paste-wrap hidden">
-          <textarea id="import-paste" rows="5" placeholder='{"version":2,"scaleMeters":2000,…}'></textarea>
+          <textarea data-i18n-aria="ui.paste" id="import-paste" rows="5" placeholder='{"version":2,"scaleMeters":2000,…}'></textarea>
           <button id="import-paste-go" class="import-item" data-i18n="planner.openPasteGo">⬆️ Load pasted city</button>
         </div>
         <button id="import-backup" class="import-item" data-i18n="planner.openBackup">💾 Download my-ai-city.json</button>
         <div class="import-note" data-i18n="planner.openNote">Replaces the current city (undoable). "🌆 View my city" saves + opens the 3D city — use 💾 Download to keep a file backup.</div>
       </div>
     </div>
-    <span id="autosave-status" class="autosave-status" aria-live="polite"></span>
-    <button id="btn-save" class="action-btn" data-i18n="planner.save" data-i18n-title="planner.saveTitle" title="Save a copy of your city to keep (download)">💾 Save</button>
-    <button id="btn-export" class="action-btn primary" data-i18n="planner.viewCity" data-i18n-title="planner.viewCityTitle" title="Save your city and see it in 3D">🌆 View my city</button>
+    </div></details>
   </div>
 </header>
 
 <div id="hint-bar" aria-live="polite">Tap the map to place a building.</div>
 
 <main id="map-wrap">
-  <div id="drawer" data-i18n-aria="planner.drawer.aria" aria-label="Building catalog">
-    <div class="drawer-title" data-i18n="planner.drawer.title">Buildings</div>
+  <div id="drawer" class="context-sheet open" data-i18n-aria="planner.drawer.aria" aria-label="Building catalog">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="drawer-heading"><div class="drawer-title" data-i18n="planner.drawer.title">Buildings</div><button id="drawer-close" class="sheet-close" type="button" aria-label="Close building catalogue">✕</button></div>
+    <label for="drawer-search" data-i18n="planner.drawer.search">Find an item</label>
+    <input id="drawer-search" type="search" autocomplete="off">
+    <label for="drawer-category" data-i18n="planner.drawer.category">Category</label>
+    <select id="drawer-category">
+      <option value="starter" data-i18n="planner.drawer.starter">Starter set</option>
+      <option value="all" data-i18n="planner.drawer.all">All items</option>
+      <option value="generic" data-i18n="planner.drawer.facilities">Facilities</option>
+      <option value="special" data-i18n="planner.drawer.mission">Landmarks</option>
+      <option value="nature" data-i18n="planner.drawer.catNature">Nature</option>
+      <option value="props" data-i18n="planner.drawer.catProps">Props</option>
+      <option value="vehicles" data-i18n="planner.drawer.catVehicles">Vehicles</option>
+      <option value="scenarios" data-i18n="planner.drawer.catScenarios">Themed</option>
+    </select>
+    <p id="drawer-count" role="status"></p>
     <div id="catalog-list"></div>
+    <button id="drawer-more" data-i18n="planner.drawer.more">More items</button>
   </div>
-  <canvas id="map" data-i18n-aria="planner.map.aria" aria-label="City map canvas"></canvas>
-  <aside id="metrics-panel" data-i18n-aria="planner.metrics.aria" aria-label="City score and goals">
+  <canvas id="map" tabindex="0" aria-describedby="keyboard-help keyboard-status" data-i18n-aria="planner.map.aria" aria-label="City map canvas"></canvas>
+  <div id="map-zoom" role="group" data-i18n-aria="planner.zoom.aria" aria-label="Map zoom">
+    <button id="zoom-in" type="button" data-i18n="planner.zoom.in" data-i18n-title="planner.zoom.inTitle" data-i18n-aria="planner.zoom.inTitle" title="Zoom in" aria-label="Zoom in">➕</button>
+    <button id="zoom-out" type="button" data-i18n="planner.zoom.out" data-i18n-title="planner.zoom.outTitle" data-i18n-aria="planner.zoom.outTitle" title="Zoom out" aria-label="Zoom out">➖</button>
+    <button id="zoom-fit" type="button" data-i18n="planner.zoom.fit" data-i18n-title="planner.zoom.fitTitle" data-i18n-aria="planner.zoom.fitTitle" title="Fit the whole city on screen" aria-label="Fit the whole city on screen">⌖</button>
+  </div>
+  <button id="city-score-toggle" type="button" aria-controls="metrics-panel" aria-expanded="false"><span>City Score</span><strong id="score-compact">0</strong><small id="score-suggestion">Start with a road, then add a home.</small></button>
+  <aside id="metrics-panel" class="context-sheet" data-i18n-aria="planner.metrics.aria" aria-label="City score and goals" aria-hidden="true">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <button id="metrics-close" class="sheet-close" type="button" aria-label="Close City Score">✕</button>
       <div class="score-block">
         <div class="score-label" data-i18n="planner.score.label">City Score</div>
         <div class="score-ring" id="score" role="button" tabindex="0" data-i18n-aria="planner.score.aria" aria-label="City score, out of 100">
@@ -81,11 +102,40 @@
       <button id="btn-view-walk" class="view-chip" data-i18n="planner.view.walk" data-i18n-title="planner.view.walkTitle" title="Colour homes by how far people must walk">🚶 Walk</button>
       <button id="btn-view-ranges" class="view-chip" data-i18n="planner.view.ranges" data-i18n-title="planner.view.rangesTitle" title="Show how far people are willing to travel">⭕ Ranges</button>
     </div>
+    <details id="keyboard-tools"><summary data-i18n="planner.keyboard.title">Keyboard editing</summary>
+      <p id="keyboard-help" data-i18n="planner.keyboard.help"></p>
+      <button id="keyboard-place" data-i18n="planner.keyboard.place">Place at cursor</button>
+      <button id="keyboard-next" data-i18n="planner.keyboard.next">Select next object</button>
+      <button id="keyboard-delete" data-i18n="planner.keyboard.delete">Delete selected</button>
+      <p id="keyboard-status" role="status"></p>
+    </details>
     <div id="selected-info" aria-live="polite"></div>
     <div id="problems" aria-live="polite"></div>
     <div id="ai-output" aria-live="polite"></div>
   </aside>
 </main>
+
+<div id="road-options" class="hidden" role="toolbar" data-i18n-aria="planner.roadMode.aria" aria-label="Road drawing style">
+  <div class="road-modes">
+    <button class="road-mode-btn active" data-road-mode="freehand" aria-pressed="true" data-i18n="planner.roadMode.freehand">✏️ Freehand</button>
+    <button class="road-mode-btn" data-road-mode="straight" aria-pressed="false" data-i18n="planner.roadMode.straight">➖ Straight</button>
+    <button class="road-mode-btn" data-road-mode="curve" aria-pressed="false" data-i18n="planner.roadMode.curve">〰️ Curve</button>
+  </div>
+  <button id="road-connect" type="button" class="hidden" data-i18n-title="planner.road.connectTitle" title="Join road ends that nearly meet"><span data-i18n="planner.road.connect">🔗 Connect</span> <span id="road-connect-count"></span></button>
+  <button id="road-tidy" type="button" data-i18n="planner.road.tidy" data-i18n-title="planner.road.tidyTitle" title="Straighten and connect your roads automatically">🪄 Tidy up</button>
+  <button id="road-finish" type="button" class="hidden" data-i18n="planner.road.finish">✅ Finish</button>
+  <button id="road-cancel" type="button" class="hidden" data-i18n="planner.road.cancel">✖ Cancel</button>
+</div>
+
+<div id="plan-dock" role="toolbar" data-i18n-aria="planner.toolbar.aria" aria-label="Planning tools">
+  <button id="btn-undo" class="dock-undo" data-i18n="planner.undo" data-i18n-title="planner.undoTitle" title="Undo last change">↩️ <span>Undo</span></button>
+  <div class="tools">
+    <button class="tool-btn active" data-tool="place" aria-pressed="true" data-i18n="planner.tool.place">🏗️ Place</button>
+    <button class="tool-btn" data-tool="road" aria-pressed="false" data-i18n="planner.tool.road">🛣️ Road</button>
+    <button class="tool-btn" data-tool="park" aria-pressed="false" data-i18n="planner.tool.park">🌳 Park</button>
+    <button class="tool-btn" data-tool="select" aria-pressed="false" data-i18n="planner.tool.move">👆 Move</button>
+  </div>
+</div>
 
 <!-- Goals modal: mayor personas + custom sliders -->
 <div id="goals-modal" class="modal hidden" role="dialog" aria-modal="true" data-i18n-aria="planner.goals.aria" aria-label="City goals">
@@ -110,7 +160,7 @@
         <button id="btn-mayor-balanced" class="mayor-balanced" data-i18n="planner.goals.balanced">⚖️ Balanced — no favourite goal</button>
       </div>
       <div id="goals-custom-pane" class="hidden">
-        <div class="goals-intro" data-i18n="planner.goals.customIntro">Drag the sliders to say how much each goal matters. The sliders are compared against each other — the numbers beside them always add up to 100%, and the optimizer works hardest on what has the biggest share.</div>
+        <div class="goals-intro" data-i18n="planner.goals.customIntro">Drag the sliders to say how much each goal matters. The sliders are compared against each other — the labels show rounded shares of the total, and the optimizer works hardest on what has the biggest share.</div>
         <div class="slider-list" id="slider-list"></div>
       </div>
       <div class="goals-actions"><button id="goals-done" class="plan-apply" data-i18n="planner.goals.done">✅ Done</button></div>
@@ -157,10 +207,10 @@
       <button class="modal-close" data-coach-close data-i18n-aria="planner.closeAria" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
-      <div class="coach-step"><span class="coach-num">1</span><span><strong data-i18n="planner.coach.s1t">Understand</strong><span data-i18n="planner.coach.s1b"> — tap the City Score to see the maths behind it.</span></span></div>
-      <div class="coach-step"><span class="coach-num">2</span><span><strong data-i18n="planner.coach.s2t">See the distances</strong><span data-i18n="planner.coach.s2b"> — tap ⭕ Ranges to show how far people will travel.</span></span></div>
-      <div class="coach-step"><span class="coach-num">3</span><span><strong data-i18n="planner.coach.s3t">Be the planner</strong><span data-i18n="planner.coach.s3b"> — tap 🧠 My move, guess which change helps most, then reveal the maths.</span></span></div>
-      <div class="coach-step"><span class="coach-num">4</span><span><strong data-i18n="planner.coach.s4t">Check your work</strong><span data-i18n="planner.coach.s4b"> — tap 🧮 Optimise when you're done to see if the computer finds anything else.</span></span></div>
+      <div class="coach-step"><span class="coach-num">1</span><span><strong>Choose or draw a road</strong><span> — roads connect your neighbourhood.</span></span></div>
+      <div class="coach-step"><span class="coach-num">2</span><span><strong>Place a home</strong><span> — choose one from the building tray.</span></span></div>
+      <div class="coach-step"><span class="coach-num">3</span><span><strong>Add one service</strong><span> — try a school, shop, or hospital.</span></span></div>
+      <div class="coach-step"><span class="coach-num">4</span><span><strong>Inspect the score</strong><span> — see how your choices changed the city.</span></span></div>
       <div class="goals-actions"><button id="coach-done" class="plan-apply" data-i18n="planner.coach.done">✅ Let's build</button></div>
     </div>
   </div>
@@ -195,7 +245,7 @@
         <button id="save-go" class="plan-apply" data-i18n="planner.save">💾 Save</button>
         <button id="save-cloud" class="plan-apply cloud" data-i18n="planner.cloud.save">☁️ Save to cloud</button>
       </div>
-      <div id="save-cloud-result" class="save-cloud-result" hidden></div>
+      <div id="save-cloud-result" role="status" class="save-cloud-result" hidden></div>
     </div>
   </div>
 </div>
@@ -210,7 +260,7 @@
     </div>
     <div class="modal-body">
       <p class="save-intro" data-i18n="planner.cloud.intro">Type the code you got when you saved — it looks like tiger-bamboo-river-umbrella.</p>
-      <input id="cloud-code" class="save-input" type="text" maxlength="64" placeholder="tiger-bamboo-river-umbrella" data-i18n-ph="planner.cloud.placeholder" aria-label="Cloud code" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <input id="cloud-code" class="save-input" type="text" maxlength="64" placeholder="tiger-bamboo-river-umbrella" data-i18n-ph="planner.cloud.placeholder" data-i18n-aria="ui.cloudCode" aria-label="Cloud code" autocomplete="off" autocapitalize="none" spellcheck="false">
       <div class="goals-actions"><button id="cloud-load" class="plan-apply" data-i18n="planner.cloud.load">☁️ Load my city</button></div>
       <div id="cloud-load-result" class="save-cloud-result" aria-live="polite"></div>
     </div>

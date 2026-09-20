@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="0">
+<title>AI City Architect — P3-P4</title>
+<link rel="stylesheet" href="style.css?v=20240702">
+</head>
+<body>
+<div id="app">
+
+<!-- ═══ INTRO ═══ -->
+<div id="intro" class="overlay">
+    <div class="intro-card">
+    	<div class="intro-icon">🏙️</div>
+    	<h1>AI City Architect</h1>
+    	<p class="intro-sub">Design a smart city with roads, utilities, buses, drones, and AI systems. Solve traffic, manage waste, handle disasters.</p>
+    	<div class="intro-steps">
+    		<div><span class="is-num">1</span><span>Scan &amp; Build</span><small>Find hazards, place 22+ building types, draw roads</small></div>
+    		<div><span class="is-num">2</span><span>Optimise</span><small>Connect systems with causal graphs, run scenarios</small></div>
+    		<div><span class="is-num">3</span><span>Simulate</span><small>Watch buses, drones, trucks move through your city!</small></div>
+    	</div>
+			<div class="intro-ai-list"><strong>🧠 AI concepts you'll practice:</strong><br>
+			Optimization &middot; Prediction &middot; Anomaly Detection &middot; Image Classification &middot; Pathfinding &middot; Forecasting &middot; Clustering &middot; Route Optimization &middot; Simulation &middot; Sensor Fusion &middot; Fairness Auditing &middot; Resource Planning</div>
+    <button id="btn-start" class="btn-primary btn-lg">Start Building!</button>
+    <button id="btn-quick" class="btn-secondary" style="margin-top:10px;width:100%">⚡ Quick Start (pre-built city)</button>
+  </div>
+</div>
+
+<!-- ═══ GAME ═══ -->
+<div id="game" style="display:none">
+  <!-- Top -->
+  <header id="topbar">
+    <h1>🏙️ AI City</h1>
+      <div id="phase-dots">
+        <span class="pd active" data-p="scan">1. Scan<br><span class="pd-ai">AI SIGNAL PROCESSING</span></span>
+        <span class="sld"></span>
+        <span class="pd" data-p="design">2. Build<br><span class="pd-ai">AI ALLOCATION</span></span>
+        <span class="sld"></span>
+        <span class="pd" data-p="optimise">3. Optimise<br><span class="pd-ai">AI CAUSAL REASONING</span></span>
+        <span class="sld"></span>
+        <span class="pd" data-p="simulate">4. Simulate<br><span class="pd-ai">AI SIMULATION</span></span>
+        <span class="sld"></span>
+        <span class="pd" data-p="scenarios">5. Scenarios<br><span class="pd-ai">ALL 12 AI CONCEPTS</span></span>
+        <span class="sld"></span>
+        <span class="pd" data-p="exam">6. Exam<br><span class="pd-ai">AI KNOWLEDGE CHECK</span></span>
+      </div>
+    <div id="top-right">
+      <span id="token-show">🪙 <strong id="token-num">150</strong></span>
+      <button id="btn-settings" class="ibtn">⚙️</button>
+    </div>
+  </header>
+  <div id="phaselabel">
+    <span id="phase-name">Design Phase</span>
+    <span id="phase-hint">Scan the land for 3 hazards first</span>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Left panel -->
+    <aside id="left">
+      <!-- Design phase palette -->
+      <div id="palette-sec">
+        <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">
+          <button class="lyr-btn active" data-l="all">🌐 All</button>
+          <button class="lyr-btn" data-l="power">⚡ Power</button>
+          <button class="lyr-btn" data-l="logistics">🚚 Logistics</button>
+          <button class="lyr-btn" data-l="social">👥 Social</button>
+        </div>
+        <h3>🏗️ <span id="palette-title">Buildings</span></h3>
+        <div id="palette"></div>
+      </div>
+      <!-- Optimise phase graph node tray -->
+      <div id="graph-tray" style="display:none"><h3>🔗 Concepts</h3><div id="graph-nodes"></div></div>
+    </aside>
+
+    <!-- Center: grid -->
+    <div id="center">
+      <div id="grid-wrap">
+        <div id="grid"></div>
+        <svg id="grid-svg" class="gol"></svg>
+        <div id="agents" class="gol"></div>
+
+        <!-- Scan overlay -->
+        <div id="scan-ol" style="display:none">
+          <span id="scan-haz" style="font-size:var(--fs-xs);color:var(--text2)">Hazards: 0/3</span>
+          <button id="btn-remove" class="btn-remove" style="display:none">🚧 Remove Hazard</button>
+          <button id="btn-scan-done" class="btn-sm">Done</button>
+        </div>
+        </div>
+
+        <!-- Config panel (floating) -->
+        <div id="cfg-panel" class="float-panel" style="display:none">
+          <h3 id="cfg-title">Configure</h3>
+          <div id="cfg-body"></div>
+          <button id="cfg-close" class="btn-sm">Close</button>
+        </div>
+      </div>
+      <aside id="right">
+        <div id="info-sec">
+          <h3 id="info-title">ℹ️ Info</h3>
+          <div id="info-body"><p class="muted">Tap a building.</p></div>
+          <div id="info-actions" style="display:none"></div>
+        </div>
+        <div id="req-sec" style="display:none">
+          <h3>🏗️ Requirements</h3>
+          <div id="req-body"></div>
+        </div>
+        <div id="dash-sec" style="display:none">
+          <h3>📊 Dashboard</h3>
+          <div id="dash-metrics"></div>
+          <div id="dash-bars"></div>
+          <div id="dash-events"></div>
+          <div id="dash-crisis" style="display:none">
+            <h4 class="crisis-title">⚠️ Crisis</h4>
+            <p id="crisis-desc"></p>
+            <div id="crisis-acts"></div>
+          </div>
+        </div>
+        <div id="scenario-sec" style="display:none">
+          <h3>🎯 AI City Scenarios</h3>
+          <div id="sc-metrics" style="display:none">
+            <div class="sm-header">📊 City Status</div>
+            <div id="sm-bars"></div>
+            <div id="sm-stats"></div>
+          </div>
+          <div class="ai-concept-tracker" id="aiConceptTracker">
+            <div class="act-header">🧠 AI Concepts</div>
+            <div class="act-grid" id="actGrid"></div>
+            <div class="act-count" id="actCount">0/12 concepts mastered</div>
+          </div>
+          <button id="btn-exam" class="btn-exam" style="width:100%;padding:8px;margin-bottom:6px;border:2px solid #fbbf24;border-radius:8px;background:rgba(251,191,36,0.1);color:#fbbf24;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">📝 AI Concepts Exam</button>
+          <div id="scenario-panel"></div>
+          <div id="scenario-decision" style="display:none"></div>
+        </div>
+      </aside>
+    </div>
+
+  <!-- Bottom -->
+  <footer id="bottom">
+    <div id="btns-design" class="bflex">
+      <button id="btn-turbo" class="btn-sm" style="background:var(--bg3)">⚡ Drag Turbo</button>
+      <button id="btn-zoom-in" class="btn-sm">🔍+</button>
+      <button id="btn-zoom-out" class="btn-sm">🔍−</button>
+      <span id="zoom-label" style="font-size:10px;color:var(--text3)">100%</span>
+      <button id="btn-optimise" class="btn-primary" style="display:none">🚀 Optimise →</button>
+    </div>
+    <div id="btns-optimise" class="bflex" style="display:none">
+      <button id="btn-back-design" class="btn-secondary">← Back</button>
+      <button id="btn-sim" class="btn-primary">🎬 Start Simulation →</button>
+    </div>
+    <div id="btns-sim" class="bflex" style="display:none">
+      <div id="speed-btns">
+        <button class="spd active" data-sp="1">🔍 1×</button>
+        <button class="spd" data-sp="10">🏃 10×</button>
+        <button class="spd" data-sp="100">📈 100×</button>
+      </div>
+      <button id="btn-run-bus" class="btn-sm" style="background:var(--transport);color:#fff">🚌 Bus Route</button>
+      <button id="btn-run-truck" class="btn-sm" style="background:var(--waste);color:#fff">🚚 Truck Route</button>
+      <span id="sim-clock">⏱ 00:00</span>
+      <span id="sim-weather">☀️ Clear</span>
+      <button id="btn-end-sim" class="btn-secondary">End</button>
+    </div>
+  </footer>
+</div>
+
+<!-- ═══ NOVA ═══ -->
+<div id="nova">
+  <button id="nova-av">🤖<span id="nova-dot" class="dot idle"></span></button>
+  <div id="nova-bub" style="display:none"><p id="nova-txt"></p></div>
+  <div id="nova-inp" style="display:none">
+    <input type="text" id="nova-input" placeholder="Ask Nova..." />
+    <button id="nova-send">Send</button>
+  </div>
+</div>
+
+<!-- ═══ SCENARIO MODAL ═══ -->
+<div id="scenario-modal" class="modal" style="display:none">
+  <div class="modal-card">
+    <h3 id="sc-title">Scenario</h3>
+    <p id="sc-desc"></p>
+    <div id="sc-body"></div>
+    <button id="sc-done" class="btn-primary" style="display:none">Continue</button>
+  </div>
+</div>
+
+<!-- ═══ ABANDON SCENARIO MODAL ═══ -->
+<div id="aban-modal" class="overlay" style="display:none">
+  <div class="modal-card" style="text-align:center">
+    <h3>⚠️ Abandon Scenario?</h3>
+    <p style="margin:8px 0">Your progress in this scenario will be lost.</p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+      <button id="aban-continue" class="btn-secondary">Continue Scenario</button>
+      <button id="aban-confirm" class="btn-primary" style="background:var(--danger);color:#fff">Abandon</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ HILT MODAL ═══ -->
+<div id="hilt-modal" class="modal" style="display:none">
+  <div class="modal-card">
+    <h3 id="hilt-title">👤 Human-in-the-Loop</h3>
+    <p id="hilt-desc"></p>
+    <div id="hilt-body"></div>
+    <button id="hilt-done" class="btn-primary" style="display:none">Continue</button>
+  </div>
+</div>
+
+<!-- ═══ MASTER CERTIFICATION ═══ -->
+<div id="masterCert18" class="ch-overlay" style="display:none">
+  <div class="cert-card">
+    <h2 class="cert-title">🏆 AI City Master!</h2>
+    <p class="cert-subtitle">You practiced <span id="certScenariosDone">0</span>/12 AI concepts by solving city crises.</p>
+    <div class="cert-grid-2col" id="certGrid18"></div>
+    <div class="cert-stats" id="certStats18"></div>
+    <div class="cert-cta">
+      <p class="cert-cta-text"><strong>What was learned:</strong> This child built a living AI city. They practiced optimization, prediction, pathfinding, forecasting, sensor fusion, and fairness auditing — the same AI skills used at companies like Google, Tesla, and OpenAI. Every crisis they solved taught an AI concept used by real engineers.</p>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <button class="btn-primary" id="certBack18">↩ Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ END SCREEN ═══ -->
+<div id="end-screen" class="overlay" style="display:none">
+  <div class="end-card">
+    <h1>🏙️ AI City Complete!</h1>
+    <div id="end-stars" class="end-stars"></div>
+    <div id="end-badge" class="end-badge">City Architect</div>
+    <div id="end-stats"></div>
+    <p id="end-nova-msg"></p>
+    <div class="end-btns">
+      <button id="end-restart" class="btn-primary">Build Again</button>
+      <button id="end-export" class="btn-secondary">📷 Export</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EXAM OVERLAY ═══ -->
+<div id="exam-scr" class="overlay" style="display:none">
+  <div class="exam-card">
+    <div class="exam-progress" style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-bottom:10px">
+      <div id="exam-progress-fill" style="height:100%;width:0;background:#fbbf24;border-radius:2px;transition:width .3s"></div>
+    </div>
+    <div id="exam-q-area">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span id="exam-badge" class="chip" style="font-size:10px">🔮 Prediction</span>
+        <span id="exam-count" style="font-size:11px;color:var(--text2)">1/10</span>
+      </div>
+      <p id="exam-question" style="font-size:14px;color:var(--text);line-height:1.5;margin-bottom:12px"></p>
+      <div id="exam-choices" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div>
+      <div id="exam-feedback" style="display:none">
+        <div class="exam-concept-card" style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.15);border-radius:8px;padding:10px;text-align:left;margin-bottom:8px">
+          <div id="exam-result" style="font-size:14px;font-weight:700;margin-bottom:4px">✅ Correct!</div>
+          <div id="exam-concept-name" style="font-size:11px;font-weight:700;color:#fbbf24;margin-bottom:4px"></div>
+          <div id="exam-explanation" style="font-size:12px;color:var(--text2);line-height:1.4"></div>
+        </div>
+        <button id="exam-next-btn" class="btn-primary" style="width:100%">Next →</button>
+      </div>
+    </div>
+    <div id="exam-complete" style="display:none;text-align:center">
+      <div id="exam-stars" style="font-size:28px;margin-bottom:4px"></div>
+      <p id="exam-score" style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">0/10</p>
+      <p id="exam-msg" style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:10px"></p>
+      <div id="exam-recap" style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:10px;text-align:left"></div>
+      <button id="exam-close-btn" class="btn-primary">↩ Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div id="toast"></div>
+
+<!-- ═══ SETTINGS ═══ -->
+<div id="settings-scr" class="overlay" style="display:none">
+  <div class="set-card"><h2>⚙️ Settings</h2>
+    <div class="set-r"><label>Speed</label><input type="range" id="s-rate" min="0.5" max="2" step="0.05" value="0.85"><span id="s-rate-v">0.85×</span></div>
+    <div class="set-r"><label>Volume</label><input type="range" id="s-vol" min="0" max="1" step="0.05" value="0.9"><span id="s-vol-v">90%</span></div>
+    <div class="set-r"><label>Voice</label><select id="s-voice"><option value="">Default</option></select></div>
+    <div class="set-r"><label>Mute</label><input type="checkbox" id="s-mute"></div>
+    <div class="set-r"><label>Mic</label><input type="checkbox" id="s-mic" checked></div>
+    <button id="s-close" class="btn-primary">Close</button>
+  </div>
+</div>
+<div id="transcr-scr" class="overlay" style="display:none">
+  <div class="set-card"><h2>💬 Conversation</h2><div id="t-list"></div><button id="t-close" class="btn-primary">Close</button></div>
+</div>
+</div>
+
+<script src="audio.js"></script>
+<script src="transcript.js"></script>
+<script src="settings.js"></script>
+<script src="icons.js"></script>
+<script src="game.js"></script>
+<script src="dashboard.js"></script>
+<script src="knowledge-graph.js"></script>
+<script src="simulation.js"></script>
+<script src="scenarios.js?v=20240701"></script>
+<script src="intents.js"></script>
+<script src="conversation.js"></script>
+<script src="main.js?v=20240701"></script>
+</body>
+</html>

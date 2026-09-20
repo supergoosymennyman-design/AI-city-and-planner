@@ -1,0 +1,2802 @@
+[
+  {
+    "id": "prop_pirate_cliff_1",
+    "name": "Pirate Cliff 1",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-cliff-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_cliff_2",
+    "name": "Pirate Cliff 2",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-cliff-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_cliff_3",
+    "name": "Pirate Cliff 3",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-cliff-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_dock",
+    "name": "Dock",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-dock.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_cliff_4",
+    "name": "Pirate Cliff 4",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-cliff-4.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_dock_broken",
+    "name": "Broken Dock",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-dock-broken.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_dock_pole",
+    "name": "Dock Pole",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-dock-pole.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_house_1",
+    "name": "Pirate House 1",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-house-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_house_2",
+    "name": "Pirate House 2",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-house-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_rock_1",
+    "name": "Pirate Rock 1",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-rock-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_palm_1",
+    "name": "Pirate Palm 1",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-palm-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_palm_2",
+    "name": "Pirate Palm 2",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-palm-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_rock_2",
+    "name": "Pirate Rock 2",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-rock-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_house_3",
+    "name": "Pirate House 3",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-house-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_palm_3",
+    "name": "Pirate Palm 3",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-palm-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_rock_3",
+    "name": "Pirate Rock 3",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-rock-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_large_bones",
+    "name": "Large Bones",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-large-bones.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_sawmill",
+    "name": "Sawmill",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-sawmill.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_pirate_skulls",
+    "name": "Skull Pile",
+    "category": "props",
+    "glb": "../library/props/quaternius-pirate-skulls.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_access_point",
+    "name": "Access Point",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-access-point.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_clamp",
+    "name": "Clamp",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-clamp.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_chest",
+    "name": "Sci-Fi Chest",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-chest.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_computer",
+    "name": "Sci-Fi Computer",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-computer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_barrel",
+    "name": "Sci-Fi Barrel",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-barrel.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_crate_3",
+    "name": "Sci-Fi Crate",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-crate-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_crate_4",
+    "name": "Sci-Fi Crate B",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-crate-4.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_light_small",
+    "name": "Small Light",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-light-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_light_floor",
+    "name": "Floor Light",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-light-floor.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_item_holder",
+    "name": "Item Holder",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-item-holder.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_light_corner",
+    "name": "Corner Light",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-light-corner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_fan",
+    "name": "Fan",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-fan.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_pipe_holder",
+    "name": "Pipe Holder",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-pipe-holder.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_light_wide",
+    "name": "Wide Light",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-light-wide.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_column_large",
+    "name": "Large Column",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-column-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_vent_small",
+    "name": "Small Vent",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-vent-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_column_astra",
+    "name": "Astra Column",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-column-astra.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_vent_wide",
+    "name": "Wide Vent",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-vent-wide.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_vent_big",
+    "name": "Large Vent",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-vent-big.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_column_hollow",
+    "name": "Hollow Column",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-column-hollow.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_column_pipes",
+    "name": "Pipes Column",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-column-pipes.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_column_metal",
+    "name": "Metal Column",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-column-metal.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_bob",
+    "name": "Fighter Jet Bob",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-bob.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_column_metal_curve",
+    "name": "Curved Metal Column",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-column-metal-curve.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_column_round",
+    "name": "Round Column",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-column-round.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_scifi_column_simple",
+    "name": "Simple Column",
+    "category": "props",
+    "glb": "../library/props/quaternius-scifi-column-simple.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_dispatcher",
+    "name": "Fighter Jet Dispatcher",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-dispatcher.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_challenger",
+    "name": "Fighter Jet Challenger",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-challenger.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_executioner",
+    "name": "Fighter Jet Executioner",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-executioner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_imperial",
+    "name": "Fighter Jet Imperial",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-imperial.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_insurgent",
+    "name": "Fighter Jet Insurgent",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-insurgent.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_axe",
+    "name": "Axe",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-axe.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_backpack",
+    "name": "Backpack",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-backpack.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_bandages",
+    "name": "Bandages",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-bandages.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_battery",
+    "name": "Battery",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-battery.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_beartrap",
+    "name": "Bear Trap",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-beartrap.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_bonfire",
+    "name": "Bonfire",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-bonfire.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_striker",
+    "name": "Fighter Jet Striker",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-striker.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_pancake",
+    "name": "Flying Saucer",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-pancake.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_omen",
+    "name": "Fighter Jet Omen",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-omen.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_spitfire",
+    "name": "Fighter Jet Spitfire",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-spitfire.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_aircraft_zenith",
+    "name": "Fighter Jet Zenith",
+    "category": "props",
+    "glb": "../library/props/quaternius-aircraft-zenith.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_can",
+    "name": "Canned Food",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-can.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_compass",
+    "name": "Compass",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-compass.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_firstaid",
+    "name": "First Aid Kit",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-firstaid.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_flaregun",
+    "name": "Flare Gun",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-flaregun.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_gascan",
+    "name": "Gas Can",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-gascan.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_knife",
+    "name": "Knife",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-knife.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_match",
+    "name": "Match",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-match.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_matchbox",
+    "name": "Matchbox",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-matchbox.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_pan",
+    "name": "Frying Pan",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-pan.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_phone",
+    "name": "Phone",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-phone.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_pistol",
+    "name": "Pistol",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-pistol.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_pot",
+    "name": "Cooking Pot",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-pot.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_propanetank",
+    "name": "Propane Tank",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-propanetank.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_radio",
+    "name": "Radio",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-radio.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_paddle",
+    "name": "Paddle",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-paddle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_revolver",
+    "name": "Revolver",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-revolver.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_shotgun",
+    "name": "Shotgun",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-shotgun.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_raft",
+    "name": "Raft",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-raft.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_shovel",
+    "name": "Shovel",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-shovel.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_tent",
+    "name": "Tent",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-tent.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_torch",
+    "name": "Torch",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-torch.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_trashcan",
+    "name": "Trash Can",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-trashcan.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_waterbottle",
+    "name": "Water Bottle",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-waterbottle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_woodlog",
+    "name": "Wood Log",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-woodlog.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_survival_woodentorch",
+    "name": "Wooden Torch",
+    "category": "props",
+    "glb": "../library/props/quaternius-survival-woodentorch.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_train_track_curve",
+    "name": "Train Track Curve",
+    "category": "props",
+    "glb": "../library/props/quaternius-train-track-curve.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_train_track_straight",
+    "name": "Train Track",
+    "category": "props",
+    "glb": "../library/props/quaternius-train-track-straight.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_avocado",
+    "name": "Avocado",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-avocado.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_bacon",
+    "name": "Bacon",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-bacon.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_bottle",
+    "name": "Bottle",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-bottle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_coconut",
+    "name": "Coconut",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-coconut.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_eggplant",
+    "name": "Eggplant",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-eggplant.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_fish",
+    "name": "Fish",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-fish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_fishbone",
+    "name": "Fish Bone",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-fishbone.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_icecream",
+    "name": "Ice Cream",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-icecream.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_lettuce",
+    "name": "Lettuce",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-lettuce.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_mayo",
+    "name": "Mayo Bottle",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-mayo.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_mushroom",
+    "name": "Mushroom",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-mushroom.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_orange",
+    "name": "Orange",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-orange.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_peanutbutter",
+    "name": "Peanut Butter",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-peanutbutter.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_pepper_green",
+    "name": "Green Pepper",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-pepper-green.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_pepper_red",
+    "name": "Red Pepper",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-pepper-red.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_popsicle",
+    "name": "Popsicle",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-popsicle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_soysauce",
+    "name": "Soy Sauce",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-soysauce.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_sausage",
+    "name": "Sausage",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-sausage.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_steak",
+    "name": "Steak",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-steak.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_tomato",
+    "name": "Tomato",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-tomato.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_food_turnip",
+    "name": "Turnip",
+    "category": "props",
+    "glb": "../library/props/quaternius-food-turnip.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_cargo_coal",
+    "name": "Coal Cargo Car",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-cargo-coal.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_cargo_container",
+    "name": "Container Car",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-cargo-container.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_cargo_front",
+    "name": "Cargo Train Engine",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-cargo-front.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_cargo_wagon",
+    "name": "Cargo Wagon",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-cargo-wagon.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_cargo_wagon_empty",
+    "name": "Empty Cargo Wagon",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-cargo-wagon-empty.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_cargo_wagon_open",
+    "name": "Open Container Wagon",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-cargo-wagon-open.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_highspeed_front",
+    "name": "High-Speed Engine",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-highspeed-front.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_highspeed_wagon",
+    "name": "High-Speed Wagon",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-highspeed-wagon.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_loco_tender",
+    "name": "Steam Tender",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-loco-tender.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_loco_front",
+    "name": "Steam Locomotive",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-loco-front.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_loco_passenger",
+    "name": "Passenger Car",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-loco-passenger.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_train_loco_wagon",
+    "name": "Steam Wagon",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-train-loco-wagon.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_base",
+    "name": "Base Character",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-base.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_casual_male",
+    "name": "Casual Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-casual-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_casual_female",
+    "name": "Casual Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-casual-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_casual2_male",
+    "name": "Casual Man 2",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-casual2-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_casual_bald",
+    "name": "Bald Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-casual-bald.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_chef_female",
+    "name": "Chef (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-chef-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_casual2_female",
+    "name": "Casual Woman 2",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-casual2-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_casual3_male",
+    "name": "Casual Man 3",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-casual3-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_casual3_female",
+    "name": "Casual Woman 3",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-casual3-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_chef_male",
+    "name": "Chef",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-chef-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_cowboy_male",
+    "name": "Cowboy",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-cowboy-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_cowboy_female",
+    "name": "Cowgirl",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-cowboy-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_doctor_male",
+    "name": "Doctor",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-doctor-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_doctor_female",
+    "name": "Doctor (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-doctor-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_doctor_male_old",
+    "name": "Old Doctor",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-doctor-male-old.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_doctor_female_old",
+    "name": "Old Doctor (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-doctor-female-old.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_worker_male",
+    "name": "Worker",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-worker-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_worker_female",
+    "name": "Worker (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-worker-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_soldier_male",
+    "name": "Soldier",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-soldier-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_soldier_female",
+    "name": "Soldier (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-soldier-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_soldier_blue_male",
+    "name": "Blue Soldier",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-soldier-blue-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_soldier_blue_female",
+    "name": "Blue Soldier (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-soldier-blue-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_suit_male",
+    "name": "Business Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-suit-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_suit_female",
+    "name": "Business Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-suit-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_classy_male",
+    "name": "Classy Gentleman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-classy-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_classy_female",
+    "name": "Classy Lady",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-classy-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_kimono_male",
+    "name": "Kimono Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-kimono-male.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_kimono_female",
+    "name": "Kimono Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-kimono-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_elf",
+    "name": "Elf",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-elf.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_knight_golden",
+    "name": "Golden Knight",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-knight-golden.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_wizard",
+    "name": "Wizard",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-wizard.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_ninja",
+    "name": "Ninja",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-ninja.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_knight",
+    "name": "Knight",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-knight.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_witch",
+    "name": "Witch",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-witch.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_ninja_female",
+    "name": "Ninja (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-ninja-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_pirate",
+    "name": "Pirate",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-pirate.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_pirate_female",
+    "name": "Pirate (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-pirate-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_viking",
+    "name": "Viking",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-viking.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_viking_female",
+    "name": "Viking (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-viking-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_goblin",
+    "name": "Goblin",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-goblin.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_goblin_female",
+    "name": "Goblin (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-goblin-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_zombie",
+    "name": "Zombie",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-zombie.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_zombie_female",
+    "name": "Zombie (female)",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-zombie-female.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_animchar_pug",
+    "name": "Pug",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-animchar-pug.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_female_sitting",
+    "name": "Sitting Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-female-sitting.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_female_standing",
+    "name": "Standing Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-female-standing.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_female_walking",
+    "name": "Walking Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-female-walking.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_female_running",
+    "name": "Running Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-female-running.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_female_picking",
+    "name": "Picking Up Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-female-picking.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_female_cheering",
+    "name": "Cheering Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-female-cheering.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_basechar_leela",
+    "name": "Leela",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-basechar-leela.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_basechar_mike",
+    "name": "Mike",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-basechar-mike.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_basechar_george",
+    "name": "George",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-basechar-george.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_basechar_stan",
+    "name": "Stan",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-basechar-stan.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_female_hands_hips",
+    "name": "Woman Hands on Hips",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-female-hands-hips.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_female_cover_eyes",
+    "name": "Woman Covering Eyes",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-female-cover-eyes.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_woman_waving",
+    "name": "Waving Woman",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-woman-waving.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_sitting",
+    "name": "Sitting Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-sitting.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_female_looking_up",
+    "name": "Woman Looking Up",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-female-looking-up.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_standing",
+    "name": "Standing Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-standing.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_walking",
+    "name": "Walking Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-walking.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_running",
+    "name": "Running Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-running.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_picking",
+    "name": "Picking Up Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-picking.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_cheering",
+    "name": "Cheering Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-cheering.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_hands_hips",
+    "name": "Man Hands on Hips",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-hands-hips.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_cover_eyes",
+    "name": "Man Covering Eyes",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-cover-eyes.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_looking_up",
+    "name": "Man Looking Up",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-looking-up.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_posed_male_waving",
+    "name": "Waving Man",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-posed-male-waving.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_robot_quat",
+    "name": "Cute Robot",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-robot.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_alien_quat",
+    "name": "Alien",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-alien-anim.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_alien_quat_helmet",
+    "name": "Alien with Helmet",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-alien-helmet.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_dino_apatosaurus",
+    "name": "Apatosaurus",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-dino-apatosaurus.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_dino_parasaurolophus",
+    "name": "Parasaurolophus",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-dino-parasaurolophus.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_dino_stegosaurus",
+    "name": "Stegosaurus",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-dino-stegosaurus.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_dino_trex",
+    "name": "T-Rex",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-dino-trex.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_dino_triceratops",
+    "name": "Triceratops",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-dino-triceratops.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_dino_velociraptor",
+    "name": "Velociraptor",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-dino-velociraptor.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_clownfish",
+    "name": "Clownfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-clownfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_goldfish",
+    "name": "Goldfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-goldfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_goldfish_blue",
+    "name": "Blue Goldfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-goldfish-blue.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_anglerfish",
+    "name": "Anglerfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-anglerfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_lionfish",
+    "name": "Lionfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-lionfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_lionfish_black",
+    "name": "Black Lionfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-lionfish-black.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_piranha",
+    "name": "Piranha",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-piranha.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_pufferfish",
+    "name": "Pufferfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-pufferfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_shark",
+    "name": "Shark",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-shark.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_goblin_shark",
+    "name": "Goblin Shark",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-goblin-shark.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_swordfish",
+    "name": "Swordfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-swordfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_blue_tang",
+    "name": "Blue Tang",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-blue-tang.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_tang",
+    "name": "Tang",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-tang.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_yellow_tang",
+    "name": "Yellow Tang",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-yellow-tang.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_mandarin",
+    "name": "Mandarin Fish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-mandarin.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_koi",
+    "name": "Koi",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-koi.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_moorish_idol",
+    "name": "Moorish Idol",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-moorish-idol.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_parrotfish",
+    "name": "Parrotfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-parrotfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_red_snapper",
+    "name": "Red Snapper",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-red-snapper.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_tuna",
+    "name": "Tuna",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-tuna.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_tetra",
+    "name": "Tetra",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-tetra.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_sunfish",
+    "name": "Sunfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-sunfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_blobfish",
+    "name": "Blobfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-blobfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_betta",
+    "name": "Betta",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-betta.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_flatfish",
+    "name": "Flatfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-flatfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_turbot",
+    "name": "Turbot",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-turbot.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_flowerhorn",
+    "name": "Flowerhorn",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-flowerhorn.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_humphead",
+    "name": "Humphead Wrasse",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-humphead.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_royal_gramma",
+    "name": "Royal Gramma",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-royal-gramma.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_butterflyfish",
+    "name": "Butterflyfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-butterflyfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_cardinalfish",
+    "name": "Cardinalfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-cardinalfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_cowfish",
+    "name": "Cowfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-cowfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_coral_grouper",
+    "name": "Coral Grouper",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-coral-grouper.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "ch_fish_zebra_clownfish",
+    "name": "Zebra Clownfish",
+    "category": "characters",
+    "glb": "../library/characters/quaternius-fish-zebra-clownfish.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_hospital",
+    "name": "Hospital",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-hospital.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_bank",
+    "name": "Bank",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-bank.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_shop",
+    "name": "Shop",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-shop.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_house_q1",
+    "name": "House",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-house.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_house_q2",
+    "name": "House B",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-house-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_house_q3",
+    "name": "House C",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-house-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_house_q4",
+    "name": "House D",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-house-4.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_house_q5",
+    "name": "House E",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-house-5.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_flat_q1",
+    "name": "Flat",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-flat.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "bld_flat_q2",
+    "name": "Flat B",
+    "category": "buildings",
+    "glb": "../library/buildings/quaternius-flat-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_car_police_q",
+    "name": "Police Car",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-car-police.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_car_normal_q1",
+    "name": "Car",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-car-normal-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_car_normal_q2",
+    "name": "Car B",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-car-normal-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_car_suv_q",
+    "name": "SUV",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-car-suv.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_car_sports_q",
+    "name": "Sports Car",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-car-sports.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_car_sports_q2",
+    "name": "Sports Car B",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-car-sports-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "veh_car_taxi_q",
+    "name": "Taxi",
+    "category": "vehicles",
+    "glb": "../library/vehicles/quaternius-car-taxi.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_bamboo",
+    "name": "Bamboo",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-bamboo.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_light",
+    "name": "Hanging Light",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-light.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_painting",
+    "name": "Painting",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-painting.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_fish_deco",
+    "name": "Fish Decor",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-fish-deco.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_bell",
+    "name": "Bell",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-bell.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_painting_small",
+    "name": "Small Painting",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-painting-small.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_carpet",
+    "name": "Carpet",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-carpet.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_sakura_flower",
+    "name": "Sakura Flower",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-sakura-flower.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_sakura_tree",
+    "name": "Sakura Tree",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-sakura-tree.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_sign_2",
+    "name": "Restaurant Sign B",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-sign-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_plant_1",
+    "name": "Plant",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-plant-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_sign",
+    "name": "Restaurant Sign",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-sign.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_plant_2",
+    "name": "Plant B",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-plant-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_sign_3",
+    "name": "Restaurant Sign C",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-sign-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_wall_light",
+    "name": "Wall Light",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-wall-light.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_bench",
+    "name": "Restaurant Bench",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-bench.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_arch",
+    "name": "Arch",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-arch.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_bottle",
+    "name": "Bottle",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-bottle.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_bottles",
+    "name": "Bottles",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-bottles.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_bowl",
+    "name": "Bowl",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-bowl.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_cabinet_corner",
+    "name": "Cabinet Corner",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-cabinet-corner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_cabinet_doors",
+    "name": "Cabinet Doors",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-cabinet-doors.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_cabinet_shelves",
+    "name": "Cabinet Shelves",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-cabinet-shelves.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_cabinet_shelves_2",
+    "name": "Cabinet Shelves B",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-cabinet-shelves-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_fridge",
+    "name": "Restaurant Fridge",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-fridge.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_chair_1",
+    "name": "Restaurant Chair",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-chair-1.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_fireplace",
+    "name": "Fireplace",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-fireplace.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_curtains",
+    "name": "Curtains",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-curtains.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_curtains_single",
+    "name": "Single Curtain",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-curtains-single.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_chandelier",
+    "name": "Chandelier",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-chandelier.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_counter_corner",
+    "name": "Counter Corner",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-counter-corner.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_counter_door",
+    "name": "Counter Door",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-counter-door.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_steamer",
+    "name": "Steamer",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-steamer.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_sushi_chair_2",
+    "name": "Restaurant Chair B",
+    "category": "props",
+    "glb": "../library/props/quaternius-sushi-chair-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_desk_lamp",
+    "name": "Desk Lamp",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-desk-lamp.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_towel",
+    "name": "Towel",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-towel.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_toilet_paper",
+    "name": "Toilet Paper",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-toilet-paper.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_bed_king",
+    "name": "King Bed",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-bed-king.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_bed_bunk",
+    "name": "Bunk Bed",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-bed-bunk.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_door",
+    "name": "Door",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-door.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_door_double",
+    "name": "Double Door",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-door-double.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_window_round",
+    "name": "Round Window",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-window-round.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_window_large",
+    "name": "Large Window",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-window-large.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_closet",
+    "name": "Closet",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-closet.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_closet_short",
+    "name": "Short Closet",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-closet-short.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_nightstand",
+    "name": "Nightstand",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-nightstand.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_office_chair",
+    "name": "Office Chair",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-office-chair.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_door_2",
+    "name": "Door B",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-door-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_home_desk",
+    "name": "Home Desk",
+    "category": "props",
+    "glb": "../library/props/quaternius-home-desk.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_backpack",
+    "name": "RPG Backpack",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-backpack.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_bag",
+    "name": "Bag",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-bag.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_arrow",
+    "name": "Arrow",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-arrow.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_axe_double",
+    "name": "Double Axe",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-axe-double.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_bone",
+    "name": "Bone",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-bone.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_axe",
+    "name": "Axe",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-axe.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_book",
+    "name": "Book",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-book.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_book_open",
+    "name": "Open Book",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-book-open.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_bow",
+    "name": "Bow",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-bow.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_crown",
+    "name": "Crown",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-crown.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_chalice",
+    "name": "Chalice",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-chalice.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_chest",
+    "name": "Treasure Chest",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-chest.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_coin",
+    "name": "Coin",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-coin.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_crystal",
+    "name": "Crystal",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-crystal.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_dagger",
+    "name": "Dagger",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-dagger.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_fishbone",
+    "name": "Fishbone",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-fishbone.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_glove",
+    "name": "Gauntlet",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-glove.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_gold_ingots",
+    "name": "Gold Ingots",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-gold-ingots.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_heart",
+    "name": "Heart",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-heart.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_heart_broken",
+    "name": "Broken Heart",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-heart-broken.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_key",
+    "name": "Key",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-key.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_mineral",
+    "name": "Mineral",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-mineral.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_necklace",
+    "name": "Necklace",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-necklace.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_padlock",
+    "name": "Padlock",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-padlock.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_parchment",
+    "name": "Parchment",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-parchment.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_potion",
+    "name": "Potion",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-potion.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_pouch",
+    "name": "Pouch",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-pouch.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_skull",
+    "name": "Skull",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-skull.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_scroll",
+    "name": "Scroll",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-scroll.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_sword",
+    "name": "Sword",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-sword.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_star",
+    "name": "Star",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-star.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_sword_golden",
+    "name": "Golden Sword",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-sword-golden.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_sword_big",
+    "name": "Greatsword",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-sword-big.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_ring",
+    "name": "Ring",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-ring.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "prop_rpg_snowflake",
+    "name": "Snowflake",
+    "category": "props",
+    "glb": "../library/props/quaternius-rpg-snowflake.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_stylized",
+    "name": "Stylized Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-tree-stylized.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_birch",
+    "name": "Birch Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-tree-birch.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_birch_dead",
+    "name": "Dead Birch",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-tree-birch-dead.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_dead_q",
+    "name": "Dead Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-tree-dead.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_pine_q",
+    "name": "Pine Tree",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-tree-pine.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_pine_q2",
+    "name": "Pine Tree B",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-tree-pine-2.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_tree_pine_q3",
+    "name": "Pine Tree C",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-tree-pine-3.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_apple",
+    "name": "Apple Crop",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-apple.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_bamboo",
+    "name": "Bamboo",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-bamboo.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_beet",
+    "name": "Beet",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-beet.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_cactus",
+    "name": "Cactus",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-cactus.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_carrot",
+    "name": "Carrot Crop",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-carrot.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_flowers",
+    "name": "Flower Crop",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-flowers.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_lettuce",
+    "name": "Lettuce Crop",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-lettuce.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_mushroom",
+    "name": "Mushroom Crop",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-mushroom.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_orange",
+    "name": "Orange Crop",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-orange.glb",
+    "status": "loaded",
+    "error": null
+  },
+  {
+    "id": "nat_crop_palm",
+    "name": "Palm Crop",
+    "category": "nature",
+    "glb": "../library/nature/quaternius-crop-palm.glb",
+    "status": "loaded",
+    "error": null
+  }
+]

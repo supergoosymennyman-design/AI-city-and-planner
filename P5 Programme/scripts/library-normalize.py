@@ -20,6 +20,7 @@ Options:
   --scale F             multiply all dimensions by F (default 1.0)
   --auto-scale F        fit the largest dimension to F metres
   --max-materials N     cap materials at N (default 2, 0 = keep all)
+  --vehicle              preserve materials/details; require length along glTF Z
   --verbose             print per-step diagnostics
   --keep-origin         skip the ground/centre pass (raw placement)
 """
@@ -54,6 +55,8 @@ def parse_args(argv):
     p.add_argument('--scale', type=float, default=1.0)
     p.add_argument('--auto-scale', type=float, default=0.0)
     p.add_argument('--max-materials', type=int, default=2)
+    p.add_argument('--vehicle', action='store_true',
+                   help='commercial vehicle mode: preserve materials (equivalent to --max-materials 0)')
     p.add_argument('--rot-y', type=float, default=0.0,
                    help="rotate degrees around glTF Y (Blender Z) before grounding — "
                         "use 90 to put a vehicle's length along glTF Z")
@@ -187,6 +190,11 @@ def reduce_materials(obj, max_materials, verbose=False):
 
 def main():
     args = parse_args(pick_args())
+    if args.vehicle:
+        # Car paint, lamps, badges and interiors are exactly the details that
+        # make a realistic vehicle useful. Compression is fine; material
+        # flattening/decimation is not a default for this intake.
+        args.max_materials = 0
     if not os.path.exists(args.input):
         log("input not found:", args.input)
         sys.exit(1)
@@ -290,12 +298,18 @@ def main():
     )
     if args.verbose:
         log("exported:", args.output)
+    output_bytes = os.path.getsize(args.output)
+    if args.vehicle and dims[2] < max(dims[0], dims[1]):
+        log("WARNING vehicle is not length-along-Z; choose --rot-y/--rot-z before accepting")
     print("RESULT " + json.dumps({
         "input": os.path.basename(args.input),
         "output": os.path.basename(args.output),
         "dims_w_h_d": dims,
         "materials": nmats,
         "triangles": nverts,
+        "bytes": output_bytes,
+        "size_mib": round(output_bytes / (1024 * 1024), 3),
+        "vehicle_length_along_z": bool(dims[2] >= max(dims[0], dims[1])) if args.vehicle else None,
     }))
     sys.exit(0)
 

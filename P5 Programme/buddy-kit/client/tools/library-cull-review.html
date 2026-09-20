@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shared library cull review</title>
+  <script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three/addons/"}}</script>
+  <style>
+    :root { color-scheme: dark; font: 14px system-ui, sans-serif; background:#10151d; color:#edf2f7; }
+    body { margin:0; } header { padding:16px 20px; border-bottom:1px solid #35404e; background:#171e28; }
+    h1 { margin:0 0 5px; font-size:20px; } p { margin:0; color:#b7c2d0; }
+    #summary { margin-top:9px; font-size:12px; } #grid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:12px; padding:16px; }
+    article { border:1px solid #35404e; background:#171e28; border-radius:8px; overflow:hidden; }
+    .renders { display:grid; grid-template-columns:1fr 1fr; background:#0a0e14; aspect-ratio:1; }
+    .renders > * { width:100%; height:100%; object-fit:contain; min-width:0; border-right:1px solid #35404e; }
+    .renders > :last-child { border:0; } .details { padding:8px; min-height:86px; }
+    .name { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .id,.status { font-size:11px; color:#b7c2d0; overflow-wrap:anywhere; }
+    .status.ok { color:#65d68b; } .status.failed { color:#ff7777; } label { display:flex; gap:5px; align-items:center; font-size:12px; margin-top:5px; }
+    @media print { header { position:static; } #grid { padding:8px; gap:7px; } article { break-inside:avoid; } }
+  </style>
+</head>
+<body>
+  <header><h1>Shared library cull review</h1><p>Left: current picker thumbnail. Right: fresh GLB render through the production loader. Mark only blank, broken, or faulty-untextured models.</p><div id="summary">Preparing…</div></header>
+  <main id="grid"></main>
+  <script type="module">
+    import * as THREE from 'three';
+    import { LIBRARY } from '../city-common/library.js';
+    import { createGLTFLoader } from '../shared/gltf.js';
+
+    const params = new URLSearchParams(location.search);
+    const start = Math.max(0, Number(params.get('start')) || 0);
+    const limit = Math.min(100, Math.max(1, Number(params.get('limit')) || 25));
+    const entries = LIBRARY.filter((entry) => entry.picker !== false).slice(start, start + limit);
+    const grid = document.querySelector('#grid');
+    const results = [];
+    const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+    renderer.setSize(512, 512); renderer.setPixelRatio(1); renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Keep the WebGL canvas attached: some browser/GPU combinations clear an
+    // unattached drawing buffer before toDataURL(), yielding a false black render.
+    renderer.domElement.style.cssText = 'position:fixed;width:1px;height:1px;left:-2px;top:-2px;opacity:0;pointer-events:none';
+    document.body.append(renderer.domElement);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0e14);
+    const camera = new THREE.PerspectiveCamera(40, 1, .01, 1000);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x253247, 2.2));
+    const key = new THREE.DirectionalLight(0xffffff, 2.5); key.position.set(4, 7, 5); scene.add(key);
+    const loader = createGLTFLoader();
+    const abortAfter = (promise, ms) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`timed out after ${ms / 1000}s`)), ms))]);
+    function renderModel(model) {
+      const holder = new THREE.Group(); holder.add(model); scene.add(holder);
+      const box = new THREE.Box3().setFromObject(holder); const size = box.getSize(new THREE.Vector3());
+      const max = Math.max(size.x, size.y, size.z);
+      if (!Number.isFinite(max) || max < .00001) throw new Error('empty or invisible geometry');
+      const center = box.getCenter(new THREE.Vector3()); holder.position.sub(center);
+      const distance = (max / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.25;
+      camera.position.set(distance, distance * .72, distance); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix();
+      renderer.render(scene, camera); const dataUrl = renderer.domElement.toDataURL('image/png'); scene.remove(holder); return dataUrl;
+    }
+    function card(entry) {
+      const article = document.createElement('article'); const renders = document.createElement('div'); renders.className = 'renders';
+      const thumb = new Image(); thumb.alt = `Picker thumbnail for ${entry.name}`; thumb.src = `../library/thumbnails/${entry.id}.png`;
+      const fresh = new Image(); fresh.alt = `Fresh render for ${entry.name}`; renders.append(thumb, fresh);
+      const details = document.createElement('div'); details.className = 'details';
+      const name = document.createElement('div'); name.className = 'name'; name.textContent = entry.name;
+      const id = document.createElement('div'); id.className = 'id'; id.textContent = `${entry.id} · ${entry.category}`;
+      const status = document.createElement('div'); status.className = 'status'; status.textContent = 'Loading GLB…';
+      const label = document.createElement('label'); const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.dataset.id = entry.id;
+      checkbox.addEventListener('change', () => { localStorage.setItem(`library-cull:${entry.id}`, checkbox.checked ? 'exclude' : 'keep'); window.__libraryCullReview.decisions(); });
+      checkbox.checked = localStorage.getItem(`library-cull:${entry.id}`) === 'exclude'; label.append(checkbox, document.createTextNode('Proposed exclusion'));
+      details.append(name, id, status, label); article.append(renders, details); grid.append(article); return { fresh, status };
+    }
+    async function review(entry) {
+      const ui = card(entry); const record = { id:entry.id, name:entry.name, category:entry.category, glb:entry.glb, status:'failed', error:null };
+      try { const gltf = await abortAfter(loader.loadAsync(entry.glb), 30000); ui.fresh.src = renderModel(gltf.scene); record.status = 'loaded'; ui.status.textContent = 'Loaded with production GLB loader'; ui.status.classList.add('ok'); }
+      catch (error) { record.error = String(error?.message || error); ui.status.textContent = `FAILED: ${record.error}`; ui.status.classList.add('failed'); }
+      results.push(record); return record;
+    }
+    const decisions = () => entries.filter((entry) => localStorage.getItem(`library-cull:${entry.id}`) === 'exclude').map((entry) => entry.id);
+    window.__libraryCullReview = { entries, results, decisions, done:null };
+    window.__libraryCullReview.done = (async () => {
+      // A bounded queue avoids overwhelming decoder workers while still reviewing a whole sheet promptly.
+      let cursor = 0; await Promise.all(Array.from({length:Math.min(6, entries.length)}, async () => { while (cursor < entries.length) await review(entries[cursor++]); }));
+      const loaded = results.filter((item) => item.status === 'loaded').length;
+      document.querySelector('#summary').textContent = `Records ${start + 1}–${start + entries.length} of ${LIBRARY.filter((x) => x.picker !== false).length}: ${loaded} loaded, ${results.length - loaded} failed.`;
+      return results;
+    })();
+  </script>
+</body>
+</html>

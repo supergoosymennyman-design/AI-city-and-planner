@@ -73,7 +73,7 @@ export function equipCustomDefault() {
   saveSkin(CUSTOM_SKIN_ID);
 }
 
-export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
+export function mountSkinSidebar(assetBase, champion, onSwap, customSkin, opts = {}) {
   const btn = document.getElementById('skin-toggle');
   const panel = document.getElementById('skin-panel');
   const list = document.getElementById('skin-list');
@@ -93,6 +93,50 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
     equipped: loadEquipped(),
     custom: (customSkin && customSkin.url) ? customSkin : null,
   };
+
+  // A student can replace their fitted Champion without leaving a city already
+  // in progress. The host owns persistence so this shared sidebar stays usable
+  // in every app and never decides where child-created files are stored.
+  let customUploadLabel = null;
+  let customUploadInput = null;
+  if (typeof opts.onUploadCustom === 'function') {
+    const upload = document.createElement('div');
+    upload.className = 'skin-upload';
+    customUploadLabel = document.createElement('label');
+    customUploadLabel.className = 'skin-upload-btn';
+    const inputId = `skin-upload-${Math.random().toString(36).slice(2)}`;
+    customUploadLabel.htmlFor = inputId;
+    customUploadInput = document.createElement('input');
+    customUploadInput.id = inputId;
+    customUploadInput.type = 'file';
+    customUploadInput.accept = '.glb,model/gltf-binary';
+    customUploadInput.className = 'skin-upload-input';
+    customUploadLabel.textContent = t('skins.uploadCustom');
+    upload.append(customUploadLabel, customUploadInput);
+    panel.insertBefore(upload, list);
+    customUploadInput.addEventListener('change', async () => {
+      const file = customUploadInput.files?.[0];
+      customUploadInput.value = '';
+      if (!file || state.busy) return;
+      state.busy = true;
+      customUploadLabel.textContent = t('skins.loading');
+      try {
+        const skin = await opts.onUploadCustom(file);
+        if (!skin?.url) return;
+        state.custom = skin;
+        await champion.swapSkin(skin.url, CUSTOM_SKIN_ID);
+        state.current = CUSTOM_SKIN_ID;
+        saveSkin(CUSTOM_SKIN_ID);
+        onSwap?.({ id: CUSTOM_SKIN_ID, name: skin.name || t('skins.myChampion'), glb: skin.url });
+      } catch (e) {
+        console.warn('custom skin upload failed:', e);
+      } finally {
+        state.busy = false;
+        customUploadLabel.textContent = t('skins.uploadCustom');
+        render();
+      }
+    });
+  }
 
   // ---- Tab bar: Presets | Accessories ----
   const tabs = document.createElement('div');
@@ -265,19 +309,22 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
     }
   }
 
-  btn.addEventListener('click', () => {
+  const togglePanel = () => {
     panel.classList.toggle('open');
     btn.classList.toggle('active');
-  });
+  };
+  btn.addEventListener('click', togglePanel);
 
   // Re-localize the sidebar when the app-wide language changes.
-  window.addEventListener('i18n:change', () => {
+  const relocalize = () => {
     tabs.querySelectorAll('.skin-tab').forEach((tb) => {
       tb.textContent = tb.dataset.tab === 'presets' ? t('skins.presets') : t('skins.accessories');
     });
+    if (customUploadLabel) customUploadLabel.textContent = t('skins.uploadCustom');
     render();
     if (accList && !accList.classList.contains('hidden')) renderAccessories();
-  });
+  };
+  window.addEventListener('i18n:change', relocalize);
 
   // Restore persisted accessories on load.
   for (const [slot, id] of Object.entries(state.equipped)) {
@@ -296,5 +343,15 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin) {
   }
 
   render();
+  state.destroy = () => {
+    btn.removeEventListener('click', togglePanel);
+    window.removeEventListener('i18n:change', relocalize);
+    tabs.remove();
+    accList.remove();
+    customUploadLabel?.parentElement?.remove();
+    list.replaceChildren();
+    panel.classList.remove('open');
+    btn.classList.remove('active');
+  };
   return state;
 }

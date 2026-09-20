@@ -7,10 +7,13 @@
     "check:k3": "node tests/check-k3.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:unit": "node --test tests/*.test.mjs",
+    "test:content": "node scripts/validate-programme-content.mjs",
     "test:library": "cd \"P5 Programme\" && node scripts/library-audit.mjs",
+    "preflight:commercial-vehicles": "cd \"P5 Programme\" && node scripts/commercial-vehicle-preflight.mjs",
+    "test:imports": "cd \"P5 Programme\" && node scripts/check-imports.mjs",
     "test:e2e": "bash \"P5 Programme/deploy/scripts/deploy-city-apps.sh\" --build-only --city-sim && E2E_DOCROOT=\"P5 Programme/deploy/city-sim\" playwright test --config \"P5 Programme/tests/e2e/playwright.config.mjs\"",
     "test:e2e:source": "playwright test --config \"P5 Programme/tests/e2e/playwright.config.mjs\"",
-    "test:all": "npm run test:unit && npm run test:library && npm run test:e2e"
+    "test:all": "npm run test:unit && npm run test:library && npm run test:e2e && npm run test:imports"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

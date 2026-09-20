@@ -70,11 +70,13 @@
 
     let mounted = false;
     function setOpen(open) {
+      if (open) window.dispatchEvent(new CustomEvent('city:panel-open',{detail:{panel:'buddy'}}));
       panel.hidden = !open;
       bubble.classList.toggle('open', open);
       bubble.setAttribute('aria-expanded', String(open));
       bubble.setAttribute('aria-label', open ? 'Close your buddy' : 'Open your buddy');
       if (open && !mounted) { mounted = true; window.BuddyChat.mount(body, opts); }
+      if (!open) window.dispatchEvent(new CustomEvent('city:panel-close',{detail:{panel:'buddy'}}));
     }
     bubble.onclick = () => setOpen(panel.hidden);
     min.onclick = () => setOpen(false);

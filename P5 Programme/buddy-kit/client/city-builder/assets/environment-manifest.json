@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "licensePolicy": "CC0 or public-domain assets only; raw downloads never ship.",
+  "assets": [
+    {
+      "id": "aerial-asphalt-01",
+      "kind": "material",
+      "sourceUrl": "https://polyhaven.com/a/aerial_asphalt_01",
+      "license": "CC0",
+      "processed": [
+        { "file": "textures/ground-asphalt.jpg", "role": "albedo", "width": 1024, "height": 1024, "bytes": 635143 },
+        { "file": "textures/aerial_asphalt_01_nor_gl_1k.jpg", "role": "normal", "width": 1024, "height": 1024, "bytes": 560227 },
+        { "file": "textures/aerial_asphalt_01_rough_1k.jpg", "role": "roughness", "width": 1024, "height": 1024, "bytes": 312445 }
+      ],
+      "fallback": "flat-charcoal-road"
+    },
+    {
+      "id": "kiara-1-dawn-hdri",
+      "kind": "hdri",
+      "sourceUrl": "https://polyhaven.com/a/kiara_1_dawn",
+      "license": "CC0",
+      "processed": [],
+      "status": "reserved-until-processed",
+      "fallback": "procedural-sky-and-sun"
+    },
+    {
+      "id": "city-look-sky-previews",
+      "kind": "gallery-preview",
+      "sourceUrl": "https://polyhaven.com/hdris",
+      "sourceUrls": [
+        "https://polyhaven.com/a/qwantani_dawn_puresky",
+        "https://polyhaven.com/a/kloppenheim_03_puresky",
+        "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
+        "https://polyhaven.com/a/kloofendal_overcast_puresky",
+        "https://polyhaven.com/a/wasteland_clouds_puresky",
+        "https://polyhaven.com/a/kloppenheim_07"
+      ],
+      "license": "CC0",
+      "processed": [
+        { "file": "environment/qwantani-dawn.png", "role": "gallery-preview", "bytes": 259309 },
+        { "file": "environment/qwantani-dawn-sky.jpg", "role": "equirectangular-background-tablet", "width": 2048, "height": 1024, "bytes": 47249 },
+        { "file": "environment/qwantani-dawn-sky-4k.jpg", "role": "equirectangular-background-desktop", "width": 4096, "height": 2048, "bytes": 330301 },
+        { "file": "environment/kloppenheim-03.png", "role": "gallery-preview", "bytes": 362258 },
+        { "file": "environment/kloppenheim-03-sky.jpg", "role": "equirectangular-background-tablet", "width": 2048, "height": 1024, "bytes": 99981 },
+        { "file": "environment/kloppenheim-03-sky-4k.jpg", "role": "equirectangular-background-desktop", "width": 4096, "height": 2048, "bytes": 519678 },
+        { "file": "environment/kloofendal-clouds.png", "role": "gallery-preview", "bytes": 409286 },
+        { "file": "environment/kloofendal-clouds-sky.jpg", "role": "equirectangular-background-tablet", "width": 2048, "height": 1024, "bytes": 139178 },
+        { "file": "environment/kloofendal-clouds-sky-4k.jpg", "role": "equirectangular-background-desktop", "width": 4096, "height": 2048, "bytes": 345683 },
+        { "file": "environment/kloofendal-overcast.png", "role": "gallery-preview", "bytes": 311407 },
+        { "file": "environment/kloofendal-overcast-sky.jpg", "role": "equirectangular-background-tablet", "width": 2048, "height": 1024, "bytes": 66334 },
+        { "file": "environment/kloofendal-overcast-sky-4k.jpg", "role": "equirectangular-background-desktop", "width": 4096, "height": 2048, "bytes": 136133 },
+        { "file": "environment/wasteland-golden.png", "role": "gallery-preview", "bytes": 355357 },
+        { "file": "environment/wasteland-golden-sky.jpg", "role": "equirectangular-background-tablet", "width": 2048, "height": 1024, "bytes": 86289 },
+        { "file": "environment/wasteland-golden-sky-4k.jpg", "role": "equirectangular-background-desktop", "width": 4096, "height": 2048, "bytes": 472056 },
+        { "file": "environment/kloppenheim-night.png", "role": "gallery-preview", "bytes": 377480 },
+        { "file": "environment/kloppenheim-night-sky.jpg", "role": "equirectangular-background-tablet", "width": 2048, "height": 1024, "bytes": 110546 },
+        { "file": "environment/kloppenheim-night-sky-4k.jpg", "role": "equirectangular-background-desktop", "width": 4096, "height": 2048, "bytes": 1547211 }
+      ],
+      "fallback": "procedural-sky-colour-grade"
+    },
+    {
+      "id": "leafy-grass",
+      "kind": "material",
+      "sourceUrl": "https://polyhaven.com/a/leafy_grass",
+      "license": "CC0",
+      "processed": [
+        { "file": "textures/leafy_grass_diff_1k.jpg", "role": "albedo", "width": 1024, "height": 1024, "bytes": 1195394 },
+        { "file": "textures/leafy_grass_nor_gl_1k.jpg", "role": "normal", "width": 1024, "height": 1024, "bytes": 1466049 },
+        { "file": "textures/leafy_grass_rough_1k.jpg", "role": "roughness", "width": 1024, "height": 1024, "bytes": 511385 }
+      ],
+      "fallback": "procedural-grass"
+    },
+    {
+      "id": "concrete-pavers-03",
+      "kind": "material",
+      "sourceUrl": "https://polyhaven.com/a/concrete_pavers_03",
+      "license": "CC0",
+      "processed": [
+        { "file": "textures/concrete_pavers_03_diff_1k.jpg", "role": "albedo", "width": 1024, "height": 1024, "bytes": 847336 },
+        { "file": "textures/concrete_pavers_03_nor_gl_1k.jpg", "role": "normal", "width": 1024, "height": 1024, "bytes": 639876 },
+        { "file": "textures/concrete_pavers_03_rough_1k.jpg", "role": "roughness", "width": 1024, "height": 1024, "bytes": 195410 }
+      ],
+      "fallback": "flat-concrete-sidewalk"
+    },
+    {
+      "id": "sparse-grass",
+      "kind": "material",
+      "sourceUrl": "https://polyhaven.com/a/forest_ground_04",
+      "license": "CC0",
+      "processed": [
+        { "file": "textures/sparse_grass_diff_1k.jpg", "role": "albedo", "width": 1024, "height": 1024, "bytes": 1113899 },
+        { "file": "textures/sparse_grass_nor_gl_1k.jpg", "role": "normal", "width": 1024, "height": 1024, "bytes": 1326812 },
+        { "file": "textures/sparse_grass_rough_1k.jpg", "role": "roughness", "width": 1024, "height": 1024, "bytes": 627507 }
+      ]
+    },
+    {
+      "id": "withered-grass",
+      "kind": "material",
+      "sourceUrl": "https://polyhaven.com/a/withered_grass",
+      "license": "CC0",
+      "processed": [
+        { "file": "textures/withered_grass_diff_1k.jpg", "role": "albedo", "width": 1024, "height": 1024, "bytes": 1138384 },
+        { "file": "textures/withered_grass_nor_gl_1k.jpg", "role": "normal", "width": 1024, "height": 1024, "bytes": 1472149 },
+        { "file": "textures/withered_grass_rough_1k.jpg", "role": "roughness", "width": 1024, "height": 1024, "bytes": 824502 }
+      ]
+    }
+  ]
+}

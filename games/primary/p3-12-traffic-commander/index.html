@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1C2331" />
+  <meta name="description" content="Traffic Commander — train Flux the AI traffic controller by reading inductive loop sensors. A P3 AI-literacy game." />
+  <title>🚦 Traffic Commander — Train Flux the AI</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231C2331'/%3E%3Ccircle cx='16' cy='8' r='3.4' fill='%23E74C3C'/%3E%3Ccircle cx='16' cy='16' r='3.4' fill='%23F39C12'/%3E%3Ccircle cx='16' cy='24' r='3.4' fill='%232ECC71'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app" aria-hidden="false">
+
+    <!-- ================= TOP BAR ================= -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">🚦</span>
+        <span class="brand-name">Traffic Commander</span>
+      </div>
+
+      <nav class="level-nav" id="levelNav" aria-label="Level selection — all levels unlocked">
+        <!-- Level tab buttons injected by game.js -->
+      </nav>
+
+      <div class="top-actions">
+        <button id="btnDebug" class="icon-btn" title="Debugger: fill all queues to 99%" aria-label="Debugger — fill all queues to 99 percent">🔧</button>
+        <button id="btnTranscript" class="icon-btn" title="Conversation transcript" aria-label="Open conversation transcript">📝</button>
+        <button id="btnSettings" class="icon-btn" title="Settings" aria-label="Open settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- ================= LEVEL BANNER ================= -->
+    <div id="banner" class="level-banner" role="status" aria-live="polite">
+      <span class="banner-icon" aria-hidden="true">🚗</span>
+      <span class="banner-text">LEVEL 1: SENSOR DATA — How AI Reads the Road</span>
+    </div>
+
+    <!-- ================= MAIN PLAY AREA ================= -->
+    <main class="play-area">
+      <section class="stage-column">
+        <div class="stage-wrap">
+          <canvas id="stage" width="1000" height="620" aria-label="Traffic simulation: road surface, underground sensors, and queue bar graphs"></canvas>
+
+          <!-- Round / status HUD overlaid on the canvas -->
+          <div class="stage-hud">
+            <div id="roundInfo" class="round-info">Round 1 / 3</div>
+            <div id="predictTag" class="predict-tag" hidden>Overflow in <span id="predictSecs">0.0</span>s</div>
+          </div>
+
+          <!-- Big center feedback flash (success / gridlock) -->
+          <div id="flash" class="flash" aria-hidden="true"></div>
+        </div>
+
+        <!-- ================= CONTROLS (level-dependent) ================= -->
+        <div id="controls" class="controls">
+          <!-- Single-lane flush button -->
+          <button id="btnFlush" class="flush-btn" aria-label="Flush the signal — turn the light green">
+            <span class="flush-icon" aria-hidden="true">🚦</span> FLUSH SIGNAL
+          </button>
+
+          <!-- Multi-lane flush buttons (Level 4 accessible fallback) -->
+          <div id="laneButtons" class="lane-buttons" hidden></div>
+
+          <!-- Level 5 automation slider -->
+          <div id="autoPanel" class="auto-panel" hidden>
+            <label for="triggerSlider" class="slider-label">
+              Trigger Level: <strong id="triggerVal">70</strong>%
+            </label>
+            <input id="triggerSlider" class="trigger-slider" type="range" min="40" max="90" value="70" step="1"
+                   aria-label="Automation trigger level, 40 to 90 percent" />
+            <div class="auto-counters">
+              <span class="counter waste">Wasted Cycles: <strong id="wasteCount">0</strong></span>
+              <span class="counter over">Overflows: <strong id="overCount">0</strong></span>
+            </div>
+            <button id="btnAutoRun" class="secondary-btn">▶ Run Auto-Pilot</button>
+          </div>
+
+          <!-- Retry / next round helper -->
+          <button id="btnRetry" class="secondary-btn" hidden>↻ Try Again</button>
+        </div>
+      </section>
+
+      <!-- ================= FLUX AI DASHBOARD (right panel) ================= -->
+      <aside id="flux-dashboard" class="flux-dashboard" aria-label="Flux AI training dashboard">
+        <div class="flux-header">
+          <span class="flux-face" aria-hidden="true">🤖</span>
+          <span class="flux-title">Flux</span>
+          <span class="flux-state-dot" id="fluxStateDot" title="Flux is listening"></span>
+        </div>
+
+        <div class="flux-status-badge" id="fluxStatusBadge">🟡 UNTRAINED</div>
+
+        <div class="dash-section">
+          <div class="dash-label">Concepts Mastered</div>
+          <div class="concept-row" data-concept="sensor">
+            <span class="concept-dot">⬜</span>
+            <span class="concept-name">Sensor Data</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+          <div class="concept-row" data-concept="prediction">
+            <span class="concept-dot">⬜</span>
+            <span class="concept-name">Prediction</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+          <div class="concept-row" data-concept="filtering">
+            <span class="concept-dot">⬜</span>
+            <span class="concept-name">Filtering</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+          <div class="concept-row" data-concept="priority">
+            <span class="concept-dot">⬜</span>
+            <span class="concept-name">Priority</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+          <div class="concept-row" data-concept="automation">
+            <span class="concept-dot">⬜</span>
+            <span class="concept-name">Automation</span>
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+          </div>
+        </div>
+
+        <div class="dash-section flux-stats">
+          <div class="dash-label">Live Stats</div>
+          <div class="stat-line"><span>Vehicles sensed</span><strong id="statVehicles">0</strong></div>
+          <div class="stat-line"><span>Correct flushes</span><strong id="statCorrect">0</strong></div>
+          <div class="stat-line"><span>False flushes</span><strong id="statFalse">0</strong></div>
+          <div class="stat-line confidence">
+            <span>Confidence</span><strong id="statConfidenceVal">0%</strong>
+            <div class="progress-bar"><div class="progress-fill" id="confidenceFill"></div></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- ================= FLUX SPEECH / CONVERSATION BAR ================= -->
+    <footer class="flux-bar">
+      <div class="flux-avatar-mini" id="fluxAvatarMini" role="button" tabindex="0" aria-label="Tap Flux to ask for help">
+        <svg viewBox="0 0 48 48" width="42" height="42" aria-hidden="true">
+          <circle cx="24" cy="24" r="21" fill="#3498DB" stroke="#ECF0F1" stroke-width="2"/>
+          <circle cx="17" cy="21" r="4" fill="#ECF0F1"/>
+          <circle cx="31" cy="21" r="4" fill="#ECF0F1"/>
+          <circle cx="17" cy="21" r="1.8" fill="#1C2331"/>
+          <circle cx="31" cy="21" r="1.8" fill="#1C2331"/>
+          <path d="M16 31 Q24 36 32 31" stroke="#ECF0F1" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span class="mini-state" id="miniState"></span>
+      </div>
+
+      <div class="flux-speech" id="fluxSpeech" aria-live="polite">
+        <span class="speech-text" id="speechText">Tap a lane or say “Flux” for help!</span>
+      </div>
+
+      <div class="flux-input">
+        <button id="btnMic" class="mic-btn" aria-label="Toggle microphone" title="Toggle microphone">🎤</button>
+        <input id="textInput" class="text-input" type="text" placeholder="Type to ask Flux…"
+               aria-label="Type a message to Flux" autocomplete="off" />
+        <button id="btnSend" class="send-btn" aria-label="Send message to Flux">➤</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ================= MENU SCREEN ================= -->
+  <div id="menuScreen" class="screen menu-screen">
+    <div class="menu-card">
+      <div class="menu-logo" aria-hidden="true">🚦</div>
+      <h1 class="menu-title">Traffic Commander</h1>
+      <p class="menu-sub">GridCity is in gridlock. Meet <strong>Flux</strong> — a brand-new AI traffic
+        controller with sensors buried under every road. But Flux is <em>totally untrained.</em></p>
+      <p class="menu-mission">The <strong>Transport Department</strong> needs you to train their traffic AI. Teach Flux to read
+        the road, predict jams, ignore false alarms, prioritise lanes, and finally run the whole
+        intersection by itself.</p>
+      <button id="btnStart" class="primary-btn">▶ Start Training Flux</button>
+      <p class="menu-hint">All 6 levels are unlocked — jump to any level from the top bar.</p>
+    </div>
+  </div>
+
+  <!-- ================= RESULT / RECAP SCREEN ================= -->
+  <div id="resultScreen" class="screen result-screen" hidden>
+    <div class="result-card">
+      <div class="result-icon" id="resultIcon" aria-hidden="true">🧠</div>
+      <h2 class="result-title" id="resultTitle">Level Complete!</h2>
+      <p class="result-teach" id="resultTeach"></p>
+      <div class="result-actions">
+        <button id="btnNextLevel" class="primary-btn">Next Level →</button>
+        <button id="btnReplayLevel" class="secondary-btn">↻ Replay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CERTIFICATE SCREEN ================= -->
+  <div id="certScreen" class="screen cert-screen" hidden>
+    <div class="cert-card">
+      <canvas id="certCanvas" width="820" height="560" aria-label="Traffic Commander certificate"></canvas>
+      <div class="cert-actions">
+        <button id="btnCertDownload" class="primary-btn">⬇ Save Certificate</button>
+        <button id="btnCertMenu" class="secondary-btn">🏠 Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS MODAL ================= -->
+  <div id="settingsModal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-head">
+        <h2 id="settingsTitle">⚙️ Settings</h2>
+        <button id="btnCloseSettings" class="icon-btn" aria-label="Close settings">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <label class="set-row">
+          <span>Speech speed</span>
+          <input id="setRate" type="range" min="0.5" max="2" step="0.05" value="0.9" aria-label="Speech speed" />
+          <output id="setRateVal">0.9×</output>
+        </label>
+
+        <label class="set-row">
+          <span>Volume</span>
+          <input id="setVolume" type="range" min="0" max="100" step="1" value="90" aria-label="Volume" />
+          <output id="setVolumeVal">90%</output>
+        </label>
+
+        <label class="set-row">
+          <span>Voice</span>
+          <select id="setVoice" aria-label="Flux voice"></select>
+        </label>
+
+        <label class="set-row switch-row">
+          <span>Mute Flux</span>
+          <input id="setMute" type="checkbox" aria-label="Mute Flux" />
+        </label>
+
+        <label class="set-row switch-row">
+          <span>Microphone on</span>
+          <input id="setMic" type="checkbox" checked aria-label="Microphone on" />
+        </label>
+
+        <div class="set-section">
+          <div class="set-section-title">AI Status</div>
+          <div class="set-info" id="aiStatusInfo">Offline (template mode) — no download needed</div>
+        </div>
+
+        <div class="set-section">
+          <div class="set-section-title">Session Metrics</div>
+          <div class="set-info-grid">
+            <div>Utterances: <strong id="metricUtterances">0</strong></div>
+            <div>Avg response: <strong id="metricResponse">0</strong> ms</div>
+            <div>STT confidence: <strong id="metricConfidence">–</strong></div>
+            <div>Voice segments: <strong id="metricSegments">0</strong></div>
+          </div>
+        </div>
+
+        <button id="btnResetProgress" class="danger-btn">Reset Flux training</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TRANSCRIPT DRAWER ================= -->
+  <div id="transcriptDrawer" class="drawer" hidden>
+    <div class="drawer-head">
+      <h2>📝 Conversation</h2>
+      <button id="btnCloseTranscript" class="icon-btn" aria-label="Close transcript">✕</button>
+    </div>
+    <div id="transcriptList" class="drawer-body" aria-live="polite"></div>
+    <button id="btnClearTranscript" class="secondary-btn">Clear</button>
+  </div>
+
+  <!-- ================= SCRIPTS (classic, dependency order) ================= -->
+  <script src="audio.js"></script>
+  <script src="transcript.js"></script>
+  <script src="settings.js"></script>
+  <script src="intents.js"></script>
+  <script src="traffic.js"></script>
+  <script src="sensors.js"></script>
+  <script src="renderer.js"></script>
+  <script src="quiz.js"></script>
+  <script src="flux.js"></script>
+  <script src="game.js"></script>
+  <script src="comic.js"></script>
+  <script>
+    // GridCity gridlock — Flux's origin story.
+    window.COMIC_PANELS = [
+      {
+        art: '🚦', title: 'GridCity Is in Gridlock',
+        text: 'Cars are stuck at every intersection. Buses can\'t move. Nothing flows.',
+        subtext: 'The old traffic lights run on fixed timers — they don\'t care if one road is empty and another is packed.',
+        tts: 'GridCity is in gridlock! Cars are stuck at every intersection, and buses cannot move. The old traffic lights run on fixed timers, and they do not care if one road is empty while another is packed.',
+        color: '#FF4D4D',
+      },
+      {
+        art: '🛰️', title: 'Meet Flux',
+        text: 'Flux is a new AI traffic controller with sensors buried under every road.',
+        subtext: 'Flux can feel every car on every lane. But Flux is totally untrained — it doesn\'t know when to turn the light green.',
+        tts: 'Meet Flux — a brand new AI traffic controller with sensors buried under every road. Flux can feel every car on every lane. But Flux is totally untrained, and it does not know when to turn the light green.',
+        color: '#38BDF8',
+      },
+      {
+        art: '👷', title: 'The Transport Department Needs You',
+        text: 'The Transport Department asked you to train Flux to read the road!',
+        subtext: 'Watch the bars, flush the queues, filter the bikes, and teach Flux to run the city on its own.',
+        tts: 'That is you! The Transport Department asked you to train Flux. Teach Flux to read the road, flush the queues, filter the bikes, and one day run the city on its own.',
+        color: '#22C55E',
+      },
+    ];
+    (function () {
+      var btn = document.getElementById('btnStart');
+      if (!btn) return;
+      var done = false;
+      btn.addEventListener('click', function (e) {
+        if (done) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        ComicIntro.play(window.COMIC_PANELS, function () {
+          done = true;
+          btn.click();
+        });
+      }, true);
+    })();
+  </script>
+</body>
+</html>

@@ -81,7 +81,7 @@ export function normalizeWeights(weights) {
       for (const m of Object.keys(split)) out[m] = (out[m] || 0) + wg * split[m];
     }
   } else {
-    for (const m of keys) {
+    for (const m of METRIC_KEYS) {
       const w = Number(weights[m]);
       if (Number.isFinite(w) && w > 0) out[m] = (out[m] || 0) + w;
     }
@@ -91,6 +91,26 @@ export function normalizeWeights(weights) {
   if (!(sum > 0) || !Number.isFinite(sum)) return null;
   for (const m of Object.keys(out)) out[m] /= sum;
   return out;
+}
+
+/** Shared receipt order. Zero-weight metrics remain visible as evidence. */
+export const METRIC_DESCRIPTORS = [
+  { key: 'accessibility', emoji: '🛣️' }, { key: 'coverage', emoji: '🏘️' },
+  { key: 'utilities', emoji: '💧' }, { key: 'zoning', emoji: '🤫' },
+  { key: 'spread', emoji: '🧩' }, { key: 'balance', emoji: '⚖️' },
+  { key: 'green', emoji: '🌳' }, { key: 'walkability', emoji: '🚶' },
+];
+export const METRIC_KEYS = METRIC_DESCRIPTORS.map(({ key }) => key);
+
+export function metricReceipt(metrics, weights = null) {
+  const mw = normalizeWeights(weights) || defaultMetricWeights();
+  return {
+    basis: 'original-plan', version: 1, score: metrics.score,
+    metrics: METRIC_KEYS.map((key) => ({
+      key, raw: metrics[key] * 100, weight: (mw[key] || 0) * 100,
+      points: metrics[key] * (mw[key] || 0) * 100,
+    })),
+  };
 }
 
 /** Default metric-level weights (the fixed blend, normalised to sum to 1). */
@@ -229,7 +249,8 @@ function balanceScore(layout, params = METRIC_PARAMS) {
 /**
  * Compute all planning metrics for a layout.
  * Returns { score, accessibility, coverage, utilities, balance, spread,
- *           zoning, green, goals, problems, goalHints, goalProblems }.
+ *           zoning, green, walkability, goals, problems, goalHints, goalProblems,
+ *           missingServices }.
  * score ∈ [0,100]; each component/goal ∈ [0,1].
  *
  * `weights` — optional goal-level or metric-level weights (see normalizeWeights).
@@ -240,22 +261,29 @@ function balanceScore(layout, params = METRIC_PARAMS) {
  * walkability.js. When given, the walkable goal and the weighted score use the
  * real walk-reach value (instead of falling back to accessibility).
  */
-export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, walk = null) {
+export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, walk = null, lang = 'en') {
+  const zh = lang === 'zh-Hant';
   const tagged = [];            // {goal|null, text}
   const problem = (goal, text) => tagged.push({ goal, text });
   const segs = roadSegments(layout);
   const buildings = layout.buildings || [];
   const parks = layout.parks || [];
 
+  // Traditional Chinese names for the small fixed service/utility sets (used in
+  // the problem sentences). Broader catalog names stay English inside zh copy —
+  // HK bilingual classrooms read "6 座 Traffic Lab" naturally.
+  const svcZh = { school: '學校', shop: '商店', hospital: '醫院', fire: '消防局', police: '警局' };
+  const utilZh = { water: '自來水', power: '電力', bus: '巴士站' };
+
   const d2r = (x, y) => distToRoads(x, y, segs);
 
   if (!buildings.length) {
     return {
       score: 0, accessibility: 0, coverage: 0, utilities: 0, balance: 1,
-      spread: 0, zoning: 0, green: 0,
+      spread: 0, zoning: 0, green: 0, walkability: walk ? walk.reach : 0,
       goals: { happy: 0, walkable: 0, peaceful: 0, spread: 0 },
-      problems: ['Place some buildings to see your city score!'],
-      goalHints: {}, goalProblems: {},
+      problems: [zh ? '先放一些建築物，看看你的城市得分吧！' : 'Place some buildings to see your city score!'],
+      goalHints: {}, goalProblems: {}, missingServices: {},
     };
   }
 
@@ -266,7 +294,9 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
   }
   const accessibility = accessible / buildings.length;
   if (accessibility < 0.8) {
-    problem('walkable', `${buildings.length - accessible} building(s) are far from any road — add roads near them.`);
+    problem('walkable', zh
+      ? `${buildings.length - accessible} 座建築物離道路太遠 — 在它們附近加些道路吧。`
+      : `${buildings.length - accessible} buildings are far from any road — add roads near them.`);
   }
 
   // Services coverage — a home needs school, shop, hospital, fire, police.
@@ -289,17 +319,29 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
   // metrics must not default to "perfect". Score them 0 and tell the student
   // to add housing; the optimizer bootstraps with a housing move.
   if (housing.length === 0 && buildings.length > 0) {
-    problem('happy', 'A city needs homes — place some 🏠 Housing so people can live there!');
+    problem('happy', zh
+      ? '城市需要住宅 — 放一些 🏠 住宅，讓居民可以入住吧！'
+      : 'A city needs homes — place some 🏠 Housing so people can live there!');
   }
   const coverage = housing.length ? serviceSum / housing.length : (buildings.length ? 0 : 1);
   const green = housing.length ? greenSum / housing.length : (buildings.length ? 0 : 1);
+  // Structured per-service missing counts (used by the planner's hint chips).
+  // Filled whenever homes exist, regardless of the coverage threshold.
+  const missingServices = {};
+  for (const t of params.serviceTypes) {
+    const n = missingByService[t] || 0;
+    if (n > 0) missingServices[t] = n;
+  }
   if (housing.length && coverage < 0.8) {
-    const lines = [];
-    for (const t of params.serviceTypes) {
-      const n = missingByService[t] || 0;
-      if (n > 0) lines.push(`${n} home${n > 1 ? 's' : ''} ${n > 1 ? 'have' : 'has'} no ${catalogType(t)?.name || t} nearby`);
+    const missing = params.serviceTypes.filter((t) => (missingByService[t] || 0) > 0);
+    if (missing.length) {
+      const names = zh
+        ? missing.map((t) => svcZh[t] || (catalogType(t)?.name || t))
+        : missing.map((t) => (catalogType(t)?.name || t).toLowerCase());
+      problem('happy', zh
+        ? `有些住宅無法到達${names.join('、')} — 補上缺少的設施吧。`
+        : `Some homes can't reach a ${names.join(', ')} — add the missing ones.`);
     }
-    if (lines.length) problem('happy', lines.join('; ') + '.');
   }
 
   // Utilities — homes need water, power, bus within district range.
@@ -315,12 +357,15 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
   }
   const utilities = housing.length ? utilSum / housing.length : (buildings.length ? 0 : 1);
   if (housing.length && utilities < 0.8) {
-    const lines = [];
-    for (const t of params.utilityTypes) {
-      const n = missingUtil[t] || 0;
-      if (n > 0) lines.push(`${n} home${n > 1 ? 's' : ''} ${n > 1 ? 'are' : 'is'} far from the ${catalogType(t)?.name || t}`);
+    const missing = params.utilityTypes.filter((t) => (missingUtil[t] || 0) > 0);
+    if (missing.length) {
+      const names = zh
+        ? missing.map((t) => utilZh[t] || t)
+        : missing.map((t) => ({ water: 'water', power: 'power', bus: 'a bus stop' })[t] || t);
+      problem('happy', zh
+        ? `有些住宅離${names.join('、')}太遠 — 補上缺少的設施吧。`
+        : `Some homes are far from ${names.join(', ')} — add the missing ones.`);
     }
-    if (lines.length) problem('happy', lines.join('; ') + '.');
   }
 
   // Spread — how spread out the special buildings are (anti-clustering)
@@ -333,7 +378,9 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
   }
   const spread = specials.length > 1 ? Math.max(0, 1 - clusterPairs / Math.max(1, specials.length)) : 1;
   if (specials.length > 1 && spread < 0.6) {
-    problem('spread', 'Some mission buildings are clustered together — spread them out across the city.');
+    problem('spread', zh
+      ? '有些任務建築聚在一起 — 把它們分散到城市各處吧。'
+      : 'Some mission buildings are clustered together — spread them out across the city.');
   }
 
   // Zoning — noisy buildings near housing; power has a mild setback.
@@ -349,7 +396,9 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
   }
   const zoning = housing.length ? Math.max(0, 1 - conflicts / Math.max(1, housing.length)) : (buildings.length ? 0 : 1);
   if (conflicts > 0) {
-    problem('peaceful', `${Math.round(conflicts)} home(s) are next to noisy facilities (traffic/delivery/recycling) or right beside the power grid.`);
+    problem('peaceful', zh
+      ? `${Math.round(conflicts)} 間住宅挨著嘈吵設施（交通/送貨/回收），或就在電力網旁邊。`
+      : `${Math.round(conflicts)} home(s) are next to noisy facilities (traffic/delivery/recycling) or right beside the power grid.`);
   }
 
   const balance = balanceScore(layout, params);
@@ -361,7 +410,9 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
     const civicTypes = Object.keys(ratioTargets(1));
     const civicCount = civicTypes.reduce((n, t) => n + buildings.filter((b) => b.type === t).length, 0);
     if (civicCount > housing.length * 3) {
-      problem('spread', `Only ${housing.length} home${housing.length === 1 ? '' : 's'} for ${civicCount} facilities — a real town needs more homes. Add some 🏠 Housing!`);
+      problem('spread', zh
+        ? `只有 ${housing.length} 間住宅，卻有 ${civicCount} 座設施 — 真實小鎮需要更多住宅。加些 🏠 住宅吧！`
+        : `Only ${housing.length} home${housing.length === 1 ? '' : 's'} for ${civicCount} facilities — a real town needs more homes. Add some 🏠 Housing!`);
     }
   }
 
@@ -373,7 +424,9 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
   for (const t of Object.keys(typeCounts)) {
     if (typeCounts[t] >= 6 && typeCounts[t] > buildings.length * 0.5) {
       const name = catalogType(t)?.name || t;
-      problem('spread', `You have ${typeCounts[t]} ${name}s — that's a lot of one building. A real city spreads different buildings around.`);
+      problem('spread', zh
+        ? `你放了 ${typeCounts[t]} 座 ${name} — 同一種建築太多。真正的城市會把不同建築分散開。`
+        : `You have ${typeCounts[t]} ${name}s — that's a lot of one building. A real city spreads different buildings around.`);
     }
   }
 
@@ -424,5 +477,5 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
     if (texts && texts.length) goalHints[g] = texts[0];
   }
 
-  return { score, accessibility, coverage, utilities, balance, spread, zoning, green, goals, problems, goalHints, goalProblems };
+  return { score, accessibility, coverage, utilities, balance, spread, zoning, green, walkability: walk ? walk.reach : accessibility, goals, problems, goalHints, goalProblems, missingServices };
 }

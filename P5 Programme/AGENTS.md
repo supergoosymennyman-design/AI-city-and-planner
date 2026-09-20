@@ -157,6 +157,15 @@ CLOUDFLARE_ACCOUNT_ID=a0775755ca3c2cf6f795f191bd6d792d ./deploy-city-apps.sh --c
 - **Staging:** `/var/folders/wv/_sm4kzsx1wl7vvkh9bvk510r0000gn/T/opencode/sketchfab2/`
   (raw/, opt/, opt-nodraco/).
 
+## Gemini CLI (catiecli relay)
+
+- The **gemini CLI** on this Mac talks to a remote relay (`catiecli.sukaka.top`)
+  that carries the `gcli-*` Gemini models (pro = `gcli-gemini-3.1-pro-preview`,
+  flash = `gcli-gemini-3-flash-preview`). Exact auth env vars, the rate-limit
+  pacing rules (10 req/min — ≥100s gaps, one bulk shell read per pass), the
+  `@p5-auditor` subagent, and the auth gotcha live in
+  **`docs/GEMINI-RELAY-RUNBOOK.md`** — read it before driving the CLI.
+
 ## Gotchas
 
 - **zsh does NOT word-split unquoted `$VAR` in for-loops** — use `bash -c` or

@@ -103,18 +103,10 @@ let _questCache = null;
 let _questCacheValid = false;
 
 function normalizeQuestState(s) {
-  // Schema guard: parses as JSON but may have the wrong shape or contain
-  // invalid IDs (e.g. from an older save or partial corruption). Never let
-  // bad stored data produce an impossible quest state.
-  const clean = { completed: [], unlocked: [] };
-  if (s && typeof s === 'object') {
-    const validId = (id) => typeof id === 'number' && Number.isInteger(id) && id >= 1 && id <= QUESTS.length;
-    if (Array.isArray(s.completed)) clean.completed = s.completed.filter(validId);
-    if (Array.isArray(s.unlocked)) clean.unlocked = s.unlocked.filter(validId);
-  }
-  // De-dupe and keep unlocked/completed disjoint.
-  clean.completed = [...new Set(clean.completed)];
-  clean.unlocked = [...new Set(clean.unlocked)].filter(id => !clean.completed.includes(id));
+  // Historical arrays are opaque records, not membership in today's UI registry.
+  const clean = s && typeof s === 'object' && !Array.isArray(s) ? { ...s } : {};
+  clean.completed = Array.isArray(clean.completed) ? clean.completed.slice() : [];
+  clean.unlocked = Array.isArray(clean.unlocked) ? clean.unlocked.slice() : [];
   return clean;
 }
 
@@ -166,4 +158,21 @@ if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
     if (e.key === QUEST_STATE_KEY) invalidateQuestState();
   });
+}
+
+/** A Done tap records attendance only. Never alter completed/unlocked history.
+ * Refuse malformed state instead of overwriting the child's raw saved section. */
+export function recordLegacyActivity(questId, storage) {
+  if (!Number.isInteger(questId) || questId < 1 || questId > 18) return false;
+  try {
+    storage ||= globalThis.localStorage;
+    const raw = storage.getItem(QUEST_STATE_KEY);
+    const state = raw === null ? { completed: [], unlocked: [] } : JSON.parse(raw);
+    if (!state || typeof state !== 'object' || Array.isArray(state)) return false;
+    const activity = Array.isArray(state.activity) ? state.activity.slice(-63) : [];
+    activity.push({ questId, action: 'done' });
+    storage.setItem(QUEST_STATE_KEY, JSON.stringify({ ...state, activity }));
+    invalidateQuestState();
+    return true;
+  } catch { return false; }
 }

@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🤖 AI Dance Buddy</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body { height: 100%; overflow: hidden; touch-action: manipulation; }
+  body { background: linear-gradient(180deg, #1a2a6c 0%, #2c5f8a 50%, #4a90d9 100%); font-family: 'Chalkboard SE', 'Comic Sans MS', system-ui, sans-serif; color: #fff; }
+
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 30px; gap: 12px; }
+
+  .btn {
+    pointer-events: auto;
+    min-width: 220px; min-height: 64px; padding: 14px 36px;
+    font-size: 26px; font-weight: 900; font-family: inherit; color: #fff;
+    border: none; border-radius: 999px; cursor: pointer;
+    background: #FF6B6B; box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 12px 24px rgba(0,0,0,0.2);
+  }
+  .btn:active { transform: scale(0.95) translateY(3px); }
+  .btn-green { background: #4CAF50; }
+  .btn-blue { background: #2196F3; }
+
+  #status { background: rgba(0,0,0,0.6); padding: 8px 20px; border-radius: 999px; font-size: 18px; font-weight: 800; }
+  #pip { width: 120px; height: 90px; border-radius: 12px; border: 3px solid #fff; object-fit: cover; display: none; }
+
+  #title-screen {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    background: rgba(10, 20, 50, 0.75); text-align: center; padding: 20px;
+  }
+  #title-screen h1 { font-size: 44px; text-shadow: 0 4px 16px rgba(0,0,0,0.5); }
+  #title-screen p { font-size: 20px; text-shadow: 0 2px 8px rgba(0,0,0,0.5); max-width: 420px; }
+
+  #countdown { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
+  #countdown-num { font-size: 160px; font-weight: 900; text-shadow: 0 8px 30px rgba(0,0,0,0.6); }
+
+  #pause-screen {
+    position: fixed; inset: 0; z-index: 20;
+    display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    background: rgba(10, 20, 50, 0.6); text-align: center; padding: 20px;
+  }
+  #pause-screen h2 { font-size: 44px; }
+  #pause-screen p { font-size: 22px; }
+
+  #replay-screen {
+    position: fixed; inset: 0; z-index: 20;
+    display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    background: rgba(10, 20, 50, 0.75); text-align: center; padding: 20px;
+  }
+  #replay-screen h2 { font-size: 38px; }
+  .btn-row { display: flex; gap: 14px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- Title -->
+<div id="title-screen">
+  <h1>🤖 DANCE BUDDY!</h1>
+  <p>Move your body and I'll copy you!<br>Step back so I can see your WHOLE body.</p>
+  <button class="btn btn-green" id="btn-start">▶ START DANCING</button>
+  <div id="status">Loading camera…</div>
+</div>
+
+<!-- Countdown -->
+<div id="countdown"><div id="countdown-num">3</div></div>
+
+<!-- Pause before replay -->
+<div id="pause-screen">
+  <h2>🎬 Ready!</h2>
+  <p>The robot learned your dance!</p>
+  <button class="btn btn-green" id="btn-watch">▶ WATCH MY DANCE</button>
+</div>
+
+<!-- Replay -->
+<div id="replay-screen">
+  <h2>🎉 GREAT DANCING!</h2>
+  <p>Look — I copied YOUR dance!</p>
+  <div class="btn-row">
+    <button class="btn btn-green" id="btn-again">💃 AGAIN</button>
+    <button class="btn btn-blue" id="btn-home">🏠 HOME</button>
+  </div>
+</div>
+
+<!-- PIP webcam -->
+<div id="ui">
+  <video id="pip" autoplay muted playsinline></video>
+</div>
+
+<script src="pose.js"></script>
+<script type="module">
+// ============ CONFIG ============
+const RECORD_MS = 8000;     // 8s recording
+const CAPTURE_FPS = 15;     // recording capture rate
+
+// ============ DOM ============
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+
+// ============ CANVAS SIZING ============
+let W = 0, H = 0;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ============ STATES ============
+const STATES = { TITLE: 0, COUNTDOWN: 1, RECORD: 2, PAUSE: 3, REPLAY: 4 };
+let state = STATES.TITLE;
+let videoEl = document.createElement('video');
+videoEl.autoplay = true; videoEl.muted = true; videoEl.playsInline = true;
+
+// ============ CAMERA + MOVENET ============
+let poseManager = null;
+let cameraReady = false;
+
+async function initPose() {
+  if (!window.PoseManager) throw new Error('pose.js not loaded');
+  poseManager = new window.PoseManager({ minPoseScore: 0.25, detectTimeoutMs: 1500 });
+  await poseManager.probe();
+}
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false,
+    });
+    videoEl.srcObject = stream;
+    await videoEl.play();
+    $('pip').srcObject = stream;
+    $('pip').style.display = 'block';
+    if (!poseManager) await initPose();
+    cameraReady = true;
+    $('status').textContent = '✅ Camera ready!';
+  } catch (e) {
+    console.error('Camera error:', e);
+    $('status').textContent = 'No camera — demo pose';
+  }
+}
+
+// ============ KEYPOINT HELPERS ============
+// MoveNet 17 keypoints:
+// 0=nose 5=L_shoulder 6=R_shoulder 7=L_elbow 8=R_elbow
+// 9=L_wrist 10=R_wrist 11=L_hip 12=R_hip 13=L_knee 14=R_knee
+// 15=L_ankle 16=R_ankle
+const SKEL = [[0,5],[0,6],[5,7],[7,9],[6,8],[8,10],[5,6],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]];
+
+// ============ SMOOTHING ============
+let smoothLm = null;
+const SMOOTH = 0.35;
+function smoothLandmarks(lm) {
+  if (!smoothLm) { smoothLm = lm.map(p => ({ ...p })); return smoothLm; }
+  for (let i = 0; i < lm.length; i++) {
+    smoothLm[i].x += (lm[i].x - smoothLm[i].x) * SMOOTH;
+    smoothLm[i].y += (lm[i].y - smoothLm[i].y) * SMOOTH;
+  }
+  return smoothLm;
+}
+
+// ============ DEFAULT / DEMO POSE ============
+// A neutral standing pose (arms slightly out, legs straight)
+function defaultPose() {
+  return [
+    {x:0.5,y:0.15}, {x:0.5,y:0.15}, {x:0.5,y:0.15}, {x:0.5,y:0.15}, {x:0.5,y:0.15},
+    {x:0.38,y:0.35}, {x:0.62,y:0.35}, {x:0.30,y:0.50}, {x:0.70,y:0.50},
+    {x:0.27,y:0.65}, {x:0.73,y:0.65}, {x:0.42,y:0.55}, {x:0.58,y:0.55},
+    {x:0.45,y:0.75}, {x:0.55,y:0.75}, {x:0.45,y:0.92}, {x:0.55,y:0.92},
+  ];
+}
+
+// ============ CHARACTER DRAWING ============
+// The character is drawn directly from keypoints. Scale to fit:
+// torso height (shoulderMid->hipMid) maps to ~200px. Center on canvas.
+function drawCharacter(lm, time) {
+  const shMid = { x: (lm[5].x + lm[6].x)/2, y: (lm[5].y + lm[6].y)/2 };
+  const hipMid = { x: (lm[11].x + lm[12].x)/2, y: (lm[11].y + lm[12].y)/2 };
+  const torsoPx = Math.hypot((shMid.x-hipMid.x)*W, (shMid.y-hipMid.y)*H);
+  const scale = torsoPx > 20 ? 220 / torsoPx : 1;  // scale so torso ~220px
+  const centerX = W/2;
+  const centerY = H * 0.45;
+  const headR = 28 * (torsoPx / 220);
+
+  // Map keypoint to canvas coords, scaled + centered
+  const map = (p) => ({
+    x: centerX + (p.x - hipMid.x) * W * scale * 0.9,
+    y: centerY + (p.y - hipMid.y) * H * scale * 0.9,
+  });
+
+  const P = lm.map(map);
+
+  // ----- Dance floor: bright, simple line -----
+  const floorY = H - 25;
+  ctx.save();
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#FFD93D';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(20, floorY);
+  ctx.lineTo(W - 20, floorY);
+  ctx.stroke();
+  // Cute dots on the floor
+  const numLights = 12;
+  for (let i = 0; i < numLights; i++) {
+    const lx = (i + 0.5) * W / numLights;
+    const phase = (time * 0.003 + i * 0.5) % (Math.PI * 2);
+    const glow = (Math.sin(phase) + 1) / 2;
+    ctx.fillStyle = i % 2 === 0 ? `rgba(255, 100, 150, ${0.4 + glow * 0.6})` : `rgba(80, 200, 255, ${0.4 + glow * 0.6})`;
+    ctx.beginPath();
+    ctx.arc(lx, floorY, 5 + glow * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // ----- Helpers: soft rounded limbs -----
+  function drawLimb2(p1, p2, width, color, darkColor) {
+    if (!p1 || !p2) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineWidth = width;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+    // subtle darker outline for depth
+    ctx.lineWidth = width * 0.18;
+    ctx.strokeStyle = darkColor;
+    ctx.globalAlpha = 0.4;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBallJoint(p, r, color) {
+    if (!p) return;
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    // highlight
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.arc(p.x - r * 0.25, p.y - r * 0.25, r * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ----- Warm mascot palette -----
+  const bodyColor = '#FFC94D';     // warm yellow
+  const bodyDark = '#E8A020';
+  const limbColor = '#FF8C42';     // soft orange
+  const limbDark = '#D96F2B';
+  const accent = '#FF6B9D';        // candy pink
+  const jointColor = '#FFD93D';
+
+  const limbWidth = headR * 0.38;
+  const jointR = headR * 0.22;
+
+  // ----- LEGS: soft orange -----
+  drawLimb2(P[11], P[13], limbWidth, limbColor, limbDark);
+  drawLimb2(P[13], P[15], limbWidth, limbColor, limbDark);
+  drawLimb2(P[12], P[14], limbWidth, limbColor, limbDark);
+  drawLimb2(P[14], P[16], limbWidth, limbColor, limbDark);
+  [11, 12, 13, 14].forEach(idx => drawBallJoint(P[idx], jointR, jointColor));
+  // Feet: cute rounded shoes
+  [P[15], P[16]].forEach(p => {
+    if (!p) return;
+    ctx.save();
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + jointR * 0.4, jointR * 1.5, jointR * 0.9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // ----- ARMS: soft orange (slightly thinner) -----
+  drawLimb2(P[5], P[7], limbWidth * 0.85, limbColor, limbDark);
+  drawLimb2(P[7], P[9], limbWidth * 0.85, limbColor, limbDark);
+  drawLimb2(P[6], P[8], limbWidth * 0.85, limbColor, limbDark);
+  drawLimb2(P[8], P[10], limbWidth * 0.85, limbColor, limbDark);
+  [5, 6, 7, 8].forEach(idx => drawBallJoint(P[idx], jointR * 0.9, jointColor));
+  // Hands: round mitts
+  [P[9], P[10]].forEach(p => {
+    if (!p) return;
+    ctx.save();
+    ctx.fillStyle = limbColor;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, jointR * 1.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // ----- TORSO: warm yellow rounded body -----
+  if (P[5] && P[6] && P[12] && P[11]) {
+    ctx.save();
+    const torsoWidth = Math.hypot(P[6].x - P[5].x, P[6].y - P[5].y) * 0.38;
+    const bodyGrad = ctx.createLinearGradient(P[5].x, P[5].y, P[11].x, P[11].y);
+    bodyGrad.addColorStop(0, bodyColor);
+    bodyGrad.addColorStop(1, bodyDark);
+    ctx.fillStyle = bodyGrad;
+    ctx.strokeStyle = '#E8A020';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(P[5].x - torsoWidth * 0.3, P[5].y);
+    ctx.lineTo(P[6].x + torsoWidth * 0.3, P[6].y);
+    ctx.lineTo(P[12].x + torsoWidth * 0.25, P[12].y);
+    ctx.lineTo(P[11].x - torsoWidth * 0.25, P[11].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Beating heart on chest
+    const chestX = (P[5].x + P[6].x + P[11].x + P[12].x) / 4;
+    const chestY = (P[5].y + P[6].y + P[11].y + P[12].y) / 4;
+    const heartPulse = 1 + 0.15 * Math.sin(time * 0.01);
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(chestX - headR * 0.1, chestY, headR * 0.16 * heartPulse, 0, Math.PI * 2);
+    ctx.arc(chestX + headR * 0.1, chestY, headR * 0.16 * heartPulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(chestX - headR * 0.24, chestY + headR * 0.05);
+    ctx.lineTo(chestX, chestY + headR * 0.32 * heartPulse);
+    ctx.lineTo(chestX + headR * 0.24, chestY + headR * 0.05);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // ----- HEAD: big round friendly face -----
+  if (P[0]) {
+    // Neck
+    const neckX = (P[5].x + P[6].x) / 2;
+    const neckY = (P[5].y + P[6].y) / 2;
+    ctx.save();
+    ctx.lineWidth = limbWidth * 0.7;
+    ctx.strokeStyle = limbColor;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(neckX, neckY);
+    ctx.lineTo(P[0].x, P[0].y);
+    ctx.stroke();
+    ctx.restore();
+
+    // Cute bobble / party dot that bounces
+    const bobY = P[0].y - headR * 1.25;
+    const bobX = P[0].x + Math.sin(time * 0.005) * headR * 0.15;
+    ctx.save();
+    ctx.strokeStyle = '#8BC34A';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(P[0].x, P[0].y - headR * 0.6);
+    ctx.lineTo(bobX, bobY);
+    ctx.stroke();
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(bobX, bobY, headR * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Head: big warm circle
+    ctx.save();
+    const headGrad = ctx.createRadialGradient(
+      P[0].x - headR*0.3, P[0].y - headR*0.3, headR*0.2,
+      P[0].x, P[0].y, headR
+    );
+    headGrad.addColorStop(0, '#FFE8A0');
+    headGrad.addColorStop(1, '#FFD76E');
+    ctx.fillStyle = headGrad;
+    ctx.strokeStyle = '#E8A020';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(P[0].x, P[0].y, headR * 1.05, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Big friendly eyes
+    const eyeY = P[0].y - headR * 0.1;
+    const eyeDX = headR * 0.3;
+    const eyeR = headR * 0.22;
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(P[0].x - eyeDX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.arc(P[0].x + eyeDX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Pupils
+    ctx.fillStyle = '#2B2B2B';
+    ctx.beginPath();
+    ctx.arc(P[0].x - eyeDX, eyeY + eyeR*0.15, eyeR * 0.55, 0, Math.PI * 2);
+    ctx.arc(P[0].x + eyeDX, eyeY + eyeR*0.15, eyeR * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    // Catchlights
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(P[0].x - eyeDX - eyeR*0.2, eyeY + eyeR*0.05, eyeR * 0.2, 0, Math.PI * 2);
+    ctx.arc(P[0].x + eyeDX - eyeR*0.2, eyeY + eyeR*0.05, eyeR * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Permanent happy smile
+    ctx.strokeStyle = '#B4633A';
+    ctx.lineWidth = headR * 0.12;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(P[0].x, P[0].y + headR * 0.2, headR * 0.5, 0.25, Math.PI - 0.25);
+    ctx.stroke();
+
+    // Rosy cheeks
+    ctx.fillStyle = 'rgba(255, 107, 157, 0.5)';
+    ctx.beginPath();
+    ctx.arc(P[0].x - headR * 0.55, P[0].y + headR * 0.2, headR * 0.16, 0, Math.PI * 2);
+    ctx.arc(P[0].x + headR * 0.55, P[0].y + headR * 0.2, headR * 0.16, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Small nose
+    ctx.fillStyle = '#E8A020';
+    ctx.beginPath();
+    ctx.arc(P[0].x, P[0].y - headR * 0.05, headR * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+}
+
+// ============ MAIN LOOP ============
+let lastPoseTime = 0;
+let recording = [];
+let replayFrames = [];
+let replayIdx = 0;
+let replayTimer = null;
+let currentLm = null;
+
+function animate(now) {
+  requestAnimationFrame(animate);
+  // Draw background
+  ctx.fillStyle = '#2c5f8a';
+  ctx.fillRect(0, 0, W, H);
+
+  // During REPLAY: draw recorded frames only (no live detection)
+  if (state === STATES.REPLAY) {
+    if (currentLm) drawCharacter(currentLm, now);
+    return;
+  }
+
+  // Get pose (record + live)
+  if (cameraReady) {
+    detectAndDraw(now);
+  } else {
+    // Draw demo pose with gentle bounce
+    const demo = defaultPose();
+    const t = now * 0.001;
+    demo[0].y = 0.15 + Math.sin(t) * 0.01;
+    drawCharacter(demo, now);
+  }
+}
+
+async function detectAndDraw(now) {
+  if (videoEl.readyState < 2) return;
+  const lm = await poseManager.detectPose(videoEl);
+  if (!lm || lm.length < 17) {
+    // No person: draw default pose
+    drawCharacter(defaultPose(), now);
+    return;
+  }
+  // Smooth
+  const s = smoothLandmarks(lm);
+  currentLm = s;
+  drawCharacter(s, now);
+
+  // Record during RECORD state
+  if (state === STATES.RECORD) {
+    recording.push(s.map(p => ({ x: p.x, y: p.y })));
+  }
+}
+
+// ============ BUTTONS / FLOW ============
+$('btn-start').addEventListener('click', () => {
+  $('title-screen').style.display = 'none';
+  startCountdown();
+});
+$('btn-watch').addEventListener('click', () => {
+  $('pause-screen').style.display = 'none';
+  state = STATES.REPLAY;
+  startReplay();
+});
+$('btn-again').addEventListener('click', () => {
+  $('replay-screen').style.display = 'none';
+  startCountdown();
+});
+$('btn-home').addEventListener('click', () => {
+  $('replay-screen').style.display = 'none';
+  $('title-screen').style.display = 'flex';
+  state = STATES.TITLE;
+});
+
+function startCountdown() {
+  state = STATES.COUNTDOWN;
+  $('countdown').style.display = 'flex';
+  let n = 3;
+  $('countdown-num').textContent = n;
+  const tick = () => {
+    n--;
+    if (n > 0) {
+      $('countdown-num').textContent = n;
+      setTimeout(tick, 800);
+    } else {
+      $('countdown').style.display = 'none';
+      startRecord();
+    }
+  };
+  setTimeout(tick, 800);
+}
+
+function startRecord() {
+  state = STATES.RECORD;
+  recording = [];
+  setTimeout(() => {
+    // Show "ready" screen with watch button (no auto-replay)
+    state = STATES.PAUSE;
+    $('pause-screen').style.display = 'flex';
+  }, RECORD_MS);
+}
+
+function startReplay() {
+  $('replay-screen').style.display = 'flex';
+  replayFrames = recording.slice();
+  replayIdx = 0;
+  if (replayTimer) clearInterval(replayTimer);
+  replayTimer = setInterval(() => {
+    if (replayIdx >= replayFrames.length) {
+      clearInterval(replayTimer);
+      return;
+    }
+    currentLm = replayFrames[replayIdx];
+    replayIdx++;
+  }, 1000 / CAPTURE_FPS);
+}
+
+// ============ BOOT ============
+(async function boot() {
+  $('status').textContent = 'Loading…';
+  await startCamera();
+  $('status').textContent = cameraReady ? '✅ Ready!' : 'Demo mode';
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

@@ -49,12 +49,10 @@ export function buildTaxiGeometry(opts = {}) {
 export function createFlyingTaxi(scene, opts = {}) {
   const walkSpeed = opts.walkSpeed || 4;
   const runSpeed = opts.runSpeed || 8;
-  // Designated landing zones ({x, z, radius}) where the taxi may descend to
-  // ground level. Elsewhere the taxi holds at least `cruiseFloor` so it clears
-  // the skyline (the city builder's buildings reach 220m; it passes ~240).
-  let landingZones = opts.landingZones || null;
-  // Minimum cruising altitude outside a landing zone (and the take-off target):
-  // high enough to clear most buildings so the student never flies through them.
+  // Boarding cruise target: the taxi rises to this height on take-off and holds
+  // there until the pilot steers. The city builder's buildings reach ~220m, so
+  // it passes ~240 to clear the skyline. During free flight the pilot may then
+  // climb or descend as they please (only a small ground floor is kept).
   const cruiseFloor = opts.cruiseFloor ?? 50;
   // Auto-navigation cruise altitude. During auto-nav the taxi must clear every
   // building in its path, so hosts with tall buildings (the 3D city builder,
@@ -194,14 +192,40 @@ export function createFlyingTaxi(scene, opts = {}) {
   };
   let autoNavActive = false;   // during auto-navigation, bypass the 50m floor
 
+  // Skin-swap hook (2026-09-10): swapping the champion's skin mid-ride replaces
+  // its WHOLE model, so the material list captured at board() points at the old
+  // (disposed) materials — the new passenger would appear fully opaque inside
+  // the cab and exit() would restore stale objects. Re-capture + re-apply the
+  // current boarding-fade whenever the champion model changes while the taxi is
+  // active. Subscribed once per champion in board().
+  const BOARD_FADE_SEC = 0.4;   // must match FADE_T inside update()
+  let skinSub = null;           // { champion, unsub }
+  function onChampionSkinSwap() {
+    if (!state.active || !state.champion) return;   // not riding — nothing to keep in sync
+    captureChampionMaterials();                      // re-point the fade at the swapped-in model
+    if (state.boarding && !state.fadeDone && state.champion.group.visible) {
+      const kFade = Math.min(1, state.boardT / BOARD_FADE_SEC);
+      setChampionFade(1 - kFade);                    // keep the dissolve level mid-fade
+    }
+  }
+  function subscribeSkinChanges(champion) {
+    if (!champion || typeof champion.addSkinListener !== 'function') return;
+    if (skinSub && skinSub.champion === champion) return;   // already subscribed
+    if (skinSub && skinSub.unsub) { try { skinSub.unsub(); } catch (e) { /* ignore */ } }
+    skinSub = { champion, unsub: champion.addSkinListener(onChampionSkinSwap) };
+  }
+
   const api = {
     group,
     isActive: () => state.active,
+    // True during the landing animation after exit(): the ride is ending, so
+    // flight controls should already be gone even though `active` is still true.
+    isExiting: () => state.exiting,
     getPos: () => state.pos,
-    setLandingZones(zones) { landingZones = zones || null; },
     setAutoNav(on) { autoNavActive = !!on; },
     board(champion) {
       state.champion = champion;
+      subscribeSkinChanges(champion);
       state.active = true; state.exiting = false;
       // Board at the champion's current position ON THE GROUND: the taxi spawns
       // at the champion's feet (slightly lifted so it doesn't clip the floor)
@@ -258,14 +282,14 @@ export function createFlyingTaxi(scene, opts = {}) {
           const ch = state.champion;
           if (ch) {
             ch.group.visible = true;
-            // Always land the champion on the ground (y=0). The champion never
-            // walks across the sky — if it leaves the taxi high up it falls to
-            // street level, so it can never walk on rooftops or in the air.
-            ch.state.pos.set(state.pos.x, 0, state.pos.z);
-            ch.state.y = 0;
-            ch.state.yVel = 0;
-            ch.state.isGrounded = true;
-            ch.group.position.set(state.pos.x, 0, state.pos.z);
+            // Always land the champion ON THE SURFACE under the taxi (bare
+            // ground, sidewalk or asphalt). The champion never walks across the
+            // sky — if it leaves the taxi high up it falls to street level, so
+            // it can never walk on rooftops or in the air. `landAt` is
+            // surface-aware (the old hard-coded y=0 left it 0.1 m up on bare
+            // ground).
+            if (typeof ch.landAt === 'function') ch.landAt(state.pos.x, state.pos.z);
+            else { ch.state.pos.set(state.pos.x, 0, state.pos.z); ch.state.y = 0; ch.state.yVel = 0; ch.state.isGrounded = true; ch.group.position.set(state.pos.x, 0, state.pos.z); }
           }
           state.champion = null;
         }
@@ -315,21 +339,18 @@ export function createFlyingTaxi(scene, opts = {}) {
         while (diff < -Math.PI) diff += Math.PI * 2;
         state.facing += diff * Math.min(1, dt * 6);
       }
-      if (input.ascend) state.pos.y += 4 * dt;
-      else if (input.descend) state.pos.y -= 4 * dt;
-      // Landing zones: descend to ground level when over a designated pad
-      // (open area away from buildings); otherwise stay above mid-rises.
-      // During auto-navigation the taxi cruises at the configured altitude
-      // (clearing every building en route); it descends only as the host
-      // steers it toward the target's rooftop via the ascend/descend inputs.
-      const nearZone = landingZones && landingZones.some(z => Math.hypot(state.pos.x - z.x, state.pos.z - z.z) < z.radius);
-      const floor = autoNavActive ? autoNavFloor : (nearZone ? 3 : cruiseFloor);
-      // Smooth climb to the floor — no snap when the floor rises above the taxi
-      // (e.g. leaving a landing zone after descending): rise ~50 m/s instead.
+      // Manual altitude: climb / descend freely at 12 m/s. In free flight the
+      // pilot owns the altitude — only a small floor (~3 m) stops the taxi from
+      // clipping the ground. During auto-navigation (setAutoNav) the taxi holds
+      // `autoNavFloor` so it clears every building on its route; the host still
+      // steers it onto a target via the ascend/descend inputs.
+      if (input.ascend) state.pos.y += 12 * dt;
+      else if (input.descend) state.pos.y -= 12 * dt;
+      const floor = autoNavActive ? autoNavFloor : 3;
+      // Smooth climb to the floor — no snap when the floor is above the taxi
+      // (e.g. toggling auto-nav while low): rise ~50 m/s instead.
       if (state.pos.y < floor) {
         state.pos.y = Math.min(floor, state.pos.y + 50 * dt);
-      } else {
-        state.pos.y = Math.max(floor, state.pos.y);
       }
 
       group.position.set(state.pos.x, state.pos.y + 0.3 * Math.sin(tNow * 2), state.pos.z);

@@ -1,3 +1,4 @@
+import { purposeNameForLanguage } from './building-purposes.js';
 /**
  * city-common/catalog.js — shared building catalog for the city planner + 3D template.
  *
@@ -44,6 +45,11 @@ export const CATALOG = {
   fire:      { name: 'Fire Station', category: 'generic', color: '#ff2030', emoji: '🚒', footprint: [22, 20], height: 16, zone: 'civic' },
   police:    { name: 'Police Station', category: 'generic', color: '#2d4a75', emoji: '🚓', footprint: [22, 20], height: 18, zone: 'civic' },
 };
+
+// Geometry and legacy IDs above remain unchanged; all consumers share purpose names.
+for (const type of Object.keys(CATALOG)) {
+  if (CATALOG[type].category === 'special') Object.defineProperty(CATALOG[type], 'name', { enumerable: true, get: () => purposeNameForLanguage(type) });
+}
 
 /** Stable display order for the planner drawer (special first, then generic). */
 export const CATALOG_ORDER = [

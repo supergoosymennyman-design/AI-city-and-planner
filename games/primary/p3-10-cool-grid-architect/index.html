@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cool Grid Architect — 3D Power Grid Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+  <!-- Loading screen -->
+  <div id="loading-screen" class="overlay"><div class="loading-box"><div class="spin"></div><p>Loading the Power Grid...</p></div></div>
+
+  <!-- Menu -->
+  <div id="menu" class="overlay">
+    <div class="menu-card">
+      <h1 class="menu-title">⚡ Cool Grid Architect</h1>
+      <p class="menu-sub">WaterCity's power grid keeps failing! Meet <strong>Spark</strong> — an AI that can balance the grid, but needs your help.</p>
+      <p class="menu-mission">Design a smart, balanced AI power grid on the <strong>3D terrain</strong>. Place Data Centers where it's cool, generators where they work best.</p>
+      <button id="btnStart" class="primary-btn">▶ Start Building</button>
+      <p class="menu-hint">All 6 levels are unlocked — jump to any level from the top bar.</p>
+    </div>
+  </div>
+
+  <!-- Main game area -->
+  <div id="game-area" class="game-area" hidden>
+    <!-- Top bar -->
+    <div id="top-bar" class="top-bar">
+      <div class="brand"><span class="brand-icon">⚡</span><span class="brand-name">Cool Grid</span></div>
+      <div class="level-tabs" id="level-tabs"></div>
+      <div class="top-actions">
+        <button class="zoom-btn" id="btn-zoom-in" aria-label="Zoom in">🔍+</button>
+        <button class="zoom-btn" id="btn-zoom-out" aria-label="Zoom out">🔍−</button>
+        <span class="zoom-label" id="zoom-label">100%</span>
+      </div>
+    </div>
+
+    <!-- Level banner -->
+    <div id="level-banner" class="level-banner">
+      <span id="banner-icon" class="banner-icon">🖥️</span>
+      <div class="banner-text">
+        <div id="banner-title" class="banner-title">LEVEL 1: COOL THE DATA CENTER</div>
+        <div id="banner-sub" class="banner-sub">Place the Data Center on cool terrain near the city</div>
+      </div>
+    </div>
+
+    <!-- Three-panel layout -->
+    <div class="game-layout">
+      <!-- Left: item palette -->
+      <aside class="item-drawer" id="item-drawer">
+        <div class="drawer-title">ITEMS</div>
+        <div id="item-slots" class="item-slots"></div>
+        <div class="budget-row" id="budget-row" hidden>
+          <span>🪙 Budget</span><span id="budget-value" class="budget-value">8</span>
+        </div>
+        <div class="drawer-hint" id="drawer-hint">Tap an item, then tap the terrain to place it</div>
+      </aside>
+
+      <!-- Center: 3D canvas -->
+      <main class="canvas-wrap" id="canvas-wrap">
+        <canvas id="game-canvas"></canvas>
+        <div id="feedback" class="feedback" hidden></div>
+      </main>
+
+      <!-- Right: meters -->
+      <aside class="score-panel" id="score-panel">
+        <div class="score-title">GRID STATUS</div>
+        <div id="meter-list" class="meter-list"></div>
+        <button class="simulate-btn" id="btn-simulate">🔌 Simulate Grid</button>
+        <div class="eco-box" id="eco-box">
+          <div class="eco-label">🏆 Eco-Score</div>
+          <div class="eco-value" id="eco-value">0</div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Quiz overlay for level 6 (direct child of game-area, overlays everything) -->
+    <div id="quizHost" class="quiz-host" hidden></div>
+  </div>
+
+  <!-- Result overlay -->
+  <div id="result" class="overlay" hidden>
+    <div class="result-card">
+      <div class="result-icon" id="result-icon">✅</div>
+      <h2 id="result-title" class="result-title">Great job!</h2>
+      <p id="result-msg" class="result-msg"></p>
+      <div class="result-actions">
+        <button id="btn-retry" class="secondary-btn">↻ Retry</button>
+        <button id="btn-next" class="primary-btn">Next Level →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Certificate -->
+  <div id="certificate" class="overlay" hidden>
+    <div class="cert-card" id="cert-card"></div>
+    <button id="btnReplay" class="secondary-btn">↻ Replay</button>
+  </div>
+
+  <script src="audio.js"></script>
+  <script>
+    // SFX bridge — quiz.js expects SFX.play.{correct,wrong,fanfare}
+    window.SFX = {
+      play: {
+        correct: () => window.AudioFX.correctTap(),
+        wrong: () => window.AudioFX.wrongTap(),
+        fanfare: () => window.AudioFX.win(),
+      }
+    };
+  </script>
+  <script src="levels-data.js"></script>
+  <script src="quiz.js"></script>
+  <script src="comic.js"></script>
+  <script src="spark.js"></script>
+  <script src="icons.js"></script>
+  <script>
+    // Story panels for the comic intro
+    window.COMIC_PANELS = [
+      {
+        art: '🏙️', title: 'WaterCity in Trouble',
+        text: 'The power grid keeps failing! The Data Center overheats on hot days.',
+        subtext: 'Hospitals, schools, homes — they all depend on the AI servers staying cool. But WaterCity\'s old grid can\'t keep up.',
+        tts: 'WaterCity is in trouble! The power grid keeps failing, and the Data Center overheats on hot days. Hospitals, schools, and homes all depend on the AI servers staying cool.',
+        color: '#F59E0B',
+      },
+      {
+        art: '⚡', title: 'Meet Spark',
+        text: 'Spark is a new AI that can balance the power grid.',
+        subtext: 'Spark knows where energy is needed. Mountains keep servers cool, deserts power solar panels — but Spark needs a planner to decide where everything goes.',
+        tts: 'Meet Spark — a brand new AI that can balance the power grid. Spark knows where energy is needed. Mountains keep servers cool, and deserts power solar panels. But Spark needs a planner to decide where everything goes.',
+        color: '#22C55E',
+      },
+      {
+        art: '🛠️', title: 'The Power Department Needs You',
+        text: 'Place the Data Centers and renewables. Every tile matters!',
+        subtext: 'The Power Department asked you to plan the grid on 3D terrain. Cool spots keep servers efficient. Sunny spots power the city.',
+        tts: 'That is you! The Power Department asked you to plan the grid. Place the Data Centers and renewables, and remember — every tile matters!',
+        color: '#3B82F6',
+      },
+    ];
+  </script>
+  <script type="module" src="game.js"></script>
+</body>
+</html>

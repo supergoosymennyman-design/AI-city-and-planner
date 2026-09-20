@@ -1,0 +1,15 @@
+{
+  "name": "Dance With Penguin",
+  "description": "Kindergarten motion-capture dance game. Kids dance in front of the camera and a cartoon penguin mirrors their moves, then replays the dance.",
+  "id": "k2-dance-party",
+  "track": "kindergarten",
+  "band": "k2",
+  "type": "motion-dance",
+  "input": ["camera", "body-tracking"],
+  "ai_concept": "Sensing and Understanding — the camera senses body movements (like an AI sensing the world) and maps them onto a character",
+  "target_age": "4-6",
+  "sourceReady": true,
+  "entry": "index.html",
+  "assets": ["penguin.glb"],
+  "notes": "Standalone. Uses MediaPipe Pose + Three.js. Webcam processed locally in-browser, no data leaves the device."
+}

@@ -1,3 +1,4 @@
+import { PURPOSES } from '../P5 Programme/buddy-kit/client/city-common/building-purposes.js';
 // tests/catalog.test.mjs — integrity of the shared building catalog.
 //
 // Run: node --test tests/catalog.test.mjs   (from the repo root)
@@ -36,14 +37,15 @@ test('catalogType / isSpecial handle unknown keys safely', () => {
   assert.equal(isSpecial('housing'), false);
 });
 
-test('mission catalog, lessons, themes and game availability form one truthful join', () => {
+test('purpose presentation is independent of intact legacy game metadata', () => {
   const specials = Object.entries(CATALOG).filter(([, v]) => v.category === 'special');
   assert.equal(new Set(QUESTS.map((q) => q.id)).size, QUESTS.length, 'quest ids are unique');
   for (const [type, spec] of specials) {
     const quest = QUESTS.find((q) => q.id === spec.questId);
     assert.ok(quest, `${type} maps to a quest`);
-    assert.equal(quest.labelEn, spec.name, `${type} uses the same child-facing name`);
-    assert.ok(Number.isInteger(quest.lesson) && quest.lesson >= 1 && quest.lesson <= 20, `${type} has a P5 lesson`);
+    assert.equal(spec.name, PURPOSES[type].en, `${type} uses its purpose name`);
+    assert.ok(quest.labelEn, `${type} retains its historical label`);
+    assert.ok(Number.isInteger(quest.lesson) && quest.lesson >= 1 && quest.lesson <= 20, `${type} retains a historical lesson number`);
     assert.ok(quest.gameUrl === null || typeof quest.gameUrl === 'string', `${type} is playable or honestly coming soon`);
   }
   assert.equal(QUESTS.find((q) => q.id === 1).name, 'AI & Gov Finances');

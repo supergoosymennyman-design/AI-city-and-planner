@@ -15,7 +15,7 @@ function buildingName(b) {
   return spec ? spec.name : b.type;
 }
 
-export function mountCityBuddy(city, champion, sim, layout) {
+export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
   const buildings = layout.buildings || [];
 
   // Planted AI machines (.cap files) + their last "Try it" verdicts + the plan's
@@ -35,14 +35,11 @@ export function mountCityBuddy(city, champion, sim, layout) {
   const goalLabel = (layout.goals && layout.goals.label) || 'Balanced';
   const plannerScore = layout.plannerScore != null ? String(layout.plannerScore) : null;
 
-  const recycling = buildings.find((b) => b.type === 'recycling');
-  const firstStepPhrase = recycling
-    ? `Let's fly to the ♻️ Recycling Lab first — the recycling centre needs your help!`
-    : buildings.length
-      ? `Walk around and find the ${buildingName(buildings[0])} you placed first!`
-      : 'Start by placing some buildings in the planner, then come back to explore them!';
+  const firstStepPhrase = buildings.length
+    ? 'Choose a landmark to visit, or open My Work to inspect your plan and exhibits.'
+    : 'Start by placing some buildings in the planner, then come back to explore them!';
   const machinePhrase = planted.names.length
-    ? ` I can see your ${planted.summary}. Open the 📦 panel to feed one of them real inputs and watch what it decides!`
+    ? ` I can see your ${planted.summary}. Open My Work to inspect imported evidence. Stage 1 is display-only; no inference runs.`
     : '';
 
   const greeting = buildings.length
@@ -65,7 +62,7 @@ export function mountCityBuddy(city, champion, sim, layout) {
         location: `${p.x.toFixed(0)},${p.z.toFixed(0)}`,
         nearBuilding: near ? buildingName(near) : 'open ground',
         buildingCount: String(buildings.length),
-        citySummary: `${buildings.length} buildings (${specialCount} mission, ${facilityCount} facilities), ${layout.roads.length} roads, ${layout.parks.length} parks`,
+        citySummary: `${buildings.length} buildings (${specialCount} landmarks, ${facilityCount} facilities), ${layout.roads.length} roads, ${layout.parks.length} parks`,
         buildingList: buildings.map((b) => buildingName(b)).join(', '),
         roads: String(layout.roads.length),
         parks: String(layout.parks.length),
@@ -87,13 +84,13 @@ export function mountCityBuddy(city, champion, sim, layout) {
     if (action.op === 'setParam' && action.name === 'walkTo') {
       const target = findBuilding(action.value);
       if (!target) return { ok: false, note: `I can't find a building called "${action.value}" in your city.` };
-      if (sim.walkTo) { sim.walkTo(target); return { ok: true, note: `🚶 Walking to the ${buildingName(target)}!` }; }
+      if (sim.walkTo && sim.walkTo(target)) { return { ok: true, note: `🚶 Walking to the ${buildingName(target)}!` }; }
       return { ok: false, note: 'Walking is not available on this page.' };
     }
     if (action.op === 'setParam' && action.name === 'flyTo') {
       const target = findBuilding(action.value);
       if (!target) return { ok: false, note: `I can't find a building called "${action.value}" in your city.` };
-      if (sim.flyTo) { sim.flyTo(target); return { ok: true, note: `✈️ Flying by taxi to the ${buildingName(target)}!` }; }
+      if (sim.flyTo && sim.flyTo(target)) { return { ok: true, note: `✈️ Flying by taxi to the ${buildingName(target)}!` }; }
       return { ok: false, note: 'The flying taxi is not available on this page.' };
     }
     if (action.op === 'enterNearQuest') {
@@ -104,7 +101,7 @@ export function mountCityBuddy(city, champion, sim, layout) {
   };
 
   // Host command: /enter opens the mission building the champion is standing
-  // near (e.g. the ♻️ Recycling Lab). Appears in /help and the slash palette.
+  // near. Opens its purpose panel; appears in /help and the slash palette.
   const enterCommand = {
     cmd: 'enter',
     desc: 'open the building you are near',   // <= DESC_MAX(40)
@@ -191,15 +188,12 @@ export function mountCityBuddy(city, champion, sim, layout) {
       + 'themselves (in the Fit Studio / 3D Studio), and you are a separate helper who talks to them. '
       + 'Every building, road and park is THEIRS — celebrate what they built and talk about it with '
       + 'pride. You can see where they are and which of their buildings is nearby. Help them explore: suggest flying or '
-      + 'walking to one of their buildings, tell them what they placed, and encourage them to try the mission buildings\' '
-      + 'mini-games. The child\'s FIRST suggested stop is always the ♻️ Recycling Lab (the recycling centre) — if the city '
-      + 'has one, offer to FLY there first by taxi and encourage them to ENTER it to play the recycling-sorting game. '
-      + 'When the child is standing next to a mission building (like the Recycling Lab), offer to enter it — you can open '
-      + 'it for them (type /enter or say "enter the Recycling Lab"), which starts its mini-game. '
+      + 'walking to one of their buildings. Let the child choose a destination; there is no compulsory first stop. '
+      + 'Each landmark has a purpose panel, opened nearby with /enter. My Work displays their plan, exhibits and imported evidence. '
+      + 'Stage 1 is narrative/display-only: no live inference, city control or newly verified evidence. '
+      + 'Historical games and Workshop are optional links in a secondary panel; Done only records activity, never skill or lesson completion. '
       + 'You have a flying taxi: for buildings far away, offer to FLY there by taxi (set the flyTo param to the '
       + 'building\'s name); for buildings close by, offer to WALK (walkTo param). '
-      + 'The mission buildings here are the child\'s OWN special buildings (e.g. ♻️ Recycling Lab, 🏙️ AI City Central) — '
-      + 'each can be entered to play its mini-game; the Recycling Lab\'s game is about sorting recycling. '
       + 'Be honest about yourself: if asked, say you are the Coding Buddy, a computer helper program in this app. '
       + 'You are separate from the child\'s Champion and do not claim to know which exact AI brain you run on. '
       + 'Keep replies to 2-3 short sentences. Use simple words a 10-year-old understands. End by inviting one small next '
@@ -216,7 +210,8 @@ export function mountCityBuddy(city, champion, sim, layout) {
       // problem). The greeting message is queued, so tapping the bubble still
       // shows it. The 64px bubble launcher remains as the discoverable affordance.
       const minimise = () => { if (typeof widget.close === 'function') widget.close(); };
-      window.addEventListener('buddy:minimise', minimise);
+      if (lifecycle?.listen) lifecycle.listen(window, 'buddy:minimise', minimise);
+      else window.addEventListener('buddy:minimise', minimise);
     }).catch(() => { /* mount failures log loudly in buddy-boot */ });
   }
 

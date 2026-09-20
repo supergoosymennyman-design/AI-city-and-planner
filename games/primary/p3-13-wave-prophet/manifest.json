@@ -1,0 +1,27 @@
+{
+  "name": "Traffic Commander — Train Flux the AI",
+  "short_name": "Traffic Cmdr",
+  "description": "Train Flux, an AI traffic controller, by reading inductive loop sensors. A P3 AI-literacy game.",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1C2331",
+  "theme_color": "#1C2331",
+  "categories": ["education", "games", "kids"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='34' fill='%231C2331'/%3E%3Ccircle cx='96' cy='52' r='20' fill='%23E74C3C'/%3E%3Ccircle cx='96' cy='96' r='20' fill='%23F39C12'/%3E%3Ccircle cx='96' cy='140' r='20' fill='%232ECC71'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='90' fill='%231C2331'/%3E%3Ccircle cx='256' cy='138' r='54' fill='%23E74C3C'/%3E%3Ccircle cx='256' cy='256' r='54' fill='%23F39C12'/%3E%3Ccircle cx='256' cy='374' r='54' fill='%232ECC71'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

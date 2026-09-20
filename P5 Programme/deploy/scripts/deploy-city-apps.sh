@@ -85,6 +85,7 @@ build_city_sim() {
   rm -rf city-sim/city-builder city-sim/city-common city-sim/champion-city \
          city-sim/hong-kong-real city-sim/vendor city-sim/logic city-sim/buddy \
          city-sim/library city-sim/shared city-sim/planner city-sim/pregame \
+         city-sim/project \
          city-sim/buddy-boot.js city-sim/buddy-core.css city-sim/buddy-theme.css \
          city-sim/buddy-widget.css city-sim/buddy-widget.js city-sim/buddy.js \
          city-sim/crash-guard.js
@@ -103,6 +104,13 @@ build_city_sim() {
   cp "$KIT/client/buddy-widget.css"     city-sim/buddy-widget.css
   cp "$KIT/client/buddy-widget.js"      city-sim/buddy-widget.js
   cp "$KIT/client/buddy.js"             city-sim/buddy.js
+
+  # ── Quest minigame `/project/p3-18-3d-city/` (quest id 4, "AI City Central"). Its relative
+  # gameUrl in hong-kong-real/quests.js resolves same-origin to this path, so the app must ship in
+  # the bundle or the iframe 404s in production (it only worked under the Node dev shell, which
+  # mounts P5 Programme/project/). The app's absolute deps (/vendor/three, /champion-city/*,
+  # /hong-kong-real/*) are already at the bundle root above.
+  cp -r "$KIT/../project"              city-sim/project
 
   # ── UNIFIED ORIGIN: planner + pregame ride the SAME worker as the 3D city, so
   # localStorage hands the layout planner → city with no file round-trip.

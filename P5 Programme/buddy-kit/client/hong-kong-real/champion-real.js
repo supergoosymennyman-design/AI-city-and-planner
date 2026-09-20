@@ -7,7 +7,7 @@ import { buildAccessoryMesh } from '../champion-city/accessories.js';
 
 // Champion is scaled up on the real-HK map (buildings are real meters tall) so
 // students can actually see the robot. Speed is proportional to the scale.
-export const CHAMPION_SCALE = 2.0;    // ~4m tall — 2× a human
+export const CHAMPION_SCALE = 1.8;    // ~3.6m tall — slightly smaller against traffic
 export const WALK_SPEED = 4.0;        // m/s
 export const RUN_SPEED = 8.0;
 // The flying taxi is always available on the unified HK page. The champion
@@ -36,14 +36,15 @@ export async function createChampion(assetBase, city, opts = {}) {
   // compressed exports — e.g. a Fit Studio "fitted champion" — load too.
   const loader = createGLTFLoader();
   const group = new THREE.Group();
-  // World scale for the champion. The city spawns it at CHAMPION_SCALE (~4 m,
-  // twice a human, so it reads on the real-HK map). Interior scenarios (lab,
+  // World scale for the champion. The city spawns it at CHAMPION_SCALE (~3.6 m,
+  // still larger than a human, but proportionate to the road traffic). Interior scenarios (lab,
   // spaceship, station) pass a smaller scale (~1.0) so the robot fits human
   // rooms with human-scale furniture. The ground drops below scale proportionally
   // because they are absolute-meter values calibrated for CHAMPION_SCALE.
   const SCALE = (city && city.scale) || CHAMPION_SCALE;
   const _dirV = new THREE.Vector3();   // scratch — avoid per-frame allocations
   const _footV = new THREE.Vector3();  // scratch — animated foot position for auto-grounding
+  const _footR = new THREE.Vector3();  // scratch — right-foot measurement (dual-foot grounding)
   const FACING_OFFSET = 0;
   const clips = {};
   // The shared Mixamo clips are baked for the bunny's rig, whose skeleton lives at
@@ -67,7 +68,14 @@ export async function createChampion(assetBase, city, opts = {}) {
   // float (DROP_FRAC only applies when no foot bone is found).
   const DROP_FRAC = { idle: 0.625, walk: 0.74, run: 0.735 };
   let skinHeight = 2.0;   // unscaled normalized height; measured per skin on load
-  let _footBone = null;   // LeftFoot bone of the current skin (for auto-grounding)
+  // Grounding bones of the current skin: { left, right } Mixamo foot bones, or
+  // null when the skin has no skeleton (procedural robot → DROP_FRAC fallback).
+  // Dual-foot grounding uses min(soleL, soleR) so the PLANTED foot defines the
+  // height and the swing foot never pumps the whole body at step cadence.
+  let _footBones = null;
+  let _soleOffWorld = 0;  // ankle-bone → sole vertical gap in world units, once per skin
+  // Grounding diagnostics (debug HUD): last measured sole/surface/gap in metres.
+  const groundDebug = { surface: 0, soleY: 0, gap: 0, soleOff: 0 };
   // Clips the champion needs on day one (loop + jump/wave are one-shot but
   // common); everything else (turns, dances) lazy-loads on first use so boot
   // only waits on the essential few, fetched in parallel.
@@ -175,16 +183,41 @@ export async function createChampion(assetBase, city, opts = {}) {
 
   let model = null, mixer = null, actions = {}, currentName = 'idle';
 
-  // Locate the skin's LeftFoot bone (Mixamo naming: "mixamorig:LeftFoot" or
-  // "mixamorigLeftFoot"). Used by auto-grounding to drop the champion by its
-  // ACTUAL animated foot height, so any skin (bunny, dragon, fitted champion)
-  // sits on the ground regardless of clip-space proportions.
-  function findFootBone(m) {
+  // Locate the skin's LeftFoot + RightFoot bones (Mixamo naming:
+  // "mixamorig:LeftFoot" or "mixamorigLeftFoot"). Used by auto-grounding so any
+  // skin (bunny, dragon, fitted champion) sits on the ground regardless of
+  // clip-space proportions. Returns { left, right } or null (procedural robot).
+  function findFootBones(m) {
     let skinned = null;
     m.traverse((o) => { if (o.isSkinnedMesh && !skinned) skinned = o; });
     if (!skinned || !skinned.skeleton) return null;
     const bones = skinned.skeleton.bones;
-    return bones.find((b) => /LeftFoot$/.test(b.name)) || null;
+    const left = bones.find((b) => /LeftFoot$/.test(b.name)) || null;
+    const right = bones.find((b) => /RightFoot$/.test(b.name)) || null;
+    return left || right ? { left, right } : null;
+  }
+
+  // Lazily measure the ankle-bone → sole gap for the current skin ONCE the group
+  // has its final scale + scene matrices (first grounded update). The foot BONE
+  // sits at the ankle, not the shoe sole — grounding the bone to y=0 leaves the
+  // sole floating by this gap. Measuring here (rather than in loadSkin) keeps
+  // the value in true world units after group.scale (SCALE × growScale).
+  function _ensureSoleOffset() {
+    if (_soleOffWorld !== 0 || !_footBones || !_footBones.left || !model) return;
+    const savedY = group.position.y;
+    group.position.y = 0;
+    model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(model);
+    if (box.isEmpty()) { group.position.y = savedY; return; }
+    _footBones.left.getWorldPosition(_footV);
+    group.position.y = savedY;
+    // The normalized model's lowest point is ~0 at group y=0; the foot bone
+    // (ankle) sits above it by the ankle→sole distance. World units already
+    // include group scale. Trust only a sane positive gap.
+    const gap = _footV.y - box.min.y;
+    _soleOffWorld = Number.isFinite(gap) && gap > 0 && gap < skinHeight * SCALE * 2
+      ? gap
+      : 0;
   }
 
   function normalizeModel(m) {
@@ -251,7 +284,8 @@ export async function createChampion(assetBase, city, opts = {}) {
     const armR = armL.clone(); armR.position.x = 0.5; armR.rotation.z = -0.15; robot.add(armR);
     robot.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     model = robot;
-    _footBone = null;   // procedural robot has no skeleton — DROP_FRAC fallback
+    _footBones = null;   // procedural robot has no skeleton — DROP_FRAC fallback
+    _soleOffWorld = 0;
     group.add(robot);
     buildMixer(robot);
     currentName = 'idle';
@@ -272,7 +306,10 @@ export async function createChampion(assetBase, city, opts = {}) {
     }
     const newModel = gltf.scene;
     normalizeModel(newModel);
-    _footBone = findFootBone(newModel);
+    _footBones = findFootBones(newModel);
+    // soleOff is measured lazily on the first grounded update (once the group
+    // scale + scene matrices are final) — see _ensureSoleOffset() in update().
+    _soleOffWorld = 0;
     // Adapt the shared clips to this skin's skeleton unit-space (meter-scale
     // fitted champions vs the bunny's ~100× rig) BEFORE the mixer is built.
     const s = skinClipScaleFor(newModel);
@@ -399,14 +436,37 @@ export async function createChampion(assetBase, city, opts = {}) {
   // Scale the GROUP (not the model) so the skeleton/skinning stays intact.
   group.scale.setScalar(SCALE);
 
+  // Skin-swap subscribers (fired AFTER a successful loadSkin swaps the model).
+  // The taxi subscribes so it can re-capture its boarding-fade material list —
+  // a swap mid-ride would otherwise leave the new materials outside the fade.
+  const skinListeners = new Set();
+
   const api = {
     group, mixer, state,
     name: () => currentName,
     skinId: initialLoaded ? initialSkinId : 'bunny',
     async swapSkin(glbUrl, skinId) {
-      await loadSkin(glbUrl);
+      const ok = await loadSkin(glbUrl);
       api.skinId = skinId || api.skinId;
-      api.reapplyAccessories();
+      if (ok) {
+        api.reapplyAccessories();
+        // Notify anything that depends on the champion's MATERIALS (the taxi's
+        // boarding-fade capture goes stale when a swap replaces the model).
+        for (const fn of [...skinListeners]) { try { fn(); } catch (e) { console.warn('[champion] skin listener error', e); } }
+      }
+      // Settle the new model immediately (same maths as landAt) so a swapped
+      // skin never hovers for even one frame — ground position is re-measured
+      // from THIS model's rest pose/foot bones.
+      api.settleGrounding();
+    },
+    // Skin-swap hooks (used by the flying taxi so it can re-capture the fade
+    // list after a swap mid-ride). Returns an unsubscribe function.
+    addSkinListener(fn) {
+      skinListeners.add(fn);
+      return () => skinListeners.delete(fn);
+    },
+    removeSkinListener(fn) {
+      skinListeners.delete(fn);
     },
 
     // ---- Modular accessories: items attach to bones so they follow animation ----
@@ -488,34 +548,104 @@ export async function createChampion(assetBase, city, opts = {}) {
         state.y += state.yVel * dt;
         if (state.y <= 0) { state.y = 0; state.isGrounded = true; }
       }
-      // Ground the champion so its feet touch the ground.
-      // Auto-grounding (preferred): measure the ANIMATED LeftFoot world height
-      // after the mixer updates, then drop the group by exactly that amount.
-      // This is per-skin and per-clip — the bunny's DROP_FRAC constants no
-      // longer matter, so dragon/neondragon/sentinel/crimson/custom all sit on
-      // the ground. When no foot bone exists (procedural robot) we fall back to
-      // the old fraction-based drop.
+      // Ground the champion so its SOLE touches the walkable surface.
+      // Dual-foot auto-grounding (preferred): after the mixer updates, measure
+      // BOTH animated foot-bone world heights at group y=0, subtract the
+      // ankle→sole gap, and take the min (the planted foot defines the height,
+      // the swing foot never pumps the body). The group is then set so that
+      // min-sole lands on the surface height under the champion (bare ground,
+      // sidewalk or asphalt from `city.groundHeightAt` when the city provides
+      // it — interiors default to 0). When no foot bones exist (procedural
+      // robot) we fall back to the old fraction-based drop.
       mixer.update(dt);
-      let drop = 0;
-      if (!state.oneShot && _footBone) {
-        // Measure with the group parked at y=0 so _footV is the raw foot height
-        // in world units (includes SCALE). Animating between frames keeps the
-        // feet planted even as the clip moves the hips.
+      let soleWorldAtZero = 0;
+      if (!state.oneShot && _footBones && model) {
+        _ensureSoleOffset();
         const savedY = group.position.y;
         group.position.y = 0;
         model.updateMatrixWorld(true);
-        _footBone.getWorldPosition(_footV);
-        drop = _footV.y;
+        let minSole = Infinity;
+        if (_footBones.left) {
+          _footBones.left.getWorldPosition(_footV);
+          minSole = Math.min(minSole, _footV.y - _soleOffWorld);
+        }
+        if (_footBones.right) {
+          _footBones.right.getWorldPosition(_footR);
+          minSole = Math.min(minSole, _footR.y - _soleOffWorld);
+        }
         group.position.y = savedY;
-        group.position.set(state.pos.x, state.y - drop, state.pos.z);
+        soleWorldAtZero = Number.isFinite(minSole) ? minSole : 0;
+        // Surface the champion stands on (analytic, from the layout when the
+        // city provides it). Sink bias −0.01: the eye forgives 1 cm of sink,
+        // never 1 cm of float.
+        const surface = city && typeof city.groundHeightAt === 'function'
+          ? city.groundHeightAt(state.pos.x, state.pos.z)
+          : 0;
+        const targetY = state.y + (surface - 0.01) - soleWorldAtZero;
+        // Snap on teleport / fly-to (large delta); smooth small walk-stride
+        // deltas so the body doesn't jitter with the clip.
+        const dy = targetY - group.position.y;
+        const smooth = 1 - Math.exp(-12 * dt);
+        group.position.y += Math.abs(dy) > 0.25 ? dy : dy * smooth;
+        group.position.x = state.pos.x;
+        group.position.z = state.pos.z;
+        // Diagnostics for the debug HUD (cheap — same values already computed).
+        // gap = sole world Y − surface top; target ≈ −0.01 (deliberate sink bias).
+        groundDebug.surface = surface;
+        groundDebug.soleY = soleWorldAtZero + group.position.y;
+        groundDebug.gap = (soleWorldAtZero + group.position.y) - surface;
+        groundDebug.soleOff = _soleOffWorld;
       } else {
-        const groundedDrop = (DROP_FRAC[state.mode] || 0) * skinHeight * SCALE;
-        drop = !state.oneShot ? groundedDrop : 0;
-        group.position.set(state.pos.x, state.y - drop, state.pos.z);
+        // No foot bones (static/procedural model, or a rig this build can't
+        // detect): keep the model planted at its REST pose. loadSkin() and the
+        // procedural robot both normalise the lowest point to y≈0, and a
+        // skeleton-less model never deforms with the shared clips — so the old
+        // bunny-calibrated DROP_FRAC lift would sink or float it instead.
+        // Still honour the walkable SURFACE height (bare ground, sidewalk or
+        // asphalt from city.groundHeightAt) so a static skin crossing a road
+        // or raised plaza never sinks into it; smooth like the foot-bone path.
+        const surface = city && typeof city.groundHeightAt === 'function'
+          ? city.groundHeightAt(state.pos.x, state.pos.z)
+          : 0;
+        const targetY = state.y + (surface - 0.01);
+        const dyNoBone = targetY - group.position.y;
+        const smoothNoBone = 1 - Math.exp(-12 * dt);
+        group.position.y += Math.abs(dyNoBone) > 0.25 ? dyNoBone : dyNoBone * smoothNoBone;
+        group.position.x = state.pos.x;
+        group.position.z = state.pos.z;
       }
       group.rotation.y = state.facing;
     },
     wave() { triggerOneShot('wave'); },
+    groundDebug,   // debug HUD: { surface, soleY, gap, soleOff } — metres
+    // Land the champion on the surface at (x,z) — used when exiting a taxi so
+    // it never floats (the old hard-coded y=0 left it 0.1 m up on bare ground).
+    landAt(x, z) {
+      state.pos.set(x, 0, z);
+      state.y = 0; state.yVel = 0; state.isGrounded = true;
+      const surface = city && typeof city.groundHeightAt === 'function'
+        ? city.groundHeightAt(x, z)
+        : 0;
+      if (!state.oneShot && _footBones && model) {
+        _ensureSoleOffset();
+        const savedY = group.position.y;
+        group.position.y = 0;
+        model.updateMatrixWorld(true);
+        let minSole = Infinity;
+        if (_footBones.left) { _footBones.left.getWorldPosition(_footV); minSole = Math.min(minSole, _footV.y - _soleOffWorld); }
+        if (_footBones.right) { _footBones.right.getWorldPosition(_footR); minSole = Math.min(minSole, _footR.y - _soleOffWorld); }
+        group.position.y = savedY;
+        const soleWorldAtZero = Number.isFinite(minSole) ? minSole : 0;
+        group.position.set(x, surface - 0.01 - soleWorldAtZero, z);
+      } else {
+        group.position.set(x, surface - 0.01, z);
+      }
+    },
+    // Re-ground in place without teleporting x/z — used right after a skin
+    // swap/spawn so the current model is planted on the surface immediately.
+    settleGrounding() {
+      this.landAt(state.pos.x, state.pos.z);
+    },
     isBusy() { return !!state.oneShot; },
     _danceIdx: 0,
     dance() {

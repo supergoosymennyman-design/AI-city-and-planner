@@ -55,14 +55,19 @@ h1{font-size:22px;display:flex;align-items:center;gap:8px}
 
   <!-- Conversation -->
   <div class="card" id="convo-card">
-    <h2>🎤 Conversation Module</h2>
+    <h2>🎤 ConversationEngine</h2>
     <div class="btn-row">
       <button class="btn primary" id="convo-listen">Start Listening</button>
       <button class="btn warning" id="convo-speak">Speak Test</button>
       <button class="btn secondary" id="convo-stop">Stop</button>
     </div>
+    <div class="btn-row" style="margin-top:4px">
+      <input type="text" id="convo-input" placeholder="Type a message..." style="flex:1;border:1px solid #ccc;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;min-height:40px">
+      <button class="btn primary" id="convo-send">Send</button>
+    </div>
     <div class="status" id="convo-status">Not initialized</div>
     <div class="result" id="convo-transcript">Transcript: —</div>
+    <div class="result" id="convo-response">Response: —</div>
   </div>
 
   <!-- Recognition -->
@@ -125,9 +130,10 @@ h1{font-size:22px;display:flex;align-items:center;gap:8px}
 
   // ======================== CONVERSATION ========================
   (function(){
-    var convo = null;
+    var engine = null;
     var statusEl = $('convo-status');
     var transcriptEl = $('convo-transcript');
+    var responseEl = $('convo-response');
 
     function updateStatus(msg, ok){
       statusEl.textContent = msg;
@@ -135,29 +141,51 @@ h1{font-size:22px;display:flex;align-items:center;gap:8px}
     }
 
     try {
-      convo = new ConversationManager({
-        systemPrompt: 'You are a test assistant.'
-      });
-      convo.onReady = function(ready){
-        if(ready){
-          updateStatus('Ready', true);
-          logMsg('Conversation: ready', 'good');
+      engine = new ConversationEngine({
+        systemPrompt: 'You are a friendly test assistant for a kindergarten child.',
+        lessonContext: 'testing',
+        slmEnabled: true,
+        eouTimeoutMs: 1500,
+        maxHistory: 6,
+        onReady: function(ready){
+          if(ready){
+            var st = engine.getState();
+            updateStatus('Ready (STT:'+(st.sttAvailable?'yes':'no')+' TTS:'+(st.ttsAvailable?'yes':'no')+' SLM:'+(st.slmReady?'loaded':'waiting')+')', true);
+            logMsg('Conversation: ready (SLM '+(st.slmReady?'loaded':'loading')+')', 'good');
+          }
+        },
+        onStateChange: function(s){
+          logMsg('Conversation: state = '+s);
+        },
+        onUserSpeech: function(text){
+          transcriptEl.innerHTML = 'Transcript: <strong>'+text+'</strong>';
+          transcriptEl.className = 'result ok';
+          logMsg('Conversation: heard "'+text+'"', 'good');
+        },
+        onResponse: function(r){
+          if(r.type === 'response'){
+            responseEl.innerHTML = 'Response ('+r.tier+'): <strong>'+r.response+'</strong>';
+            responseEl.className = 'result ok';
+            logMsg('Conversation: ['+r.tier+'] intent='+r.intent+' resp="'+r.response+'"', 'good');
+          }
+        },
+        onProgress: function(p){
+          if(p.status === 'loading'){
+            var pct = p.progress > 1 ? p.progress : p.progress * 100;
+            updateStatus('Loading SLM… '+pct.toFixed(0)+'%');
+          }else if(p.status === 'ready'){
+            updateStatus('SLM ready!', true);
+            logMsg('Conversation: SLM loaded', 'good');
+          }else if(p.status === 'error'){
+            logMsg('Conversation: SLM load failed — using template tier', 'bad');
+          }
+        },
+        onError: function(err){
+          logMsg('Conversation: error - '+err, 'bad');
         }
-      };
-      convo.onStateChange = function(s){
-        updateStatus('State: '+s);
-        logMsg('Conversation: state = '+s);
-      };
-      convo.onUserSpeech = function(text){
-        transcriptEl.innerHTML = 'Transcript: <strong>'+text+'</strong>';
-        transcriptEl.className = 'result ok';
-        logMsg('Conversation: heard "'+text+'"', 'good');
-      };
-      convo.onError = function(err){
-        updateStatus('Error: '+err, false);
-        logMsg('Conversation: error - '+err, 'bad');
-      };
-      convo.initialize();
+      });
+
+      engine.initialize();
       updateStatus('Initializing…');
       logMsg('Conversation: initialized', 'info');
     } catch(e){
@@ -165,31 +193,59 @@ h1{font-size:22px;display:flex;align-items:center;gap:8px}
       logMsg('Conversation: init error - '+e.message, 'bad');
     }
 
+    // Start listening via microphone
     $('convo-listen').addEventListener('pointerdown', function(e){
       e.preventDefault();
-      if(!convo){updateStatus('Not available',false);return}
-      convo.startListening();
-      updateStatus('Listening…');
+      if(!engine){updateStatus('Not available',false);return}
+      engine.primeTTS();
+      engine.startListening();
       logMsg('Conversation: startListening()');
     });
 
+    // Test TTS playback
     $('convo-speak').addEventListener('pointerdown', function(e){
       e.preventDefault();
-      if(!convo){updateStatus('Not available',false);return}
-      var text = 'Hello, I\'m ready! This is the conversation module working.';
-      convo.speak(text);
-      updateStatus('Speaking…');
+      if(!engine){updateStatus('Not available',false);return}
+      engine.primeTTS();
+      var text = "Hello! I'm the ConversationEngine. I can listen, respond, and speak.";
+      engine.speak(text);
       logMsg('Conversation: speak("'+text+'")');
     });
 
+    // Stop everything
     $('convo-stop').addEventListener('pointerdown', function(e){
       e.preventDefault();
-      if(convo){
-        convo.stopListening();
-        convo.interrupt();
+      if(engine){
+        engine.stopListening();
+        engine.interrupt();
         updateStatus('Stopped');
         logMsg('Conversation: stopped');
       }
+    });
+
+    // Programmatic pipeline — type text, get response (works without STT)
+    $('convo-send').addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      if(!engine){updateStatus('Not available',false);return}
+      var input = $('convo-input');
+      var text = input.value.trim();
+      if(!text) return;
+      input.value = '';
+      transcriptEl.innerHTML = 'Transcript: <strong>'+text+'</strong>';
+      transcriptEl.className = 'result ok';
+      logMsg('Conversation: process("'+text+'")', 'info');
+
+      // Prime TTS inside user gesture so subsequent speak() calls produce audio
+      engine.primeTTS();
+
+      engine.processAndSpeak(text).then(function(result){
+        if(!result) return; // superseded by a newer call — ignore
+        responseEl.innerHTML = 'Response ('+result.tier+'): <strong>'+result.response+'</strong>';
+        responseEl.className = 'result ok';
+        logMsg('Conversation: ['+result.tier+'] intent='+result.intent+' resp="'+result.response+'"', 'good');
+      }).catch(function(err){
+        logMsg('Conversation: process error - '+err.message, 'bad');
+      });
     });
   })();
 

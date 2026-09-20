@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Shape School with Ms AI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;background:#FFF8E7;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#app{width:100%;height:100%;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}
+/* ── Phase containers ── */
+.phase{display:none;width:100%;height:100%;position:absolute;top:0;left:0;flex-direction:column;align-items:center;justify-content:center;padding:70px 16px 16px}
+.phase.active{display:flex}
+/* ── Colors ── */
+:root{
+  --bg:#FFF8E7;--coral:#FF6B6B;--teal:#4ECDC4;--yellow:#FFE66D;--orange:#FF9F43;
+  --blue:#54A0FF;--purple:#5F27CD;--mint:#1DD1A1;--text:#2D3436;--text-light:#636e72;
+  --shadow:0 4px 20px rgba(0,0,0,.08);--radius:20px}
+/* ── Ms AI Avatar ── */
+.ms-ai{width:80px;height:100px;position:relative;animation:float 3s ease-in-out infinite;flex-shrink:0}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.ms-ai svg{width:100%;height:100%}
+/* ── Persistent Ms AI (always visible at top-center) ── */
+#ms-ai-persistent{position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:50;display:flex;align-items:flex-end;gap:4px;pointer-events:none}
+#ms-ai-persistent svg{width:62px;height:75px;display:block;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 2px 6px rgba(0,0,0,.1))}
+#global-mic-btn{width:32px;height:32px;border:none;border-radius:50%;background:var(--coral);color:#fff;font-size:15px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);transition:transform .15s;touch-action:manipulation;pointer-events:auto;flex-shrink:0;margin-bottom:18px;padding:0;line-height:1}
+#global-mic-btn:active{transform:scale(.85)}
+#global-mic-btn.listening{background:var(--yellow);animation:pulse 1s ease-in-out infinite}
+#global-mic-btn.active{background:var(--teal);box-shadow:0 0 0 0 rgba(78,205,196,.5);animation:mic-pulse 1.5s ease-in-out infinite}
+#global-mic-btn.active:active{transform:scale(.85)}
+@keyframes mic-pulse{0%{box-shadow:0 0 0 0 rgba(78,205,196,.5)}50%{box-shadow:0 0 18px 6px rgba(78,205,196,.3)}100%{box-shadow:0 0 0 0 rgba(78,205,196,.5)}}
+.mic-status{position:fixed;top:42px;left:50%;transform:translateX(-50%);z-index:49;font-size:11px;color:var(--teal);font-weight:600;pointer-events:none;text-align:center;background:rgba(255,255,255,.85);padding:2px 12px;border-radius:10px;white-space:nowrap;transition:opacity .3s;opacity:0}
+.mic-status.show{opacity:1}
+/* ── Speech bubble (points up toward Ms AI) ── */
+.bubble{background:#fff;border:3px solid var(--coral);border-radius:20px;padding:14px 18px;max-width:320px;font-size:15px;color:var(--text);line-height:1.4;position:relative;margin-top:10px;box-shadow:var(--shadow)}
+.bubble::after{content:'';position:absolute;top:-10px;left:30px;width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:10px solid #fff;z-index:2}
+.bubble::before{content:'';position:absolute;top:-13px;left:28px;width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:12px solid var(--coral);z-index:1}
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:14px 28px;border:none;border-radius:14px;font-size:18px;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .15s,box-shadow .15s;touch-action:manipulation;min-height:52px;min-width:120px}
+.btn:active{transform:scale(.94)}
+.btn-primary{background:var(--coral);color:#fff;box-shadow:0 4px 0 #cc5555}
+.btn-teal{background:var(--teal);color:#fff;box-shadow:0 4px 0 #3aa89f}
+.btn-yellow{background:var(--yellow);color:var(--text);box-shadow:0 4px 0 #e6cc55}
+.btn-outline{background:transparent;border:3px solid var(--coral);color:var(--coral)}
+.btn-secondary{background:#dfe6e9;color:var(--text);box-shadow:0 4px 0 #b2bec3}
+.btn-pulse{animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,107,107,.4)}50%{transform:scale(1.04);box-shadow:0 0 20px 8px rgba(255,107,107,.2)}}
+/* ── Menu ── */
+.menu-title{font-size:28px;color:var(--text);margin-bottom:4px;text-align:center}
+.menu-sub{font-size:14px;color:var(--text-light);margin-bottom:16px;text-align:center}
+/* ── Shape grid ── */
+.shape-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:340px;width:100%;margin-bottom:12px}
+.shape-card{background:#fff;border:3px solid transparent;border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;transition:all .15s;box-shadow:var(--shadow)}
+.shape-card:active{transform:scale(.94)}
+.shape-card .shape-icon{font-size:40px;display:block;margin-bottom:4px}
+.shape-card .shape-label{font-size:14px;font-weight:700;color:var(--text)}
+.shape-card.circle{border-color:var(--coral)}.shape-card.circle .shape-icon{color:var(--coral)}
+.shape-card.triangle{border-color:var(--orange)}.shape-card.triangle .shape-icon{color:var(--orange)}
+.shape-card.square{border-color:var(--blue)}.shape-card.square .shape-icon{color:var(--blue)}
+.shape-card.rectangle{border-color:var(--purple)}.shape-card.rectangle .shape-icon{color:var(--purple)}
+/* ── Canvas ── */
+.canvas-wrap{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;touch-action:none;position:relative;width:100%;max-width:380px;aspect-ratio:1/1;margin-bottom:8px}
+.canvas-wrap canvas{width:100%;height:100%;display:block;touch-action:none}
+.canvas-clear-btn{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.06);border:none;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;z-index:2}
+/* ── Progress gauge ── */
+.gauge{width:100%;max-width:340px;height:16px;background:#f0f0f0;border-radius:10px;overflow:hidden;margin:6px 0;position:relative}
+.gauge-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--mint));border-radius:10px;transition:width .5s ease;width:0}
+.gauge-label{font-size:11px;color:var(--text-light);text-align:center;margin-bottom:2px}
+/* ── Test/Trick buttons ── */
+.test-row{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;justify-content:center}
+.label-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-width:320px;width:100%;margin-top:6px}
+.label-btn{background:#fff;border:3px solid var(--text-light);border-radius:12px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .1s;text-align:center}
+.label-btn:active{transform:scale(.94)}
+.label-btn.selected{border-color:var(--coral);background:rgba(255,107,107,.08)}
+/* ── Build picker ── */
+.build-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:340px;width:100%}
+.build-card{background:#fff;border:3px solid var(--teal);border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer;font-size:18px;font-weight:700;color:var(--text);box-shadow:var(--shadow);transition:transform .15s}
+.build-card:active{transform:scale(.94)}
+.part-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;justify-content:center}
+.part-label{font-size:14px;font-weight:700;color:var(--text);min-width:70px}
+.color-swatch{width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:transform .1s}
+.color-swatch:active{transform:scale(.88)}
+.color-swatch.sel{border-color:var(--text);transform:scale(1.1)}
+.shape-picker-btn{background:#fff;border:2px solid var(--text-light);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer;font-family:inherit;font-weight:600}
+.shape-picker-btn:active{transform:scale(.92)}
+.shape-picker-btn.sel{border-color:var(--coral);background:rgba(255,107,107,.08)}
+/* ── Build result ── */
+.build-result{width:100%;max-width:300px;aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:8px;overflow:hidden}
+.build-result svg{width:80%;height:80%}
+/* ── Gallery ── */
+.gallery-shelf{display:flex;gap:6px;overflow-x:auto;padding:6px 0;max-width:100%;width:100%}
+.gallery-item{flex-shrink:0;width:80px;height:80px;background:#fff;border-radius:10px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;font-size:30px;overflow:hidden;position:relative;cursor:pointer}
+.gallery-item svg{width:70%;height:70%}
+.gallery-item .del-btn{position:absolute;top:2px;right:2px;background:rgba(255,0,0,.3);border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;color:#fff;line-height:18px;text-align:center}
+/* ── Confetti ── */
+#confetti-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999}
+/* ── Spinner ── */
+.spinner{width:40px;height:40px;border:4px solid #f0f0f0;border-top-color:var(--coral);border-radius:50%;animation:spin .8s linear infinite;margin:10px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ── Responsive ── */
+@media(max-width:600px){.shape-grid{gap:6px}.shape-card{padding:10px}.shape-card .shape-icon{font-size:30px}.btn{font-size:15px;padding:10px 20px;min-height:44px}.bubble{font-size:13px;padding:10px 14px;max-width:260px}.bubble::after{left:20px}.bubble::before{left:18px}.menu-title{font-size:22px}.build-grid{gap:6px}.build-card{padding:14px;font-size:15px}.phase{padding:58px 10px 10px}#ms-ai-persistent svg{width:48px;height:58px}#global-mic-btn{width:28px;height:28px;font-size:13px;margin-bottom:12px}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Confetti Canvas -->
+<canvas id="confetti-canvas"></canvas>
+
+<!-- Persistent Ms AI Avatar (visible in all phases) -->
+<div id="ms-ai-persistent">
+  <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+    <!-- Antenna wire -->
+    <line x1="50" y1="12" x2="50" y2="22" stroke="#2D3436" stroke-width="2" stroke-linecap="round"/>
+    <!-- Heart antenna -->
+    <path d="M50 6 C50 2 44 2 44 7 C44 11 50 15 50 15 C50 15 56 11 56 7 C56 2 50 2 50 6Z" fill="#FF6B6B" stroke="#2D3436" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- Head -->
+    <rect x="16" y="20" width="68" height="56" rx="22" fill="#F5F0EB" stroke="#2D3436" stroke-width="2.5"/>
+    <!-- Sensor dots -->
+    <circle cx="34" cy="26" r="3.5" fill="#54A0FF" stroke="#2D3436" stroke-width="1"/>
+    <circle cx="50" cy="26" r="3.5" fill="#1DD1A1" stroke="#2D3436" stroke-width="1"/>
+    <circle cx="66" cy="26" r="3.5" fill="#FFE66D" stroke="#2D3436" stroke-width="1"/>
+    <!-- Left eye -->
+    <circle cx="34" cy="52" r="10" fill="#2D3436"/>
+    <circle cx="37" cy="49" r="4.5" fill="#fff"/>
+    <circle cx="32" cy="54" r="2" fill="#fff"/>
+    <!-- Right eye -->
+    <circle cx="66" cy="52" r="10" fill="#2D3436"/>
+    <circle cx="69" cy="49" r="4.5" fill="#fff"/>
+    <circle cx="64" cy="54" r="2" fill="#fff"/>
+    <!-- Blush -->
+    <ellipse cx="24" cy="62" rx="6" ry="4" fill="#FFB3B3" opacity=".55"/>
+    <ellipse cx="76" cy="62" rx="6" ry="4" fill="#FFB3B3" opacity=".55"/>
+    <!-- Smile -->
+    <path d="M43 69 Q50 78 57 69" stroke="#2D3436" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- Tongue -->
+    <path d="M47 73 Q50 78 53 73" fill="#FFB3B3" stroke="none"/>
+    <!-- Body -->
+    <rect x="30" y="80" width="40" height="26" rx="10" fill="#F5F0EB" stroke="#2D3436" stroke-width="2.5"/>
+    <!-- Heart on body -->
+    <path d="M50 91 C47 88 44 88 43 91 C42 94 50 99 50 99 C50 99 58 94 57 91 C56 88 53 88 50 91Z" fill="#FF6B6B" stroke="#2D3436" stroke-width="1"/>
+    <!-- Arms -->
+    <rect x="20" y="84" width="10" height="16" rx="5" fill="#F5F0EB" stroke="#2D3436" stroke-width="2.5"/>
+    <rect x="70" y="84" width="10" height="16" rx="5" fill="#F5F0EB" stroke="#2D3436" stroke-width="2.5"/>
+    <!-- Legs -->
+    <rect x="34" y="106" width="14" height="10" rx="5" fill="#F5F0EB" stroke="#2D3436" stroke-width="2.5"/>
+    <rect x="52" y="106" width="14" height="10" rx="5" fill="#F5F0EB" stroke="#2D3436" stroke-width="2.5"/>
+    <!-- Feet -->
+    <ellipse cx="41" cy="117" rx="10" ry="5" fill="#F5F0EB" stroke="#2D3436" stroke-width="2.5"/>
+    <ellipse cx="59" cy="117" rx="10" ry="5" fill="#F5F0EB" stroke="#2D3436" stroke-width="2.5"/>
+  </svg>
+  <!-- Global Mic Button for speech input -->
+  <button id="global-mic-btn" title="Tap to start voice control">🎤</button>
+  <div class="mic-status" id="mic-status">🎙️ Listening...</div>
+</div>
+
+<!-- ═══ Phase 1: Menu ═══ -->
+<div id="phase-menu" class="phase active">
+  <h1 class="menu-title">🎒 Shape School</h1>
+  <p class="menu-sub">with Ms AI</p>
+  <div class="bubble" id="menu-bubble">Hi teachers! I'm Ms AI! I don't know any shapes yet. Will you teach me? 🌟</div>
+  <button class="btn btn-primary btn-pulse" id="btn-start">Start Teaching 📚</button>
+  <button class="btn btn-yellow" id="btn-creative" style="margin-top:8px">🎨 Creative Studio</button>
+  <div style="margin-top:10px;width:100%;max-width:340px">
+    <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;text-align:center">🏆 Classroom Gallery</div>
+    <div class="gallery-shelf" id="gallery-shelf"></div>
+  </div>
+</div>
+
+<!-- ═══ Phase 2: Shape Select ═══ -->
+<div id="phase-shape-select" class="phase">
+  <div class="bubble" id="select-bubble">Choose a shape to teach me first! 🎓</div>
+  <div class="shape-grid" id="shape-grid">
+    <div class="shape-card circle" data-shape="circle"><span class="shape-icon">⬤</span><span class="shape-label">Circle</span></div>
+    <div class="shape-card triangle" data-shape="triangle"><span class="shape-icon">▲</span><span class="shape-label">Triangle</span></div>
+    <div class="shape-card square" data-shape="square"><span class="shape-icon">■</span><span class="shape-label">Square</span></div>
+    <div class="shape-card rectangle" data-shape="rectangle"><span class="shape-icon">▬</span><span class="shape-label">Rectangle</span></div>
+  </div>
+  <button class="btn btn-outline" id="btn-back-menu">↩ Back</button>
+</div>
+
+<!-- ═══ Phase 3: Training ═══ -->
+<div id="phase-training" class="phase">
+  <div class="bubble" id="train-bubble">Draw a circle for me! 🖍️</div>
+  <div class="gauge"><div class="gauge-fill" id="gauge-fill"></div></div>
+  <div class="gauge-label" id="gauge-label">Ms AI's Brain Loading... 0/3</div>
+  <div class="canvas-wrap"><canvas id="draw-canvas"></canvas><button class="canvas-clear-btn" id="btn-clear-draw">🗑️</button></div>
+  <button class="btn btn-primary" id="btn-submit-draw" style="margin-bottom:6px;width:100%;max-width:320px">✔️ Teach Me!</button>
+  <div style="display:flex;gap:6px">
+    <button class="btn btn-primary" id="btn-ask-ai" style="display:none">Ask Ms AI 🤖</button>
+    <button class="btn btn-teal" id="btn-next-shape" style="display:none">✓ Next Shape</button>
+    <button class="btn btn-secondary" id="btn-back-training" style="display:none">⬅ Change Shape</button>
+  </div>
+</div>
+
+<!-- ═══ Phase 4: Test ═══ -->
+<div id="phase-test" class="phase">
+  <div class="bubble" id="test-bubble">Let's see if I really learned! Draw a shape and I will tell you what it is!</div>
+  <div class="canvas-wrap"><canvas id="test-canvas"></canvas><button class="canvas-clear-btn" id="btn-clear-test">🗑️</button></div>
+  <button class="btn btn-teal" id="btn-test-ask" style="display:none">🔍 What shape is this, Ms AI?</button>
+  <button class="btn btn-secondary" id="btn-test-back" style="margin-top:10px">↩ Back to Menu</button>
+</div>
+
+<!-- ═══ Phase 5: Build ═══ -->
+<div id="phase-build" class="phase">
+  <div class="bubble" id="build-bubble">I know my shapes! Let's build something together! 🚀</div>
+  <div id="build-picker" style="width:100%;max-width:360px">
+    <div style="text-align:center;margin-bottom:6px;font-size:15px;font-weight:700;color:var(--text)">What should we build?</div>
+    <div class="build-grid">
+      <div class="build-card" data-mode="robot">🤖<br>Robot</div>
+      <div class="build-card" data-mode="rocket">🚀<br>Rocket</div>
+    </div>
+    <div id="part-picker" style="display:none"></div>
+    <button class="btn btn-primary" id="btn-build-go" style="display:none;margin:8px auto">Let's Build! 🔨</button>
+  </div>
+  <div id="build-result" class="build-result" style="display:none"></div>
+  <div id="build-actions" style="display:none;gap:6px;justify-content:center;flex-wrap:wrap">
+    <button class="btn btn-teal" id="btn-save-gallery">💾 Save to Gallery</button>
+    <button class="btn btn-outline" id="btn-play-again">🔄 Play Again</button>
+  </div>
+</div>
+
+<!-- ═══ Phase 6: Creative Studio ═══ -->
+<div id="phase-creative" class="phase">
+  <div class="bubble" id="creative-bubble">Let's build something creative! 🎨</div>
+  <div id="creative-picker" style="width:100%;max-width:360px;text-align:center">
+    <div id="creative-step-content"></div>
+    <button class="btn btn-outline" id="creative-mic-btn" style="display:none;margin-top:8px;font-size:16px;padding:8px 16px">🎤 Say your choice</button>
+    <div id="creative-listen-status" style="font-size:12px;color:var(--text-light);margin-top:4px;min-height:18px"></div>
+  </div>
+  <div id="creative-result" class="build-result" style="display:none"></div>
+  <div id="creative-actions" style="display:none;gap:6px;justify-content:center;flex-wrap:wrap">
+    <button class="btn btn-teal" id="btn-creative-save">💾 Save to Gallery</button>
+    <button class="btn btn-outline" id="btn-creative-again">🔄 Build Another</button>
+    <button class="btn btn-secondary" id="btn-creative-menu">🏠 Menu</button>
+  </div>
+</div>
+
+</div>
+<script>
+// ═══════════════════════════════════════
+// Shape School with Ms AI — Main Script
+// ═══════════════════════════════════════
+const App = {
+  state: {
+    phase: 'menu', currentShape: null, trainingCount: 0, shapesLearned: [],
+    trainingExamples: [], buildMode: null, buildParts: [], buildChoices: {}, gallery: []
+  },
+  shapes: ['circle','triangle','square','rectangle'],
+  shapeEmoji: {circle:'⬤',triangle:'▲',square:'■',rectangle:'▬'},
+  shapeColor: {circle:'#FF6B6B',triangle:'#FF9F43',square:'#54A0FF',rectangle:'#5F27CD'},
+
+  // ── Speech ──
+  _speakTimer: null,
+  _voices: null,
+  speak(text, cb){
+    // Pick the bubble in the currently active phase
+    const activePhase=document.querySelector('.phase.active');
+    const b=activePhase?activePhase.querySelector('.bubble'):null;
+    if(b&&b.textContent!==text){b.textContent=text;b.style.animation='none';void b.offsetHeight;b.style.animation=''}
+    // Cancel any pending fallback
+    if(this._speakTimer){clearTimeout(this._speakTimer);this._speakTimer=null;}
+    let called=false;
+    const done=()=>{if(!called){called=true;if(cb)cb();}};
+    if(window.speechSynthesis){
+      window.speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(text);
+      u.rate=0.85;u.volume=1;
+      // Load voices once and pick a friendly female voice
+      if(!this._voices)this._voices=window.speechSynthesis.getVoices();
+      if(this._voices.length){
+        const p=this._voices.find(v=>v.name.includes('Google UK')||v.name.includes('Samantha')||v.name.includes('Female'));
+        if(p)u.voice=p;
+      }
+      u.onend=done;
+      window.speechSynthesis.speak(u);
+      this._speakTimer=setTimeout(done,3000);
+    }else{
+      setTimeout(done,1500);
+    }
+  },
+
+  // ── Phase switching ──
+  showPhase(id){
+    document.querySelectorAll('.phase').forEach(p=>p.classList.remove('active'));
+    document.getElementById('phase-'+id).classList.add('active');
+    this.state.phase=id;
+    // Creative/Build have their own speech system — stop listening when entering
+    if(id==='creative'||id==='build'){
+      if(this._micActive){
+        this.stopContinuousMic();
+      }
+    }
+  },
+
+  // ── Confetti ──
+  startConfetti(){
+    const c=document.getElementById('confetti-canvas');
+    c.width=window.innerWidth;c.height=window.innerHeight;
+    const cx=c.getContext('2d');
+    const colors=['#FF6B6B','#4ECDC4','#FFE66D','#FF9F43','#54A0FF','#5F27CD','#1DD1A1'];
+    const particles=Array.from({length:120},()=>({
+      x:Math.random()*c.width,y:-20,vx:(Math.random()-.5)*6,vy:Math.random()*4+2,
+      size:Math.random()*8+4,color:colors[Math.floor(Math.random()*colors.length)],
+      rot:Math.random()*360,rv:Math.random()*10-5
+    }));
+    let frames=0;
+    function anim(){
+      cx.clearRect(0,0,c.width,c.height);
+      particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.rot+=p.rv;
+        cx.save();cx.translate(p.x,p.y);cx.rotate(p.rot*Math.PI/180);
+        cx.fillStyle=p.color;cx.globalAlpha=Math.max(0,1-frames/200);
+        cx.fillRect(-p.size/2,-p.size/2,p.size,p.size);cx.restore();
+      });
+      frames++;
+      if(frames<200)requestAnimationFrame(anim);
+      else{cx.clearRect(0,0,c.width,c.height);}
+    }
+    anim();
+  },
+
+  // ── Drawing engine ──
+  initCanvas(canvasId){
+    const c=document.getElementById(canvasId);
+    const rect=c.parentElement.getBoundingClientRect();
+    c.width=rect.width;c.height=rect.height;
+    const ctx=c.getContext('2d');
+    let drawing=false,pts=[];
+    ctx.strokeStyle='#2D3436';ctx.lineWidth=4;ctx.lineCap='round';ctx.lineJoin='round';
+
+    function getPos(e){
+      const r=c.getBoundingClientRect();
+      const clientX=e.clientX||(e.touches?.[0]?.clientX||0);
+      const clientY=e.clientY||(e.touches?.[0]?.clientY||0);
+      return{x:(clientX-r.left)/r.width*c.width,y:(clientY-r.top)/r.height*c.height};
+    }
+    function start(e){e.preventDefault();drawing=true;pts=[];const p=getPos(e);pts.push(p);ctx.beginPath();ctx.moveTo(p.x,p.y);}
+    function move(e){e.preventDefault();if(!drawing)return;const p=getPos(e);pts.push(p);ctx.lineTo(p.x,p.y);ctx.stroke();}
+    function end(e){e.preventDefault();if(!drawing)return;drawing=false;
+      const ev=new CustomEvent('drawcomplete',{detail:{pts:pts.map(p=>({x:p.x/c.width,y:p.y/c.height}))}});
+      c.dispatchEvent(ev);
+    }
+    c.addEventListener('pointerdown',start);c.addEventListener('pointermove',move);
+    c.addEventListener('pointerup',end);c.addEventListener('pointerleave',end);
+    c.addEventListener('touchstart',start,{passive:false});
+    return c;
+  },
+
+  clearCanvas(canvasId){
+    const c=document.getElementById(canvasId);
+    const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
+  },
+
+  // ── Learning from examples (kNN) ──
+  // Ms AI knows NOTHING about shapes at start.
+  // She learns ONLY from the kid's labeled drawings stored in trainingExamples.
+
+  // Find the closest matching training example for a set of drawing points
+  _findClosestExample(pts){
+    if(!this.state.trainingExamples||this.state.trainingExamples.length===0)return null;
+    if(pts.length<5)return null;
+
+    let bestLabel=null;
+    let bestDist=Infinity;
+
+    for(const ex of this.state.trainingExamples){
+      const d=this._ptsDistance(pts, ex.pts);
+      if(d<bestDist){bestDist=d;bestLabel=ex.label;}
+    }
+
+    // Threshold: if the best match is still far, Ms AI doesn't recognise it
+    // 0.25 is a generous threshold that works for kindergarten wobbly drawings
+    if(bestDist>0.25)return null;
+    return bestLabel;
+  },
+
+  // Average minimum point distance between two normalised point sets
+  _ptsDistance(ptsA, ptsB){
+    if(!ptsA.length||!ptsB.length)return Infinity;
+    let total=0;
+    for(const pA of ptsA){
+      let min=Infinity;
+      for(const pB of ptsB){
+        const d=Math.hypot(pA.x-pB.x, pA.y-pB.y);
+        if(d<min)min=d;
+      }
+      total+=min;
+    }
+    return total/ptsA.length;
+  },
+
+  // Recompute shapesLearned from training data
+  // Only shapes with >= 3 examples count as "learned"
+  _updateLearnedShapes(){
+    const counts={};
+    this.state.trainingExamples.forEach(ex=>{
+      counts[ex.label]=(counts[ex.label]||0)+1;
+    });
+    this.state.shapesLearned=Object.keys(counts).filter(l=>counts[l]>=3);
+  },
+
+  // ── Speech Recognition (one-shot, used by Creative Studio) ──
+  startListening(callback){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){if(callback)callback(null);return;}
+    const r=new SR();r.lang='en-US';r.interimResults=false;r.maxAlternatives=1;
+    r.onresult=(e)=>{
+      const t=e.results[0][0].transcript.toLowerCase().trim();
+      const shapes={'circle':['circle','round','dot'],'triangle':['triangle','tri'],'star':['star']};
+      const s={'square':['square','box'],'rectangle':['rectangle','rect']};
+      Object.assign(shapes,s);
+      let found=null;
+      for(const [shape,words] of Object.entries(shapes)){
+        if(words.some(w=>t.includes(w))){found=shape;break;}
+      }
+      if(callback)callback(found,t);
+    };
+    r.onerror=()=>{if(callback)callback(null);};
+    r.start();
+  },
+
+  // ── Continuous Voice Control ──
+  _micActive: false,       // Is continuous listening on?
+  _micRecognition: null,   // Active SpeechRecognition instance
+  _micTimeout: null,       // Safety auto-close timer
+
+  // Toggle continuous voice control on/off
+  toggleContinuousMic(){
+    if(this._micActive){
+      this.stopContinuousMic();
+    }else{
+      this.startContinuousMic();
+    }
+  },
+
+  // Start continuous listening
+  startContinuousMic(){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){
+      this.speak('Speech is not available in your browser.');
+      return;
+    }
+    this._micActive=true;
+    const mic=document.getElementById('global-mic-btn');
+    mic.classList.remove('listening');
+    mic.classList.add('active');
+    mic.title='Tap to stop voice control';
+    const status=document.getElementById('mic-status');
+    if(status)status.classList.add('show');
+    // Skip Creative Studio and Build phases (they have their own separate mic)
+    if(this.state.phase==='creative'||this.state.phase==='build'){
+      // Still mark as active but don't listen now
+      return;
+    }
+    this._continuousListen();
+  },
+
+  // Stop continuous listening
+  stopContinuousMic(){
+    this._micActive=false;
+    if(this._micTimeout){
+      clearTimeout(this._micTimeout);
+      this._micTimeout=null;
+    }
+    if(this._micRecognition){
+      try{this._micRecognition.stop();}catch(e){}
+      this._micRecognition=null;
+    }
+    const mic=document.getElementById('global-mic-btn');
+    mic.classList.remove('active','listening');
+    mic.title='Tap to start voice control';
+    const status=document.getElementById('mic-status');
+    if(status)status.classList.remove('show');
+  },
+
+  // Internal: open mic for ONE utterance, then auto-close
+  _continuousListen(){
+    if(!this._micActive)return;
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR)return;
+    const r=new SR();
+    r.lang='en-US';
+    r.interimResults=false;
+    r.maxAlternatives=1;
+    r.continuous=false;  // Listen for one utterance, then stop
+    this._micRecognition=r;
+
+    // Safety timeout: auto-close after 8s if no speech detected
+    this._micTimeout=setTimeout(()=>{
+      this._speakOnce('I did not hear anything. Tap the mic when you want to talk!');
+      this.stopContinuousMic();
+    },8000);
+
+    r.onresult=(e)=>{
+      clearTimeout(this._micTimeout);
+      const t=e.results[0][0].transcript.toLowerCase().trim();
+      if(!t){this.stopContinuousMic();return;}
+      // Flash amber to show processing
+      const mic=document.getElementById('global-mic-btn');
+      mic.classList.remove('active');
+      mic.style.background='#F39C12';
+      setTimeout(()=>{mic.style.background='';},400);
+      // Process the command, then auto-close
+      this._handleVoiceCommand(t);
+      this.stopContinuousMic();
+    };
+
+    r.onerror=(err)=>{
+      // 'no-speech' and 'aborted' are expected — close silently
+      clearTimeout(this._micTimeout);
+      this.stopContinuousMic();
+    };
+
+    r.onend=()=>{
+      this._micRecognition=null;
+      // If still active and no result was received, close
+      if(this._micActive){
+        clearTimeout(this._micTimeout);
+        this.stopContinuousMic();
+      }
+    };
+
+    try{r.start();}catch(e){this.stopContinuousMic();}
+  },
+
+  // Speak a one-off message without changing the mic state
+  _speakOnce(text){
+    const activePhase=document.querySelector('.phase.active');
+    const b=activePhase?activePhase.querySelector('.bubble'):null;
+    if(b&&b.textContent!==text){b.textContent=text;b.style.animation='none';void b.offsetHeight;b.style.animation=''}
+    if(window.speechSynthesis){
+      window.speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(text);
+      u.rate=0.85;u.volume=1;
+      if(!this._voices)this._voices=window.speechSynthesis.getVoices();
+      if(this._voices.length){
+        const p=this._voices.find(v=>v.name.includes('Google UK')||v.name.includes('Samantha')||v.name.includes('Female'));
+        if(p)u.voice=p;
+      }
+      window.speechSynthesis.speak(u);
+    }
+  },
+
+  // Route a voice command based on current phase
+  _handleVoiceCommand(t){
+    // Extract shape name if present
+    const shapeMap={'circle':['circle','round','dot'],'triangle':['triangle','tri'],'square':['square','box'],'rectangle':['rectangle','rect','oblong']};
+    let spokenShape=null;
+    for(const [shape,words] of Object.entries(shapeMap)){
+      if(words.some(w=>t.includes(w))){spokenShape=shape;break;}
+    }
+
+    // Check for "AI" / "Ms AI" address
+    const addressed=t.includes('ai')||t.includes('ms')||t.includes('miss')||t.includes('teacher');
+
+    const phase=this.state.phase;
+
+    // ── MENU ──
+    if(phase==='menu'){
+      if(t.includes('start')||t.includes('teach')||t.includes('begin')||t.includes('go')||t.includes('learn')){
+        document.getElementById('btn-start').click();
+        return;
+      }
+      if(t.includes('creative')||t.includes('studio')||t.includes('build')){
+        const btn=document.getElementById('btn-creative');
+        if(btn)btn.click();
+        return;
+      }
+      this.speak('Say "start" to begin teaching, or "creative" to build!');
+      return;
+    }
+
+    // ── SHAPE SELECT ──
+    if(phase==='shape-select'){
+      if(spokenShape){
+        const card=document.querySelector(`.shape-card[data-shape="${spokenShape}"]`);
+        if(card){card.click();return;}
+      }
+      this.speak('Say a shape name — circle, triangle, square, or rectangle!');
+      return;
+    }
+
+    // ── TRAINING ──
+    if(phase==='training'){
+      const currentShape=this.state.currentShape;
+
+      // Submit drawing: "this is", "teach", "check", "my turn"
+      if(t.includes('this is')||t.includes('teach')||t.includes('check')||t.includes('my turn')){
+        // If a shape was spoken and it differs from current, acknowledge
+        if(spokenShape&&spokenShape!==currentShape){
+          this.speak(`We're learning about ${currentShape} right now! But I'll still check your drawing.`);
+          // Still submit after a moment
+          setTimeout(()=>{
+            const btn=document.getElementById('btn-submit-draw');
+            if(btn&&btn.style.display!=='none')btn.click();
+          },2000);
+          return;
+        }
+        const btn=document.getElementById('btn-submit-draw');
+        if(btn&&btn.style.display!=='none'){btn.click();return;}
+        else{this.speak('Draw a shape first, then check it!');return;}
+      }
+
+      // "AI, this is a circle" — same as "this is" but addressed
+      if(addressed&&t.includes('this is')){
+        const btn=document.getElementById('btn-submit-draw');
+        if(btn&&btn.style.display!=='none'){btn.click();return;}
+        else{this.speak('Draw a shape first, then check it!');return;}
+      }
+
+      // "Guess" or "what is" → Ask Ms AI
+      if(t.includes('guess')||t.includes('what is')||(addressed&&t.includes('what'))){
+        const btn=document.getElementById('btn-ask-ai');
+        if(btn&&btn.style.display!=='none'){btn.click();return;}
+      }
+
+      // "Next" or "test" when training complete
+      if(t.includes('next')||t.includes('test')){
+        const btn=document.getElementById('btn-next-shape');
+        if(btn&&btn.style.display!=='none'){btn.click();return;}
+      }
+
+      // Switch shape mid-training
+      if(spokenShape&&t.includes('switch')||spokenShape&&t.includes('change')){
+        const btn=document.getElementById('btn-back-training');
+        if(btn&&btn.style.display!=='none'){btn.click();return;}
+      }
+
+      // Just mentioning a shape name — helpful prompt
+      if(spokenShape&&spokenShape!==currentShape){
+        this.speak(`We're learning ${currentShape} right now! Say "${currentShape}" when you're ready to teach me!`);
+        return;
+      }
+      if(spokenShape&&spokenShape===currentShape){
+        this.speak(`Yes, draw a ${currentShape} and say "teach" or "this is a ${currentShape}" when you're done!`);
+        return;
+      }
+    }
+
+    // ── TEST ──
+    if(phase==='test'){
+      // Ask Ms AI to identify: "what", "guess", "identify"
+      if(t.includes('what')||t.includes('guess')||t.includes('shape')||t.includes('this')||t.includes('identify')){
+        const btn=document.getElementById('btn-test-ask');
+        if(btn&&btn.style.display!=='none'){btn.click();return;}
+        else{this.speak('Draw a shape first, then ask me!');return;}
+      }
+      // Clear canvas
+      if(t.includes('clear')||t.includes('erase')||t.includes('new')){
+        const btn=document.getElementById('btn-clear-test');
+        if(btn)btn.click();
+        return;
+      }
+    }
+
+    // Fallback: helpful response
+    const helpMap={
+      menu:'Say "start" to begin teaching me shapes!',
+      'shape-select':'Say a shape name — like circle, triangle, square, or rectangle!',
+      training:`Say "this is a [shape]" to teach me, or "guess" for me to try!`,
+      test:'Say "what shape" and I will tell you what you drew!',
+      creative:'Tap the buttons or the mic to build something!',
+      build:'Tap the buttons or the mic to build something!'
+    };
+    this.speak(helpMap[phase]||'I did not understand. Try saying "teach" or a shape name!');
+  },
+
+  // ── Initialize ──
+  init(){
+    this.loadGallery();
+    this.renderGallery();
+    this.bindMenu();
+    this.bindShapeSelect();
+    this.bindTraining();
+    this.bindTest();
+    this.bindBuild();
+    this.bindCreative();
+    document.getElementById('btn-back-menu').addEventListener('click',()=>this.showPhase('menu'));
+    document.getElementById('btn-back-training').addEventListener('click',()=>{
+      if(this._speakTimer){clearTimeout(this._speakTimer);this._speakTimer=null;}
+      this.showPhase('shape-select');
+      this.speak('Choose a shape to teach me!');
+    });
+    // Global mic button toggles continuous voice control
+    document.getElementById('global-mic-btn').addEventListener('click',()=>this.toggleContinuousMic());
+    // Load voices for speech (handle Chrome's async voice loading)
+    if(window.speechSynthesis){
+      this._voices=window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged=()=>{
+        this._voices=window.speechSynthesis.getVoices();
+      };
+    }
+    // Note: first speech must come from a user click (browser autoplay policy).
+    // The intro text is already visible in the speech bubble.
+  },
+
+  // ── Menu ──
+  bindMenu(){
+    document.getElementById('btn-start').addEventListener('click',()=>{
+      this.showPhase('shape-select');
+      this.speak('Choose a shape to teach me first!');
+    });
+    document.getElementById('btn-creative').addEventListener('click',()=>{
+      this.startCreative();
+    });
+  },
+
+  // ── Shape Select ──
+  bindShapeSelect(){
+    document.querySelectorAll('.shape-card').forEach(card=>{
+      card.addEventListener('click',()=>{
+        this.state.currentShape=card.dataset.shape;
+        this.state.trainingCount=0;
+        this.showPhase('training');
+        this.startTraining();
+      });
+    });
+  },
+
+  // ── Training Binding ──
+  bindTraining(){
+    // Draw-canvas drawcomplete → show submit button
+    const dc=document.getElementById('draw-canvas');
+    if(dc)dc.addEventListener('drawcomplete',(e)=>{
+      if(document.querySelector('.phase.active')?.id!=='phase-training')return;
+      this._lastTrainDraw=e;
+      document.getElementById('btn-submit-draw').style.display='inline-flex';
+    });
+    // Clear drawing
+    document.getElementById('btn-clear-draw').addEventListener('click',()=>{
+      this.clearCanvas('draw-canvas');
+      this._lastTrainDraw=null;
+    });
+    // Submit drawing → check it
+    document.getElementById('btn-submit-draw').addEventListener('click',()=>{
+      if(!this._lastTrainDraw||!this._lastTrainDraw.detail||this._lastTrainDraw.detail.pts.length<5){
+        this.speak('Draw a shape first, then check it!');
+        return;
+      }
+      this.onTrainDraw(this._lastTrainDraw);
+    });
+    // "Ask Ms AI" — let the AI guess what was drawn using what she's learned
+    document.getElementById('btn-ask-ai').addEventListener('click',()=>{
+      if(!this._lastTrainDraw||!this._lastTrainDraw.detail||this._lastTrainDraw.detail.pts.length<5){
+        this.speak('Draw something first!');
+        return;
+      }
+      if(this.state.trainingExamples.length===0){
+        this.speak('I have not learned anything yet! Draw something and click Teach Me!');
+        return;
+      }
+      const label=this._findClosestExample(this._lastTrainDraw.detail.pts);
+      this.speak(label?`Hmm, this looks like a ${label} to me! Is that what you drew?`:`Hmm, I am not sure what this is. Teach me by clicking Teach Me!`);
+    });
+  },
+
+  // ── Training ──
+  startTraining(){
+    this.clearCanvas('draw-canvas');
+    this._lastTrainDraw=null;
+    const shape=this.state.currentShape;
+    const count=this.state.trainingCount;
+    document.getElementById('gauge-fill').style.width=(count/3*100)+'%';
+    document.getElementById('gauge-label').textContent=`Ms AI's Brain Loading... ${count}/3`;
+    this.speak(`Draw a ${shape} for me to learn from! I am watching closely!`);
+    document.getElementById('btn-submit-draw').style.display='none';
+    document.getElementById('btn-ask-ai').style.display='none';
+    document.getElementById('btn-next-shape').style.display='none';
+    document.getElementById('btn-back-training').style.display='inline-flex';
+    if(!this._trainCanvas)this._trainCanvas=this.initCanvas('draw-canvas');
+  },
+
+  onTrainDraw(e){
+    // The kid is the teacher — we ALWAYS accept what they draw.
+    // Ms AI stores the actual drawing points and the kid's label.
+    const shape=this.state.currentShape;
+    const pts=e.detail.pts;
+    if(!pts||pts.length<5){this.speak('Draw a bit more, then try again!');return;}
+
+    // Store this drawing as a training example
+    this.state.trainingExamples.push({label:shape, pts:pts, timestamp:Date.now()});
+    this.state.trainingCount++;
+    const count=this.state.trainingCount;
+    document.getElementById('gauge-fill').style.width=(count/3*100)+'%';
+    document.getElementById('gauge-label').textContent=`Ms AI's Brain Loading... ${count}/3`;
+    if(count>=3){
+      // Recompute which shapes have enough examples to be "learned"
+      this._updateLearnedShapes();
+      document.getElementById('btn-submit-draw').style.display='none';
+      this.speak(`Thank you teacher! I am learning the ${shape} from your drawings! Let me try to show you!`,()=>{
+        document.getElementById('btn-ask-ai').style.display='none';
+        document.getElementById('btn-next-shape').style.display='inline-flex';
+        document.getElementById('btn-next-shape').textContent='✓ Test Me!';
+        document.getElementById('btn-next-shape').onclick=()=>{
+          this.showPhase('test');
+          this.startTest();
+        };
+      });
+    }else{
+      this.speak(`Thanks! I am learning what a ${shape} looks like. Can you draw me another ${shape}?`);
+      this.clearCanvas('draw-canvas');
+    }
+  },
+
+  // ── Test & Play ──
+  startTest(){
+    this.clearCanvas('test-canvas');
+    if(!this._testCanvas)this._testCanvas=this.initCanvas('test-canvas');
+    this._lastTestDraw=null;
+    document.getElementById('btn-test-ask').style.display='none';
+    this.speak('Draw a shape on the canvas, then I will tell you what it is!');
+  },
+
+  bindTest(){
+    // Test canvas drawcomplete → show the "ask Ms AI" button
+    const tc=document.getElementById('test-canvas');
+    if(tc)tc.addEventListener('drawcomplete',(e)=>{
+      if(document.querySelector('.phase.active')?.id!=='phase-test')return;
+      this._lastTestDraw=e;
+      document.getElementById('btn-test-ask').style.display='inline-flex';
+      this.speak('Click the button and I will tell you what shape this is!');
+    });
+    // Clear test canvas
+    document.getElementById('btn-clear-test').addEventListener('click',()=>{
+      this.clearCanvas('test-canvas');
+      document.getElementById('btn-test-ask').style.display='none';
+    });
+    // Back to menu escape from test phase
+    document.getElementById('btn-test-back').addEventListener('click',()=>this.showPhase('menu'));
+    // Ask Ms AI button → she identifies the shape from what she's learned
+    document.getElementById('btn-test-ask').addEventListener('click',()=>{
+      const detail=this._lastTestDraw?.detail;
+      if(!detail||detail.pts.length<5){this.speak('Draw something first!');return;}
+
+      // If Ms AI hasn't learned anything yet
+      if(this.state.trainingExamples.length===0){
+        this.speak('I have not learned any shapes yet! Go teach me first! 🎓');
+        return;
+      }
+
+      // Find closest match in her training data (the kid's own drawings)
+      const label=this._findClosestExample(detail.pts);
+      if(!label){
+        this.speak('Hmm, I do not know this shape. I have never seen anything like it before! Can you teach me?');
+        return;
+      }
+      // Only recognise shapes with enough training examples (>=3)
+      if(!this.state.shapesLearned.includes(label)){
+        this.speak(`Hmm, it looks a bit like a ${label} but I have not learned it well enough yet. Keep teaching me!`);
+        return;
+      }
+      this.speak(`I think this is a ${label}! I learned that from you! 🎉`);
+      this.startConfetti();
+      document.getElementById('btn-test-ask').style.display='none';
+      this.showNextTestStep();
+    });
+  },
+
+  showNextTestStep(){
+    const allDone=this.state.shapesLearned.length>=4;
+    setTimeout(()=>{
+      // Remove old temp buttons
+      const old1=document.getElementById('tmp-next-shape');if(old1)old1.remove();
+      const old2=document.getElementById('tmp-build-btn');if(old2)old2.remove();
+      
+      if(!allDone){
+        // Still learning — offer to teach next shape
+        const nb=document.createElement('button');
+        nb.className='btn btn-teal';nb.textContent='➡ Teach Next Shape';
+        nb.id='tmp-next-shape';
+        nb.addEventListener('click',()=>{
+          const el=document.getElementById('tmp-next-shape');if(el)el.remove();
+          this.clearCanvas('test-canvas');
+          this._lastTestDraw=null;
+          document.getElementById('btn-test-ask').style.display='none';
+          this.showPhase('shape-select');
+        });
+        document.getElementById('phase-test').appendChild(nb);
+      }else{
+        // All shapes learned — offer to test again OR build
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:6px';
+        row.id='tmp-test-row';
+        
+        const testAgain=document.createElement('button');
+        testAgain.className='btn btn-teal';testAgain.textContent='✏️ Draw Another';
+        testAgain.addEventListener('click',()=>{
+          const r=document.getElementById('tmp-test-row');if(r)r.remove();
+          this.clearCanvas('test-canvas');
+          this._lastTestDraw=null;
+          document.getElementById('btn-test-ask').style.display='none';
+          this.speak('Draw another shape and I will tell you what it is!');
+        });
+        
+        const buildBtn=document.createElement('button');
+        buildBtn.className='btn btn-primary btn-pulse';buildBtn.textContent='🚀 Build Something!';
+        buildBtn.addEventListener('click',()=>{
+          const r=document.getElementById('tmp-test-row');if(r)r.remove();
+          this.startCreative();
+        });
+        
+        row.appendChild(testAgain);
+        row.appendChild(buildBtn);
+        document.getElementById('phase-test').appendChild(row);
+      }
+    },2000);
+  },
+
+  // ── Build ──
+  startBuild(){
+    document.getElementById('build-picker').style.display='block';
+    document.getElementById('build-result').style.display='none';
+    document.getElementById('build-actions').style.display='none';
+    document.getElementById('part-picker').style.display='none';
+    document.getElementById('btn-build-go').style.display='none';
+    this.speak('I know my shapes now! Let us build something together! What should we make?');
+  },
+
+  bindBuild(){
+    document.querySelectorAll('.build-card').forEach(card=>{
+      card.addEventListener('click',()=>{
+        this.state.buildMode=card.dataset.mode;
+        this.setupParts();
+      });
+    });
+    document.getElementById('btn-build-go').addEventListener('click',()=>this.renderBuild());
+    document.getElementById('btn-save-gallery').addEventListener('click',()=>this.saveToGallery());
+    document.getElementById('btn-play-again').addEventListener('click',()=>{
+      this.state.shapesLearned=[];this.state.trainingCount=0;this.state.trainingExamples=[];this.showPhase('menu');
+    });
+  },
+
+  setupParts(){
+    const mode=this.state.buildMode;
+    const parts=mode==='robot'
+      ?[{key:'head',label:'Head',defaultShape:'square'},{key:'body',label:'Body',defaultShape:'rectangle'},{key:'eyes',label:'Eyes',defaultShape:'circle'}]
+      :[{key:'tip',label:'Tip',defaultShape:'triangle'},{key:'body',label:'Body',defaultShape:'rectangle'},{key:'window',label:'Window',defaultShape:'circle'}];
+    this.state.buildParts=parts;
+    this.state.buildChoices={};
+    parts.forEach(p=>this.state.buildChoices[p.key]={shape:p.defaultShape,color:this.randomColor()});
+    this.renderPartPicker();
+  },
+
+  randomColor(){
+    const colors=['#FF6B6B','#54A0FF','#FF9F43','#5F27CD','#1DD1A1','#FFE66D'];
+    return colors[Math.floor(Math.random()*colors.length)];
+  },
+
+  renderPartPicker(){
+    const pp=document.getElementById('part-picker');pp.style.display='block';pp.innerHTML='';
+    document.getElementById('btn-build-go').style.display='inline-flex';
+    this.state.buildParts.forEach((part,i)=>{
+      const div=document.createElement('div');div.style.cssText='background:#fff;border-radius:12px;padding:8px 10px;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.04)';
+      const choice=this.state.buildChoices[part.key];
+      div.innerHTML=`
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span style="font-size:14px;font-weight:700;color:var(--text)">${part.label}:</span>
+          <span style="font-size:20px;color:${this.shapeColor[choice.shape]}">${this.shapeEmoji[choice.shape]}</span>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          ${this.shapes.map(s=>`<button class="shape-picker-btn ${s===choice.shape?'sel':''}" data-part="${part.key}" data-shape="${s}" style="color:${this.shapeColor[s]}">${this.shapeEmoji[s]}</button>`).join('')}
+        </div>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          ${['#FF6B6B','#54A0FF','#FF9F43','#5F27CD','#1DD1A1','#FFE66D'].map(c=>
+            `<div class="color-swatch ${c===choice.color?'sel':''}" data-part="${part.key}" data-color="${c}" style="background:${c}"></div>`
+          ).join('')}
+        </div>`;
+      pp.appendChild(div);
+    });
+    // Bind pickers
+    pp.querySelectorAll('.shape-picker-btn').forEach(b=>b.addEventListener('click',()=>{
+      const key=b.dataset.part;const shape=b.dataset.shape;
+      this.state.buildChoices[key].shape=shape;
+      this.renderPartPicker();
+    }));
+    pp.querySelectorAll('.color-swatch').forEach(s=>s.addEventListener('click',()=>{
+      const key=s.dataset.part;const color=s.dataset.color;
+      this.state.buildChoices[key].color=color;
+      this.renderPartPicker();
+    }));
+  },
+
+  renderBuild(){
+    document.getElementById('build-picker').style.display='none';
+    const br=document.getElementById('build-result');br.style.display='flex';br.innerHTML='<div class="spinner"></div>';
+    this.speak('Building! Watch this! 🔨');
+    setTimeout(()=>{
+      const mode=this.state.buildMode;
+      const ch=this.state.buildChoices;
+      const w=280,h=360;
+      let svg=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+      if(mode==='robot'){
+        // Head
+        const hs=ch.head.shape,hsx=ch.head.color;
+        if(hs==='circle')svg+=`<circle cx="140" cy="80" r="50" fill="${hsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if(hs==='square')svg+=`<rect x="90" y="30" width="100" height="100" rx="10" fill="${hsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if(hs==='triangle')svg+=`<polygon points="140,20 200,130 80,130" fill="${hsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg+=`<rect x="90" y="40" width="100" height="70" rx="8" fill="${hsx}" stroke="#2D3436" stroke-width="3"/>`;
+        // Body
+        const bs=ch.body.shape,bsx=ch.body.color;
+        if(bs==='circle')svg+=`<circle cx="150" cy="215" r="65" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if(bs==='square')svg+=`<rect x="85" y="145" width="130" height="140" rx="12" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if(bs==='triangle')svg+=`<polygon points="150,140 230,290 70,290" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg+=`<rect x="90" y="150" width="120" height="130" rx="12" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        // Eyes
+        const es=ch.eyes.shape,esx=ch.eyes.color;
+        if(es==='circle'){
+          svg+=`<circle cx="120" cy="80" r="12" fill="${esx}" stroke="#2D3436" stroke-width="2"/>`;
+          svg+=`<circle cx="160" cy="80" r="12" fill="${esx}" stroke="#2D3436" stroke-width="2"/>`;
+        }else{
+          svg+=`<rect x="108" y="68" width="18" height="18" rx="4" fill="${esx}" stroke="#2D3436" stroke-width="2"/>`;
+          svg+=`<rect x="154" y="68" width="18" height="18" rx="4" fill="${esx}" stroke="#2D3436" stroke-width="2"/>`;
+        }
+        // Mouth
+        svg+=`<path d="M120 100 Q140 115 160 100" fill="none" stroke="#2D3436" stroke-width="2.5" stroke-linecap="round"/>`;
+        // Arms
+        svg+=`<rect x="60" y="180" width="18" height="60" rx="6" fill="#e0e0e0" stroke="#2D3436" stroke-width="2.5"/>`;
+        svg+=`<rect x="222" y="180" width="18" height="60" rx="6" fill="#e0e0e0" stroke="#2D3436" stroke-width="2.5"/>`;
+        // Legs
+        svg+=`<rect x="105" y="280" width="20" height="40" rx="6" fill="#e0e0e0" stroke="#2D3436" stroke-width="2.5"/>`;
+        svg+=`<rect x="175" y="280" width="20" height="40" rx="6" fill="#e0e0e0" stroke="#2D3436" stroke-width="2.5"/>`;
+        // Antenna
+        svg+=`<line x1="140" y1="30" x2="140" y2="10" stroke="#2D3436" stroke-width="2.5" stroke-linecap="round"/>`;
+        svg+=`<circle cx="140" cy="8" r="5" fill="${esx}"/>`;
+      }else{
+        // Rocket
+        // Tip
+        const ts=ch.tip.shape,tsx=ch.tip.color;
+        if(ts==='triangle')svg+=`<polygon points="140,10 260,140 20,140" fill="${tsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if(ts==='circle')svg+=`<circle cx="140" cy="80" r="70" fill="${tsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if(ts==='square')svg+=`<rect x="70" y="30" width="140" height="100" rx="10" fill="${tsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg+=`<rect x="60" y="40" width="160" height="80" rx="8" fill="${tsx}" stroke="#2D3436" stroke-width="3"/>`;
+        // Body
+        const bs=ch.body.shape,bsx=ch.body.color;
+        if(bs==='circle')svg+=`<circle cx="140" cy="190" r="75" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if(bs==='square')svg+=`<rect x="45" y="115" width="190" height="150" rx="16" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if(bs==='triangle')svg+=`<polygon points="140,110 250,280 30,280" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg+=`<rect x="50" y="120" width="180" height="140" rx="16" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        // Window
+        const ws=ch.window.shape,wsx=ch.window.color;
+        if(ws==='circle')svg+=`<circle cx="140" cy="190" r="35" fill="${wsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg+=`<rect x="105" y="155" width="70" height="70" rx="10" fill="${wsx}" stroke="#2D3436" stroke-width="3"/>`;
+        // Fins
+        svg+=`<polygon points="50,240 10,320 70,280" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        svg+=`<polygon points="230,240 270,320 210,280" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        // Flame
+        svg+=`<ellipse cx="140" cy="310" rx="25" ry="35" fill="#FFE66D" opacity=".8"/>`;
+        svg+=`<ellipse cx="140" cy="300" rx="15" ry="25" fill="#FF6B6B" opacity=".9"/>`;
+      }
+      svg+=`</svg>`;
+      br.innerHTML=svg;
+      document.getElementById('build-actions').style.display='flex';
+      this.speak(`Ta da! We made a ${mode}! Do you like it? 🎉`);
+      this.startConfetti();
+    },1500);
+  },
+
+  // ── Creative Studio ──
+  creativeState: { mode: null, parts: [], partIndex: 0, choices: {}, phase: 'pick' },
+  creativeParts: {
+    robot: [
+      { key: 'head', label: 'Head', shapes: ['circle', 'square', 'triangle'] },
+      { key: 'body', label: 'Body', shapes: ['rectangle', 'square', 'circle'] },
+      { key: 'arms', label: 'Arms', shapes: ['rectangle', 'circle'] },
+      { key: 'legs', label: 'Legs', shapes: ['rectangle', 'square', 'circle'] }
+    ],
+    rocket: [
+      { key: 'tip', label: 'Tip', shapes: ['triangle', 'circle', 'square'] },
+      { key: 'body', label: 'Body', shapes: ['rectangle', 'square', 'circle'] },
+      { key: 'window', label: 'Window', shapes: ['circle', 'square', 'triangle'] },
+      { key: 'fins', label: 'Fins', shapes: ['triangle', 'square'] }
+    ]
+  },
+
+  startCreative(){
+    document.getElementById('creative-result').style.display='none';
+    document.getElementById('creative-actions').style.display='none';
+    this.creativeState = { mode: null, parts: [], partIndex: 0, choices: {}, phase: 'pick' };
+    this.showPhase('creative');
+    this.renderCreativeModePicker();
+  },
+
+  renderCreativeModePicker(){
+    const sc = document.getElementById('creative-step-content');
+    const picker = document.getElementById('creative-picker');
+    picker.style.display='block';
+    sc.innerHTML=`
+      <div style="margin-bottom:10px;font-size:15px;font-weight:700;color:var(--text)">What should we build together?</div>
+      <div class="build-grid">
+        <div class="build-card" id="creative-mode-robot">🤖<br>Robot</div>
+        <div class="build-card" id="creative-mode-rocket">🚀<br>Rocket</div>
+      </div>`;
+    document.getElementById('creative-mode-robot').onclick=()=>this.creativePickMode('robot');
+    document.getElementById('creative-mode-rocket').onclick=()=>this.creativePickMode('rocket');
+    const mic=document.getElementById('creative-mic-btn');mic.style.display='inline-flex';
+    mic.onclick=()=>this.creativeListen({robot:['robot','robit','bot'],rocket:['rocket','rocker']},(v)=>this.creativePickMode(v));
+    document.getElementById('creative-listen-status').textContent='';
+    this.speak('What should we build together? A robot or a rocket?');
+  },
+
+  creativePickMode(mode){
+    this.creativeState.mode = mode;
+    this.creativeState.parts = this.creativeParts[mode];
+    this.creativeState.partIndex = 0;
+    this.creativeState.choices = {};
+    this.creativeState.phase = 'shape';
+    this.creativeAskPart();
+  },
+
+  creativeAskPart(){
+    const { parts, partIndex, mode } = this.creativeState;
+    if (partIndex >= parts.length) {
+      this.creativeBuild();
+      return;
+    }
+    const part = parts[partIndex];
+    const shapeOptions = this.shapes.filter(s => part.shapes.includes(s));
+    // Auto-advance if only one shape choice
+    if (shapeOptions.length === 1) {
+      this.creativeState.choices[part.key] = { shape: shapeOptions[0], color: null };
+      this.creativeState.phase = 'color';
+      this.creativeAskColor();
+      return;
+    }
+    const sc = document.getElementById('creative-step-content');
+    document.getElementById('creative-picker').style.display='block';
+    sc.innerHTML = `
+      <div style="margin-bottom:8px;font-size:14px;color:var(--text)">
+        Part ${partIndex+1} of ${parts.length}: <strong>${part.label}</strong>
+      </div>
+      <div style="margin-bottom:6px;font-size:13px;color:var(--text-light)">
+        What shape should the ${part.label.toLowerCase()} be?
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        ${shapeOptions.map(s => `
+          <button class="btn btn-outline creative-shape-btn" data-shape="${s}" style="font-size:16px;padding:12px 20px;border-color:${this.shapeColor[s]};color:${this.shapeColor[s]}">
+            ${this.shapeEmoji[s]} ${s.charAt(0).toUpperCase()+s.slice(1)}
+          </button>
+        `).join('')}
+      </div>`;
+    sc.querySelectorAll('.creative-shape-btn').forEach(b => {
+      b.onclick = () => this.creativePickShape(b.dataset.shape);
+    });
+    const mic=document.getElementById('creative-mic-btn');mic.style.display='inline-flex';
+    mic.onclick=()=>this.creativeListen({circle:['circle','round'],triangle:['triangle','tri'],square:['square'],rectangle:['rectangle','rect']},(v)=>this.creativePickShape(v));
+    document.getElementById('creative-listen-status').textContent='';
+    this.speak(`What shape should the ${part.label.toLowerCase()} be? Pick one!`);
+  },
+
+  creativePickShape(shape){
+    const { parts, partIndex } = this.creativeState;
+    const part = parts[partIndex];
+    if (!this.creativeState.choices[part.key]) {
+      this.creativeState.choices[part.key] = {};
+    }
+    this.creativeState.choices[part.key].shape = shape;
+    this.creativeState.phase = 'color';
+    this.creativeAskColor();
+  },
+
+  creativeAskColor(){
+    const { parts, partIndex } = this.creativeState;
+    const part = parts[partIndex];
+    const choice = this.creativeState.choices[part.key];
+    const sc = document.getElementById('creative-step-content');
+    const colors = ['#FF6B6B', '#54A0FF', '#FF9F43', '#5F27CD', '#1DD1A1', '#FFE66D'];
+    const colorNames = { '#FF6B6B':'Red', '#54A0FF':'Blue', '#FF9F43':'Orange', '#5F27CD':'Purple', '#1DD1A1':'Green', '#FFE66D':'Yellow' };
+    sc.innerHTML = `
+      <div style="margin-bottom:8px;font-size:14px;color:var(--text)">
+        Part ${partIndex+1} of ${parts.length}: <strong>${part.label}</strong>
+      </div>
+      <div style="margin-bottom:4px">
+        <span style="font-size:28px;color:${this.shapeColor[choice.shape]}">${this.shapeEmoji[choice.shape]}</span>
+      </div>
+      <div style="margin-bottom:6px;font-size:13px;color:var(--text-light)">
+        What color should the ${part.label.toLowerCase()} be?
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        ${colors.map(c => `
+          <div class="color-swatch creative-color-btn" data-color="${c}" style="background:${c};width:44px;height:44px;cursor:pointer" title="${colorNames[c]}"></div>
+        `).join('')}
+      </div>`;
+    sc.querySelectorAll('.creative-color-btn').forEach(el => {
+      el.onclick = () => this.creativePickColor(el.dataset.color);
+    });
+    const mic=document.getElementById('creative-mic-btn');mic.style.display='inline-flex';
+    mic.onclick=()=>this.creativeListen({'#FF6B6B':['red'],'#54A0FF':['blue'],'#FF9F43':['orange'],'#5F27CD':['purple'],'#1DD1A1':['green'],'#FFE66D':['yellow']},(v)=>this.creativePickColor(v));
+    document.getElementById('creative-listen-status').textContent='';
+    this.speak(`What color should the ${part.label.toLowerCase()} be? Pick a color!`);
+  },
+
+  creativePickColor(color){
+    const { parts, partIndex } = this.creativeState;
+    const part = parts[partIndex];
+    this.creativeState.choices[part.key].color = color;
+    this.creativeState.partIndex++;
+    this.creativeState.phase = 'shape';
+    this.creativeAskPart();
+  },
+
+  // ── Creative Studio: Speech recognition for choices ──
+  creativeListen(wordMap, callback){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){this.speak('Speech is not available in your browser.');return;}
+    const r=new SR();r.lang='en-US';r.interimResults=false;r.maxAlternatives=1;
+    document.getElementById('creative-listen-status').textContent='🎤 Listening...';
+    r.onresult=(e)=>{
+      const t=e.results[0][0].transcript.toLowerCase().trim();
+      document.getElementById('creative-listen-status').textContent='';
+      for(const [value,words] of Object.entries(wordMap)){
+        if(words.some(w=>t.includes(w))){callback(value);return;}
+      }
+      this.speak('Sorry, I did not understand. Try again or tap a button.');
+    };
+    r.onerror=()=>{document.getElementById('creative-listen-status').textContent='';};
+    r.start();
+  },
+
+  creativeBuild(){
+    document.getElementById('creative-picker').style.display='none';
+    const cr = document.getElementById('creative-result');
+    cr.style.display = 'flex';
+    cr.innerHTML = '<div class="spinner"></div>';
+    this.speak('Let me put it all together! Watch this! 🔨');
+    setTimeout(() => {
+      const { mode, choices } = this.creativeState;
+      const w = 280, h = 360;
+      let svg = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+      const c = choices;
+
+      if (mode === 'robot') {
+        // Head
+        const hd = c.head || { shape: 'square', color: '#FF6B6B' };
+        const hs = hd.shape, hsx = hd.color;
+        if (hs === 'circle') svg += `<circle cx="140" cy="70" r="45" fill="${hsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if (hs === 'square') svg += `<rect x="95" y="25" width="90" height="90" rx="10" fill="${hsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg += `<rect x="90" y="35" width="100" height="70" rx="8" fill="${hsx}" stroke="#2D3436" stroke-width="3"/>`;
+        // Eyes
+        svg += `<circle cx="120" cy="70" r="8" fill="#fff" stroke="#2D3436" stroke-width="2"/>`;
+        svg += `<circle cx="160" cy="70" r="8" fill="#fff" stroke="#2D3436" stroke-width="2"/>`;
+        svg += `<circle cx="122" cy="70" r="4" fill="#2D3436"/>`;
+        svg += `<circle cx="162" cy="70" r="4" fill="#2D3436"/>`;
+        // Mouth
+        svg += `<path d="M125 90 Q140 100 155 90" fill="none" stroke="#2D3436" stroke-width="2.5" stroke-linecap="round"/>`;
+
+        // Body
+        const bd = c.body || { shape: 'rectangle', color: '#54A0FF' };
+        const bs = bd.shape, bsx = bd.color;
+        if (bs === 'circle') svg += `<circle cx="145" cy="195" r="60" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if (bs === 'square') svg += `<rect x="80" y="130" width="130" height="130" rx="12" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg += `<rect x="75" y="125" width="140" height="140" rx="12" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        // Belly button
+        svg += `<circle cx="145" cy="195" r="12" fill="#fff" opacity=".3"/>`;
+
+        // Arms
+        const ad = c.arms || { shape: 'rectangle', color: '#FF9F43' };
+        const asx = ad.color;
+        svg += `<rect x="50" y="150" width="20" height="60" rx="8" fill="${asx}" stroke="#2D3436" stroke-width="2.5"/>`;
+        svg += `<rect x="220" y="150" width="20" height="60" rx="8" fill="${asx}" stroke="#2D3436" stroke-width="2.5"/>`;
+        // Hands
+        svg += `<circle cx="60" cy="215" r="10" fill="${asx}" stroke="#2D3436" stroke-width="2.5"/>`;
+        svg += `<circle cx="230" cy="215" r="10" fill="${asx}" stroke="#2D3436" stroke-width="2.5"/>`;
+
+        // Legs
+        const lg = c.legs || { shape: 'rectangle', color: '#5F27CD' };
+        const ls = lg.shape, lsx = lg.color;
+        if (ls === 'square') {
+          svg += `<rect x="95" y="270" width="30" height="50" rx="6" fill="${lsx}" stroke="#2D3436" stroke-width="2.5"/>`;
+          svg += `<rect x="165" y="270" width="30" height="50" rx="6" fill="${lsx}" stroke="#2D3436" stroke-width="2.5"/>`;
+        } else {
+          svg += `<rect x="100" y="270" width="20" height="55" rx="6" fill="${lsx}" stroke="#2D3436" stroke-width="2.5"/>`;
+          svg += `<rect x="170" y="270" width="20" height="55" rx="6" fill="${lsx}" stroke="#2D3436" stroke-width="2.5"/>`;
+        }
+        // Feet
+        svg += `<ellipse cx="110" cy="325" rx="20" ry="8" fill="${lsx}" stroke="#2D3436" stroke-width="2.5"/>`;
+        svg += `<ellipse cx="180" cy="325" rx="20" ry="8" fill="${lsx}" stroke="#2D3436" stroke-width="2.5"/>`;
+      } else {
+        // Rocket
+        // Tip
+        const tp = c.tip || { shape: 'triangle', color: '#FF6B6B' };
+        const ts = tp.shape, tsx = tp.color;
+        if (ts === 'triangle') svg += `<polygon points="140,10 260,130 20,130" fill="${tsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if (ts === 'circle') svg += `<circle cx="140" cy="70" r="60" fill="${tsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg += `<rect x="70" y="30" width="140" height="90" rx="10" fill="${tsx}" stroke="#2D3436" stroke-width="3"/>`;
+
+        // Body
+        const bd = c.body || { shape: 'rectangle', color: '#54A0FF' };
+        const bs = bd.shape, bsx = bd.color;
+        if (bs === 'circle') svg += `<circle cx="140" cy="190" r="75" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else if (bs === 'square') svg += `<rect x="50" y="120" width="180" height="140" rx="16" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg += `<rect x="45" y="115" width="190" height="150" rx="16" fill="${bsx}" stroke="#2D3436" stroke-width="3"/>`;
+
+        // Window
+        const wd = c.window || { shape: 'circle', color: '#1DD1A1' };
+        const ws = wd.shape, wsx = wd.color;
+        if (ws === 'circle') svg += `<circle cx="140" cy="190" r="35" fill="${wsx}" stroke="#2D3436" stroke-width="3"/>`;
+        else svg += `<rect x="105" y="155" width="70" height="70" rx="10" fill="${wsx}" stroke="#2D3436" stroke-width="3"/>`;
+        // Window shine
+        svg += `<circle cx="130" cy="180" r="8" fill="#fff" opacity=".4"/>`;
+
+        // Fins
+        const fn = c.fins || { shape: 'triangle', color: '#FF9F43' };
+        const fsx = fn.color;
+        if (fn.shape === 'triangle') {
+          svg += `<polygon points="55,230 10,320 75,280" fill="${fsx}" stroke="#2D3436" stroke-width="3"/>`;
+          svg += `<polygon points="225,230 270,320 205,280" fill="${fsx}" stroke="#2D3436" stroke-width="3"/>`;
+        } else {
+          svg += `<rect x="15" y="240" width="40" height="60" rx="6" fill="${fsx}" stroke="#2D3436" stroke-width="3"/>`;
+          svg += `<rect x="225" y="240" width="40" height="60" rx="6" fill="${fsx}" stroke="#2D3436" stroke-width="3"/>`;
+        }
+
+        // Flame
+        svg += `<ellipse cx="140" cy="310" rx="30" ry="40" fill="#FFE66D" opacity=".8"/>`;
+        svg += `<ellipse cx="140" cy="300" rx="18" ry="28" fill="#FF6B6B" opacity=".9"/>`;
+        svg += `<ellipse cx="140" cy="295" rx="8" ry="15" fill="#fff" opacity=".6"/>`;
+      }
+      svg += `</svg>`;
+      cr.innerHTML = svg;
+      document.getElementById('creative-actions').style.display = 'flex';
+      this.speak(`Ta da! We built a ${mode} together! Do you like it? 🎉`);
+      this.startConfetti();
+    }, 1500);
+  },
+
+  bindCreative(){
+    document.getElementById('btn-creative-save').addEventListener('click',()=>this.creativeSaveToGallery());
+    document.getElementById('btn-creative-again').addEventListener('click',()=>this.startCreative());
+    document.getElementById('btn-creative-menu').addEventListener('click',()=>this.showPhase('menu'));
+  },
+
+  creativeSaveToGallery(){
+    const cr = document.getElementById('creative-result');
+    const svg = cr.querySelector('svg');
+    if (!svg) return;
+    const data = { svg: svg.outerHTML, mode: this.creativeState.mode, date: Date.now() };
+    this.state.gallery.push(data);
+    if (this.state.gallery.length > 20) this.state.gallery = this.state.gallery.slice(-20);
+    this.saveGallery();
+    this.renderGallery();
+    this.speak('Saved to the classroom gallery! 🏆');
+  },
+
+  // ── Gallery ──
+  loadGallery(){
+    try{const d=JSON.parse(localStorage.getItem('shapeSchoolGallery'));if(Array.isArray(d))this.state.gallery=d;}catch(e){}
+  },
+  saveGallery(){
+    try{localStorage.setItem('shapeSchoolGallery',JSON.stringify(this.state.gallery));}catch(e){}
+  },
+  saveToGallery(){
+    const br=document.getElementById('build-result');
+    const svg=br.querySelector('svg');
+    if(!svg)return;
+    const data={svg:svg.outerHTML,mode:this.state.buildMode,date:Date.now()};
+    this.state.gallery.push(data);
+    if(this.state.gallery.length>20)this.state.gallery=this.state.gallery.slice(-20);
+    this.saveGallery();
+    this.renderGallery();
+    this.speak('Saved to the classroom gallery! Look at all our creations! 🏆');
+  },
+  renderGallery(){
+    const shelf=document.getElementById('gallery-shelf');shelf.innerHTML='';
+    if(this.state.gallery.length===0){shelf.innerHTML='<div style="font-size:11px;color:var(--text-light);width:100%;text-align:center">No creations yet. Build something!</div>';return;}
+    this.state.gallery.slice().reverse().forEach((item,i)=>{
+      const div=document.createElement('div');div.className='gallery-item';
+      div.innerHTML=item.svg;
+      const del=document.createElement('button');del.className='del-btn';del.textContent='✕';
+      del.addEventListener('click',(e)=>{e.stopPropagation();this.state.gallery.splice(this.state.gallery.length-1-i,1);this.saveGallery();this.renderGallery();});
+      div.appendChild(del);
+      shelf.appendChild(div);
+    });
+  }
+};
+
+// ── Boot ──
+document.addEventListener('DOMContentLoaded',()=>App.init());
+</script>
+</body>
+</html>

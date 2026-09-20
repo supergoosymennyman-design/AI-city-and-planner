@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI Token Exchange — P3 Tokenomics</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="game-container">
+
+  <!-- Intro Overlay -->
+  <div id="intro-overlay">
+    <div class="intro-card">
+      <h1>AI Token Exchange</h1>
+      <p class="intro-subtitle">Launch Day at Spaceport Alpha! 🚀</p>
+      <p class="intro-subtitle" style="font-size:0.85em;margin-top:2px">The colony ship <strong>Endeavour</strong> departs for Mars today. Every settler needs AI verification before boarding. Nova — your AI — crashed at 0300. Rebuild her with a limited token budget and get everyone through in time.</p>
+
+      <div class="intro-section">
+        <h2>Your Job</h2>
+        <p>The deep-space uplink has limited bandwidth. Every AI check costs communication tokens (comm tokens). <strong>Process all settlers without running out!</strong></p>
+      </div>
+
+      <div class="intro-section">
+        <h2>Token Costs</h2>
+        <div class="intro-cost-grid">
+          <div class="intro-cost-card">
+            <div class="intro-cost-icon text-icon">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="4" width="14" height="5" rx="1"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg>
+            </div>
+            <div class="intro-cost-label">Text Read</div>
+            <div class="intro-cost-value">2 <span class="intro-cost-unit">tokens</span></div>
+          </div>
+          <div class="intro-cost-card">
+            <div class="intro-cost-icon lookup-icon">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="6"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+            </div>
+            <div class="intro-cost-label">Lookup</div>
+            <div class="intro-cost-value">5 <span class="intro-cost-unit">tokens</span></div>
+          </div>
+          <div class="intro-cost-card">
+            <div class="intro-cost-icon image-icon">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+            </div>
+            <div class="intro-cost-label">Image Match</div>
+            <div class="intro-cost-value">10 <span class="intro-cost-unit">tokens</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="intro-section">
+        <h2>Teach Nova!</h2>
+        <p>Nova crashed and lost everything. Each level, you teach her a new token strategy. By Level 6, <strong>Nova runs the whole verification solo!</strong></p>
+      </div>
+
+      <button id="intro-start-btn" class="intro-start-btn">Start!</button>
+    </div>
+  </div>
+
+  <!-- Top Bar -->
+  <div id="top-bar">
+    <span id="game-title" class="game-title">AI Token Exchange</span>
+    <div id="level-tabs" class="level-tabs" role="tablist" aria-label="Level selection"></div>
+    <span id="score-display" class="score-display"></span>
+    <div class="top-actions">
+      <button id="debug-btn" class="icon-btn" title="Debug analytics" aria-label="Toggle debug analytics">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="16.5" r="4"/><line x1="10.5" y1="13.5" x2="20" y2="4"/><rect x="12" y="1" width="9" height="6" rx="1.5"/></svg>
+      </button>
+      <button id="transcript-toggle" class="icon-btn" title="Conversation transcript" aria-label="Show transcript">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+      </button>
+      <button id="settings-toggle" class="icon-btn" title="Settings" aria-label="Open settings">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Budget Bar -->
+  <div id="budget-bar-container">
+    <div class="budget-bar-outer">
+      <div id="budget-bar-fill" class="budget-bar-fill safe" style="width:0%"></div>
+    </div>
+    <div class="budget-labels">
+      <span>Spent: <strong id="budget-spent">0</strong> / <strong id="budget-total">100</strong></span>
+      <span id="budget-remaining" class="budget-remaining safe">100 left</span>
+    </div>
+  </div>
+
+  <!-- Main Area -->
+  <div id="main-area">
+
+    <!-- Left: Dashboard -->
+    <div id="dashboard" class="dashboard">
+
+      <!-- Citizen Queue -->
+      <div class="dashboard-panel">
+        <h3>Citizen Queue</h3>
+        <div id="citizen-queue" class="citizen-queue-scroll">
+          <div class="empty-queue">Select a level and press Start to begin.</div>
+        </div>
+      </div>
+
+      <!-- Level Features -->
+      <div class="dashboard-panel" id="level-features-panel">
+        <h3>Active Mechanics</h3>
+        <div id="level-features" class="level-features"></div>
+      </div>
+
+      <!-- Commander Vega Card -->
+      <div id="vega-card" class="vega-card hidden">
+        <div class="vega-avatar">👩‍🚀</div>
+        <div class="vega-body">
+          <div class="vega-name">Commander Vega</div>
+          <div class="vega-msg" id="vega-msg">The crew is counting on you.</div>
+        </div>
+      </div>
+
+      <!-- Nova Knowledge -->
+      <div id="nova-knowledge-panel" class="dashboard-panel">
+        <h3>🤖 Nova's AI Training</h3>
+        <div class="nova-knowledge-bar">
+          <div id="nova-knowledge-fill" class="nova-knowledge-fill" style="width:0%"></div>
+        </div>
+        <div id="nova-knowledge-text" class="nova-knowledge-text">Nova is waiting to learn from you...</div>
+        <div id="nova-lesson-display" class="nova-lesson-display" style="display:none"></div>
+        <div class="concept-tracker" id="conceptTrackerL15"></div>
+      </div>
+    </div>
+
+    <!-- Right: Controls -->
+    <div id="controls" class="controls">
+
+      <!-- Current Citizen -->
+      <div class="control-panel" id="current-citizen-card">
+        <h3>Current Citizen</h3>
+        <div class="citizen-header">
+          <span id="citizen-name" class="citizen-name">—</span>
+        </div>
+
+        <!-- Model Tier Selection (L2, L5) -->
+        <div id="model-tiers" class="model-tiers-section" style="display:none"></div>
+
+        <!-- Priority Toggle (L4, L5) -->
+        <div id="priority-toggle" class="priority-toggle-section" style="display:none"></div>
+
+        <!-- Task Toggles -->
+        <div id="task-toggles" class="task-toggles"></div>
+
+        <!-- Current Cost -->
+        <div id="current-cost" class="current-cost safe">Cost: 0 tokens</div>
+
+        <!-- Process / Skip Buttons -->
+        <div class="process-buttons">
+          <button id="process-btn" class="process-btn">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>
+            Process Citizen
+          </button>
+          <button id="skip-btn" class="skip-btn">Skip</button>
+        </div>
+      </div>
+
+      <!-- Batch Processing (L3, L5, L7) -->
+      <div class="control-panel" id="batch-area" style="display:none">
+        <h3>Group Queue</h3>
+        <div class="batch-hint">Same group = same tasks = save tokens! Process them together.</div>
+        <div id="batch-list" class="batch-list"></div>
+        <div id="batch-discount" class="batch-discount" style="display:none"></div>
+        <button id="batch-btn" class="batch-process-btn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+          Process Group
+        </button>
+      </div>
+
+      <!-- Action Button -->
+      <div class="control-panel" style="padding:0; background:transparent; border:none;">
+        <button id="action-btn" class="action-btn">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg>
+          Start Processing Citizens
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instruction Bar & Nova Status -->
+  <div id="instruction-bar">
+    <span id="level-badge" class="level-badge">L1</span>
+    <span id="instruction-text">Select a level and press Start to begin.</span>
+    <span id="nova-status" class="nova-status" style="display:none"></span>
+  </div>
+
+  <!-- Nova AI Area -->
+    <div id="nova-area">
+    <div id="nova-avatar" tabindex="0" role="button" aria-label="Nova AI assistant">
+      <svg viewBox="0 0 32 32" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="16" cy="16" r="11"/><circle cx="16" cy="16" r="4"/><line x1="16" y1="5" x2="16" y2="9"/><line x1="16" y1="23" x2="16" y2="27"/><line x1="5" y1="16" x2="9" y2="16"/><line x1="23" y1="16" x2="27" y2="16"/></svg>
+      <span id="nova-mood" class="nova-mood nova-mood-scrambled" aria-label="Nova mood">😵</span>
+      <span id="ai-state-dot" class="ai-state-dot idle" aria-label="Nova is idle"></span>
+    </div>
+    <div id="nova-growth" class="nova-growth hidden">
+      <div class="nova-growth-track">
+        <div class="nova-growth-fill" id="nova-growth-fill" style="width:0%"></div>
+      </div>
+      <span class="nova-growth-label" id="nova-growth-label">System: Offline</span>
+    </div>
+    <div id="nova-speech-bubble">
+      <span id="nova-speech-text"></span>
+    </div>
+    <div id="text-input-area">
+      <input type="text" id="botly-text-input" placeholder="Type a message to Nova..." aria-label="Type message to Nova">
+      <button id="text-send-btn">Send</button>
+    </div>
+  </div>
+
+  <!-- Master Certification Screen -->
+  <div id="master-cert-L15" class="ch-overlay" style="display:none">
+    <div class="cert-card">
+      <h2 class="cert-title">🏆 Nova is Certified!</h2>
+      <p class="cert-subtitle">All 7 levels complete. Nova mastered token allocation — here is what you taught her.</p>
+      <div class="cert-grid-2col" id="certGridL15"></div>
+      <div class="cert-stats" id="certStatsL15"></div>
+      <div class="cert-cta">
+        <p class="cert-cta-text"><strong>What was learned:</strong> An 8-year-old just taught AI how to budget tokens, choose models, batch requests, handle priorities, cache results, and operate autonomously — the same skills real AI engineers use at companies like OpenAI and Google.</p>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+        <button class="btn-primary" id="certBackL15">↩ Back to Levels</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Final Exam Overlay -->
+  <div id="exam-overlay-L15" class="ch-overlay" style="display:none">
+    <div class="exam-card">
+      <div id="exam-header">
+        <span id="exam-progress">Question 1 of 8</span>
+        <span id="exam-concept-icon"></span>
+      </div>
+      <div id="exam-question-area">
+        <h3 id="exam-question"></h3>
+        <div id="exam-choices"></div>
+      </div>
+      <div id="exam-feedback" style="display:none">
+        <div id="exam-feedback-icon"></div>
+        <p id="exam-feedback-text"></p>
+      </div>
+      <div id="exam-actions">
+        <button id="exam-next-btn" class="btn-primary" style="display:none">Next →</button>
+      </div>
+      <div id="exam-results" style="display:none">
+        <h2 id="exam-results-title">🏆 AI Tokenomics Exam</h2>
+        <div id="exam-stars-display"></div>
+        <p id="exam-results-text"></p>
+        <div id="exam-recap"></div>
+        <button id="exam-cert-btn" class="btn-primary">View Certification</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level Result Overlay -->
+  <div id="result-overlay">
+    <div class="result-card">
+      <div id="result-icon" class="result-icon"></div>
+      <h2 id="result-title"></h2>
+      <div id="result-stars" class="result-stars"></div>
+      <div id="result-message" class="result-message"></div>
+      <div id="result-metrics" class="result-metrics"></div>
+      <div class="result-buttons">
+        <button id="retry-btn" class="result-btn retry-btn">Try Again</button>
+        <button id="next-btn" class="result-btn">Next Level</button>
+        <button id="result-menu-btn" class="result-btn">Back to Levels</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug Analytics -->
+  <pre id="debug-analytics" class="debug-analytics"></pre>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Settings Modal -->
+  <div id="settings-overlay">
+    <div class="settings-card">
+      <h2>Settings <span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+      </span></h2>
+
+      <div class="model-status">
+        <div class="ms-label">AI Model</div>
+        <div class="ms-value">Template-based (offline)</div>
+      </div>
+
+      <div id="session-metrics" class="session-metrics">
+        <div class="sm-label">Session</div>
+        <div class="sm-row"><span>Utterances</span><span>0</span></div>
+      </div>
+
+      <div class="settings-group">
+        <label>Speed <span id="rate-value" class="val">0.85x</span></label>
+        <input type="range" id="speech-rate" min="0.5" max="2.0" step="0.05" value="0.85" aria-label="Speech rate">
+      </div>
+
+      <div class="settings-group">
+        <label>Volume <span id="volume-value" class="val">90%</span></label>
+        <input type="range" id="speech-volume" min="0" max="1" step="0.05" value="0.9" aria-label="Speech volume">
+      </div>
+
+      <div class="settings-group">
+        <label>Voice</label>
+        <select id="voice-select" aria-label="Voice selection">
+          <option value="">Default (System)</option>
+        </select>
+      </div>
+
+      <div class="toggle-row">
+        <span>Mute AI Voice</span>
+        <input type="checkbox" id="mute-toggle" aria-label="Mute AI voice">
+      </div>
+
+      <div class="toggle-row">
+        <span>Microphone</span>
+        <input type="checkbox" id="mic-toggle" checked aria-label="Microphone toggle">
+      </div>
+
+      <button class="settings-close">Close Settings</button>
+    </div>
+  </div>
+
+  <!-- Transcript Drawer -->
+  <div id="transcript-drawer">
+    <div class="transcript-header">
+      <h2>Conversation</h2>
+      <button class="drawer-close" aria-label="Close transcript">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="transcript-list"></div>
+  </div>
+
+  <!-- Chapter Card Overlay -->
+  <div id="chapter-card" class="chapter-card hidden">
+    <div class="chapter-card-inner">
+      <div class="chapter-number" id="chapter-number"></div>
+      <h2 class="chapter-title" id="chapter-title"></h2>
+      <p class="chapter-story" id="chapter-story"></p>
+      <div class="chapter-char">
+        <span class="chapter-char-emoji">👩‍🚀</span>
+        <span class="chapter-char-name">— Commander Vega</span>
+      </div>
+      <button id="chapter-skip" class="btn-primary chapter-skip">▶ Start</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Scripts -->
+<script src="audio.js"></script>
+<script src="transcript.js"></script>
+<script src="settings.js"></script>
+<script src="intents.js"></script>
+<script src="conversation.js"></script>
+<script src="game.js"></script>
+<script src="main.js"></script>
+
+</body>
+</html>

@@ -38,9 +38,23 @@ export function addBuildingLabel(scene, building, worldPosY) {
   const zh = ZH_NAMES[building.name] || '';
   const el = document.createElement('div');
   el.className = 'building-label';
-  el.innerHTML = zh
-    ? `<div class="bl-zh">${zh}</div><div class="bl-en">${building.name}</div>`
-    : `<div class="bl-en">${building.name}</div>`;
+  // Build DOM nodes instead of innerHTML so a name (from the library/catalog)
+  // can never be interpreted as markup — defence in depth for injected labels.
+  if (zh) {
+    const zhDiv = document.createElement('div');
+    zhDiv.className = 'bl-zh';
+    zhDiv.textContent = zh;
+    el.appendChild(zhDiv);
+    const enDiv = document.createElement('div');
+    enDiv.className = 'bl-en';
+    enDiv.textContent = building.name;
+    el.appendChild(enDiv);
+  } else {
+    const enDiv = document.createElement('div');
+    enDiv.className = 'bl-en';
+    enDiv.textContent = building.name;
+    el.appendChild(enDiv);
+  }
   const label = new CSS2DObject(el);
   label.position.copy(worldPosY);
   label.userData.mesh = building.mesh;
@@ -50,14 +64,53 @@ export function addBuildingLabel(scene, building, worldPosY) {
 
 const _worldPos = new THREE.Vector3();
 
-// Update label opacity each frame based on camera distance.
-export function updateLabels(labels, camera) {
+// Update label opacity each frame based on camera distance + altitude. Labels
+// are CSS2D objects anchored at a world position, so we measure straight from
+// the camera to that anchor (works for mesh-less labels too).
+//   - Close ramp: fade in as you approach a landmark.
+//   - Far ramp: fade out past ~150 m so street-level views aren't crowded.
+//   - Altitude LOD: above `altLodY` only `.quest-label` (mission) badges show,
+//     hard-capped at `maxVisible` nearest-to-camera — the rest drop to opacity 0
+//     so aerial views show the city, not a badge storm.
+export const LABEL_FADE_NEAR = 18;     // m — fully opaque within this range
+export const LABEL_FADE_FAR = 250;     // m — fully transparent beyond this
+export function updateLabels(labels, camera, opts = {}) {
+  const altLodY = opts.altLodY ?? 120;
+  const highAlt = camera.position.y > altLodY;
+  const maxVisible = opts.maxVisible ?? (highAlt ? 6 : 12);
+  const distances = new Map();         // label → distance from camera
+
+  const distFor = (l) => {
+    let d = distances.get(l);
+    if (d === undefined) {
+      const mesh = l.userData && l.userData.mesh;
+      if (mesh) mesh.getWorldPosition(_worldPos);
+      else _worldPos.copy(l.position);
+      d = camera.position.distanceTo(_worldPos);
+      distances.set(l, d);
+    }
+    return d;
+  };
+
+  // At altitude: candidate set = mission labels only. At street level all show.
+  const candidates = highAlt ? labels.filter((l) => l.element.classList.contains('quest-label')) : labels;
+
+  // Hard cap by distance from the camera so far-away badges never linger.
+  const priority = l => l.element.classList.contains('selected-label') || l.element.classList.contains('destination-label') ? 0 : l.element.classList.contains('quest-label') ? 1 : 2;
+  const visible = candidates.length > maxVisible
+    ? candidates.slice().sort((a, b) => priority(a)-priority(b) || distFor(a) - distFor(b)).slice(0, maxVisible)
+    : candidates;
+  const visibleSet = new Set(visible);
+
   for (const l of labels) {
-    const mesh = l.userData.mesh;
-    if (!mesh) continue;
-    mesh.getWorldPosition(_worldPos);
-    const dist = camera.position.distanceTo(_worldPos);
-    const op = Math.max(0, Math.min(1, 1 - (dist - 12) / 23)); // visible <12, gone by 35
-    l.element.style.opacity = op.toFixed(2);
+    const isHiddenByLod = highAlt && !l.element.classList.contains('quest-label');
+    const isCapped = !visibleSet.has(l);
+    if (isHiddenByLod || isCapped) { l.element.style.opacity = '0'; continue; }
+    const dist = distFor(l);
+    // Close ramp keeps labels readable next to the building; far ramp stops the
+    // altitude badge storm. Combine the two into one opacity curve.
+    const closeFade = Math.max(0, Math.min(1, (dist - 10) / (LABEL_FADE_NEAR - 10))); // 0 → 1 by 18 m
+    const farFade = Math.max(0, Math.min(1, 1 - (dist - 150) / (LABEL_FADE_FAR - 150))); // 1 → 0 past 250 m
+    l.element.style.opacity = (closeFade * farFade).toFixed(2);
   }
 }

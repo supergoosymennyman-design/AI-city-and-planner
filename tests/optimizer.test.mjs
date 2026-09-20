@@ -7,12 +7,13 @@
 // Run: node --test tests/optimizer.test.mjs   (from the repo root)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { optimizeLayout } from '../P5 Programme/buddy-kit/client/city-common/optimize.js';
+import { optimizeLayout, preservesExistingWork } from '../P5 Programme/buddy-kit/client/city-common/optimize.js';
 import { computeMetrics, ratioTargets } from '../P5 Programme/buddy-kit/client/city-common/metrics.js';
-import { validateLayout, sanitizeLayout } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
-import { specialKeys } from '../P5 Programme/buddy-kit/client/city-common/catalog.js';
+import { validateLayout, sanitizeLayout, densifyLayout } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
+import { specialKeys, catalogType } from '../P5 Programme/buddy-kit/client/city-common/catalog.js';
 import { proposeMoves, applyMove, stableSeed } from '../P5 Programme/buddy-kit/client/city-common/optimize.js';
 import { computeWalkReach } from '../P5 Programme/buddy-kit/client/city-common/walkability.js';
+import { onRoadBuildingIndices, roadBands, rectRoadClearance, ROAD_CLEARANCE_MARGIN } from '../P5 Programme/buddy-kit/client/city-common/road-geometry.js';
 
 const NOISY = new Set(['power', 'traffic_lab', 'traffic_emergency', 'delivery', 'recycling']);
 const SPECIAL_SET = new Set(specialKeys());
@@ -92,9 +93,11 @@ test('optimizer promises the same road-aware score the planner displays after Ap
   assert.equal(result.after.score, displayedAfter, 'shown plan result equals UI score after Apply');
 });
 
-test('already-well-balanced city stays untouched', () => {
-  // A city whose homes are near all 5 required services + utilities, on roads,
-  // spread, quiet: the optimizer should find nothing worth changing.
+test('already-well-balanced city: only the mandatory road fix, nothing else', () => {
+  // A city whose homes are near all 5 required services + utilities, spread and
+  // quiet. The buildings here sit ON the crossing (as they always did); the one
+  // legitimate change is the hard rule that a building may not sit on a road.
+  // The optimizer must make NO other change to such a balanced city.
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [
@@ -124,9 +127,17 @@ test('already-well-balanced city stays untouched', () => {
   assert.ok(before.accessibility >= 0.9, 'fixture should be road-adjacent');
   assert.ok(before.coverage >= 0.9, 'fixture should have all services near homes');
   assert.ok(before.utilities >= 0.9, 'fixture should have utilities near homes');
-  assert.equal(diff.length, 0, `a balanced city should need no changes (got ${diff.length}: ${diff.map(d => d.action + ' ' + d.what).join(', ')})`);
+  assert.ok(diff.length > 0, 'the on-road buildings must be moved off the roads');
+  assert.ok(diff.every((d) => d.kind === 'off-road'),
+    `a balanced city should only get road fixes (got ${diff.map((d) => d.action + ' ' + d.what + (d.kind ? '/' + d.kind : '')).join(', ')})`);
   assert.equal(out.buildings.length, layout.buildings.length);
   assert.ok(validateLayout(out).ok);
+  assert.equal(JSON.stringify(out.roads), JSON.stringify(layout.roads), 'roads must stay byte-identical');
+  assert.ok(computeMetrics(out).score >= before.score - 1e-9, 'score must not decrease');
+  // The invariant actually holds after Optimise: no UNPROTECTED building on a road.
+  const onRoadUnprotected = onRoadBuildingIndices(out)
+    .filter((i) => { const b = out.buildings[i]; return !(b.locked || SPECIAL_SET.has(b.type)); });
+  assert.deepEqual(onRoadUnprotected, [], 'no unprotected building may remain on a road');
 });
 
 test('road-poor city: accessibility and score materially improve (not 1-tweak)', () => {
@@ -189,7 +200,7 @@ test('park-only homes: optimizer adds missing services + utilities, not "already
   assert.ok(validateLayout(out).ok);
 });
 
-test('utilities far away: reposition a water/power/bus closer to homes', () => {
+test('utilities far away: propose additions while preserving the existing water building', () => {
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [
@@ -218,15 +229,12 @@ test('utilities far away: reposition a water/power/bus closer to homes', () => {
   assert.ok(water, 'water should never be removed');
   assert.ok(before.utilities < 1, 'fixture should have a utility gap');
   assert.ok(m.utilities > before.utilities + 1e-9, `utilities should improve (${(before.utilities * 100).toFixed(0)} -> ${(m.utilities * 100).toFixed(0)}%)`);
-  // water should have moved closer to the homes
-  const homeDist = (w) => Math.min(
-    ...layout.buildings.filter((b) => b.type === 'housing').map((h) => Math.hypot(w.pos[0] - h.pos[0], w.pos[1] - h.pos[1]))
-  );
-  assert.ok(diff.some((d) => d.action === 'move' && d.what === 'water'), 'water should be repositioned');
+  assert.ok(preservesExistingWork(layout, out));
+  assert.ok(diff.some((d) => d.action === 'add' && d.what === 'water'), 'additional water is an explicit proposal');
   assert.ok(validateLayout(out).ok);
 });
 
-test('noisy-near-homes city: zoning materially improves (noisy building moved)', () => {
+test('noisy-near-homes city: retain the noisy special and report remaining conflict', () => {
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
@@ -243,12 +251,13 @@ test('noisy-near-homes city: zoning materially improves (noisy building moved)',
   const { layout: out, diff } = optimizeLayout(layout, {}, 7);
   const m = computeMetrics(out);
   assert.ok(before.zoning < 0.8, 'fixture should have a zoning conflict');
-  assert.ok(m.zoning > before.zoning + 0.1, `zoning should improve (${(before.zoning * 100).toFixed(0)} -> ${(m.zoning * 100).toFixed(0)}%)`);
-  assert.ok(diff.some((d) => d.action === 'move' && NOISY.has(d.what)), 'the noisy building should be moved');
+  assert.ok(preservesExistingWork(layout, out));
+  assert.ok(m.goalProblems.peaceful.length > 0, 'remaining conflict is visible');
+  assert.ok(!diff.some((d) => d.action === 'move' && NOISY.has(d.what)));
   assert.ok(validateLayout(out).ok);
 });
 
-test('power-next-to-home: power moved to a mild setback (not deleted, not far)', () => {
+test('power-next-to-home: existing power stays exactly in place', () => {
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
@@ -263,14 +272,15 @@ test('power-next-to-home: power moved to a mild setback (not deleted, not far)',
   const before = computeMetrics(layout);
   const { layout: out, diff } = optimizeLayout(layout, {}, 11);
   const m = computeMetrics(out);
-  // power must still exist (utilities specials never removed)
+  assert.ok(preservesExistingWork(layout, out));
+  // Existing power is preserved.
   assert.ok(out.buildings.some((b) => b.type === 'power'), 'power should never be removed');
-  // and zoning should improve (power no longer 10m from home)
+  // Other allowed changes must not worsen zoning in this fixture.
   assert.ok(m.zoning >= before.zoning, `zoning should not regress (${(before.zoning * 100).toFixed(0)} -> ${(m.zoning * 100).toFixed(0)}%)`);
   assert.ok(validateLayout(out).ok);
 });
 
-test('clustered-specials city: spread improves (specials moved apart, none removed)', () => {
+test('clustered-specials city: preserve the cluster while improving through allowed proposals', () => {
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [
@@ -295,7 +305,8 @@ test('clustered-specials city: spread improves (specials moved apart, none remov
   const { layout: out, diff } = optimizeLayout(layout, {}, 5);
   const m = computeMetrics(out);
   assert.ok(before.spread < 0.2, 'fixture should have clustered specials');
-  assert.ok(m.spread > before.spread + 0.2, `spread should improve (${(before.spread * 100).toFixed(0)} -> ${(m.spread * 100).toFixed(0)}%)`);
+  assert.ok(preservesExistingWork(layout, out));
+  assert.ok(!diff.some((d) => SPECIAL_SET.has(d.what) && d.action !== 'add'));
   assert.ok(m.score > before.score, `score should improve (${before.score} -> ${m.score})`);
   // Specials never removed — count of each type preserved.
   for (const b of layout.buildings.filter((x) => SPECIAL_SET.has(x.type))) {
@@ -330,14 +341,15 @@ test('random layouts: roads are byte-identical', () => {
   }
 });
 
-test('random layouts: specials only removed when duplicated beyond 1 (never the last)', () => {
+test('random layouts: every existing special instance survives unchanged', () => {
   // Utilities (water/power/bus) legitimately GROW — the optimizer adds them to
-  // serve homes, so they're excluded from the count-grew check. Mission
-  // specials are unique: duplicates may be trimmed, but the last copy stays.
+  // serve homes, so they're excluded from the count-grew check.
+  // All existing special instances are protected, including duplicates.
   const UTILITIES = new Set(['water', 'power', 'bus']);
   for (const seed of SEEDS) {
     const layout = sanitizeLayout(randomLayout(seed * 7919));
     const { layout: out } = optimizeLayout(layout, {}, seed * 104729);
+    assert.ok(preservesExistingWork(layout, out));
     const inS = layout.buildings.filter((b) => SPECIAL_SET.has(b.type));
     const outS = out.buildings.filter((b) => SPECIAL_SET.has(b.type));
     for (const b of inS) {
@@ -347,7 +359,7 @@ test('random layouts: specials only removed when duplicated beyond 1 (never the 
       assert.ok(outCount >= 1, `seed ${seed}: special ${b.type} vanished entirely`);
       // Mission specials never grow; utilities may (coverage-driven adds).
       if (!UTILITIES.has(b.type)) {
-        assert.ok(outCount <= inCount, `seed ${seed}: special ${b.type} count grew`);
+        assert.equal(outCount, inCount, `seed ${seed}: special ${b.type} count grew`);
         if (inCount === 1) assert.equal(outCount, 1, `seed ${seed}: unique special ${b.type} removed`);
       }
     }
@@ -487,7 +499,7 @@ test('zero roads: accessibility is 0, not NaN', () => {
   assert.ok(validateLayout(out).ok);
 });
 
-test('stacked duplicate buildings: no crash, deterministic, duplicates trimmed to 1', () => {
+test('stacked duplicate buildings: deterministic and both identical instances preserved', () => {
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
@@ -502,10 +514,10 @@ test('stacked duplicate buildings: no crash, deterministic, duplicates trimmed t
   const a = optimizeLayout(layout, {}, 3);
   const b = optimizeLayout(layout, {}, 3);
   assert.equal(JSON.stringify(a.layout), JSON.stringify(b.layout), 'deterministic');
-  // Delivery is a unique mission building — duplicates are trimmed to 1, but
-  // never below 1 (the last copy stays).
+  // Both saved delivery instances remain, even at identical coordinates.
   const outDel = a.layout.buildings.filter((x) => x.type === 'delivery').length;
-  assert.equal(outDel, 1, 'duplicate delivery trimmed to 1');
+  assert.equal(outDel, 2, 'both duplicate deliveries retained');
+  assert.ok(preservesExistingWork(layout, a.layout));
   assert.ok(validateLayout(a.layout).ok);
 });
 
@@ -534,7 +546,7 @@ test('spread-out homes: each cluster gets its own services/utilities (no ratio c
   assert.ok(validateLayout(out).ok);
 });
 
-test('12 traffic labs: trimmed to 1 (aggressive removal of duplicate mission buildings)', () => {
+test('12 traffic labs: every instance survives with its original geometry', () => {
   const buildings = [];
   for (let i = 0; i < 12; i++) {
     buildings.push({ type: 'traffic_lab', pos: [500 + (i % 4) * 40, 500 + Math.floor(i / 4) * 40], footprint: [22, 20], height: 40 });
@@ -555,8 +567,9 @@ test('12 traffic labs: trimmed to 1 (aggressive removal of duplicate mission bui
   const { layout: out, diff } = optimizeLayout(layout, {}, 1);
   const labs = out.buildings.filter((b) => b.type === 'traffic_lab').length;
   const m = computeMetrics(out);
-  assert.equal(labs, 1, '12 traffic labs should be trimmed to 1');
-  assert.ok(diff.some((d) => d.action === 'remove' && d.what === 'traffic_lab'), 'should remove excess labs');
+  assert.equal(labs, 12);
+  assert.ok(preservesExistingWork(layout, out));
+  assert.ok(!diff.some((d) => d.action === 'remove' && d.what === 'traffic_lab'));
   assert.ok(m.score > before.score, `score should improve (${before.score} -> ${m.score})`);
   assert.ok(validateLayout(out).ok);
 });
@@ -736,7 +749,7 @@ test('locked utility is not repositioned', () => {
   assert.ok(!movedWater, 'locked water should not be repositioned');
 });
 
-test('locked duplicate is not removed (others still can be)', () => {
+test('locked and unlocked special duplicates all survive', () => {
   const raw = {
     version: 2, scaleMeters: 2000,
     roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
@@ -754,7 +767,8 @@ test('locked duplicate is not removed (others still can be)', () => {
   const lockedStillThere = labs.some((b) => b.locked && b.pos[0] === 500 && b.pos[1] === 500);
   assert.ok(lockedStillThere, 'the locked traffic lab must survive');
   assert.ok(labs.length >= 1, 'at least the locked one remains');
-  assert.ok(labs.length < 3, 'unlocked duplicates should be trimmed');
+  assert.equal(labs.length, 3);
+  assert.ok(preservesExistingWork(layout, out));
 });
 
 // ── Step mode ──────────────────────────────────────────────────────────
@@ -846,7 +860,7 @@ test('proposeMoves: respects goal weights (a green mayor proposes a park)', () =
 });
 
 test('proposeMoves: every move carries a valid reasonMetric (reason always answerable)', () => {
-  const VALID = new Set(['accessibility', 'coverage', 'utilities', 'zoning', 'spread', 'balance', 'green']);
+  const VALID = new Set(['accessibility', 'coverage', 'utilities', 'zoning', 'spread', 'balance', 'green', 'walkability']);
   for (const seed of [3, 17, 41, 89]) {
     const layout = sanitizeLayout(randomLayout(seed * 7919));
     const moves = proposeMoves(layout, {}, 3, seed * 104729);
@@ -959,20 +973,20 @@ function childTown() {
       { type: 'finance_tower', pos: [1040, 1060], footprint: [24, 24], height: 80 },
       { type: 'treasury', pos: [1080, 1090], footprint: [22, 22], height: 50 },
       { type: 'sentiment_lab', pos: [1120, 1120], footprint: [22, 22], height: 45 },
-      { type: 'housing', pos: [400, 990], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [550, 990], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [700, 990], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [850, 990], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [1000, 990], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [1150, 990], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [1300, 990], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [1450, 990], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [400, 980], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [550, 980], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [680, 980], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [850, 980], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1000, 980], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1150, 980], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1320, 980], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1450, 980], footprint: [20, 20], height: 24 },
       { type: 'school', pos: [380, 910], footprint: [26, 24], height: 20 },
       { type: 'shop', pos: [520, 1150], footprint: [32, 32], height: 26 },
       { type: 'hospital', pos: [300, 970], footprint: [30, 26], height: 34 },
-      { type: 'fire', pos: [760, 850], footprint: [22, 20], height: 16 },
+      { type: 'fire', pos: [1000, 960], footprint: [22, 20], height: 16 },
       { type: 'police', pos: [900, 1230], footprint: [22, 20], height: 18 },
-      { type: 'delivery', pos: [1300, 1000], footprint: [26, 22], height: 44 },
+      { type: 'delivery', pos: [1270, 1040], footprint: [26, 22], height: 44 },
       { type: 'water', pos: [200, 1800], footprint: [24, 24], height: 40 },
       { type: 'power', pos: [1800, 300], footprint: [24, 24], height: 44 },
       { type: 'bus', pos: [1800, 1700], footprint: [26, 20], height: 38 },
@@ -985,9 +999,12 @@ test('explore honestly beats greedy on a realistic hand-placed child town', () =
   const seed = stableSeed(layout, null);
   const greedy = optimizeLayout(layout, {}, seed);
   const explore = optimizeLayout(layout, { strategy: 'explore' }, seed);
-  // Documented fixture: Greedy stops at 86; Explore's fresh restarts reach 89.
-  assert.equal(greedy.after.score, 86, 'greedy fixture score changed');
-  assert.equal(explore.after.score, 89, 'explore fixture score changed');
+  // Former exact scores depended on moving protected specials. Keep the
+  // strict Explore advantage and independently verify the revised objective.
+  for (const result of [greedy, explore]) {
+    assert.ok(preservesExistingWork(layout, result.layout));
+    assert.equal(result.after.score, computeMetrics(result.layout, undefined, null, computeWalkReach(result.layout)).score);
+  }
   assert.ok(explore.after.score > greedy.after.score + 0.5,
     `Explore must strictly beat Greedy here (got ${greedy.after.score} vs ${explore.after.score})`);
   // Invariants still hold in both strategies.
@@ -1007,20 +1024,107 @@ test('proposeMoves: optimal city proposes nothing (or very little)', () => {
     parks: [{ cx: 800, cz: 800, radius: 80 }, { cx: 1300, cz: 1300, radius: 80 }],
     buildings: [
       { type: 'city_central', pos: [1000, 1000], footprint: [28, 28], height: 100 },
-      { type: 'housing', pos: [960, 1000], footprint: [20, 20], height: 24 },
-      { type: 'housing', pos: [1040, 1000], footprint: [20, 20], height: 24 },
-      { type: 'school', pos: [1000, 950], footprint: [26, 24], height: 20 },
-      { type: 'shop', pos: [940, 1000], footprint: [32, 32], height: 26 },
-      { type: 'hospital', pos: [1000, 1050], footprint: [30, 26], height: 34 },
-      { type: 'fire', pos: [1000, 920], footprint: [22, 20], height: 16 },
-      { type: 'police', pos: [1000, 1080], footprint: [22, 20], height: 18 },
-      { type: 'water', pos: [1000, 700], footprint: [24, 24], height: 40 },
-      { type: 'power', pos: [1000, 1300], footprint: [24, 24], height: 44 },
-      { type: 'bus', pos: [760, 1000], footprint: [26, 20], height: 38 },
-      { type: 'office', pos: [1060, 1000], footprint: [20, 20], height: 40 },
+      { type: 'housing', pos: [960, 1045], footprint: [20, 20], height: 24 },
+      { type: 'housing', pos: [1040, 1045], footprint: [20, 20], height: 24 },
+      { type: 'school', pos: [955, 950], footprint: [26, 24], height: 20 },
+      { type: 'shop', pos: [940, 1045], footprint: [32, 32], height: 26 },
+      { type: 'hospital', pos: [1045, 1050], footprint: [30, 26], height: 34 },
+      { type: 'fire', pos: [975, 960], footprint: [22, 20], height: 16 },
+      { type: 'police', pos: [1050, 1080], footprint: [22, 20], height: 18 },
+      { type: 'water', pos: [945, 700], footprint: [24, 24], height: 40 },
+      { type: 'power', pos: [1055, 1300], footprint: [24, 24], height: 44 },
+      { type: 'bus', pos: [760, 1045], footprint: [26, 20], height: 38 },
+      { type: 'office', pos: [1060, 1045], footprint: [20, 20], height: 40 },
     ],
   };
   const layout = sanitizeLayout(raw);
   const moves = proposeMoves(layout, {}, 3, 42);
   assert.ok(moves.length <= 1, `balanced city should propose ~nothing (got ${moves.length})`);
+});
+
+// ── Buildings on roads (bad road logic) ─────────────────────────────────
+test('building on a road: moved fully off, roads byte-identical, score not worse', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [600, 1000], footprint: [20, 20], height: 24 },   // dead centre on the road
+      { type: 'school', pos: [900, 1000], footprint: [26, 24], height: 20 },    // on the road
+      { type: 'police', pos: [1500, 1000], footprint: [22, 20], height: 18 },   // on the road
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const before = computeMetrics(layout);
+  const { layout: out, diff } = optimizeLayout(layout, {}, 7);
+  const bands = roadBands(out);
+  for (const b of out.buildings) {
+    assert.ok(rectRoadClearance(b.pos[0], b.pos[1], b.footprint || [20, 20], bands) >= ROAD_CLEARANCE_MARGIN,
+      `${b.type} must be moved fully off the road (clearance ${rectRoadClearance(b.pos[0], b.pos[1], b.footprint || [20, 20], bands).toFixed(2)})`);
+  }
+  assert.equal(diff.filter((d) => d.kind === 'off-road').length, 3, 'each on-road building is reported');
+  assert.ok(computeMetrics(out).score >= before.score - 1e-9, 'score must not decrease');
+  assert.equal(JSON.stringify(out.roads), JSON.stringify(layout.roads), 'roads must stay byte-identical');
+  assert.ok(validateLayout(out).ok, 'output validates');
+});
+
+test('a LOCKED building on a road is left exactly where the student pinned it', () => {
+  const raw = {
+    version: 2, scaleMeters: 2000,
+    roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }],
+    parks: [],
+    buildings: [
+      { type: 'housing', pos: [600, 1000], footprint: [20, 20], height: 24, locked: true },
+      { type: 'shop', pos: [900, 1000], footprint: [32, 32], height: 26 },
+    ],
+  };
+  const layout = sanitizeLayout(raw);
+  const { layout: out, diff } = optimizeLayout(layout, {}, 3);
+  const lockedHome = out.buildings.find((b) => b.type === 'housing');
+  assert.deepEqual(lockedHome.pos, [600, 1000], 'locked building never moves');
+  assert.ok(!diff.some((d) => d.kind === 'off-road' && d.what === 'housing'), 'locked building is not reported as moved');
+  // The unprotected shop IS fixed.
+  const shop = out.buildings.find((b) => b.type === 'shop');
+  assert.ok(rectRoadClearance(shop.pos[0], shop.pos[1], shop.footprint, roadBands(out)) >= ROAD_CLEARANCE_MARGIN);
+});
+
+test('random layouts: after Optimise no UNPROTECTED building sits on a road', () => {
+  for (const seed of SEEDS) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const { layout: out } = optimizeLayout(layout, {}, seed * 104729);
+    const onRoadUnprotected = onRoadBuildingIndices(out)
+      .filter((i) => { const b = out.buildings[i]; return !(b.locked || SPECIAL_SET.has(b.type)); });
+    assert.deepEqual(onRoadUnprotected, [], `seed ${seed}: an unprotected building was left on a road`);
+  }
+});
+
+test('proposeMoves: never proposes an add/move onto a road ribbon', () => {
+  for (const seed of [3, 17, 41, 89]) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const bands = roadBands(layout);
+    for (const m of proposeMoves(layout, {}, 3, seed * 104729)) {
+      if (!m.to || (m.action !== 'add' && m.action !== 'move')) continue;
+      const fp = m.action === 'add'
+        ? (catalogType(m.what)?.footprint || [20, 20])
+        : (layout.buildings.find((b) => b.type === m.what && Math.abs(b.pos[0] - m.from[0]) < 1 && Math.abs(b.pos[1] - m.from[1]) < 1)?.footprint || [20, 20]);
+      assert.ok(rectRoadClearance(m.to[0], m.to[1], fp, bands) >= ROAD_CLEARANCE_MARGIN,
+        `seed ${seed}: proposal ${m.action} ${m.what} -> ${m.to} lands on a road`);
+    }
+  }
+});
+
+// ── Cross-module: the planner's score must describe the 3D city ──────────
+test('Optimise output stays road-clean after the 3D builder step (densify)', () => {
+  // Regression for "I pressed Optimise, then the 3D city had buildings on the
+  // roads": densifyLayout used to grow footprints ×1.5 and compress positions
+  // ×0.6, which could drop a planner-clear building onto a road in 3D. It is
+  // now geometry-preserving, so the optimiser's guarantee holds end to end.
+  for (const seed of [3, 7, 17, 41, 89, 103]) {
+    const layout = sanitizeLayout(randomLayout(seed * 7919));
+    const { layout: optimized } = optimizeLayout(layout, {}, seed * 104729);
+    const rendered = densifyLayout(JSON.parse(JSON.stringify(optimized))).layout;
+    const onRoad = onRoadBuildingIndices(rendered)
+      .filter((i) => { const b = rendered.buildings[i]; return !(b.locked || SPECIAL_SET.has(b.type)); });
+    assert.deepEqual(onRoad, [], `seed ${seed}: a building ends up on a road in the 3D city`);
+  }
 });

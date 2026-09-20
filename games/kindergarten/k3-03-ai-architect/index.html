@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI Architect — K3-03</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+  <!--
+    Font stack: Baloo 2 + Nunito for child-friendly warmth (web fonts via Google Fonts).
+    System fonts serve as offline fallback (loaded when internet is unavailable).
+  -->
+</head>
+<body>
+
+  <div id="app">
+    <!-- Header -->
+    <header id="header" role="banner">
+      <span class="header-title" id="header-title">AI Architect</span>
+      <span class="header-progress" id="header-progress"></span>
+      <div class="header-actions">
+        <button class="header-btn" id="transcript-toggle" aria-label="Show conversation transcript" title="Transcript">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </button>
+        <button class="header-btn" id="settings-toggle" aria-label="Open settings" title="Settings">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Botly Character + Speech Bubble -->
+    <div id="botly-main" role="region" aria-label="Botly the AI character"></div>
+
+    <!-- Main Content Area -->
+    <div id="main-content" role="main">
+      <!-- All dynamic content rendered here by JS -->
+    </div>
+  </div>
+
+  <!-- Modal container (settings) -->
+  <div id="modal-container"></div>
+
+  <!-- Drawer container (transcript) -->
+  <div id="drawer-container"></div>
+
+  <!-- Confetti container -->
+  <div id="confetti-container" class="confetti-container" aria-hidden="true"></div>
+
+  <!-- Load game modules in dependency order -->
+  <script src="botly.js"></script>
+  <script src="renderer.js"></script>
+  <script src="intents.js"></script>
+  <script src="transcript.js"></script>
+  <script src="settings.js"></script>
+  <script src="conversation.js"></script>
+  <script src="script.js"></script>
+
+</body>
+</html>

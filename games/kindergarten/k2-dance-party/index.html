@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐧 Dance With Penguin!</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body { height: 100%; overflow: hidden; touch-action: manipulation; }
+  body {
+    background: #87CEEB;
+    background: linear-gradient(180deg, #a8dcff 0%, #7ec8f5 40%, #5aa8dd 100%);
+    font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', system-ui, sans-serif;
+    color: #fff;
+  }
+  #app { position: fixed; inset: 0; }
+
+  /* ---- 3D canvas ---- */
+  #scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* ---- UI overlay ---- */
+  #ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+
+  /* Big round buttons */
+  .btn {
+    pointer-events: auto;
+    display: block;
+    margin: 0 auto;
+    min-width: 220px;
+    min-height: 72px;
+    padding: 16px 32px;
+    font-size: 28px;
+    font-weight: 900;
+    font-family: inherit;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.25), 0 12px 24px rgba(0,0,0,0.2);
+    transition: transform 0.1s;
+  }
+  .btn:active { transform: scale(0.95) translateY(3px); box-shadow: 0 3px 0 rgba(0,0,0,0.25); }
+  .btn-green { background: #4CAF50; }
+  .btn-blue { background: #2196F3; }
+  .btn-orange { background: #FF9800; }
+
+  /* Title screen */
+  #title-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; padding: 20px; }
+  #title-screen h1 { font-size: 44px; text-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+  #title-screen p { font-size: 20px; text-shadow: 0 2px 6px rgba(0,0,0,0.4); max-width: 420px; }
+
+  /* Overlay screens (countdown, replay) */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; text-align: center;
+    background: rgba(0,0,0,0.35);
+  }
+  .screen h2 { font-size: 40px; text-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+  .screen .big-num { font-size: 120px; font-weight: 900; text-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+  .hidden { display: none !important; }
+
+  /* Countdown number */
+  #countdown-num { font-size: 140px; font-weight: 900; text-shadow: 0 8px 30px rgba(0,0,0,0.6); }
+
+  /* Recording progress bar */
+  #record-bar-wrap { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 70%; max-width: 500px; }
+  #record-bar {
+    height: 18px; background: rgba(0,0,0,0.4); border-radius: 999px; overflow: hidden;
+    border: 3px solid rgba(255,255,255,0.6);
+  }
+  #record-bar-fill { height: 100%; width: 0%; background: #FF6B6B; transition: width 0.1s linear; }
+  #record-time { text-align: center; margin-top: 8px; font-size: 22px; font-weight: 900; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+
+  /* PIP webcam */
+  #pip {
+    position: absolute; bottom: 30px; right: 20px;
+    width: 120px; height: 90px;
+    border-radius: 12px; border: 3px solid #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    display: none; object-fit: cover;
+  }
+
+  /* Warning overlay */
+  #warning { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(255,0,0,0.8); color: #fff; padding: 10px 20px; border-radius: 999px; font-size: 18px; font-weight: 900; display: none; z-index: 20; }
+
+  /* Landscape / portrait */
+  @media (max-width: 700px) and (orientation: portrait) {
+    #title-screen h1 { font-size: 30px; }
+    #title-screen p { font-size: 16px; }
+    .btn { min-width: 180px; min-height: 60px; font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="scene"></canvas>
+
+  <div id="ui">
+    <!-- Title -->
+    <div id="title-screen">
+      <h1>🐧 DANCE WITH PENGUIN!</h1>
+      <p>Move your body and the champion copies you! <br>Step back so I can see your WHOLE body!</p>
+      <button class="btn btn-green" id="btn-start">▶ START DANCING</button>
+      <p id="camera-status" style="font-size:16px;opacity:0.9;">Checking camera…</p>
+    </div>
+
+    <!-- Countdown -->
+    <div class="screen hidden" id="countdown-screen">
+      <h2>Get ready!</h2>
+      <div class="big-num" id="countdown-num">3</div>
+    </div>
+
+    <!-- Recording -->
+    <div class="screen hidden" id="record-screen">
+      <h2>💃 DANCE!</h2>
+      <p>Copy the champion! I'm watching your moves!</p>
+    </div>
+    <div id="record-bar-wrap" class="hidden">
+      <div id="record-bar"><div id="record-bar-fill"></div></div>
+      <div id="record-time">8</div>
+    </div>
+
+    <!-- Replay -->
+    <div class="screen hidden" id="replay-screen">
+      <h2>🎉 GREAT DANCING!</h2>
+      <p>Look! The champion is doing YOUR dance!</p>
+      <div style="display:flex;gap:16px;">
+        <button class="btn btn-green" id="btn-again">💃 AGAIN</button>
+        <button class="btn btn-blue" id="btn-home">🏠 HOME</button>
+      </div>
+    </div>
+
+    <!-- Warning -->
+    <div id="warning">Only one dancer, please!</div>
+
+    <!-- Webcam PIP -->
+    <video id="pip" autoplay muted playsinline></video>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ============================================================
+//  CONFIG
+// ============================================================
+const RECORD_SECONDS = 8;
+const FPS = 15;              // capture rate for recorded frames
+const CAM_UPDATE = 1/30;     // live tracking rate
+
+// ============================================================
+//  DOM
+// ============================================================
+const $ = id => document.getElementById(id);
+const ui = {
+  titleScreen: $('title-screen'), countdownScreen: $('countdown-screen'),
+  recordScreen: $('record-screen'), replayScreen: $('replay-screen'),
+  countdownNum: $('countdown-num'), recordBarWrap: $('record-bar-wrap'),
+  recordBarFill: $('record-bar-fill'), recordTime: $('record-time'),
+  warning: $('warning'), pip: $('pip'), cameraStatus: $('camera-status'),
+  btnStart: $('btn-start'), btnAgain: $('btn-again'), btnHome: $('btn-home'),
+};
+
+// ============================================================
+//  THREE.JS SCENE
+// ============================================================
+const canvas = $('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fd0ff);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 1, 3);
+camera.lookAt(0, 0, 0);
+
+// Lighting
+scene.add(new THREE.HemisphereLight(0xffffff, 0x88aaff, 1.1));
+const dir = new THREE.DirectionalLight(0xffffff, 1.6);
+dir.position.set(2, 4, 3);
+scene.add(dir);
+
+// Ground (aligned to champion feet in loader)
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(1.4, 32),
+  new THREE.MeshStandardMaterial({ color: 0x9ad7a0, roughness: 1 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.4;
+scene.add(ground);
+
+// ============================================================
+//  CHAMPION LOADER
+// ============================================================
+let champion = null;          // root Group
+let championBones = {};       // name -> THREE.Bone
+let championSkeleton = null;  // THREE.Skeleton for skinning updates
+let rigReady = false;
+let championBaseY = 0;        // dynamic ground offset after centering
+let championCenter = new THREE.Vector3(0, 0.6, 0);
+
+const loader = new GLTFLoader();
+loader.load('champion.glb', (gltf) => {
+  champion = gltf.scene;
+  scene.add(champion);
+
+  // Collect bones BEFORE any transform so we can reset pose
+  champion.traverse((o) => {
+    if (o.isBone) championBones[o.name] = o;
+    if (o.isSkinnedMesh) championSkeleton = o.skeleton;
+  });
+  console.log('Champion bones:', Object.keys(championBones).length);
+  console.log('Skeleton found:', !!championSkeleton);
+
+  // ---- Dynamic framing from the actual mesh bbox ----
+  const box = new THREE.Box3().setFromObject(champion);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  console.log('Champion bbox center:', center.toArray(), 'size:', size.toArray());
+
+  // Scale so champion height is ~1.5 world units
+  const targetH = 1.5;
+  const scale = targetH / (size.y || 1);
+  champion.scale.setScalar(scale);
+
+  // Recompute after scale
+  const box2 = new THREE.Box3().setFromObject(champion);
+  const c2 = box2.getCenter(new THREE.Vector3());
+  const s2 = box2.getSize(new THREE.Vector3());
+  championBaseY = 0;
+  // Center horizontally (X and Z), keep Y as-is (feet on ground)
+  champion.position.x = -c2.x;
+  champion.position.z = -c2.z;
+  // Make the champion face the camera (+Z). Mixamo models usually face +Z,
+  // but some import facing -Z. Check which way is "forward" by the head/nose
+  // offset and rotate if needed.
+  const facingZ = box2.max.z > Math.abs(box2.min.z);
+  if (!facingZ) {
+    champion.rotation.y = Math.PI;  // flip to face camera
+    console.log('Flipped champion to face camera');
+  }
+  // Store the visual center for camera framing
+  const box3 = new THREE.Box3().setFromObject(champion);
+  championCenter.copy(box3.getCenter(new THREE.Vector3()));
+  console.log('Framed center:', championCenter.toArray());
+
+  // Align ground with champion feet
+  ground.position.y = box3.min.y - 0.01;
+
+  // Fixed camera: shows full body (head to feet) with room to dance.
+  // Champion is ~1.5 tall, centered at origin.
+  camera.position.set(0, 0.95, 4.6);
+  camera.lookAt(0, 0.55, 0);
+
+  rigReady = true;
+  // Friendly idle pose: arms slightly out
+  setBoneRotation('mixamorigLeftArm', 0.3, 0, 0);
+  setBoneRotation('mixamorigRightArm', -0.3, 0, 0);
+  ui.cameraStatus.textContent = 'Ready!';
+
+  // DEBUG probe for testing
+  window.__danceProbe = () => {
+    const B = championBones;
+    const la = B['mixamorigLeftArm'];
+    return {
+      rigReady, skeleton: !!championSkeleton,
+      leftArmQuat: la ? Array.from(la.quaternion) : null,
+      boneCount: Object.keys(B).length,
+      bones: Object.keys(B).slice(0, 5),
+    };
+  };
+  window.__danceWave = () => {
+    setBoneRotation('mixamorigLeftArm', 1.0, 0, 0);
+    if (championSkeleton) championSkeleton.update();
+  };
+}, undefined, (e) => {
+  console.error('GLB load failed', e);
+  ui.cameraStatus.textContent = 'Model failed to load. Check champion.glb exists.';
+});
+
+function setBoneRotation(name, x, y, z) {
+  const b = championBones[name];
+  if (b) b.quaternion.setFromEuler(new THREE.Euler(x, y, z));
+}
+
+// ============================================================
+//  MEDIAPIPE POSE
+// ============================================================
+let poseDetector = null;
+let webcamStream = null;
+let videoEl = document.createElement('video');  // hidden processing video
+videoEl.autoplay = true;
+videoEl.muted = true;
+videoEl.playsInline = true;
+
+async function initCamera() {
+  try {
+    webcamStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false,
+    });
+    videoEl.srcObject = webcamStream;
+    await videoEl.play();
+    ui.pip.srcObject = webcamStream;
+    ui.cameraStatus.textContent = '✅ Camera ready!';
+    return true;
+  } catch (e) {
+    console.warn('Camera denied:', e);
+    ui.cameraStatus.textContent = 'No camera found — watch the demo dance!';
+    return false;
+  }
+}
+
+async function initPose() {
+  const pose = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3');
+  const vision = pose;
+  const filesetResolver = await pose.FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
+  );
+  poseDetector = await vision.PoseLandmarker.createFromOptions(filesetResolver, {
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+      delegate: 'GPU',
+    },
+    runningMode: 'VIDEO',
+    numPoses: 1,
+  });
+  return true;
+}
+
+// ============================================================
+//  POSE → BONE MAPPING (Mixamo champion skeleton)
+// ============================================================
+// MediaPipe landmark indices (lite model):
+// 0=nose 11=L_shoulder 12=R_shoulder 13=L_elbow 14=R_elbow
+// 15=L_wrist 16=R_wrist 23=L_hip 24=R_hip 25=L_knee 26=R_knee
+// 27=L_ankle 28=R_ankle
+// Mixamo bones we drive:
+//   mixamorigHips, Spine, Spine1, Spine2, Neck, Head
+//   mixamorigLeftArm, LeftForeArm, LeftHand
+//   mixamorigRightArm, RightForeArm, RightHand
+//   mixamorigLeftUpLeg, LeftLeg, LeftFoot
+//   mixamorigRightUpLeg, RightLeg, RightFoot
+
+let lastGoodPose = null;
+
+// Map landmark 2D screen positions -> a 3D pose for the champion.
+// We build a 3D skeleton from the 2D landmarks by treating the image
+// plane as the champion's X (right) and Y (up), and estimating Z (depth)
+// from body proportions + normalized joint distances.
+function processPose(now) {
+  if (!poseDetector || videoEl.readyState < 2) return;
+  const res = poseDetector.detectForVideo(videoEl, now);
+  if (!res.landmarks || res.landmarks.length === 0) return;
+  const lm = res.landmarks[0];
+
+  // Confidence: require shoulders visible
+  const conf = Math.min(lm[11]?.visibility ?? 0, lm[12]?.visibility ?? 0);
+  if (conf < 0.3) return;  // hold last pose
+
+  // Extract key points in NDC-ish space: x in [0,1] (right), y in [0,1] (top)
+  const P = (i) => ({ x: lm[i].x, y: lm[i].y, z: lm[i].z || 0 });
+
+  const nose = P(0), lsh = P(11), rsh = P(12), lel = P(13), rel = P(14);
+  const lwr = P(15), rwr = P(16), lhip = P(23), rhip = P(24);
+  const lknee = P(25), rknee = P(26), lank = P(27), rank = P(28);
+
+  // Midpoints
+  const shMid = mid(lsh, rsh);
+  const hipMid = mid(lhip, rhip);
+
+  // --- Convert 2D landmarks to a 3D pose in the champion's local space ---
+  // Champion space: +X right, +Y up, +Z toward camera (forward).
+  // Map: image x -> champion x (centered), image y -> champion y (centered on hips),
+  //       depth z from MediaPipe -> champion z.
+  const bodyW = dist(lsh, rsh) || 0.001;      // shoulder width in image px
+  const bodyH = dist(shMid, hipMid) || 0.001; // torso height in image px
+  const scale3d = 1.0 / Math.max(bodyW, bodyH * 0.5); // normalize
+
+  // Convert a landmark to champion-local 3D (hips at origin, y up)
+  function toLocal(p) {
+    return {
+      x: (p.x - hipMid.x) * scale3d,
+      y: (hipMid.y - p.y) * scale3d,   // flip y: image top = +up
+      z: (p.z || 0) * scale3d,
+    };
+  }
+
+  const L = {
+    nose: toLocal(nose), lsh: toLocal(lsh), rsh: toLocal(rsh),
+    lel: toLocal(lel), rel: toLocal(rel), lwr: toLocal(lwr), rwr: toLocal(rwr),
+    lhip: toLocal(lhip), rhip: toLocal(rhip),
+    lknee: toLocal(lknee), rknee: toLocal(rknee),
+    lank: toLocal(lank), rank: toLocal(rank),
+  };
+
+  // --- Compute bone rotations from joint direction vectors ---
+  // Each bone's rotation is set so its +Y axis points from parent joint to child.
+  // In Mixamo/Three.js, bones have their length along +Y (usually).
+  const ZERO = new THREE.Vector3(0, 1, 0);  // reference "up" (bone +Y)
+
+  function rotFromDir(from, to) {
+    const dir = new THREE.Vector3(to.x - from.x, to.y - from.y, to.z - from.z);
+    if (dir.lengthSq() < 1e-8) return null;
+    dir.normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(ZERO, dir);
+    return q;
+  }
+
+  // Arms: upper arm from shoulder->elbow, forearm from elbow->wrist
+  const qLUpper = rotFromDir(L.lsh, L.lel);
+  const qLFore = rotFromDir(L.lel, L.lwr);
+  const qRUpper = rotFromDir(L.rsh, L.rel);
+  const qRFore = rotFromDir(L.rel, L.rwr);
+  if (qLUpper) championBones['mixamorigLeftArm'].quaternion.copy(qLUpper);
+  if (qLFore) championBones['mixamorigLeftForeArm'].quaternion.copy(qLFore);
+  if (qRUpper) championBones['mixamorigRightArm'].quaternion.copy(qRUpper);
+  if (qRFore) championBones['mixamorigRightForeArm'].quaternion.copy(qRFore);
+
+  // Legs: upper leg from hip->knee, lower leg from knee->ankle
+  const qLUpLeg = rotFromDir(L.lhip, L.lknee);
+  const qLLeg = rotFromDir(L.lknee, L.lank);
+  const qRUpLeg = rotFromDir(L.rhip, L.rknee);
+  const qRLeg = rotFromDir(L.rknee, L.rank);
+  if (qLUpLeg) championBones['mixamorigLeftUpLeg'].quaternion.copy(qLUpLeg);
+  if (qLLeg) championBones['mixamorigLeftLeg'].quaternion.copy(qLLeg);
+  if (qRUpLeg) championBones['mixamorigRightUpLeg'].quaternion.copy(qRUpLeg);
+  if (qRLeg) championBones['mixamorigRightLeg'].quaternion.copy(qRLeg);
+
+  // Spine: hips -> shoulder midpoint direction
+  const shMidLocal = toLocal(shMid);
+  const qSpine = rotFromDir(L.lhip, shMidLocal);
+  if (qSpine) {
+    championBones['mixamorigSpine'].quaternion.copy(qSpine);
+    // Reset the upper spine chain to identity (follow the root spine)
+    championBones['mixamorigSpine1'].quaternion.identity();
+    championBones['mixamorigSpine2'].quaternion.identity();
+  }
+
+  // Head: nose direction from neck (shoulder midpoint)
+  const qHead = rotFromDir(toLocal(shMid), L.nose);
+  if (qHead) championBones['mixamorigNeck'].quaternion.copy(qHead);
+
+  // Store pose for recording
+  lastGoodPose = {
+    lUpper: qLUpper ? qLUpper.toArray() : null,
+    lFore: qLFore ? qLFore.toArray() : null,
+    rUpper: qRUpper ? qRUpper.toArray() : null,
+    rFore: qRFore ? qRFore.toArray() : null,
+    lUpLeg: qLUpLeg ? qLUpLeg.toArray() : null,
+    lLeg: qLLeg ? qLLeg.toArray() : null,
+    rUpLeg: qRUpLeg ? qRUpLeg.toArray() : null,
+    rLeg: qRLeg ? qRLeg.toArray() : null,
+    spine: qSpine ? qSpine.toArray() : null,
+    neck: qHead ? qHead.toArray() : null,
+  };
+}
+
+// helpers
+function mid(a, b) { return { x: (a.x+b.x)/2, y: (a.y+b.y)/2, z: (a.z+b.z)/2 }; }
+function dist(a, b) { return Math.hypot(a.x-b.x, a.y-b.y); }
+function vecDiff(a, b) { return { x: b.x-a.x, y: b.y-a.y }; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ============================================================
+//  RECORDING
+// ============================================================
+const STATES = { TITLE: 0, COUNTDOWN: 1, RECORDING: 2, REPLAY: 3 };
+let state = STATES.TITLE;
+let recording = [];          // array of pose snapshots
+let recordTimer = null;
+let replayTimer = null;
+
+function startCountdown() {
+  state = STATES.COUNTDOWN;
+  ui.titleScreen.classList.add('hidden');
+  ui.countdownScreen.classList.remove('hidden');
+  ui.countdownNum.textContent = '3';
+  let n = 3;
+  const tick = () => {
+    n--;
+    if (n > 0) {
+      ui.countdownNum.textContent = n;
+      setTimeout(tick, 700);
+    } else {
+      ui.countdownNum.textContent = '💃';
+      setTimeout(() => { ui.countdownScreen.classList.add('hidden'); startRecording(); }, 400);
+    }
+  };
+  setTimeout(tick, 700);
+}
+
+function startRecording() {
+  state = STATES.RECORDING;
+  recording = [];
+  ui.recordScreen.classList.remove('hidden');
+  ui.recordBarWrap.classList.remove('hidden');
+  ui.recordTime.textContent = RECORD_SECONDS;
+  const startT = performance.now();
+  const totalMs = RECORD_SECONDS * 1000;
+
+  // Capture at FPS
+  const capInterval = 1000 / FPS;
+  let lastCap = 0;
+
+  recordTimer = setInterval(() => {
+    const elapsed = performance.now() - startT;
+    const remain = Math.max(0, RECORD_SECONDS - elapsed / 1000);
+    ui.recordTime.textContent = Math.ceil(remain);
+    ui.recordBarFill.style.width = (elapsed / totalMs * 100) + '%';
+
+    // Capture frame
+    if (elapsed - lastCap >= capInterval) {
+      lastCap = elapsed;
+      if (lastGoodPose) recording.push({ ...lastGoodPose });
+    }
+
+    if (elapsed >= totalMs) {
+      clearInterval(recordTimer);
+      ui.recordScreen.classList.add('hidden');
+      ui.recordBarWrap.classList.add('hidden');
+      startReplay();
+    }
+  }, 50);
+}
+
+function startReplay() {
+  state = STATES.REPLAY;
+  ui.replayScreen.classList.remove('hidden');
+
+  // Reset champion to neutral
+  resetPose();
+  let frame = 0;
+  const replaySpeed = 1000 / FPS;
+
+  replayTimer = setInterval(() => {
+    if (frame >= recording.length) {
+      clearInterval(replayTimer);
+      // Done - wait for button
+      return;
+    }
+    const p = recording[frame];
+    applyPose(p);
+    frame++;
+  }, replaySpeed);
+}
+
+function applyPose(p) {
+  if (!p) return;
+  const B = championBones;
+  const applyQ = (name, arr) => {
+    if (arr && B[name]) B[name].quaternion.fromArray(arr);
+  };
+  applyQ('mixamorigLeftArm', p.lUpper);
+  applyQ('mixamorigLeftForeArm', p.lFore);
+  applyQ('mixamorigRightArm', p.rUpper);
+  applyQ('mixamorigRightForeArm', p.rFore);
+  applyQ('mixamorigLeftUpLeg', p.lUpLeg);
+  applyQ('mixamorigLeftLeg', p.lLeg);
+  applyQ('mixamorigRightUpLeg', p.rUpLeg);
+  applyQ('mixamorigRightLeg', p.rLeg);
+  applyQ('mixamorigSpine', p.spine);
+  applyQ('mixamorigNeck', p.neck);
+}
+
+function resetPose() {
+  const B = championBones;
+  const Z = new THREE.Quaternion();
+  ['mixamorigLeftArm','mixamorigLeftForeArm','mixamorigRightArm','mixamorigRightForeArm',
+   'mixamorigLeftUpLeg','mixamorigLeftLeg','mixamorigRightUpLeg','mixamorigRightLeg',
+   'mixamorigSpine','mixamorigSpine1','mixamorigSpine2','mixamorigNeck'
+  ].forEach(n => { if (B[n]) B[n].quaternion.copy(Z); });
+}
+
+// ============================================================
+//  UI
+// ============================================================
+let idleTime = 0;
+
+function updateIdle() {
+  // Gentle idle animation on TITLE screen only (champion waves)
+  if (state !== STATES.TITLE || !rigReady) return;
+  idleTime += 0.04;
+  setBoneRotation('mixamorigLeftArm', Math.sin(idleTime) * 0.5, 0, 0);
+  setBoneRotation('mixamorigRightArm', Math.sin(idleTime + Math.PI) * 0.5, 0, 0);
+  // subtle sway
+  if (champion) {
+    champion.rotation.y = Math.sin(idleTime * 0.5) * 0.15;
+  }
+}
+
+ui.btnStart.addEventListener('click', () => {
+  if (!rigReady) { ui.cameraStatus.textContent = 'Loading… one second!'; return; }
+  startCountdown();
+});
+ui.btnAgain.addEventListener('click', () => {
+  ui.replayScreen.classList.add('hidden');
+  startCountdown();
+});
+ui.btnHome.addEventListener('click', () => {
+  ui.replayScreen.classList.add('hidden');
+  ui.titleScreen.classList.remove('hidden');
+  state = STATES.TITLE;
+  resetPose();
+  if (champion) champion.rotation.y = 0;
+});
+
+// ============================================================
+//  MAIN LOOP
+// ============================================================
+function animate(now) {
+  requestAnimationFrame(animate);
+  // Idle animation on title
+  updateIdle();
+  // Live pose tracking during RECORDING
+  if (state === STATES.RECORDING && poseDetector) {
+    processPose(now);
+  }
+  // Propagate bone transforms to the skinned mesh
+  if (championSkeleton) {
+    championSkeleton.update();
+  }
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(animate);
+
+// ============================================================
+//  RESIZE
+// ============================================================
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================================
+//  BOOT
+// ============================================================
+(async function boot() {
+  const camOk = await initCamera();
+  try {
+    await initPose();
+  } catch (e) {
+    console.error('Pose init failed', e);
+    ui.cameraStatus.textContent = 'Camera not available — champion will demo dance.';
+  }
+  ui.cameraStatus.textContent = camOk ? '✅ Camera ready!' : 'No camera — demo mode';
+})();
+</script>
+</body>
+</html>

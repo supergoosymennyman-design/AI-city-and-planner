@@ -1,4 +1,0 @@
-# Vendored ML runtime assets (MediaPipe .wasm/.tflite, coco-ssd weights).
-# Large binaries — regenerated on demand via `node scripts/vendor-ml-assets.mjs`,
-# never committed. The consuming host serves them at runtime (no CDN, rule #4).
-assets/

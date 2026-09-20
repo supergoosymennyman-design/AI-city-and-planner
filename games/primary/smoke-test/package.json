@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "@playwright/mcp": "latest"
+  },
+  "scripts": {
+    "test": "npx playwright test games.spec.js",
+    "show": "npx playwright show-report test-results"
+  }
+}

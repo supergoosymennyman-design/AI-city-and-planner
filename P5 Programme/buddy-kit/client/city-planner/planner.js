@@ -1,3 +1,9 @@
+import { installModalOwnership, activeModal, reducedMotion as motionReduced } from '../city-common/interface.js';
+installModalOwnership();
+import { displayName } from '../city-common/display-names.js';
+import { MAYORS, defaultGoals, mayorGoals, readGoals, serializeGoals, effectiveGoalWeights, goalToSlider, sliderToGoal } from '../city-common/planner-goals.js';
+import { restoreActive, restoreChampion } from '../city-common/restore-session.js';
+import { MAX_IMPORT_BYTES, withinImportLimit } from '../city-common/champion-file.js';
 /**
  * city-planner/planner.js — 2D AI City Planner
  *
@@ -17,12 +23,13 @@
 import { CATALOG, CATALOG_ORDER, isSpecial } from '../city-common/catalog.js';
 import { defaultLayout, sanitizeLayout, validateLayout, ROAD_WIDTH, typeSpec } from '../city-common/layout.js';
 import { LIBRARY_CATEGORIES, libraryItem, libraryByCategory } from '../city-common/library.js';
-import { computeMetrics, METRIC_PARAMS, GOAL_KEYS, stars, normalizeWeights, defaultMetricWeights } from '../city-common/metrics.js';
+import { computeMetrics, METRIC_PARAMS, GOAL_KEYS, stars, normalizeWeights, defaultMetricWeights, METRIC_DESCRIPTORS, metricReceipt } from '../city-common/metrics.js';
 import { optimizeLayout, proposeMoves, applyMove, stableSeed } from '../city-common/optimize.js';
 import { readMilestones, writeMilestones, evaluateMilestones, awardMilestone, milestone } from '../city-common/milestones.js';
 import { computeWalkReach, walkPath, homeReachRoutes, WALK_BUDGET } from '../city-common/walkability.js';
 import { ROAD_TEMPLATES, getRoadTemplate } from '../city-common/road-templates.js';
-import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, writeState, rememberSavedAt } from '../city-common/champion-file.js';
+import { onRoadBuildingIndices, roadBands, rectRoadClearance, clearanceOffset, tidyRoads, sampleCatmullRom, ROAD_CLEARANCE_MARGIN, pointToSegment, detectJunctions, materializeJunctions, junctionNodes } from '../city-common/road-geometry.js';
+import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, rememberSavedAt } from '../city-common/champion-file.js';
 import { initI18n, currentLang, t, mountLangToggle, applyStatic } from './i18n.js';
 
 // Language must be resolved BEFORE the first module-scope render: renderTemplates()
@@ -81,9 +88,7 @@ const MAX_UNDO = 60;
 
 // prefers-reduced-motion must be honoured in JS animation loops, not just CSS
 // (P5-LESSON-CONVENTIONS). Under reduce, highlights/route counts render once.
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const prefersReducedMotion = motionReduced;
 
 // ─── Goal model (display) ─────────────────────────────
 const GOAL_META = {
@@ -91,14 +96,6 @@ const GOAL_META = {
   walkable: { name: 'Easy to get around', emoji: '🚶' },
   peaceful: { name: 'Peaceful', emoji: '🤫' },
   spread: { name: 'Balanced & spread out', emoji: '🧩' },
-};
-
-// Mayor personas: each is a fixed set of goal weights + a one-line brief.
-const MAYORS = {
-  green: { name: 'Green Mayor', emoji: '🌳', brief: 'Parks, walking, fresh air', weights: { happy: 0.45, walkable: 0.30, peaceful: 0.15, spread: 0.10 } },
-  healthy: { name: 'Healthy Mayor', emoji: '🚑', brief: 'Hospitals, fire, quiet homes', weights: { happy: 0.50, peaceful: 0.25, walkable: 0.15, spread: 0.10 } },
-  busy: { name: 'Busy Mayor', emoji: '🛍️', brief: 'Shops, offices, everywhere reachable', weights: { happy: 0.30, walkable: 0.30, spread: 0.25, peaceful: 0.15 } },
-  quiet: { name: 'Quiet Mayor', emoji: '🤫', brief: 'Peace and calm, spread out', weights: { peaceful: 0.40, spread: 0.30, happy: 0.15, walkable: 0.15 } },
 };
 
 // ─── State ──────────────────────────────────────────────
@@ -112,10 +109,9 @@ const state = {
   gesture: null,
   aiBusy: false,
   // Goals: null weights = Balanced (default fixed blend).
-  goalWeights: null,      // {happy, walkable, peaceful, spread} | null
-  goalMode: 'mayor',      // 'mayor' | 'custom'
-  mayorId: null,          // null = balanced, else MAYORS key
-  sliderVals: { happy: 30, walkable: 30, peaceful: 20, spread: 20 },
+  goals: defaultGoals(),
+  rawBaseline: null,
+  goalTab: 'mayor',
   viewMode: 'normal',     // 'normal' | 'happy' | 'walk' | 'ranges'
   walkCache: null,
   homeRoutes: [],         // homeReachRoutes for the selected home (drawn in Walk view)
@@ -125,6 +121,13 @@ const state = {
   mymove: null,           // active "My move" state (moves + student picks)
   lastPlans: null,        // { greedy:{...}, explore:{...}, active:'greedy'|'explore' }
   activeStrategy: 'greedy',
+  roadMode: 'freehand',   // 'freehand' | 'straight' | 'curve'
+  curvePts: [],           // in-progress curved-road control points (curve mode)
+  curveCursor: null,      // live cursor for the curve preview (desktop hover)
+  snap: null,             // live snap target while drawing { x, y, kind }
+  connectCount: 0,        // loose joins the weld pass could fix right now
+  connectAsked: false,    // the suggestion was offered once this session
+  connectPreview: null,   // candidates highlighted while the connect sheet is open
 };
 
 // ─── DOM ────────────────────────────────────────────────
@@ -143,16 +146,23 @@ const mayorGrid = document.getElementById('mayor-grid');
 const sliderList = document.getElementById('slider-list');
 const templateMenu = document.getElementById('template-menu');
 
-let dpr = 1;
+let dpr = 1, lastCanvasSize = null;
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = canvas.getBoundingClientRect();
+  if (lastCanvasSize) {
+    state.view.ox += (rect.width - lastCanvasSize.width) / 2;
+    state.view.oy += (rect.height - lastCanvasSize.height) / 2;
+  }
+  lastCanvasSize = {width:rect.width,height:rect.height};
   canvas.width = Math.max(1, Math.round(rect.width * dpr));
   canvas.height = Math.max(1, Math.round(rect.height * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  updateZoomButtons();
   render();
 }
 window.addEventListener('resize', resize);
+new ResizeObserver(resize).observe(canvas);
 
 // ─── Coordinate transforms ──────────────────────────────
 function planToScreen(x, y) {
@@ -164,13 +174,54 @@ function screenToPlan(sx, sy) {
 function clampPlan(p) {
   return { x: Math.max(0, Math.min(SCALE, p.x)), y: Math.max(0, Math.min(SCALE, p.y)) };
 }
+const ZOOM_MIN = 0.05, ZOOM_MAX = 8;
 function zoomAt(sx, sy, factor) {
   const p = screenToPlan(sx, sy);
-  state.view.px = Math.max(0.05, Math.min(8, state.view.px * factor));
+  state.view.px = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, state.view.px * factor));
   state.view.ox = sx - p.x * state.view.px;
   state.view.oy = sy + p.y * state.view.px;
+  updateZoomButtons();
   requestRender();
 }
+function updateZoomButtons() {
+  const zin = document.getElementById('zoom-in');
+  const zout = document.getElementById('zoom-out');
+  if (zin) zin.disabled = state.view.px >= ZOOM_MAX - 1e-6;
+  if (zout) zout.disabled = state.view.px <= ZOOM_MIN + 1e-6;
+}
+function zoomStep(factor) {
+  const rect = canvas.getBoundingClientRect();
+  zoomAt(rect.width / 2, rect.height / 2, factor);
+}
+/** Frame the whole city (buildings + roads + parks) with a margin. */
+function fitView() {
+  const l = state.layout;
+  let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+  const see = (x, z) => {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+  };
+  for (const b of l.buildings) {
+    const fp = b.footprint || typeSpec(b.type)?.footprint || [20, 20];
+    see(b.pos[0] - fp[0] / 2, b.pos[1] - fp[1] / 2);
+    see(b.pos[0] + fp[0] / 2, b.pos[1] + fp[1] / 2);
+  }
+  for (const r of l.roads) for (const [x, z] of r.points) see(x, z);
+  for (const p of l.parks) { see(p.cx - p.radius, p.cz - p.radius); see(p.cx + p.radius, p.cz + p.radius); }
+  if (!Number.isFinite(minX)) { minX = 0; minZ = 0; maxX = SCALE; maxZ = SCALE; }
+  const rect = canvas.getBoundingClientRect();
+  const pad = 60;
+  const w = Math.max(1, maxX - minX), h = Math.max(1, maxZ - minZ);
+  state.view.px = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX,
+    Math.min((rect.width - pad * 2) / w, (rect.height - pad * 2) / h)));
+  state.view.ox = rect.width / 2 - ((minX + maxX) / 2) * state.view.px;
+  state.view.oy = rect.height / 2 + ((minZ + maxZ) / 2) * state.view.px;
+  updateZoomButtons();
+  requestRender();
+}
+document.getElementById('zoom-in')?.addEventListener('click', (e) => { e.preventDefault(); zoomStep(1.25); });
+document.getElementById('zoom-out')?.addEventListener('click', (e) => { e.preventDefault(); zoomStep(1 / 1.25); });
+document.getElementById('zoom-fit')?.addEventListener('click', (e) => { e.preventDefault(); fitView(); });
 
 // ─── Rendering ──────────────────────────────────────────
 // All render() calls are coalesced through requestAnimationFrame so pointermove
@@ -198,10 +249,15 @@ function render() {
   drawGrid(w, h);
   drawParks(w, h);
   drawRoads(w, h);
+  drawRoadNodes(w, h);
   if (state.viewMode === 'ranges') drawRanges(w, h);
   drawWalkRoutes(w, h);
   drawBuildings(w, h);
+  drawSelectionAffordance(w, h);
   drawGesture(w, h);
+  if (document.activeElement === canvas && showKeyboardCursor) {
+    const p=planToScreen(keyCursor.x,keyCursor.y);ctx.strokeStyle='#ffbf47';ctx.lineWidth=3;ctx.strokeRect(p.x-9,p.y-9,18,18);
+  }
 }
 
 function drawGrid(w, h) {
@@ -287,6 +343,58 @@ function drawRoads(w, h) {
       });
       ctx.stroke(); ctx.setLineDash([]);
     }
+  }
+}
+
+/**
+ * Overlay the road network's structure: a dot at every real shared vertex (the
+ * node/intersection a weld created), a snap ring while a join is in reach, and
+ * pulsing rings on the candidates the connect sheet is offering to fix.
+ */
+function drawRoadNodes(w, h) {
+  const zoom = state.view.px;
+  // Junction nodes — only when they'd be readable.
+  if (zoom > 0.05) {
+    const r = Math.max(2.5, Math.min(6, 2.5 / zoom + 2));
+    for (const n of junctionNodes(state.layout.roads)) {
+      const s = planToScreen(n.x, n.z);
+      if (s.x < -20 || s.x > w + 20 || s.y < -20 || s.y > h + 20) continue;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#0b7d8f';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(214,251,255,0.95)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+  // Candidate joins the connect sheet is offering.
+  if (state.connectPreview) {
+    for (const c of state.connectPreview) {
+      const s = planToScreen(c.x, c.z);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 10, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffbf47';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffbf47';
+      ctx.fill();
+    }
+  }
+  // Live snap ring while drawing.
+  if (state.snap) {
+    const s = planToScreen(state.snap.x, state.snap.y);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 9, 0, Math.PI * 2);
+    ctx.strokeStyle = '#00f2fe';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#00f2fe';
+    ctx.fill();
   }
 }
 
@@ -458,9 +566,67 @@ function drawBuildings(w, h) {
     if (bw > 34) {
       ctx.font = '700 11px Nunito, sans-serif';
       ctx.fillStyle = '#eaf2f8';
-      ctx.fillText(shortName(spec?.name || b.type), c.x, c.y + emojiSize * 0.55);
+      ctx.fillText(shortName(displayName(b.type,currentLang())), c.x, c.y + emojiSize * 0.55);
     }
   }
+}
+
+// The buildings' physical footprints are deliberately tiny at the overview
+// zoom, while their emoji stay readable. Keep the interaction target in sync
+// with that visible icon and never make it smaller than a comfortable tap.
+// This is shared by drawing and hit-testing so a child can grab what they see.
+function buildingScreenTarget(b) {
+  const c = planToScreen(b.pos[0], b.pos[1]);
+  const fp = buildingFootprint(b);
+  const bw = fp[0] * state.view.px;
+  const bh = fp[1] * state.view.px;
+  const emojiSize = Math.max(11, Math.min(28, Math.min(bw, bh) * 0.5));
+  return {
+    x: c.x,
+    y: c.y - emojiSize * 0.28,
+    halfW: Math.max(22, bw / 2, emojiSize * 0.7),
+    halfH: Math.max(22, bh / 2, emojiSize * 0.7),
+  };
+}
+
+let selectionRemoveBounds = null;
+
+function drawSelectionAffordance(w, h) {
+  selectionRemoveBounds = null;
+  const b = state.layout.buildings[state.selectedIdx];
+  if (!b) return;
+  const target = buildingScreenTarget(b);
+  if (target.x + target.halfW < 0 || target.x - target.halfW > w || target.y + target.halfH < 0 || target.y - target.halfH > h) return;
+
+  // A generous outline makes selection clear even when the footprint is only a
+  // few pixels. The separate red action is intentionally on-canvas: children
+  // do not have to find a side-panel control to correct a placement.
+  ctx.save();
+  ctx.strokeStyle = '#00f2fe';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 3]);
+  ctx.strokeRect(target.x - target.halfW, target.y - target.halfH, target.halfW * 2, target.halfH * 2);
+  ctx.setLineDash([]);
+
+  const label = t('planner.selected.remove');
+  ctx.font = '800 12px Nunito, sans-serif';
+  const buttonW = Math.max(74, Math.ceil(ctx.measureText(label).width) + 18);
+  const buttonH = 28;
+  const buttonX = Math.max(4, Math.min(w - buttonW - 4, target.x - buttonW / 2));
+  const buttonY = Math.max(4, target.y - target.halfH - buttonH - 8);
+  ctx.fillStyle = '#b8324c';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(buttonX, buttonY, buttonW, buttonH, 14);
+  else ctx.rect(buttonX, buttonY, buttonW, buttonH);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(label, buttonX + buttonW / 2, buttonY + buttonH / 2 + 0.5);
+  ctx.restore();
+  selectionRemoveBounds = { x: buttonX, y: buttonY, width: buttonW, height: buttonH };
 }
 
 function shortName(name) {
@@ -469,8 +635,7 @@ function shortName(name) {
 
 function drawGesture(w, h) {
   const g = state.gesture;
-  if (!g) return;
-  if (g.mode === 'road' && g.roadPts && g.roadPts.length >= 2) {
+  if (g && (g.mode === 'road' || g.mode === 'road-straight') && g.roadPts && g.roadPts.length >= 2) {
     ctx.strokeStyle = 'rgba(0,242,254,0.9)';
     ctx.lineWidth = 4;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -482,7 +647,7 @@ function drawGesture(w, h) {
     });
     ctx.stroke(); ctx.setLineDash([]);
   }
-  if (g.mode === 'park' && g.parkStart) {
+  if (g && g.mode === 'park' && g.parkStart) {
     const cur = g.parkCur || g.parkStart;
     const c = planToScreen(g.parkStart.x, g.parkStart.y);
     const r = Math.hypot(cur.x - g.parkStart.x, cur.y - g.parkStart.y) * state.view.px;
@@ -491,6 +656,34 @@ function drawGesture(w, h) {
     ctx.setLineDash([6, 5]);
     ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
+  }
+  drawCurvePreview();
+}
+
+/** Live preview of an in-progress curved road (control points + smooth path). */
+function drawCurvePreview() {
+  if (state.tool !== 'road' || state.roadMode !== 'curve') return;
+  const ctrl = state.curvePts.slice();
+  if (state.curveCursor) ctrl.push([state.curveCursor.x, state.curveCursor.y]);
+  if (!ctrl.length) return;
+  if (ctrl.length >= 2) {
+    const sampled = sampleCatmullRom(ctrl, { minSpacing: 12 });
+    ctx.strokeStyle = 'rgba(0,242,254,0.9)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    sampled.forEach(([x, z], i) => {
+      const s = planToScreen(x, z);
+      if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  for (const [x, z] of state.curvePts) {
+    const s = planToScreen(x, z);
+    ctx.fillStyle = '#00f2fe';
+    ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#06283a'; ctx.lineWidth = 1.5; ctx.stroke();
   }
 }
 
@@ -503,63 +696,48 @@ function drawerCatLabel(cat) {
   return t('planner.drawer.cat' + cat.charAt(0).toUpperCase() + cat.slice(1));
 }
 
-function buildDrawer() {
-  catalogList.innerHTML = '';
-  const groups = [
-    { label: t('planner.drawer.mission'), keys: CATALOG_ORDER.filter((k) => isSpecial(k)) },
-    { label: t('planner.drawer.facilities'), keys: CATALOG_ORDER.filter((k) => !isSpecial(k)) },
-  ];
-  for (const grp of groups) {
-    const label = document.createElement('div');
-    label.className = 'drawer-title';
-    label.textContent = grp.label;
-    catalogList.appendChild(label);
-    for (const key of grp.keys) {
-      const spec = CATALOG[key];
-      const btn = document.createElement('button');
-      btn.className = 'cat-btn' + (isSpecial(key) ? ' special' : '');
-      btn.dataset.type = key;
-      btn.innerHTML = `<span class="emoji">${spec.emoji}</span><span class="name">${spec.name}</span>`;
-      btn.addEventListener('click', () => {
-        state.selectedType = key;
-        state.selectedIdx = -1;
-        setTool('place');
-        selectCatalogBtn(key);
-        hint(L('planner.hint.placeItem', { name: spec.name }));
-      });
-      catalogList.appendChild(btn);
+let drawerLimit = 12;
+function buildDrawer(more = false) {
+  const category = document.getElementById('drawer-category').value;
+  const query = document.getElementById('drawer-search').value.trim().toLowerCase();
+  if (!more) { drawerLimit = 12; catalogList.replaceChildren(); }
+  const starter = ['housing','school','shop','hospital','library','bus','water','power','recycling','city_central','delivery','health'];
+  const entries = CATALOG_ORDER.map(type => ({type, spec:CATALOG[type], category:isSpecial(type)?'special':'generic'}));
+  for (const category of LIB_DRAWER_CATEGORIES) for (const spec of libraryByCategory(category)) entries.push({type:'lib:'+spec.id,spec,category});
+  let found = entries.filter(entry => (category === 'all' || category === 'starter' || entry.category === category) && (!query || [displayName(entry.type,'en'),displayName(entry.type,'zh-Hant'),entry.spec.name,entry.type].join(' ').toLowerCase().includes(query)));
+  if (category === 'starter' && !query) found = starter.map(type => entries.find(e=>e.type===type));
+  const start = more ? catalogList.querySelectorAll('.cat-btn').length : 0;
+  if (more) drawerLimit += 24;
+  for (const {type,spec} of found.slice(start,drawerLimit)) {
+    const btn=document.createElement('button');btn.className='cat-btn';btn.dataset.type=type;
+    let icon;
+    if (type.startsWith('lib:')) {
+      icon=document.createElement('img');icon.className='catalog-thumb';icon.src=`../library/thumbnails/${type.slice(4)}.png`;icon.alt='';icon.loading='lazy';
+      icon.addEventListener('error',()=>{const fallback=document.createElement('span');fallback.className='emoji';fallback.textContent=spec.emoji||'🏗️';fallback.setAttribute('aria-hidden','true');icon.replaceWith(fallback);icon=fallback;},{once:true});
+    } else {
+      icon=document.createElement('span');icon.className='emoji';icon.textContent=spec.emoji;icon.setAttribute('aria-hidden','true');
     }
+    const primary=displayName(type,currentLang());
+    const alternate=displayName(type,currentLang()==='zh-Hant'?'en':'zh-Hant');
+    const name=document.createElement('span');name.className='name';name.textContent=primary;
+    const alt=document.createElement('span');alt.className='name-alt';alt.textContent=alternate===primary?'':alternate;
+    btn.append(icon,name,alt);btn.title=primary+' · '+type;
+    btn.onclick=()=>{state.selectedType=type;setTool('place');selectCatalogBtn(type);hint(L('planner.hint.placeItem',{name:displayName(type,currentLang())}));};
+    catalogList.append(btn);
   }
-  // Shared library items (nature / props / vehicles / themed) — placed as
-  // 'lib:<id>' types so the layout + 3D builder know they're library models.
-  for (const cat of LIB_DRAWER_CATEGORIES) {
-    const items = libraryByCategory(cat);
-    if (!items.length) continue;
-    const label = document.createElement('div');
-    label.className = 'drawer-title';
-    label.textContent = drawerCatLabel(cat);
-    catalogList.appendChild(label);
-    for (const item of items) {
-      const btn = document.createElement('button');
-      btn.className = 'cat-btn lib';
-      btn.dataset.type = 'lib:' + item.id;
-      btn.innerHTML = `<span class="emoji">${item.emoji}</span><span class="name">${item.name}</span>`;
-      btn.addEventListener('click', () => {
-        state.selectedType = 'lib:' + item.id;
-        state.selectedIdx = -1;
-        setTool('place');
-        selectCatalogBtn('lib:' + item.id);
-        hint(L('planner.hint.placeItem', { name: item.name }));
-      });
-      catalogList.appendChild(btn);
-    }
-  }
+  const moreBtn=document.getElementById('drawer-more');moreBtn.hidden=found.length<=drawerLimit;
+  document.getElementById('drawer-count').textContent=L('planner.drawer.count',{shown:Math.min(drawerLimit,found.length),total:found.length});
   selectCatalogBtn(state.selectedType);
+  if(more) catalogList.querySelectorAll('.cat-btn')[start]?.focus();
 }
+document.getElementById('drawer-search').addEventListener('input',()=>buildDrawer());
+document.getElementById('drawer-category').addEventListener('change',()=>buildDrawer());
+document.getElementById('drawer-more').addEventListener('click',()=>buildDrawer(true));
 
 function selectCatalogBtn(key) {
   catalogList.querySelectorAll('.cat-btn').forEach((b) => {
     b.classList.toggle('selected', b.dataset.type === key);
+    b.setAttribute('aria-pressed', String(b.dataset.type === key));
   });
 }
 
@@ -573,16 +751,293 @@ const TOOL_HINT_KEY = {
 
 function setTool(tool) {
   state.tool = tool;
+  roadStart = null;
   state.selectedIdx = -1;
+  if (tool !== 'road') cancelCurve(false);
   renderSelectedInfo();
   document.querySelectorAll('.tool-btn').forEach((b) => {
     const on = b.dataset.tool === tool;
     b.classList.toggle('active', on);
     b.setAttribute('aria-pressed', String(on));
   });
-  hint(t(TOOL_HINT_KEY[tool] || 'planner.hint.place'));
+  hint(roadHintFor(tool));
+  setContextSheet('drawer', tool === 'place');
+  updateRoadOptions();
   render();
 }
+
+// ─── Road drawing styles (Freehand / Straight / Curve) + Tidy up ─────────
+function roadHintFor(tool) {
+  if (tool === 'road') {
+    if (state.roadMode === 'straight') return t('planner.hint.roadStraight');
+    if (state.roadMode === 'curve') return t('planner.hint.roadCurve');
+  }
+  return t(TOOL_HINT_KEY[tool] || 'planner.hint.place');
+}
+
+function setRoadMode(mode) {
+  state.roadMode = mode === 'straight' || mode === 'curve' ? mode : 'freehand';
+  cancelCurve(false);
+  document.querySelectorAll('.road-mode-btn').forEach((b) => {
+    const on = b.dataset.roadMode === state.roadMode;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  if (state.tool === 'road') hint(roadHintFor('road'));
+  updateRoadOptions();
+  render();
+}
+
+function updateRoadOptions() {
+  const bar = document.getElementById('road-options');
+  if (!bar) return;
+  bar.classList.toggle('hidden', state.tool !== 'road');
+  const curveActive = state.tool === 'road' && state.roadMode === 'curve';
+  document.getElementById('road-finish')?.classList.toggle('hidden', !(curveActive && state.curvePts.length >= 2));
+  document.getElementById('road-cancel')?.classList.toggle('hidden', !(curveActive && state.curvePts.length >= 1));
+}
+
+function cancelCurve(repaint = true) {
+  if (state.curvePts.length || state.curveCursor) {
+    state.curvePts = [];
+    state.curveCursor = null;
+    updateRoadOptions();
+    if (repaint) render();
+  }
+}
+
+function addCurvePoint(p) {
+  const snapped = snappedPlan(p);
+  const last = state.curvePts[state.curvePts.length - 1];
+  if (last && Math.hypot(snapped.x - last[0], snapped.y - last[1]) < 8) return;
+  state.curvePts.push([snapped.x, snapped.y]);
+  updateRoadOptions();
+  render();
+}
+
+function polylineLength(pts) {
+  let n = 0;
+  for (let i = 0; i < pts.length - 1; i++) n += Math.hypot(pts[i][0] - pts[i + 1][0], pts[i][1] - pts[i + 1][1]);
+  return n;
+}
+
+/**
+ * Keep a Straight road at the same length but snap its direction to the nearest
+ * 45°. `hard` (Shift held) snaps from any angle; otherwise only an
+ * already-nearly-straight line is corrected, so free angles stay free.
+ */
+function straightSnap(start, end, hard) {
+  const dx = end.x - start.x, dz = end.y - start.y;
+  const len = Math.hypot(dx, dz);
+  if (!len) return end;
+  const step = Math.PI / 4;
+  const ang = Math.atan2(dz, dx);
+  const nearest = Math.round(ang / step) * step;
+  const diff = Math.abs(Math.atan2(Math.sin(ang - nearest), Math.cos(ang - nearest)));
+  const tol = hard ? step / 2 : (3 * Math.PI) / 180;
+  if (diff <= tol) return { x: start.x + Math.cos(nearest) * len, y: start.y + Math.sin(nearest) * len };
+  return end;
+}
+
+/** Commit a finished road (already in plan coords). Returns true on success. */
+function commitRoad(points) {
+  if (!points || points.length < 2) { toast(t('planner.toast.roadDrag')); return false; }
+  if (polylineLength(points) < 20) { toast(t('planner.toast.roadShort')); return false; }
+  pushUndo();
+  state.layout.roads.push({ points, width: ROAD_WIDTH.residential, class: 'residential' });
+  // Join the new road into the network straight away. The snap ring already
+  // showed the child which roads it touched, and Undo reverses the whole
+  // gesture, so this is approval-by-action rather than a silent change.
+  const joined = weldRoads({ undo: false });
+  if (joined) toast(L('planner.toast.welded', { n: joined }));
+  updateMetrics();
+  render();
+  return true;
+}
+
+/** Turn the tapped control points into a smooth polyline and commit it. */
+function finishCurve() {
+  const ctrl = state.curvePts;
+  if (ctrl.length < 2) { toast(t('planner.toast.curveShort')); return; }
+  // Keep the whole network under the layout's 4000-point cap by widening the
+  // sample spacing when the city is already busy (deterministic, bounded).
+  const used = state.layout.roads.reduce((n, r) => n + r.points.length, 0);
+  const budget = Math.max(20, 3900 - used);
+  let spacing = 12;
+  let sampled = sampleCatmullRom(ctrl, { minSpacing: spacing });
+  while (sampled.length > budget && spacing < 200) {
+    spacing *= 1.5;
+    sampled = sampleCatmullRom(ctrl, { minSpacing: spacing });
+  }
+  const pts = sampled.map(([x, z]) => [Math.round(x), Math.round(z)]);
+  if (commitRoad(pts)) cancelCurve(false);
+  updateRoadOptions();
+}
+
+/**
+ * Simplify/straighten/connect the whole drawn network, then nudge any
+ * unprotected building the tidied roads would sit on. One undo. Landmarks and
+ * locked buildings are never moved; tidy keeps their roads' original geometry.
+ */
+function tidyUpRoads() {
+  if (!state.layout.roads.length) { toast(t('planner.toast.tidyNone')); return; }
+  const protectedFootprints = state.layout.buildings
+    .filter((b) => b.locked || isSpecial(b.type))
+    .map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint || [20, 20] }));
+  const { roads, stats } = tidyRoads(state.layout, { protectedFootprints });
+  // Never apply a tidy that would produce an invalid layout.
+  if (!validateLayout({ ...state.layout, roads }).ok) { toast(t('planner.toast.tidyNone')); return; }
+  pushUndo();
+  state.layout.roads = roads;
+  const bands = roadBands(state.layout.roads);
+  let moved = 0;
+  for (const b of state.layout.buildings) {
+    if (b.locked || isSpecial(b.type)) continue;
+    const fp = b.footprint || typeSpec(b.type)?.footprint || [20, 20];
+    if (rectRoadClearance(b.pos[0], b.pos[1], fp, bands) >= ROAD_CLEARANCE_MARGIN) continue;
+    const cand = clearanceOffset(b, state.layout.buildings.filter((o) => o !== b), bands, { scale: state.layout.scaleMeters });
+    if (cand) { b.pos = [Math.round(cand.x * 2) / 2, Math.round(cand.z * 2) / 2]; moved++; }
+  }
+  state.selectedIdx = -1;
+  cancelCurve(false);
+  updateMetrics();
+  render();
+  const joined = (stats.endpointMerges || 0) + (stats.tJunctions || 0);
+  if (stats.pointsAfter === stats.pointsBefore && !joined && !moved) toast(t('planner.toast.tidyNone'));
+  else toast(L('planner.toast.tidy', { r: state.layout.roads.length, j: joined, b: moved }));
+}
+
+// ─── Weld loose road connections (opt-in) ───────────────────────────────
+// A child who "joins" two roads by eye leaves a few metres of air between them,
+// and the 3D traffic graph needs real shared vertices. detectJunctions reports
+// what could be joined; materializeJunctions does it — but only after the child
+// approves (or, for an obvious live snap, as they draw). Declining leaves the
+// roads exactly as drawn: nothing here ever blocks saving.
+// One join tolerance shared by the live snap ring, the "join your roads?"
+// suggestion and the weld itself, so what the child sees is what gets fixed.
+// 24 m on a 2000 m plan is deliberate: far enough to forgive a finger, tight
+// enough that two separately-planned streets are never merged by accident.
+const JOIN_DIST = 24;
+
+/** Landmarks and locked buildings a weld must never route a road over. */
+function weldProtectedFootprints() {
+  return state.layout.buildings
+    .filter((b) => b.locked || isSpecial(b.type))
+    .map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint || [20, 20] }));
+}
+
+/** Nearest existing road end/body a drawn point could snap onto (or null). */
+function snapTargetFor(x, y) {
+  let best = null;
+  for (const r of state.layout.roads) {
+    const pts = r.points || [];
+    for (const end of [0, pts.length - 1]) {
+      const p = pts[end];
+      if (!p) continue;
+      const d = Math.hypot(p[0] - x, p[1] - y);
+      if (d <= JOIN_DIST && (!best || d < best.d)) best = { x: p[0], y: p[1], d, kind: 'end' };
+    }
+    for (let i = 0; i < pts.length - 1; i++) {
+      const pr = pointToSegment(x, y, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+      if (pr.t <= 0.02 || pr.t >= 0.98) continue;
+      if (pr.d <= JOIN_DIST && (!best || pr.d < best.d)) best = { x: pr.x, y: pr.z, d: pr.d, kind: 'body' };
+    }
+  }
+  return best;
+}
+
+/** Snap a drawn plan point onto a nearby road when the child clearly means it. */
+function snappedPlan(p) {
+  const hit = snapTargetFor(p.x, p.y);
+  return hit ? { x: hit.x, y: hit.y, snapped: true } : p;
+}
+
+/** Weld every detected junction into the current roads. Returns joins or 0. */
+function weldRoads({ undo = true } = {}) {
+  if (state.layout.roads.length < 2) return 0;
+  const { roads, stats } = materializeJunctions(state.layout, {
+    closeLoops: true,
+    endpointDist: JOIN_DIST,
+    tJunctionDist: JOIN_DIST,
+    protectedFootprints: weldProtectedFootprints(),
+  });
+  const joined = (stats.endpointMerges || 0) + (stats.tJunctions || 0) + (stats.crossings || 0) + (stats.loops || 0);
+  if (!joined) return 0;
+  if (undo) pushUndo();
+  state.layout.roads = roads;
+  refreshConnect();
+  return joined;
+}
+
+/** Recount loose joins and show/hide the join suggestion button. */
+function refreshConnect() {
+  const count = state.layout.roads.length >= 2
+    ? detectJunctions(state.layout, { endpointDist: JOIN_DIST, tJunctionDist: JOIN_DIST }).candidates.length
+    : 0;
+  state.connectCount = count;
+  const btn = document.getElementById('road-connect');
+  const badge = document.getElementById('road-connect-count');
+  if (btn) btn.classList.toggle('hidden', count === 0);
+  if (badge) badge.textContent = count ? String(count) : '';
+  return count;
+}
+
+/** Explain what is loose, then weld everything only if the child says yes. */
+function offerConnect() {
+  const { candidates, stats } = detectJunctions(state.layout, { endpointDist: JOIN_DIST, tJunctionDist: JOIN_DIST });
+  if (!candidates.length) { toast(t('planner.toast.connectNone')); return; }
+  state.connectPreview = candidates;
+  render();
+  const parts = [];
+  if (stats.endpointMerges) parts.push(L('planner.connect.partEnds', { n: stats.endpointMerges }));
+  if (stats.tJunctions) parts.push(L('planner.connect.partT', { n: stats.tJunctions }));
+  if (stats.crossings) parts.push(L('planner.connect.partCross', { n: stats.crossings }));
+  if (stats.loops) parts.push(L('planner.connect.partLoop', { n: stats.loops }));
+  confirmCityAction({
+    title: t('planner.connect.title'),
+    message: `${t('planner.connect.intro')}<br><strong>${parts.join(' · ')}</strong><br>${t('planner.connect.why')}`,
+    yesLabel: t('planner.connect.yes'),
+    onYes: () => {
+      state.connectPreview = null;
+      const joined = weldRoads();
+      updateMetrics();
+      render();
+      if (joined) toast(L('planner.toast.welded', { n: joined }));
+    },
+    onNo: () => { state.connectPreview = null; state.connectAsked = true; render(); },
+  });
+}
+
+document.querySelectorAll('.road-mode-btn').forEach((b) => b.addEventListener('click', () => setRoadMode(b.dataset.roadMode)));
+document.getElementById('road-finish')?.addEventListener('click', (e) => { e.preventDefault(); finishCurve(); });
+document.getElementById('road-cancel')?.addEventListener('click', (e) => { e.preventDefault(); cancelCurve(); });
+document.getElementById('road-tidy')?.addEventListener('click', (e) => { e.preventDefault(); tidyUpRoads(); });
+document.getElementById('road-connect')?.addEventListener('click', (e) => { e.preventDefault(); offerConnect(); });
+
+const drawerEl = document.getElementById('drawer');
+const metricsEl = document.getElementById('metrics-panel');
+const scoreToggle = document.getElementById('city-score-toggle');
+let sheetReturnFocus = null;
+function setContextSheet(which, open) {
+  const panel = which === 'drawer' ? drawerEl : metricsEl;
+  const toggle = which === 'metrics' ? scoreToggle : null;
+  if (!panel) return;
+  if (open) {
+    if (which === 'metrics') setContextSheet('drawer', false);
+    sheetReturnFocus = document.activeElement;
+  }
+  panel.classList.toggle('open', open);
+  panel.setAttribute('aria-hidden', String(!open));
+  toggle?.setAttribute('aria-expanded', String(open));
+}
+document.getElementById('drawer-close')?.addEventListener('click',()=>setContextSheet('drawer',false));
+document.getElementById('metrics-close')?.addEventListener('click',()=>{setContextSheet('metrics',false);sheetReturnFocus?.focus?.();});
+scoreToggle?.addEventListener('click',()=>setContextSheet('metrics',!metricsEl.classList.contains('open')));
+document.addEventListener('keydown',(event)=>{
+  if(event.key!=='Escape'||activeModal())return;
+  if(metricsEl.classList.contains('open')){event.preventDefault();setContextSheet('metrics',false);scoreToggle.focus();}
+  else if(drawerEl.classList.contains('open')){event.preventDefault();setContextSheet('drawer',false);document.querySelector('[data-tool="place"]')?.focus();}
+});
 
 function hint(msg) {
   hintBar.textContent = msg;
@@ -590,12 +1045,60 @@ function hint(msg) {
 
 // Live language toggle: refresh the parts the static pass can't reach.
 window.addEventListener('i18n:change', () => {
-  if (state.viewMode === 'normal') hint(t(TOOL_HINT_KEY[state.tool] || 'planner.hint.place'));
+  if (state.viewMode === 'normal') hint(roadHintFor(state.tool));
   buildDrawer();
   renderTemplates();   // template names + good-for blurbs switch language live
   updateMetrics();
 });
 
+// Keyboard editing uses the same mutations, metrics and autosave as pointer work.
+const keyCursor={x:1000,y:1000};
+let showKeyboardCursor=false;
+let roadStart=null;
+function announceCursor() {
+  const b=state.layout.buildings[state.selectedIdx];
+  document.getElementById('keyboard-status').textContent=(b?displayName(b.type,currentLang())+' · ':'')+L('planner.keyboard.position',{x:Math.round(keyCursor.x),z:Math.round(keyCursor.y)});
+}
+function selectNext(delta) {
+  const count=state.layout.buildings.length;if(!count)return;
+  state.tool='select';state.selectedIdx=(state.selectedIdx+delta+count)%count;
+  const b=state.layout.buildings[state.selectedIdx];keyCursor.x=b.pos[0];keyCursor.y=b.pos[1];
+  const rect=canvas.getBoundingClientRect();state.view.ox=rect.width/2-keyCursor.x*state.view.px;state.view.oy=rect.height/2+keyCursor.y*state.view.px;
+  document.querySelectorAll('.tool-btn').forEach(el=>{const on=el.dataset.tool==='select';el.classList.toggle('active',on);el.setAttribute('aria-pressed',String(on));});
+  renderSelectedInfo();announceCursor();render();
+}
+function keyboardPlace() {
+  if(state.tool==='place') {placeBuilding(keyCursor.x,keyCursor.y);announceCursor();toast(L('planner.keyboard.placed',{name:displayName(state.selectedType,currentLang()),n:state.layout.buildings.length}));}
+  else if(state.tool==='park') {pushUndo();state.layout.parks.push({cx:keyCursor.x,cz:keyCursor.y,radius:50});updateMetrics();render();}
+  else if(state.tool==='road') {
+    if(!roadStart) {roadStart=[keyCursor.x,keyCursor.y];hint(t('planner.keyboard.roadEnd'));}
+    else if(Math.hypot(keyCursor.x-roadStart[0],keyCursor.y-roadStart[1])>=20) {pushUndo();state.layout.roads.push({points:[roadStart,[keyCursor.x,keyCursor.y]],width:ROAD_WIDTH.residential,class:'residential'});roadStart=null;const j=weldRoads({undo:false});if(j)toast(L('planner.toast.welded',{n:j}));updateMetrics();render();}
+  } else selectNext(1);
+}
+canvas.addEventListener('focus',()=>{announceCursor();render();});
+canvas.addEventListener('blur',()=>{showKeyboardCursor=false;render();});
+canvas.addEventListener('pointerdown',()=>{showKeyboardCursor=false;render();});
+canvas.addEventListener('keydown',e=>{
+  if(activeModal())return;
+  showKeyboardCursor=true;
+  if(['Enter',' '].includes(e.key)){
+    if(e.key==='Enter' && state.tool==='road' && state.roadMode==='curve' && state.curvePts.length>=2){e.preventDefault();finishCurve();return;}
+    e.preventDefault();keyboardPlace();return;
+  }
+  if(e.key==='Escape'){roadStart=null;cancelCurve(false);state.selectedIdx=-1;renderSelectedInfo();render();return;}
+  if(e.key==='['||e.key===']'){e.preventDefault();selectNext(e.key===']'?1:-1);return;}
+  if(e.key==='+'||e.key==='-'){e.preventDefault();const r=canvas.getBoundingClientRect();zoomAt(r.width/2,r.height/2,e.key==='+'?1.2:1/1.2);return;}
+  const dirs={ArrowUp:[0,1],ArrowDown:[0,-1],ArrowLeft:[-1,0],ArrowRight:[1,0]};const dir=dirs[e.key];if(!dir)return;
+  e.preventDefault();const step=e.shiftKey?50:10;
+  const b=state.tool==='select'?state.layout.buildings[state.selectedIdx]:null;
+  if(b){keyCursor.x=b.pos[0];keyCursor.y=b.pos[1];pushUndo();}
+  keyCursor.x=Math.max(0,Math.min(SCALE,keyCursor.x+dir[0]*step));keyCursor.y=Math.max(0,Math.min(SCALE,keyCursor.y+dir[1]*step));
+  if(b){b.pos=[keyCursor.x,keyCursor.y];updateMetrics();renderSelectedInfo();}
+  announceCursor();render();
+});
+document.getElementById('keyboard-place').onclick=()=>{keyboardPlace();showKeyboardCursor=true;canvas.focus();};
+document.getElementById('keyboard-next').onclick=()=>{selectNext(1);showKeyboardCursor=true;canvas.focus();};
+document.getElementById('keyboard-delete').onclick=()=>{if(state.selectedIdx>=0)deleteSelectedOrClear();showKeyboardCursor=true;canvas.focus();};
 // ─── Pointer interaction ────────────────────────────────
 function rectOf(canvas) { return canvas.getBoundingClientRect(); }
 
@@ -609,12 +1112,21 @@ function rectOf(canvas) { return canvas.getBoundingClientRect(); }
  */
 function pointerPos(e) {
   const r = rectOf(canvas);
+  // A pointer can arrive before ResizeObserver after toolbar reflow or zoom.
+  if (!lastCanvasSize || r.width !== lastCanvasSize.width || r.height !== lastCanvasSize.height) resize();
   return { sx: e.clientX - r.left, sy: e.clientY - r.top };
 }
 
 canvas.addEventListener('pointerdown', (e) => {
-  canvas.setPointerCapture(e.pointerId);
   const { sx, sy } = pointerPos(e);
+  // The selected building's on-canvas Remove action takes priority over map
+  // gestures. Removal is immediate but remains safely reversible with Undo.
+  if (selectionRemoveBounds && sx >= selectionRemoveBounds.x && sx <= selectionRemoveBounds.x + selectionRemoveBounds.width && sy >= selectionRemoveBounds.y && sy <= selectionRemoveBounds.y + selectionRemoveBounds.height) {
+    e.preventDefault();
+    deleteSelectedOrClear();
+    return;
+  }
+  canvas.setPointerCapture(e.pointerId);
   const p = clampPlan(screenToPlan(sx, sy));
   if (!state.gesture) {
     state.gesture = { pointers: new Map(), mode: null, moved: 0, roadPts: [], parkStart: null, parkCur: null, movingIdx: -1, startX: sx, startY: sy };
@@ -631,8 +1143,18 @@ canvas.addEventListener('pointerdown', (e) => {
 
   switch (state.tool) {
     case 'road':
-      state.gesture.mode = 'road';
-      state.gesture.roadPts = [p];
+      if (state.roadMode === 'curve') {
+        state.gesture.mode = 'curve';
+        state.snap = snapTargetFor(p.x, p.y);
+      } else if (state.roadMode === 'straight') {
+        state.gesture.mode = 'road-straight';
+        state.gesture.roadPts = [snappedPlan(p)];
+        state.snap = snapTargetFor(p.x, p.y);
+      } else {
+        state.gesture.mode = 'road';
+        state.gesture.roadPts = [snappedPlan(p)];
+        state.snap = snapTargetFor(p.x, p.y);
+      }
       break;
     case 'park':
       state.gesture.mode = 'park';
@@ -652,7 +1174,20 @@ canvas.addEventListener('pointerdown', (e) => {
       }
       break;
     }
-    case 'place':
+    case 'place': {
+      const hit = hitBuilding(sx, sy);
+      if (hit >= 0) {
+        state.gesture.mode = 'move';
+        state.gesture.movingIdx = hit;
+        state.selectedIdx = hit;
+        renderSelectedInfo();
+        render();
+      } else {
+        // In Place mode empty-map taps still place and empty-map drags pan.
+        state.gesture.mode = 'maybe-place';
+      }
+      break;
+    }
     default:
       state.gesture.mode = 'maybe-place';
       break;
@@ -688,8 +1223,31 @@ canvas.addEventListener('pointermove', (e) => {
       break;
     case 'road': {
       const p = clampPlan(screenToPlan(sx, sy));
+      state.snap = snapTargetFor(p.x, p.y);
       const last = g.roadPts[g.roadPts.length - 1];
       if (!last || Math.hypot(p.x - last.x, p.y - last.y) >= 4) g.roadPts.push(p);
+      requestRender();
+      break;
+    }
+    case 'road-straight': {
+      const end = clampPlan(screenToPlan(sx, sy));
+      state.snap = snapTargetFor(end.x, end.y);
+      const snapped = snappedPlan(straightSnap(g.roadPts[0], end, e.shiftKey));
+      g.roadPts[1] = { x: snapped.x, y: snapped.y };
+      requestRender();
+      break;
+    }
+    case 'curve': {
+      if (g.moved > 8) {
+        // Dragging in Curve mode pans the map (so the child can reach the next
+        // bend); a tap is what adds a point.
+        g.mode = 'pan';
+        state.view.ox += dx; state.view.oy += dy;
+      } else {
+        const c = clampPlan(screenToPlan(sx, sy));
+        state.snap = snapTargetFor(c.x, c.y);
+        state.curveCursor = c;
+      }
       requestRender();
       break;
     }
@@ -700,7 +1258,8 @@ canvas.addEventListener('pointermove', (e) => {
     }
     case 'move': {
       const b = state.layout.buildings[g.movingIdx];
-      if (b) {
+      if (b && !b.locked && g.moved > 4) {
+        if (!g.savedUndo) { pushUndo(); g.savedUndo = true; }
         const p = clampPlan(screenToPlan(sx, sy));
         b.pos = [Math.round(p.x * 2) / 2, Math.round(p.y * 2) / 2];
         requestRender();
@@ -728,22 +1287,23 @@ function endPointer(e) {
   switch (mode) {
     case 'road': {
       if (g.roadPts.length >= 2) {
-        const pts = g.roadPts.map((p) => [Math.round(p.x), Math.round(p.y)]);
-        let len = 0;
-        for (let i = 0; i < pts.length - 1; i++) len += Math.hypot(pts[i][0] - pts[i + 1][0], pts[i][1] - pts[i + 1][1]);
-        if (len >= 20) {
-          pushUndo();
-          state.layout.roads.push({ points: pts, width: ROAD_WIDTH.residential, class: 'residential' });
-          updateMetrics();
-        } else {
-          // Non-blocking feedback: a road that's too short is dropped silently
-          // otherwise, and a child may think it saved (leading to roadless
-          // cities in the 3D view). Warn, never block.
-          toast(t('planner.toast.roadShort'));
-        }
+        const pts = g.roadPts.map((p) => ({ x: p.x, y: p.y }));
+        pts[pts.length - 1] = snappedPlan(pts[pts.length - 1]);
+        commitRoad(pts.map((p) => [Math.round(p.x), Math.round(p.y)]));
       } else {
         toast(t('planner.toast.roadDrag'));
       }
+      break;
+    }
+    case 'road-straight': {
+      const start = g.roadPts[0];
+      const end = snappedPlan(straightSnap(start, clampPlan(screenToPlan(sx, sy)), e.shiftKey));
+      commitRoad([[Math.round(start.x), Math.round(start.y)], [Math.round(end.x), Math.round(end.y)]]);
+      break;
+    }
+    case 'curve': {
+      // A tap adds a bend; a drag already switched to pan instead.
+      if (g.moved <= 8) addCurvePoint(clampPlan(screenToPlan(sx, sy)));
       break;
     }
     case 'park': {
@@ -756,8 +1316,7 @@ function endPointer(e) {
       break;
     }
     case 'move': {
-      if (g.moved > 4) {
-        pushUndo();
+      if (g.savedUndo) {
         updateMetrics();   // computed once at gesture end, not per pointermove
       }
       break;
@@ -771,6 +1330,7 @@ function endPointer(e) {
     }
   }
   state.gesture = null;
+  state.snap = null;
   render();
 }
 
@@ -779,6 +1339,7 @@ canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('pointerleave', () => { /* keep drawing on pointerleave thanks to capture */ });
 
 canvas.addEventListener('wheel', (e) => {
+  if (e.ctrlKey || e.metaKey) return; // Preserve browser zoom.
   e.preventDefault();
   const { sx, sy } = pointerPos(e);
   zoomAt(sx, sy, Math.exp(-e.deltaY * 0.0016));
@@ -804,15 +1365,15 @@ function updatePinch() {
     state.view.oy += midY - g.prevPinch.midY;
   }
   g.prevPinch = { dist, midX, midY };
+  updateZoomButtons();
 }
 
 function hitBuilding(sx, sy) {
-  const p = screenToPlan(sx, sy);
   const layout = state.layout;
   for (let i = layout.buildings.length - 1; i >= 0; i--) {
     const b = layout.buildings[i];
-    const fp = buildingFootprint(b);
-    if (Math.abs(p.x - b.pos[0]) <= fp[0] / 2 && Math.abs(p.y - b.pos[1]) <= fp[1] / 2) return i;
+    const target = buildingScreenTarget(b);
+    if (Math.abs(sx - target.x) <= target.halfW && Math.abs(sy - target.y) <= target.halfH) return i;
   }
   return -1;
 }
@@ -833,14 +1394,20 @@ function placeBuilding(x, y) {
 
 // ─── Undo / clear ───────────────────────────────────────
 function pushUndo() {
-  state.undoStack.push(JSON.stringify(state.layout));
+  state.undoStack.push({
+    snapshot: JSON.stringify({ layout: state.layout, goals: state.goals }),
+    rawBaseline: state.rawBaseline, // immutable reference; do not copy a 5 MiB raw section per edit
+  });
   if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
-  _walkDirty = true;   // the layout changed — recompute walk on next metrics pass
 }
 function undo() {
   const snap = state.undoStack.pop();
   if (snap) {
-    state.layout = JSON.parse(snap);
+    const previous = JSON.parse(snap.snapshot);
+    state.layout = previous.layout;
+    state.goals = previous.goals;
+    state.rawBaseline = snap.rawBaseline;
+    state.goalTab = state.goals.mode === 'mayor' || state.goals.mode === 'default' ? 'mayor' : 'custom';
     state.selectedIdx = -1;
     updateMetrics();
     render();
@@ -871,7 +1438,7 @@ function deleteSelectedOrClear() {
     state.selectedIdx = -1;
     updateMetrics();
     render();
-    const name = typeSpec(b.type)?.name || b.type;
+    const name = displayName(b.type,currentLang());
     toast(L('planner.toast.removed', { name }));
     return;
   }
@@ -895,7 +1462,7 @@ function cityIsEmpty() {
 // Lightweight confirm sheet for destructive actions. Built on demand (no
 // permanent markup), reuses the app's modal styling, and always leaves a safe
 // "keep" path focused by default.
-function confirmCityAction({ title, message, yesLabel, onYes }) {
+function confirmCityAction({ title, message, yesLabel, onYes, onNo }) {
   const old = document.getElementById('confirm-modal');
   if (old) old.remove();
   const m = document.createElement('div');
@@ -911,15 +1478,16 @@ function confirmCityAction({ title, message, yesLabel, onYes }) {
       <div class="modal-body">
         <p class="confirm-text">${message}</p>
         <div class="goals-actions confirm-actions">
-          <button class="confirm-cancel" id="confirm-no" type="button">${t('planner.confirm.keep')}</button>
+          <button class="confirm-cancel" data-modal-close id="confirm-no" type="button">${t('planner.confirm.keep')}</button>
           <button class="plan-apply" id="confirm-yes" type="button">${yesLabel}</button>
         </div>
       </div>
     </div>`;
   document.body.appendChild(m);
   const close = () => m.remove();
-  m.querySelector('.confirm-backdrop').addEventListener('click', close);
-  m.querySelector('#confirm-no').addEventListener('click', close);
+  const cancel = () => { close(); if (onNo) onNo(); };
+  m.querySelector('.confirm-backdrop').addEventListener('click', cancel);
+  m.querySelector('#confirm-no').addEventListener('click', cancel);
   m.querySelector('#confirm-yes').addEventListener('click', () => { close(); onYes(); });
   m.querySelector('#confirm-no').focus();
 }
@@ -933,14 +1501,14 @@ function renderTemplates() {
   const list = document.getElementById('template-list');
   if (!list) return;
   list.innerHTML = '';
-  for (const t of ROAD_TEMPLATES) {
+  for (const template of ROAD_TEMPLATES) {
     const item = document.createElement('button');
     item.className = 'template-item';
-    item.dataset.template = t.id;
-    item.innerHTML = `<span class="tpl-emoji">${t.emoji}</span> <span class="tpl-name">${templateName(t.id)}</span><span class="tpl-good">${templateGoodFor(t.goodFor)}</span>`;
+    item.dataset.template = template.id;
+    item.innerHTML = `<span class="tpl-emoji">${template.emoji}</span> <span class="tpl-name">${templateName(template.id)}</span><span class="tpl-good">${templateGoodFor(template.goodFor)}</span>`;
     item.addEventListener('click', () => {
       const apply = () => {
-        loadRoadTemplate(t.id);
+        loadRoadTemplate(template.id);
         templateMenu.classList.add('hidden');
       };
       if (cityIsEmpty()) {
@@ -948,7 +1516,7 @@ function renderTemplates() {
       } else {
         templateMenu.classList.add('hidden');
         confirmCityAction({
-          title: L('planner.template.confirmTitle', { name: templateName(t.id) }),
+          title: L('planner.template.confirmTitle', { name: templateName(template.id) }),
           message: t('planner.template.confirmMsg'),
           yesLabel: t('planner.template.replaceYes'),
           onYes: apply,
@@ -978,7 +1546,31 @@ function loadRoadTemplate(key) {
 
 // ─── Metrics panel ──────────────────────────────────────
 let _walkDirty = true;
+let _layoutSignature = null;
+let _objectiveSignature = null;
+// All consumers check geometry, including pointer previews and replacements.
+// Saving undo history is not itself a mutation. Goal changes invalidate plans,
+// but reuse the road calculation when geometry is unchanged.
+function invalidateEvidence() {
+  const geometry = JSON.stringify(state.layout);
+  const objective = JSON.stringify(effectiveWeights());
+  if (geometry !== _layoutSignature) {
+    _layoutSignature = geometry;
+    _walkDirty = true;
+    state.walkCache = null;
+    state.homeRoutes = [];
+    state.lastMetrics = null;
+  }
+  const signature = geometry + objective;
+  if (signature !== _objectiveSignature) {
+    _objectiveSignature = signature;
+    state.lastPlans = null;
+    state.mymove = null;
+    _pendingPlan = null;
+  }
+}
 function computeWalkState() {
+  invalidateEvidence();
   if (!_walkDirty && state.walkCache) return state.walkCache;
   _walkDirty = false;
   state.walkCache = computeWalkReach(state.layout);
@@ -988,20 +1580,12 @@ function computeWalkState() {
 /** Refresh the selected home's real walking routes (Walk view visual). Reads
  * the walk cache if present; computes it when stale WITHOUT recursion. */
 function refreshHomeRoutes() {
-  const idx = state.selectedIdx;
-  const b = idx >= 0 ? state.layout.buildings[idx] : null;
-  if (!b || b.type !== 'housing') { state.homeRoutes = []; return; }
-  let walk = state.walkCache;
-  if (!walk || _walkDirty) {
-    _walkDirty = false;
-    walk = state.walkCache = computeWalkReach(state.layout);
-  }
-  if (!walk) { state.homeRoutes = []; return; }
-  state.homeRoutes = homeReachRoutes(state.layout, walk, idx);
+  const walk = computeWalkState();
+  state.homeRoutes = homeReachRoutes(state.layout, walk, state.selectedIdx);
 }
 
 function effectiveWeights() {
-  return state.goalWeights;   // null = Balanced (default fixed blend)
+  return effectiveGoalWeights(state.goals);
 }
 
 // ─── Milestones (recognition, NEVER gates) ──────────────
@@ -1025,12 +1609,15 @@ function checkMilestones(m, walk) {
 }
 
 function updateMetrics() {
+  refreshSceneryToggle();
   const weights = effectiveWeights();
   const walk = computeWalkState();
   const m = computeMetrics(state.layout, undefined, weights, walk, currentLang());
   state.lastMetrics = m;
   const scoreNum = scoreEl.querySelector('.score-num');
   if (scoreNum) scoreNum.textContent = m.score;
+  const compactScore=document.getElementById('score-compact');
+  if(compactScore)compactScore.textContent=m.score;
   scoreEl.style.setProperty('--pct', String(m.score));
   updateGoalsLive(m);
   checkMilestones(m, walk);
@@ -1063,12 +1650,27 @@ function updateMetrics() {
   });
 
   renderGoalList(m);
+  // Buildings sitting on a road are bad planning (roads are sacred, so the
+  // BUILDING is what should move). Locked buildings and mission landmarks are
+  // never moved automatically, so they stay flagged for the child to fix.
+  const onRoadUnprotected = onRoadBuildingIndices(state.layout)
+    .filter((i) => { const b = state.layout.buildings[i]; return b && !(b.locked || isSpecial(b.type)); });
+  const displayProblems = m.problems.slice();
+  if (onRoadUnprotected.length) displayProblems.unshift(L('planner.problem.onRoad', { n: onRoadUnprotected.length }));
+  // Advisory only: loose road joins are worth fixing but never block anything.
+  const looseCount = refreshConnect();
+  if (looseCount) displayProblems.push(L('planner.problem.connect', { n: looseCount }));
+  const onRoadCount = onRoadUnprotected.length;
+  if (_booted && onRoadCount > (state._onRoadCount || 0)) toast(L('planner.toast.onRoad', { n: onRoadCount }));
+  state._onRoadCount = onRoadCount;
   problemsEl.innerHTML = '';
-  for (const p of m.problems) {
+  for (const p of displayProblems) {
     const el = document.createElement('p');
     el.textContent = '⚠️ ' + p;
     problemsEl.appendChild(el);
   }
+  const suggestion=document.getElementById('score-suggestion');
+  if(suggestion)suggestion.textContent=displayProblems[0]||t('planner.hint.normal');
   renderSelectedInfo();
   requestRender();
   // Every layout/goal mutation funnels through updateMetrics(), so this is the
@@ -1095,7 +1697,7 @@ function renderGoalList(m) {
     const missingKeys = missing ? Object.keys(missing).filter((k) => missing[k] > 0) : [];
     const chips = (missingKeys.length && s < 3) ? missingKeys.map((k) => {
       const spec = CATALOG[k];
-      return `<button class="goal-chip" type="button" data-type="${k}" title="${L('planner.chipPlace', { name: spec?.name || k })}">${spec?.emoji || '🏗️'} <b>${missing[k]}</b></button>`;
+      return `<button class="goal-chip" type="button" aria-label="${L('planner.chipPlace', { name: displayName(k,currentLang()) })}" data-type="${k}" title="${L('planner.chipPlace', { name: displayName(k,currentLang()) })}">${spec?.emoji || '🏗️'} <b>${missing[k]}</b></button>`;
     }).join('') : '';
     const row = document.createElement('div');
     row.className = 'goal-row';
@@ -1126,19 +1728,28 @@ function renderGoalList(m) {
 function renderSelectedInfo() {
   const idx = state.selectedIdx;
   const b = idx >= 0 ? state.layout.buildings[idx] : null;
-  if (!b) { selectedInfo.innerHTML = ''; state.homeRoutes = []; return; }
+  if (b) { keyCursor.x=b.pos[0]; keyCursor.y=b.pos[1]; }
+  announceCursor();
+  if (!b) { refreshHomeRoutes(); selectedInfo.innerHTML = routeStatusHTML(); return; }
   refreshHomeRoutes();
   const spec = typeSpec(b.type);
-  const name = spec?.name || b.type;
+  const name = displayName(b.type,currentLang());
   const locked = !!b.locked;
   selectedInfo.innerHTML = `
     <div class="sel-title">${spec?.emoji || ''} ${name}${locked ? ' 🔒' : ''}</div>
     <div class="sel-actions">
       <button id="sel-lock" class="sel-btn ${locked ? 'locked' : ''}">${locked ? t('planner.selected.unlock') : t('planner.selected.lock')}</button>
       <button id="sel-delete" class="sel-btn">${t('planner.selected.remove')}</button>
-    </div>`;
+    </div>${routeStatusHTML()}`;
   document.getElementById('sel-lock').addEventListener('click', toggleLock);
   document.getElementById('sel-delete').addEventListener('click', () => deleteSelectedOrClear());
+}
+
+function routeStatusHTML() {
+  if (state.viewMode !== 'walk') return '';
+  return '<div class="route-statuses" aria-live="polite"><p>' + t('planner.route.basis') + '</p>' + state.homeRoutes.map((r) =>
+    `<p data-route-status="${r.status}">${r.type ? (r.type === 'park' ? t('planner.type.park') : displayName(r.type,currentLang())) + ': ' : ''}${t('planner.route.' + r.status)}${Number.isFinite(r.dist) ? ' · ' + r.dist + 'm' : ''}</p>`
+  ).join('') + '</div>';
 }
 
 function toggleLock() {
@@ -1150,7 +1761,7 @@ function toggleLock() {
   updateMetrics();
   render();
   toast(b.locked
-    ? L('planner.toast.locked', { name: typeSpec(b.type)?.name || t('planner.name.thisBuilding') })
+    ? L('planner.toast.locked', { name: displayName(b.type,currentLang()) })
     : t('planner.toast.unlocked'));
 }
 
@@ -1187,10 +1798,10 @@ function updateGoalsLive(m) {
 }
 
 function updateGoalsTabs() {
-  document.getElementById('goals-tab-mayor').classList.toggle('active', state.goalMode === 'mayor');
-  document.getElementById('goals-tab-custom').classList.toggle('active', state.goalMode === 'custom');
-  document.getElementById('goals-mayor-pane').classList.toggle('hidden', state.goalMode !== 'mayor');
-  document.getElementById('goals-custom-pane').classList.toggle('hidden', state.goalMode !== 'custom');
+  document.getElementById('goals-tab-mayor').classList.toggle('active', state.goalTab === 'mayor');
+  document.getElementById('goals-tab-custom').classList.toggle('active', state.goalTab === 'custom');
+  document.getElementById('goals-mayor-pane').classList.toggle('hidden', state.goalTab !== 'mayor');
+  document.getElementById('goals-custom-pane').classList.toggle('hidden', state.goalTab !== 'custom');
 }
 
 function renderMayorCards() {
@@ -1198,16 +1809,16 @@ function renderMayorCards() {
   for (const id of Object.keys(MAYORS)) {
     const m = MAYORS[id];
     const card = document.createElement('button');
-    card.className = 'mayor-card' + (state.mayorId === id ? ' selected' : '');
+    card.className = 'mayor-card' + (state.goals.mayorId === id ? ' selected' : '');
     card.dataset.mayor = id;
     card.innerHTML = `
       <div class="mayor-emoji">${m.emoji}</div>
       <div class="mayor-name">${mayorName(id)}</div>
       <div class="mayor-brief">${mayorBrief(id)}</div>`;
     card.addEventListener('click', () => {
-      state.goalMode = 'mayor';
-      state.mayorId = id;
-      state.goalWeights = { ...m.weights };
+      state.goalTab = 'mayor';
+      state.goals = mayorGoals(id);
+      renderSliders();
       renderMayorCards();
       updateGoalsTabs();
       updateMetrics();
@@ -1215,7 +1826,7 @@ function renderMayorCards() {
     mayorGrid.appendChild(card);
   }
   const balanced = document.getElementById('btn-mayor-balanced');
-  if (balanced) balanced.classList.toggle('selected', state.mayorId === null);
+  if (balanced) balanced.classList.toggle('selected', state.goals.mode === 'default');
 }
 
 // Sliders are RELATIVE importance, not four independent 0–100% toggles: the
@@ -1223,13 +1834,13 @@ function renderMayorCards() {
 // proportions matter. Showing the raw 0–100 value next to each slider misleads
 // a child into thinking "Happy = 100" means the whole score is Happy, when it
 // is really Happy ≈ 100/total. We therefore display each goal's live SHARE of
-// the total (they always add up to 100%), while the slider position keeps its
+// the total (rounded independently), while the slider position keeps its
 // familiar 0–100 "how much this matters" range.
 function sliderShares() {
-  const sum = GOAL_KEYS.reduce((s, g) => s + (state.sliderVals[g] || 0), 0);
+  const sum = GOAL_KEYS.reduce((s, g) => s + (state.goals.values[g] || 0), 0);
   if (!(sum > 0)) return GOAL_KEYS.reduce((o, g) => { o[g] = 0; return o; }, {});
   const out = {};
-  for (const g of GOAL_KEYS) out[g] = Math.round(((state.sliderVals[g] || 0) / sum) * 100);
+  for (const g of GOAL_KEYS) out[g] = Math.round(((state.goals.values[g] || 0) / sum) * 100);
   return out;
 }
 
@@ -1243,11 +1854,10 @@ function updateSliderShareLabels() {
 
 function renderSliders() {
   sliderList.innerHTML = '';
-  const base = state.goalWeights || state.sliderVals;
-  const vals = {};
-  for (const g of GOAL_KEYS) {
-    vals[g] = Math.round((base[g] != null ? base[g] : 0.25) * 100);
-  }
+  const explanation = document.createElement('p');
+  explanation.textContent = t(state.goals.mode === 'legacy' ? 'planner.goals.legacy' : 'planner.goals.relative');
+  sliderList.appendChild(explanation);
+  const vals = Object.fromEntries(GOAL_KEYS.map((g) => [g, goalToSlider(state.goals.values[g])]));
   for (const g of GOAL_KEYS) {
     const meta = GOAL_META[g];
     const wrap = document.createElement('div');
@@ -1258,9 +1868,11 @@ function renderSliders() {
       <span class="slider-val" data-val="${g}">…</span>`;
     wrap.querySelector('.goal-slider').addEventListener('input', (e) => {
       const goal = e.target.dataset.goal;
-      state.sliderVals[goal] = Number(e.target.value);
-      state.goalMode = 'custom';
-      state.goalWeights = { ...state.sliderVals };
+      state.goals.values[goal] = sliderToGoal(e.target.value);
+      state.goalTab = 'custom';
+      state.goals = { version: 1, mode: 'custom', mayorId: null, values: { ...state.goals.values } };
+      explanation.textContent = t('planner.goals.relative');
+      renderMayorCards();
       updateSliderShareLabels();
       updateGoalsTabs();
       updateMetrics();
@@ -1275,20 +1887,13 @@ function closeGoalsModal() {
 }
 
 // ─── Score receipt (weighted-sum breakdown) ─────────────
-const RECEIPT_META = [
-  { key: 'accessibility', emoji: '🛣️', name: 'Easy to get around', hint: 'Buildings within 60m of a road.' },
-  { key: 'coverage', emoji: '🏘️', name: 'Homes have services', hint: 'Homes within 150m of school/shop/hospital/fire/police.' },
-  { key: 'utilities', emoji: '💧', name: 'Water, power & buses', hint: 'Homes within 400m of water/power/bus.' },
-  { key: 'zoning', emoji: '🤫', name: 'Quiet & safe', hint: 'Noisy buildings kept away from homes.' },
-  { key: 'spread', emoji: '🧩', name: 'Spread out', hint: 'Mission buildings not clustered together.' },
-  { key: 'balance', emoji: '⚖️', name: 'Good mix', hint: 'A sensible mix of different buildings.' },
-];
+const RECEIPT_META = METRIC_DESCRIPTORS;
 
 function openReceipt() {
-  const m = state.lastMetrics || computeMetrics(state.layout, undefined, effectiveWeights(), computeWalkState(), currentLang());
+  const m = computeMetrics(state.layout, undefined, effectiveWeights(), computeWalkState(), currentLang());
   const weights = effectiveWeights();
   // Resolve the metric-level weights actually used (default blend or mayor/custom).
-  const mw = weights ? normalizeWeights(weights) : defaultMetricWeights();
+  const mw = normalizeWeights(weights) || defaultMetricWeights();
   const rows = RECEIPT_META.map((r) => {
     const raw = m[r.key] || 0;
     const w = mw[r.key] || 0;
@@ -1305,7 +1910,7 @@ function openReceipt() {
   const note = weights
     ? t('planner.receipt.noteCustom')
     : t('planner.receipt.noteDefault');
-  document.getElementById('receipt-note').innerHTML = note;
+  document.getElementById('receipt-note').innerHTML = note + ' ' + t('planner.receipt.rounding');
   // "What raises my score fastest?" — the same greedy single-move search behind
   // My move, surfaced in the receipt so the score breakdown becomes a plan.
   renderReceiptFastest(weights);
@@ -1401,8 +2006,9 @@ function dismissCoach() {
 function localizedReason(item) {
   if (currentLang() !== 'zh-Hant') return item.reason;
   const what = item.what;
-  const name = what === 'housing' ? t('planner.type.housing') : (typeSpec(what)?.name || what);
+  const name = what === 'housing' ? t('planner.type.housing') : (displayName(what,currentLang()));
   const useName = (k) => L(k, { name });
+  if (item.kind === 'off-road') return useName('planner.reason.moveOffRoad');
   if (item.action === 'add_park') return t('planner.reason.addPark');
   if (item.action === 'add') {
     if (what === 'housing') return t('planner.reason.addHousing');
@@ -1538,10 +2144,9 @@ async function runMyMove() {
 function renderMyMovePredict() {
   const body = document.getElementById('mymove-body');
   const { moves } = state.mymove;
-  const goalKey = topGoalKey();
   body.innerHTML = `
     <div class="mymove-intro">${t('planner.mymove.introPre')}<strong>${t('planner.mymove.introStrong')}</strong>${t('planner.mymove.introPost')}</div>
-    <div class="mymove-question">${t('planner.mymove.questionPre')}<strong>${goalDisplayName(goalKey)}</strong>${t('planner.mymove.questionPost')}</div>
+    <div class="mymove-question">${t('planner.mymove.scoreQuestion')}</div>
     ${moves.map((m, i) => `
       <button class="move-card" data-move="${i}">
         <div>${moveLabel(m)}</div>
@@ -1643,6 +2248,7 @@ function renderMyMoveReveal() {
 }
 
 function applyMyMove() {
+  if (!state.mymove) return;
   const { moves, chosenMove } = state.mymove;
   const move = moves[chosenMove];
   const oldLayout = state.layout;
@@ -1692,7 +2298,7 @@ function flashOneMove(move) {
 }
 
 function moveLabel(m) {
-  const name = m.what === 'housing' ? t('planner.movelabel.homeName') : (typeSpec(m.what)?.name || m.what);
+  const name = m.what === 'housing' ? t('planner.movelabel.homeName') : (displayName(m.what,currentLang()));
   if (m.action === 'add') return L('planner.movelabel.add', { name });
   if (m.action === 'move') return L('planner.movelabel.move', { name });
   if (m.action === 'remove') return L('planner.movelabel.remove', { name });
@@ -1701,8 +2307,8 @@ function moveLabel(m) {
 }
 
 function receiptDeltaHTML(move, chosenReason, reasonCorrect) {
-  const metricLabelEn = { accessibility: 'walk to a road', coverage: 'schools/shops/help nearby', utilities: 'water/power/bus', zoning: 'quiet for homes', spread: 'spread out', balance: 'building mix', green: 'parks' };
-  const metricEmoji = { accessibility: '🛣️', coverage: '🏘️', utilities: '💧', zoning: '🤫', spread: '🧩', balance: '⚖️', green: '🌳' };
+  const metricLabelEn = { accessibility: 'walk to a road', coverage: 'schools/shops/help nearby', utilities: 'water/power/bus', zoning: 'quiet for homes', spread: 'spread out', balance: 'building mix', green: 'parks', walkability: 'needs reached along roads' };
+  const metricEmoji = { accessibility: '🛣️', coverage: '🏘️', utilities: '💧', zoning: '🤫', spread: '🧩', balance: '⚖️', green: '🌳', walkability: '🚶' };
   const metricLabel = (m) => (currentLang() !== 'zh-Hant' ? (metricLabelEn[m] || m) : t('planner.mm.metric.' + m));
   const lines = move.improved.length ? move.improved.map((m) => {
     return `<div class="rr-line"><span>${metricEmoji[m] || ''} ${metricLabel(m)}</span><span class="rr-up">${t('planner.mm.improved')}</span></div>`;
@@ -1716,16 +2322,6 @@ function receiptDeltaHTML(move, chosenReason, reasonCorrect) {
     <div class="rr-line"><strong>${t('planner.score.label')}</strong><strong>${move.beforeScore} → ${move.afterScore} (+${move.deltaScore})</strong></div>
     ${reasonBadge}
     ${lines.join('')}`;
-}
-
-function topGoalKey() {
-  // The student's most-weighted goal is the "target" for the prediction question.
-  const w = state.goalWeights || null;
-  if (w) {
-    const top = GOAL_KEYS.slice().sort((a, b) => (w[b] || 0) - (w[a] || 0))[0];
-    return top || 'happy';
-  }
-  return 'happy';
 }
 
 function reasonChipLabel(id) {
@@ -1748,23 +2344,8 @@ function closeMyMove() {
  * WHY the city scored as it did using the same rows as the 2D receipt.
  */
 function buildPlannerPlan() {
-  const m = state.lastMetrics;
-  if (!m || !Number.isFinite(m.score)) return null;
-  const weights = effectiveWeights();
-  const mw = weights ? normalizeWeights(weights) : defaultMetricWeights();
-  return {
-    score: Math.round(m.score),
-    metrics: RECEIPT_META.map((r) => {
-      const raw = m[r.key] || 0;
-      const w = mw[r.key] || 0;
-      return {
-        key: r.key,
-        raw: Math.round(raw * 100),
-        weight: Math.round(w * 100),
-        points: Math.round(raw * w * 1000) / 10,
-      };
-    }),
-  };
+  const m = computeMetrics(state.layout, undefined, effectiveWeights(), computeWalkState(), currentLang());
+  return metricReceipt(m, effectiveWeights());
 }
 
 function serializeLayout() {
@@ -1773,26 +2354,14 @@ function serializeLayout() {
   // optimiser), we now carry that context forward so the 3D city and the Coding
   // Buddy can talk about the child's own AI choices. Extra keys are ignored by
   // older sanitizers — fully backward compatible.
-  let goals = null;
-  if (state.goalWeights) {
-    const persona = state.goalMode === 'mayor' && state.mayorId && MAYORS[state.mayorId]
-      ? MAYORS[state.mayorId]
-      : null;
-    goals = {
-      weights: normalizeWeights(state.goalWeights),
-      label: persona ? persona.name : 'Custom goals',
-      emoji: persona ? persona.emoji : '⚖️',
-    };
-  }
-  const plannerScore =
-    state.lastMetrics && Number.isFinite(state.lastMetrics.score)
-      ? Math.round(state.lastMetrics.score)
-      : null;
+  const goals = serializeGoals(state.goals);
   const plannerPlan = buildPlannerPlan();
+  const plannerScore = plannerPlan.score;
 
   return {
     version: 2,
-    scaleMeters: SCALE,
+    scaleMeters: state.layout.scaleMeters,
+    autoScenery: state.layout.autoScenery !== false,
     roads: state.layout.roads,
     parks: state.layout.parks,
     buildings: state.layout.buildings.map((b) => ({
@@ -1800,7 +2369,7 @@ function serializeLayout() {
       pos: b.pos,
       footprint: b.footprint,
       height: b.height,
-      ...(b.locked ? { locked: true } : {}),
+      ...(typeof b.locked === 'boolean' ? { locked: b.locked } : {}),
     })),
     ...(goals ? { goals } : {}),
     ...(plannerScore !== null ? { plannerScore } : {}),
@@ -1812,7 +2381,7 @@ function exportCity() {
   const layout = serializeLayout();
   const v = validateLayout(layout);
   if (!v.ok) {
-    toast('⚠️ ' + v.errors[0]);
+    toast(t('ui.invalid'));
     return;
   }
   const json = JSON.stringify(layout, null, 2);
@@ -1874,11 +2443,12 @@ let _booted = false;   // suppress the status flash during the initial programma
 
 /** Serialize + persist the current layout. Returns true when written. */
 function saveLayoutToStorage() {
+  if (restoreActive) return false;
   try {
     const layout = serializeLayout();
     const v = validateLayout(layout);
     if (!v.ok) return false;   // never persist an invalid city
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(layout, null, 2));
+    localStorage.setItem(STORAGE_KEY, currentLayoutString());
     return true;
   } catch (e) {
     return false;              // quota / blocked storage — keep the in-memory city
@@ -1903,7 +2473,7 @@ function setAutosaveStatus(kind) {
 
 /** Queue a save for just after the current burst of edits. */
 function scheduleAutosave() {
-  if (!_booted) return;   // the initial programmatic updateMetrics() is not a change
+  if (!_booted || restoreActive) return;   // the initial programmatic updateMetrics() is not a change
   clearTimeout(_autosaveTimer);
   setAutosaveStatus('saving');
   _autosaveTimer = setTimeout(() => {
@@ -1928,8 +2498,29 @@ window.addEventListener('pagehide', flushAutosave);
 // "💾 Save my city" bundles EVERYTHING (layout + quests + props + skin + flags)
 // into one file the student names, so they can restore it on any device next
 // lesson. This restores the old forced-download safety net, but named + complete.
+function editableSignature() {
+  return JSON.stringify([state.layout, state.goals]);
+}
+function rememberRawLayout(raw) {
+  state.rawBaseline = { raw, signature: editableSignature() };
+}
+function currentLayoutString() {
+  if (state.rawBaseline?.signature === editableSignature()) return state.rawBaseline.raw;
+  return JSON.stringify(serializeLayout(), null, 2);
+}
+function currentSnapshot() {
+  return { ...collectState(), layout: currentLayoutString() };
+}
+function restoreFile(state, code) {
+  restoreChampion(state, currentSnapshot, () => {
+    clearTimeout(_autosaveTimer);
+    clearTimeout(_statusTimer);
+    if (code) { try { localStorage.setItem(CLOUD_CODE_KEY, code); } catch { /* optional device pointer */ } }
+  });
+}
+
 function downloadChampionFile(label) {
-  const file = composeChampionFile(collectState(), label);
+  const file = composeChampionFile(currentSnapshot(), label);
   const json = JSON.stringify(file, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1974,7 +2565,7 @@ function wireSaveModal() {
   };
   saveBtn.addEventListener('click', open);
   goBtn.addEventListener('click', doSave);
-  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSave(); });
+  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doSave(); } });
   modal.querySelectorAll('[data-save-close]').forEach((el) => el.addEventListener('click', close));
 
   // ☁️ Save to cloud — same worker endpoints the 3D city uses, so a code made
@@ -2016,7 +2607,7 @@ function escHTML(s) {
 }
 
 async function cloudSave(label) {
-  const file = composeChampionFile(collectState(), label);
+  const file = composeChampionFile(currentSnapshot(), label);
   let lastCode = null;
   try { lastCode = localStorage.getItem(CLOUD_CODE_KEY); } catch { /* ignore */ }
   const res = await fetch('/api/save', {
@@ -2063,6 +2654,7 @@ function wireCloudModal() {
   };
   const close = () => modal.classList.add('hidden');
   const doLoad = async () => {
+    if (loadBtn.disabled || restoreActive) return;
     const code = codeInput.value.trim();
     if (!code) { if (result) result.textContent = t('planner.cloud.needCode'); return; }
     loadBtn.disabled = true;
@@ -2070,15 +2662,8 @@ function wireCloudModal() {
     try {
       const data = await cloudLoad(code);
       const champ = sanitizeChampionFile(data);
-      if (!champ.ok) { if (result) result.textContent = '⚠️ ' + champ.error; return; }
-      const res = writeState(champ.file.state);
-      if (result) {
-        result.textContent = res.ok
-          ? L('planner.cloud.restored', { n: res.wrote })
-          : L('planner.cloud.partial', { n: res.failed.length });
-      }
-      try { localStorage.setItem(CLOUD_CODE_KEY, code); } catch { /* ignore */ }
-      setTimeout(() => window.location.reload(), 3000);
+      if (!champ.ok) { if (result) result.textContent = t('ui.invalid'); return; }
+      restoreFile(champ.file.state, code);
     } catch (e) {
       // "Wrong code" and "cloud unreachable" are different problems — say which.
       if (result) {
@@ -2093,24 +2678,20 @@ function wireCloudModal() {
   };
   openBtn.addEventListener('click', open);
   loadBtn.addEventListener('click', doLoad);
-  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLoad(); });
+  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doLoad(); } });
   modal.querySelectorAll('[data-cloud-close]').forEach((el) => el.addEventListener('click', close));
 }
 
 /** Import a Champion File (restore everything) or a legacy layout JSON. Returns true if handled. */
 function importAny(raw) {
-  if (typeof raw !== 'string' || !raw.trim()) return false;
+  if (!withinImportLimit(raw)) { toast(t('ui.tooLarge')); return true; }
+  if (!raw.trim()) return false;
   let parsed;
   try { parsed = JSON.parse(raw); } catch { return false; }
   const champ = sanitizeChampionFile(parsed);
+  if (parsed?.kind === 'passiona-champion-file' && !champ.ok) { toast(t('ui.invalid')); return true; }
   if (champ.ok) {
-    const res = writeState(champ.file.state);
-    const labelSuffix = champ.file.label ? ' — ' + champ.file.label : '';
-    // Warn (don't silently drop) if a quota hit left the restore partial.
-    toast(res.ok
-      ? L('planner.import.restored', { label: labelSuffix, n: res.wrote })
-      : L('planner.import.partial', { n: res.failed.length }));
-    setTimeout(() => window.location.reload(), 600);
+    restoreFile(champ.file.state);
     return true;
   }
   return false;
@@ -2122,6 +2703,7 @@ function importAny(raw) {
  * restores it. Validation + sanitize happen before anything is replaced.
  */
 function importCity(raw) {
+  if (!withinImportLimit(raw)) { toast(t('ui.tooLarge')); return false; }
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -2131,12 +2713,15 @@ function importCity(raw) {
   }
   const v = validateLayout(parsed);
   if (!v.ok) {
-    toast('⚠️ ' + v.errors[0]);
+    toast(t('ui.invalid'));
     return false;
   }
   const next = sanitizeLayout(parsed);
   pushUndo();
   state.layout = next;
+  state.goals = readGoals(parsed.goals);
+  rememberRawLayout(raw);
+  state.goalTab = state.goals.mode === 'mayor' || state.goals.mode === 'default' ? 'mayor' : 'custom';
   state.selectedIdx = -1;
   updateMetrics();
   render();
@@ -2164,9 +2749,10 @@ const METRIC_LABEL = {
   zoning: 'quieter for homes',
   balance: 'better building mix',
   green: 'parks & green space',
+  walkability: 'needs reached along roads',
 };
 const METRIC_ICON = {
-  accessibility: '🛣️', coverage: '🏘️', utilities: '💧', spread: '🧩', zoning: '🤫', balance: '⚖️', green: '🌳',
+  accessibility: '🛣️', coverage: '🏘️', utilities: '💧', spread: '🧩', zoning: '🤫', balance: '⚖️', green: '🌳', walkability: '🚶',
 };
 
 function metricBadges(improved) {
@@ -2230,30 +2816,9 @@ function renderPlan(before, after, diff, strategy = 'greedy') {
 
   const modal = document.getElementById('plan-modal');
   modal.classList.remove('hidden');
-  // Strategy chips: switch which plan is shown (Apply always commits the ACTIVE one).
-  modal.querySelectorAll('.strategy-chip').forEach((chip) => {
-    chip.addEventListener('click', () => showStrategy(chip.dataset.strategy));
-  });
   // Focus the primary action so the student can Apply with one tap.
   const applyBtn = document.getElementById('plan-apply');
   if (applyBtn) applyBtn.focus();
-
-  // Close on backdrop / X / Esc — but NOT on Apply (that commits the plan).
-  modal.querySelectorAll('[data-plan-close]').forEach((el) => {
-    el.addEventListener('click', () => closePlanModal());
-  });
-  document.addEventListener('keydown', function esc(e) {
-    if (e.key === 'Escape') { closePlanModal(); document.removeEventListener('keydown', esc); }
-  });
-
-  if (applyBtn) applyBtn.addEventListener('click', applyPlan);
-  const keepBtn = document.getElementById('plan-keep');
-  if (keepBtn) keepBtn.addEventListener('click', () => {
-    _pendingPlan = null;
-    closePlanModal();
-    aiOutput.innerHTML = buddyMsg('planner.buddy.optimiser', 'planner.plan.aiKept');
-    toast(t('planner.toast.keptAsIs'));
-  });
 }
 
 function closePlanModal() {
@@ -2285,6 +2850,27 @@ function applyPlan() {
   aiOutput.innerHTML = buddyMsg('planner.buddy.optimiser', 'planner.plan.aiDone');
   _pendingPlan = null;
 }
+
+// The plan body is re-rendered when the child compares strategies. Delegate
+// its controls through one stable handler so persistent backdrop/X controls do
+// not accumulate listeners on every render.
+(function wirePlanModalOnce() {
+  const modal = document.getElementById('plan-modal');
+  if (!modal) return;
+  modal.addEventListener('click', (event) => {
+    const target = event.target.closest('button,[data-plan-close]');
+    if (!target || !modal.contains(target)) return;
+    if (target.matches('[data-plan-close]')) { closePlanModal(); return; }
+    if (target.classList.contains('strategy-chip')) { showStrategy(target.dataset.strategy); return; }
+    if (target.id === 'plan-apply') { applyPlan(); return; }
+    if (target.id === 'plan-keep') {
+      _pendingPlan = null;
+      closePlanModal();
+      aiOutput.innerHTML = buddyMsg('planner.buddy.optimiser', 'planner.plan.aiKept');
+      toast(t('planner.toast.keptAsIs'));
+    }
+  });
+})();
 
 // Briefly outline the buildings the plan changed (green=added, blue=moved,
 // red=removed) so the student sees exactly what changed on the map.
@@ -2330,7 +2916,7 @@ document.getElementById('btn-clear').addEventListener('click', deleteSelectedOrC
 // Delete/Backspace removes the selected building (or clears when none), but
 // never while the child is typing in a text field.
 document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+  if (activeModal() || document.activeElement !== canvas || state.selectedIdx < 0 || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
   const ae = document.activeElement;
   if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
   e.preventDefault();
@@ -2351,17 +2937,17 @@ goalsModal.querySelectorAll('[data-goals-close]').forEach((el) => {
   el.addEventListener('click', closeGoalsModal);
 });
 document.getElementById('goals-tab-mayor').addEventListener('click', () => {
-  state.goalMode = 'mayor';
+  state.goalTab = 'mayor';
   updateGoalsTabs();
 });
 document.getElementById('goals-tab-custom').addEventListener('click', () => {
-  state.goalMode = 'custom';
+  state.goalTab = 'custom';
   updateGoalsTabs();
 });
 document.getElementById('btn-mayor-balanced').addEventListener('click', () => {
-  state.goalMode = 'mayor';
-  state.mayorId = null;
-  state.goalWeights = null;   // Balanced — default fixed blend
+  state.goalTab = 'mayor';
+  state.goals = defaultGoals();
+  renderSliders();
   renderMayorCards();
   updateGoalsTabs();
   updateMetrics();
@@ -2386,6 +2972,7 @@ function setViewMode(mode) {
   } else {
     hint(t('planner.hint.normal'));
   }
+  renderSelectedInfo();
   render();
 }
 viewHappy.addEventListener('click', () => setViewMode('happy'));
@@ -2430,7 +3017,9 @@ importFileBtn.addEventListener('click', (e) => {
  importFileInput.addEventListener('change', () => {
    const f = importFileInput.files[0];
    if (!f) return;
+   if (f.size > MAX_IMPORT_BYTES) { toast(t('ui.tooLarge')); importFileInput.value = ""; return; }
    const reader = new FileReader();
+   reader.onerror = () => toast(t('ui.readFail'));
    reader.onload = () => {
      // Champion File (restore everything) OR legacy layout JSON.
      if (!importAny(reader.result)) importCity(reader.result);
@@ -2453,7 +3042,7 @@ if (importBackupBtn) {
   importBackupBtn.addEventListener('click', () => {
     const layout = serializeLayout();
     const v = validateLayout(layout);
-    if (!v.ok) { toast('⚠️ ' + v.errors[0]); return; }
+    if (!v.ok) { toast(t('ui.invalid')); return; }
     downloadLayout(JSON.stringify(layout, null, 2));
     importMenu.classList.add('hidden');
     toast(t('planner.import.downloaded'));
@@ -2496,7 +3085,12 @@ function toast(msg) {
     try {
       const parsed = JSON.parse(saved);
       const v = validateLayout(parsed);
-      if (v.ok) state.layout = sanitizeLayout(parsed);
+      if (v.ok) {
+        state.layout = sanitizeLayout(parsed);
+        state.goals = readGoals(parsed.goals);
+        rememberRawLayout(saved);
+        state.goalTab = state.goals.mode === 'mayor' || state.goals.mode === 'default' ? 'mayor' : 'custom';
+      }
     } catch (e) { /* corrupted — start fresh */ }
   }
   // Center the plan viewport on first open
@@ -2509,4 +3103,20 @@ function toast(msg) {
   resize();
   maybeShowCoach();
   _booted = true;   // from here on, auto-save changes announce themselves
+  // Offer to join a restored city's loose roads once, non-blockingly. The child
+  // can always say "Not now" and the roads stay exactly as drawn.
+  if (refreshConnect() > 0 && !state.connectAsked) {
+    state.connectAsked = true;
+    setTimeout(() => { if (state.connectCount > 0) offerConnect(); }, 700);
+  }
 })();
+
+// Presentation preference travels with the plan, without entering its metrics.
+const sceneryToggle=document.createElement('label');sceneryToggle.className='planner-scenery';
+sceneryToggle.innerHTML='<input id="auto-scenery" type="checkbox"><span></span>';
+const sceneryInput=sceneryToggle.querySelector('input');
+function refreshSceneryToggle(){if(!document.getElementById('auto-scenery'))return;const zh=currentLang()==='zh-Hant';sceneryInput.checked=state.layout.autoScenery!==false;sceneryToggle.querySelector('span').textContent=zh?'自動佈置':'Automatic scenery';sceneryToggle.title=zh?'在3D城市加入花園、植物和街道擺設。關閉後仍保留你放置的物件。':'Add gardens, plants and street furniture in 3D. Your own objects always stay.';}
+sceneryInput.addEventListener('change',()=>{state.layout.autoScenery=sceneryInput.checked;flushAutosave();});
+document.querySelector('#planner-more .secondary-tools')?.append(sceneryToggle);
+window.addEventListener('i18n:change',refreshSceneryToggle);
+refreshSceneryToggle();

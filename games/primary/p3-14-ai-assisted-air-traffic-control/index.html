@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>AI Ghost Controller</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#1a252f;color:#e0e8f0;touch-action:manipulation;user-select:none}
+canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%}
+#menu{position:absolute;top:0;left:0;width:100%;height:100%;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1a252f;text-align:center;padding:20px}
+#menu h1{font-size:32px;color:#7CFFB3;margin-bottom:8px}
+#menu p{color:#809090;font-size:14px;max-width:400px;margin-bottom:16px;line-height:1.4}
+#go{position:absolute;top:0;left:0;width:100%;height:100%;z-index:25;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,15,20,0.85)}
+#go.show{display:flex}
+#go>div{background:linear-gradient(145deg,#1e3340,#15242e);border:2px solid rgba(124,255,179,0.2);border-radius:16px;padding:24px;max-width:340px;width:90%;text-align:center}
+#go h2{color:#7CFFB3;font-size:20px;margin-bottom:8px}
+#go .sc{font-size:36px;color:#FFB347;font-weight:700;margin:8px 0}
+#go .st{font-size:13px;color:#b0d8e0;line-height:1.6;text-align:left;margin:8px 0}
+#hud{position:absolute;top:0;left:0;right:0;z-index:10;display:none;padding:6px 10px;background:linear-gradient(180deg,rgba(26,37,47,0.95),transparent);font-size:13px}
+#hud>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{padding:14px 36px;border:none;border-radius:12px;font-size:17px;font-weight:700;cursor:pointer;background:#FFB347;color:#1a252f;font-family:inherit;min-height:48px}
+.btn:active{transform:scale(0.94)}
+.sb{padding:5px 10px;border-radius:6px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#e0e8f0;font-size:12px;font-weight:700;cursor:pointer;min-height:28px;font-family:inherit}
+.sb:active{transform:scale(0.92);filter:brightness(1.3)}
+.ab{display:none;padding:4px 8px;border-radius:5px;border:2px solid;font-size:10px;font-weight:700;cursor:pointer;min-height:24px;font-family:inherit}
+/* ── Narrative elements ── */
+.nova-mood{display:inline-block;font-size:16px;line-height:1;margin-left:4px;transition:transform .3s;filter:drop-shadow(0 0 3px rgba(124,255,179,.3))}
+.vega-card{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:6px;background:rgba(26,37,47,.9);border:1px solid rgba(124,255,179,.15);font-size:11px;max-width:320px;animation:vegaIn .4s ease;margin-left:4px}
+.vega-avatar{font-size:16px;flex-shrink:0}
+.vega-msg{color:#b0d8e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes vegaIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+/* ── Narrative event card ── */
+#narrativeCard{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:30;display:none;pointer-events:none;max-width:380px;width:90%}
+#narrativeCard.show{display:block;animation:narCardIn .35s ease}
+@keyframes narCardIn{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.nar-card{background:rgba(20,35,45,.95);border:1px solid rgba(124,255,179,.2);border-radius:10px;padding:8px 14px;text-align:center}
+.nar-card .nar-title{font-size:12px;color:#7CFFB3;font-weight:700;margin-bottom:2px}
+.nar-card .nar-body{font-size:11px;color:#b0d8e0;line-height:1.4}
+/* ── Chapter Grid Menu ── */
+.chapter-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:360px;width:100%;margin:0 auto 8px}
+.ch-grid-btn{background:linear-gradient(145deg,#1e3340,#15242e);border:2px solid rgba(124,255,179,.15);border-radius:10px;padding:8px 6px;color:#b0d8e0;font-size:11px;cursor:pointer;font-family:inherit;text-align:center;transition:all .15s;min-height:70px}
+.ch-grid-btn:active{transform:scale(.94)}
+.ch-grid-btn .ch-gb{display:block;font-size:22px;margin-bottom:2px}
+.ch-grid-btn .ch-gt{font-weight:700;font-size:12px;color:#e0e8f0}
+.ch-grid-btn .ch-gc{display:block;font-size:10px;color:#7394ac;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.ch-grid-btn .ch-gd{display:inline-block;margin-top:2px;font-size:15px}
+.ch-grid-btn.done{border-color:#7CFFB3;box-shadow:0 0 8px rgba(124,255,179,.15)}
+.ch-grid-btn.done .ch-gc{color:#7CFFB3}
+.menu-bottom{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:4px}
+.btn-sm{padding:8px 18px;font-size:13px}
+/* ── Chapter Overlays (intro, done, cert) ── */
+.ch-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(8,12,16,.88);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:chOverIn .3s ease}
+@keyframes chOverIn{from{opacity:0}to{opacity:1}}
+.ch-intro-card{background:linear-gradient(145deg,#1e3340,#15242e);border:2px solid rgba(124,255,179,.2);border-radius:16px;padding:20px 22px;max-width:380px;width:90%;text-align:center;animation:chCardIn .35s ease;max-height:90vh;overflow-y:auto}
+@keyframes chCardIn{from{opacity:0;transform:translateY(20px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.ch-intro-number{font-size:11px;font-weight:700;color:#7CFFB3;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px}
+.ch-intro-title{font-size:20px;color:#e0e8f0;margin-bottom:6px}
+.ch-intro-story{font-size:12px;color:#809090;line-height:1.5;margin-bottom:10px;font-style:italic;padding:0 4px}
+.ch-concept-box{background:rgba(124,255,179,.06);border:1px solid rgba(124,255,179,.15);border-radius:8px;padding:8px 10px;margin-bottom:6px;text-align:left}
+.ch-concept-label{font-size:10px;color:#7CFFB3;font-weight:700;text-transform:uppercase;margin-bottom:2px}
+.ch-concept-name{font-size:13px;color:#e0e8f0;font-weight:700;margin-bottom:3px}
+.ch-concept-body{font-size:11px;color:#b0d8e0;line-height:1.5}
+.ch-intro-mode{font-size:10px;color:#607080;margin-top:4px}
+/* Chapter done overlay */
+.ch-done-title{font-size:22px;color:#7CFFB3;font-weight:700;margin-bottom:4px}
+.ch-done-stars{font-size:28px;margin-bottom:4px}
+.ch-done-body{font-size:12px;color:#b0d8e0;line-height:1.5;margin-bottom:8px}
+/* Certification overlay */
+.cert-card{background:linear-gradient(145deg,#1e3340,#15242e);border:2px solid rgba(255,215,0,.25);border-radius:16px;padding:20px 16px;max-width:400px;width:90%;text-align:center;animation:chCardIn .35s ease;max-height:90vh;overflow-y:auto}
+.cert-title{font-size:24px;color:#FFD700;margin-bottom:4px}
+.cert-subtitle{font-size:12px;color:#809090;margin-bottom:10px}
+.cert-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.cert-item{background:rgba(124,255,179,.04);border:1px solid rgba(124,255,179,.12);border-radius:8px;padding:6px}
+.cert-item .ci-emoji{font-size:20px;display:block}
+.cert-item .ci-name{font-size:11px;font-weight:700;color:#e0e8f0;display:block;margin:1px 0}
+.cert-item .ci-why{font-size:9px;color:#809090;display:block;line-height:1.3}
+.cert-item .ci-real{font-size:9px;color:#7CFFB3;display:block;margin-top:2px;font-style:italic}
+.cert-stats{font-size:12px;color:#b0d8e0;padding:6px 8px;background:rgba(124,255,179,.04);border-radius:6px}
+/* Exam styles */
+.exam-choice{display:flex;align-items:center;gap:6px;width:100%;padding:8px 10px;border:2px solid rgba(124,255,179,.12);border-radius:8px;background:rgba(124,255,179,.04);color:#b0d8e0;font-size:12px;cursor:pointer;text-align:left;font-family:inherit;transition:all .15s}
+.exam-choice:hover{background:rgba(124,255,179,.1);border-color:#7CFFB3}
+.exam-choice:disabled{opacity:.7;cursor:default}
+.exam-letter{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;background:rgba(124,255,179,.1);color:#7CFFB3;font-size:11px;font-weight:700;flex-shrink:0}
+.exam-choice.correct{border-color:#7CFFB3;background:rgba(124,255,179,.08)}
+.exam-choice.wrong{border-color:#FF6B35;background:rgba(255,107,53,.08)}
+</style>
+</head>
+<body>
+
+<div id="menu">
+  <h1>AI Ghost Controller</h1>
+  <p style="font-size:13px;color:#7CFFB3;font-weight:600;margin-bottom:4px">🚀 Midnight at Gateway Tower</p>
+  <p style="font-size:12px;margin-bottom:10px">The tower AI crashed. Nova is the backup — but she's never run solo. Teach her through 4 training chapters.</p>
+  <div id="chapterGrid" class="chapter-grid"></div>
+  <div class="menu-bottom">
+    <button class="btn btn-sm" id="btnFreePlay">✈️ Free Play</button>
+    <button class="btn btn-sm" id="btnExam" style="background:linear-gradient(90deg,#7CFFB3,#38BDF8);color:#1a252f">📝 AI Exam</button>
+    <button class="btn btn-sm" id="btnCert" style="display:none;background:linear-gradient(90deg,#FFD700,#FFB347);color:#1a252f">🎓 Master Certification</button>
+  </div>
+</div>
+
+<div id="go"><div><h2>Game Over</h2>
+  <div class="sc" id="finalScore">0</div>
+  <div class="st" id="finalStats"></div>
+  <button class="btn" id="retryBtn" style="margin-top:8px">Play Again</button>
+</div></div>
+
+<!-- Chapter Intro Overlay -->
+<div id="chapterIntro" class="ch-overlay" style="display:none">
+  <div class="ch-intro-card">
+    <div class="ch-intro-number" id="chIntroNumber"></div>
+    <h2 class="ch-intro-title" id="chIntroTitle"></h2>
+    <div class="ch-intro-story" id="chIntroStory"></div>
+    <div class="ch-concept-box">
+      <div class="ch-concept-label">🧠 AI Concept:</div>
+      <div class="ch-concept-name" id="chConceptName"></div>
+      <div class="ch-concept-body" id="chConceptBody"></div>
+    </div>
+    <div class="ch-intro-mode" id="chIntroMode" style="font-size:11px;color:#7CFFB3;font-weight:600"></div>
+    <button class="btn" id="chIntroBegin" style="margin-top:10px;background:#7CFFB3;color:#1a252f">▶ Begin Training</button>
+  </div>
+</div>
+
+<!-- Chapter Complete Overlay -->
+<div id="chapterDone" class="ch-overlay" style="display:none">
+  <div class="ch-intro-card">
+    <div class="ch-done-title" id="chDoneTitle"></div>
+    <div class="ch-done-stars" id="chDoneStars"></div>
+    <div class="ch-done-body" id="chDoneBody"></div>
+    <div class="ch-concept-box" style="border-color:#7CFFB3">
+      <div class="ch-concept-label">🤖 What Nova Learned:</div>
+      <div class="ch-concept-body" id="chDoneConcept"></div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <button class="btn" id="chDoneNext" style="background:#7CFFB3;color:#1a252f;font-size:14px">▶ Next Chapter</button>
+      <button class="btn btn-sm" id="chDoneMenu" style="font-size:12px">↩ Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Exam Overlay -->
+<div id="examOverlay" class="ch-overlay" style="display:none">
+  <div class="ch-intro-card" style="max-width:460px">
+    <div class="ch-intro-number" id="examHeader">📝 AI Exam</div>
+    <h2 class="ch-intro-title" id="examQuestion" style="font-size:15px;margin-bottom:8px"></h2>
+    <div id="examChoices" style="display:flex;flex-direction:column;gap:4px;margin:6px 0 8px;text-align:left"></div>
+    <div id="examFeedback" style="display:none">
+      <div class="ch-concept-box" id="examConceptCard" style="margin-bottom:6px">
+        <div class="ch-concept-label" id="examResult">✅ Correct!</div>
+        <div class="ch-concept-name" id="examConceptName"></div>
+        <div class="ch-concept-body" id="examExplanation"></div>
+      </div>
+      <button class="btn" id="examNextBtn" style="background:#7CFFB3;color:#1a252f;font-size:14px">Next →</button>
+    </div>
+    <div id="examComplete" style="display:none">
+      <div class="ch-done-stars" id="examStars"></div>
+      <div class="ch-done-body" id="examMsg"></div>
+      <div id="examRecap" style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:6px 0;text-align:left;font-size:11px"></div>
+      <button class="btn" id="examMenuBtn" style="background:#7CFFB3;color:#1a252f">↩ Back to Menu</button>
+    </div>
+    <div class="ch-intro-mode" id="examProgress" style="font-size:10px;color:#7CFFB3">Question 1 of 8</div>
+  </div>
+</div>
+
+<!-- Master Certification Overlay -->
+<div id="certScreen" class="ch-overlay" style="display:none">
+  <div class="cert-card">
+    <h2 class="cert-title">🎓 Nova Certified!</h2>
+    <p class="cert-subtitle">You completed all 4 AI training chapters.</p>
+    <div class="cert-grid" id="certGrid"></div>
+    <div class="cert-stats" id="certStats"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <button class="btn" id="certFreePlay" style="background:#7CFFB3;color:#1a252f">✈️ Free Play</button>
+      <button class="btn btn-sm" id="certMenu">↩ Back to Menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="hud"><div>
+  <span id="hudLanded">Landed: 0</span>
+  <span id="hudScore">Score: 0</span>
+  <span id="hudTime">Time: 0s</span>
+  <button class="sb" id="bUp">Faster</button>
+  <button class="sb" id="bDown">Slower</button>
+  <button class="ab" id="bTrail" style="border-color:#AB47BC;color:#CE93D8">PREDICT</button>
+  <button class="ab" id="bRoute" style="border-color:#42A5F5;color:#90CAF9">ROUTE</button>
+  <button class="ab" id="bApproach" style="display:inline-block;border-color:#66BB6A;color:#66BB6A">APPROACH</button>
+  <!-- Nova mood indicator -->
+  <span id="novaMood" class="nova-mood" aria-label="Nova mood">😵</span>
+  <!-- Commander Vega character card -->
+  <div id="vegaCard" class="vega-card">
+    <span class="vega-avatar">👩‍🚀</span>
+    <span class="vega-msg" id="vegaMsg">Click the runway to begin</span>
+  </div>
+</div></div>
+
+<div id="narrativeCard"><div class="nar-card"><div class="nar-title" id="narTitle"></div><div class="nar-body" id="narBody"></div></div></div>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+"use strict";
+
+//=== DOM ===
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+const menu=document.getElementById('menu');
+const go=document.getElementById('go');
+const hud=document.getElementById('hud');
+const finalScore=document.getElementById('finalScore');
+const finalStats=document.getElementById('finalStats');
+const hudLanded=document.getElementById('hudLanded');
+const hudScore=document.getElementById('hudScore');
+const hudTime=document.getElementById('hudTime');
+
+//=== AUDIO ===
+/* TTS: Commander Vega speaks narration aloud */
+function speakVega(text) {
+  if (!text || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  var u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.85; u.volume = 0.85;
+  var v = window.speechSynthesis.getVoices();
+  var p = v.find(function(v){return v.name.includes('Google UK')||v.name.includes('Samantha')||v.name.includes('Female')});
+  if (p) u.voice = p;
+  window.speechSynthesis.speak(u);
+}
+
+let audioCtx=null;
+function beep(f,d,t,v){v=v||.03;try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t||'sine';o.frequency.value=f;g.gain.setValueAtTime(v,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+d);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+d)}catch(e){}}
+function b(f){beep(f,.06)}
+function sfxLand(){beep(440,.08);setTimeout(()=>beep(660,.1),80)}
+
+//=== STATE ===
+let running=false,planes=[],storms=[],particles=[],sel=-1,drag=-1;
+let score=0,landed=0,timer=0,diff=0,spawnT=0,spawnN=0,lastTime=0;
+let trailOn=false,routeOn=false,approachOn=false;
+let predCount=0,routeCount=0,approachCount=0,wasWarn=false;
+let nextApproachTime=0,gmode=1; // 0=manual, 1=ai-assist, 2=ai-auto
+let chapterId=0,chCfg=null,chMenuShow=true; // 0=freeplay, 1-4=tutorial
+
+// Chapter definitions — each isolates ONE AI concept
+const CHAPTERS=[null,
+  {id:1,name:'Prediction',emoji:'🔮',color:'#AB47BC',tool:'trail',
+    trailOn:1,routeOn:0,approachOn:0,stormsAt:Infinity,winLanded:8,spawnMax:10,
+    intro:{number:'One',title:'Ghost Trails',story:'"Nova just came online. First skill: seeing where planes will BE before they GET there."',
+      conceptTitle:'PREDICTIVE MODELING',conceptBody:'AI looks at where a plane is, how fast it moves, and which direction it faces — then predicts where it will be in 5 seconds. Like guessing where a thrown ball will land!'},
+    done:{title:'✅ Prediction Master!',body:'Nova can now predict future positions using speed + direction. Real self-driving cars and weather forecasts use the same idea!',next:'→ Routing Chapter'}},
+  {id:2,name:'Routing',emoji:'🛣️',color:'#42A5F5',tool:'route',
+    trailOn:1,routeOn:1,approachOn:0,stormsAt:0,winLanded:10,spawnMax:12,
+    intro:{number:'Two',title:'Storm Navigation',story:'"Storms block the runway path. Nova must learn to route around them — finding the safest path."',
+      conceptTitle:'AI PATHFINDING',conceptBody:'AI scans the airspace for obstacles and calculates the safest route around them — just like GPS traffic navigation finds the fastest way around a traffic jam!'},
+    done:{title:'✅ Routing Pro!',body:'Nova learned pathfinding! Delivery drones, robot vacuums, and self-driving cars all use this to navigate around obstacles.',next:'→ Sequencing Chapter'}},
+  {id:3,name:'Sequencing',emoji:'🛬',color:'#66BB6A',tool:'approach',
+    trailOn:1,routeOn:1,approachOn:1,stormsAt:8,winLanded:12,spawnMax:14,
+    intro:{number:'Three',title:'Landing Approach',story:'"Multiple planes heading for the same runway. Nova must sequence them — one at a time, with safe spacing."',
+      conceptTitle:'MULTI-AGENT COORDINATION',conceptBody:'AI manages multiple moving objects at once, sequencing them so they don\'t collide — like traffic lights coordinating cars at a busy intersection!'},
+    done:{title:'✅ Sequencing Ace!',body:'Nova learned to sequence landings! This multi-agent coordination is used in factories, delivery networks, and air traffic control worldwide.',next:'→ Full Tower Chapter'}},
+  {id:4,name:'Full Tower',emoji:'🏆',color:'#FFB347',tool:'all',
+    trailOn:1,routeOn:1,approachOn:1,stormsAt:Infinity,winLanded:50,spawnMax:45,
+    intro:{number:'Four',title:'Full Tower Control',story:'"All three AI tools — Prediction, Routing, Sequencing — working together. This is Nova\'s final test."',
+      conceptTitle:'COMBINED AI SYSTEMS',conceptBody:'Real AI combines multiple skills together. Nova uses prediction to see danger, routing to avoid it, and sequencing to land safely. All at the same time.'},
+    done:{title:'🏆 Tower Commander!',body:'Nova mastered the full tower! This is how real autonomous systems operate — prediction, pathfinding, and coordination working together.',next:'🎓 Certification!'}},
+];
+
+//=== CONSTANTS ===
+const WW=1000,HH=600,AP=480,TH=800;
+const COLS=['#4A90D9','#E5734A','#66BB6A','#FFB347','#AB47BC'];
+// Two big holding circles for Chapter 4 (radius 120, 60px gap between them)
+const HOLD_CIRCLES=[
+  {cx:350,cy:140,r:120,releaseAngle:Math.atan2(210-140,110-350)},
+  {cx:350,cy:440,r:120,releaseAngle:Math.atan2(210-440,110-350)}
+];
+// Entry points (left side of each circle)
+const HOLD_ENTRIES=[{x:HOLD_CIRCLES[0].cx-HOLD_CIRCLES[0].r,y:HOLD_CIRCLES[0].cy},{x:HOLD_CIRCLES[1].cx-HOLD_CIRCLES[1].r,y:HOLD_CIRCLES[1].cy}];
+
+//=== PLANE ===
+class Plane{
+  constructor(c){this.x=c.x||0;this.y=c.y||0;this.h=c.h||0;this.sp=c.sp||30;this.co=c.co||COLS[0];this.ca=c.ca||'??';this.ld=0;this.td=0;this.ep=0;this.es=-1;this.tr=[];this.rt=0;this.wn=0;this.ap=0;this.inStorm=0;this.onApproach=0;this.wp=[];this.wi=0;this.holdCircle=0;this.phaseOffset=0;this.released=0;this.orbitStart=0}
+}
+
+//=== HELPER ===
+function lerp(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+let sx=1,sy=1,ox=0,oy=0,vw=1,vh=1;
+function w2c(x,y){return{x:x*sx+ox,y:y*sy+oy}}
+
+//=== RENDER ===
+function drawBg(){
+  ctx.fillStyle='#1a252f';ctx.fillRect(0,0,canvas.width,canvas.height);
+  const cx=vw/2,cy=vh/2,mr=Math.max(vw,vh)*.35;
+  ctx.save();ctx.strokeStyle='rgba(0,255,200,0.04)';ctx.lineWidth=1;
+  for(let r=mr*.25;r<=mr;r+=mr*.25){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke()}
+  ctx.beginPath();ctx.moveTo(cx-mr,cy);ctx.lineTo(cx+mr,cy);ctx.moveTo(cx,cy-mr);ctx.lineTo(cx,cy+mr);ctx.stroke();ctx.restore()
+}
+function drawRwy(){
+  const p=w2c(650,AP),q=w2c(900,AP),hh=5*sy;
+  ctx.save();ctx.fillStyle='rgba(50,55,60,0.75)';ctx.fillRect(p.x,p.y-hh,q.x-p.x,hh*2);
+  ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(p.x,p.y-hh);ctx.lineTo(q.x,p.y-hh);ctx.beginPath();ctx.moveTo(p.x,p.y+hh);ctx.lineTo(q.x,p.y+hh);ctx.stroke();ctx.restore()
+}
+function drawPl(p){
+  const px=p.x*sx+ox,py=p.y*sy+oy,s=17*Math.min(sx,sy);
+  ctx.save();ctx.translate(px,py);ctx.rotate(p.h);
+  // Fuselage with gradient
+  const gr=ctx.createLinearGradient(0,-s*.3,0,s*.3);
+  gr.addColorStop(0,lighten(p.co,40));gr.addColorStop(.5,p.co);gr.addColorStop(1,lighten(p.co,40));
+  ctx.fillStyle=gr;ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.ellipse(0,0,s*1.2,s*.25,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  // Wings — wider span
+  const wc=darken(p.co,30);
+  ctx.fillStyle=wc;
+  ctx.beginPath();ctx.moveTo(s*.15,0);ctx.lineTo(-s*.3,-s*.7);ctx.lineTo(-s*.55,-s*.4);ctx.lineTo(-s*.25,0);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(s*.15,0);ctx.lineTo(-s*.3,s*.7);ctx.lineTo(-s*.55,s*.4);ctx.lineTo(-s*.25,0);ctx.closePath();ctx.fill();
+  // Tail
+  ctx.beginPath();ctx.moveTo(-s*.5,0);ctx.lineTo(-s*.8,-s*.25);ctx.lineTo(-s*.75,0);ctx.lineTo(-s*.8,s*.25);ctx.closePath();ctx.fill();
+  // Cockpit window
+  ctx.fillStyle='rgba(200,220,255,0.35)';ctx.beginPath();ctx.arc(s*.35,0,s*.07,0,Math.PI*2);ctx.fill();
+  // Engine
+  ctx.fillStyle=darken(p.co,50);
+  ctx.beginPath();ctx.ellipse(-s*.2,-s*.15,s*.12,s*.06,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(-s*.2,s*.15,s*.12,s*.06,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+  // Ring
+  if(sel>=0&&planes[sel]===p){ctx.save();ctx.strokeStyle='#FFD700';ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(px,py,s*1.5,0,Math.PI*2);ctx.stroke();ctx.restore()}
+  // Label & speed
+  ctx.save();ctx.fillStyle='#fff';ctx.font='bold 7px monospace';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(p.ca,px,py+s+3);ctx.restore()
+  // Storm warning flash
+  if(p.inStorm){ctx.save();ctx.strokeStyle='rgba(255,150,0,'+(.4+.6*Math.sin(performance.now()/200))+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(px,py,s*1.3,0,Math.PI*2);ctx.stroke();ctx.restore()}
+}
+function lighten(c,p){const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);const m=p/100;return 'rgb('+Math.min(255,r+(255-r)*m)+','+Math.min(255,g+(255-g)*m)+','+Math.min(255,b+(255-b)*m)+')'}
+function darken(c,p){const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);const m=p/100;return 'rgb('+Math.round(r*(1-m))+','+Math.round(g*(1-m))+','+Math.round(b*(1-m))+')'}
+function drawTr(p){
+  if(!p.tr||p.tr.length<2)return;ctx.save();
+  for(let i=1;i<p.tr.length;i++){const a=w2c(p.tr[i-1].x,p.tr[i-1].y),b=w2c(p.tr[i].x,p.tr[i].y);
+  ctx.strokeStyle=`rgba(0,255,200,${.28*(1-i/p.tr.length)})`;ctx.lineWidth=2.5*Math.min(sx,sy);ctx.setLineDash([3,6]);
+  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}ctx.setLineDash([]);ctx.restore()
+}
+function drawAlerts(){
+  if(!trailOn)return;
+  for(let i=0;i<planes.length;i++){if(planes[i].ld||!planes[i].tr)continue;for(let j=i+1;j<planes.length;j++){if(planes[j].ld||!planes[j].tr)continue;
+    for(const a of planes[i].tr)for(const b of planes[j].tr){
+      if(Math.abs(a.t-b.t)<.5&&Math.hypot(a.x-b.x,a.y-b.y)<22){
+        const pw=w2c((a.x+b.x)/2,(a.y+b.y)/2),r=9*Math.min(sx,sy);
+        ctx.save();ctx.fillStyle='rgba(255,50,50,0.15)';ctx.beginPath();ctx.arc(pw.x,pw.y,r*2,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='rgba(255,50,50,0.8)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(pw.x,pw.y,r,0,Math.PI*2);ctx.stroke();ctx.restore()
+}}}}
+}
+
+//=== SPAWN (Chapter 4: two big holding circles) ===
+function ch4Spawn(circleIdx){
+  const entry=HOLD_ENTRIES[circleIdx];
+  return [{x:entry.x,y:entry.y}]; // fly directly to circle entry point
+}
+
+function spawn(){
+  const max=chCfg?chCfg.spawnMax:Math.min(16,3+Math.floor(timer/7));
+  if(planes.filter(p=>!p.ld).length>=max||spawnN>=99)return;
+  // Chapter 4 rigged mode: 4-edge spawn, two big holding circles
+  if(chapterId===4&&gmode===2){
+    const d=spawnN%4;let sx,sy,sh,ci;
+    if(d===0){sx=-40;sy=50+spawnN*19%350;sh=Math.atan2(AP-sy,TH-sx);ci=0}
+    else if(d===1){sx=TH+60;sy=190+spawnN*23%300;sh=Math.atan2(AP-sy,-30-sx);ci=1}
+    else if(d===2){sx=90+spawnN*17%320;sy=-30;sh=Math.atan2(AP-sy,TH-sx);ci=0}
+    else{sx=90+spawnN*13%380;sy=HH+30;sh=Math.atan2(210-sy,110-sx);ci=1}
+    const sp=28+spawnN*3%12;
+    const p=new Plane({x:sx,y:sy,h:sh,sp:sp,co:COLS[spawnN%COLS.length],ca:'CA'+(100+spawnN)});
+    p.holdCircle=ci;p.phaseOffset=spawnN*1.7;
+    p.wp=ch4Spawn(ci);p.ep=0;p.es=-1;planes.push(p);spawnN++;
+    return;
+  }
+  // Standard spawn for other modes
+  const d=spawnN%3;let sx=-40,sy,sh;
+  if(d===0){sy=60+Math.random()*350;sh=Math.atan2(AP-sy,TH-sx)}
+  else if(d===1){sx=TH+60;sy=200+Math.random()*300;sh=Math.atan2(AP-sy,-30-sx)}
+  else{sx=100+Math.random()*300;sy=-30;sh=Math.atan2(AP-sy,TH-sx)}
+  const sp=Math.min(55,28+Math.random()*20+timer*.08);
+  const p=new Plane({x:sx,y:sy,h:sh,sp:sp,co:COLS[spawnN%COLS.length],ca:'CA'+(100+spawnN)});
+  p.ep=0;p.es=-1;planes.push(p);spawnN++
+}
+
+//=== UI ===
+let msgTimer=null;
+function flash(t){
+  const e=document.createElement('div');e.textContent=t;
+  e.style.cssText='position:fixed;bottom:50px;left:50%;transform:translateX(-50%);padding:8px 18px;border-radius:10px;background:rgba(10,20,15,0.9);border:1px solid rgba(124,255,179,0.2);font-size:14px;color:#7CFFB3;z-index:30';
+  document.body.appendChild(e);
+  setTimeout(()=>e.remove(),2000)
+}
+
+//=== NARRATIVE ===
+const _N={
+  moods:{reboot:'😵',predict:'😊',storm:'😰',route:'🤔',approach:'😤',ace:'😎',crash:'💥'},
+  vega:{e:document.getElementById('vegaMsg'),m:document.getElementById('novaMood'),
+        nc:document.getElementById('narrativeCard'),nt:document.getElementById('narTitle'),nb:document.getElementById('narBody')},
+  lastMsg:'',lastMilestone:0,
+  narrate(title,body){try{
+    this.nt.textContent=title;this.nb.textContent=body;
+    this.nc.classList.remove('show');void this.nc.offsetHeight;
+    this.nc.classList.add('show');
+    clearTimeout(this._nt);this._nt=setTimeout(()=>this.nc.classList.remove('show'),3500)
+  }catch(e){}},
+  vegaSay(msg){try{if(msg===this.lastMsg)return;this.lastMsg=msg;
+    this.vega.e.textContent=msg;this.vega.e.parentElement.style.animation='none';
+    void this.vega.e.parentElement.offsetHeight;
+    this.vega.e.parentElement.style.animation='vegaIn .4s ease'
+  }catch(e){}},
+  setMood(m){try{this.vega.m.textContent=this.moods[m]||'😵'}catch(e){}}
+};
+
+//=== CHAPTER SYSTEM ===
+let chProgress={};
+try{const d=JSON.parse(localStorage.getItem('ghc_progress'));if(d&&typeof d==='object')chProgress=d}catch(e){}
+
+function saveProgress(){try{localStorage.setItem('ghc_progress',JSON.stringify(chProgress))}catch(e){}}
+
+function renderMenu(){
+  const grid=document.getElementById('chapterGrid');if(!grid)return;
+  let h='';const allDone=CHAPTERS.slice(1).every(c=>chProgress[c.id]);
+  for(let i=1;i<=4;i++){
+    const c=CHAPTERS[i],done=chProgress[i];
+    h+='<button class="ch-grid-btn'+(done?' done':'')+'" data-ch="'+i+'">'+
+      '<span class="ch-gb">'+c.emoji+'</span>'+
+      '<span class="ch-gt">Ch.'+i+': '+c.name+'</span>'+
+      '<span class="ch-gc">'+c.intro.conceptTitle+'</span>'+
+      (done?'<span class="ch-gd">✅</span>':'')+
+    '</button>';
+  }
+  grid.innerHTML=h;
+  // Delegate click on grid buttons
+  grid.onclick=function(e){const b=e.target.closest('[data-ch]');if(b)showChapterIntro(parseInt(b.dataset.ch))};
+  const cert=document.getElementById('btnCert');
+  if(cert){cert.style.display=allDone?'inline-block':'none';cert.onclick=showCertification}
+}
+
+function showChapterIntro(id){
+  const c=CHAPTERS[id];if(!c)return;
+  document.getElementById('chIntroNumber').textContent='Chapter '+c.intro.number;
+  document.getElementById('chIntroTitle').textContent=c.emoji+' '+c.intro.title;
+  document.getElementById('chIntroStory').textContent='Commander Vega: '+c.intro.story;
+  document.getElementById('chConceptName').textContent=c.intro.conceptTitle;
+  document.getElementById('chConceptBody').textContent=c.intro.conceptBody;
+  document.getElementById('chIntroMode').textContent='🎯 Land '+c.winLanded+' planes · 0 crashes';
+  document.getElementById('chIntroBegin').dataset.ch=id; // store on button
+  document.getElementById('chapterIntro').style.display='flex';
+}
+
+function startChapter(id,mode){
+  const c=CHAPTERS[id];if(!c){startFreePlay(mode);return}
+  chapterId=id;chCfg=c;gmode=mode;
+  if(id===4)gmode=2; // Full Tower always runs in AI auto mode — Nova demonstrates everything
+  trailOn=c.trailOn;routeOn=c.routeOn;approachOn=c.approachOn;
+  document.getElementById('chapterIntro').style.display='none';
+  document.getElementById('chapterDone').style.display='none';
+  startGameState();
+  _N.setMood(chapterId===1?'predict':chapterId===2?'route':chapterId===3?'approach':'ace');
+  _N.vegaSay('Ch.'+c.id+': '+c.name+'. Watch Ghost Trails. Land '+c.winLanded+' planes. Commander Vega is watching.');
+  var vegaText = 'Chapter ' + c.id + '. ' + c.name + '. Land ' + c.winLanded + ' planes without crashing. Commander Vega is watching.';
+  setTimeout(function(){speakVega(vegaText)}, 600);
+}
+
+function startFreePlay(mode){
+  chapterId=0;chCfg=null;gmode=mode;
+  trailOn=0;routeOn=0;approachOn=0;
+  if(mode===0)document.getElementById('bApproach').style.display='none';
+  startGameState();
+  if(mode===0){_N.vegaSay('Tower AI is down. Manual guidance only.');_N.setMood('crash')}
+  else if(mode===1){_N.vegaSay('Free play — all tools unlock over time. Teach Nova whatever you like.');_N.setMood('reboot');
+    setTimeout(()=>_N.narrate('🌙 Free Play Mode','All planes, all features, no target. See how long you can keep the sky safe.'),600)}
+  else{_N.vegaSay('Watch Nova run the full tower autonomously.');_N.setMood('ace')}
+}
+
+function completeChapter(id){
+  const c=CHAPTERS[id];if(!c)return;
+  chProgress[id]=true;saveProgress();
+  const stars=score>=c.winLanded*12?3:score>=c.winLanded*8?2:1;
+  document.getElementById('chDoneTitle').textContent=c.done.title;
+  document.getElementById('chDoneStars').textContent='★'.repeat(stars)+'☆'.repeat(3-stars);
+  document.getElementById('chDoneBody').textContent=c.done.body;
+  document.getElementById('chDoneConcept').textContent=c.intro.conceptBody;
+  const btnNext=document.getElementById('chDoneNext');
+  const allDone=CHAPTERS.slice(1).every(x=>chProgress[x.id]);
+  if(allDone){btnNext.textContent='🎓 View Certification!';btnNext.onclick=function(){document.getElementById('chapterDone').style.display='none';showCertification()}}
+  else if(id<4){btnNext.textContent=c.done.next;btnNext.onclick=function(){document.getElementById('chapterDone').style.display='none';showChapterIntro(id+1)}}
+  else{btnNext.textContent='↩ Back to Menu';btnNext.onclick=function(){document.getElementById('chapterDone').style.display='none';showMenu_()}}
+  document.getElementById('chapterDone').style.display='flex';
+  setTimeout(function(){speakVega(c.done.title+'. '+c.done.body+(c.done.concept||''))}, 600);
+}
+
+function showCertification(){
+  const allDone=CHAPTERS.slice(1).every(x=>chProgress[x.id]);
+  if(!allDone)return;
+  let gridHtml='';
+  const items=[
+    {e:'🔮',n:'Predictive Modeling',w:'AI predicts where objects will be in the future',r:'→ Self-driving cars, weather forecasts'},
+    {e:'🛣️',n:'Pathfinding / Routing',w:'AI finds the safest path around obstacles',r:'→ GPS, delivery drones, robot vacuums'},
+    {e:'🛬',n:'Multi-Agent Coordination',w:'AI manages many moving things at once safely',r:'→ Air traffic control, factory robots'},
+    {e:'🏆',n:'Combined AI Systems',w:'AI uses multiple skills together to solve big problems',r:'→ Autonomous vehicles, smart cities'},
+  ];
+  items.forEach(i=>{gridHtml+='<div class="cert-item"><span class="ci-emoji">'+i.e+'</span><span class="ci-name">'+i.n+'</span><span class="ci-why">'+i.w+'</span><span class="ci-real">'+i.r+'</span></div>'});
+  document.getElementById('certGrid').innerHTML=gridHtml;
+  const totalLanded=Object.keys(chProgress).reduce((s,k)=>s+(chProgress[k]?(CHAPTERS[k]?CHAPTERS[k].winLanded:0):0),0);
+  document.getElementById('certStats').innerHTML='🏆 Total: '+totalLanded+' planes landed across all chapters';
+  document.getElementById('certScreen').style.display='flex';
+  setTimeout(function(){speakVega('Nova certified! You completed all 4 AI training chapters. Predictive Modeling, Pathfinding, Multi-Agent Coordination, and Combined AI Systems. Nova is ready for real air traffic control!')}, 800);
+}
+
+function showMenu_(){
+  document.getElementById('certScreen').style.display='none';
+  document.getElementById('chapterDone').style.display='none';
+  document.getElementById('chapterIntro').style.display='none';
+  menu.style.display='flex';hud.style.display='none';go.classList.remove('show');
+  renderMenu();
+}
+
+//=== GAME START ===
+function startGameState(){
+  running=true;planes=[];storms=[];particles=[];sel=-1;drag=-1;
+  score=0;landed=0;timer=0;diff=0;spawnT=0;spawnN=0;lastTime=0;
+  predCount=0;routeCount=0;approachCount=0;wasWarn=false;nextApproachTime=0;
+  if(!chCfg){trailOn=0;routeOn=0;approachOn=0}
+  _N.lastMilestone=0;_N.lastMsg='';clearTimeout(_N._nt);if(_N.nc)_N.nc.classList.remove('show');
+  menu.style.display='none';hud.style.display='block';if(go)go.classList.remove('show');
+  document.getElementById('bTrail').style.display=trailOn?'inline-block':'none';
+  document.getElementById('bRoute').style.display=routeOn?'inline-block':'none';
+  document.getElementById('bApproach').style.display=approachOn?'inline-block':'none';
+  hudLanded.textContent='Landed: 0';hudScore.textContent='Score: 0';hudTime.textContent='Time: 0s';
+  b(500);
+}
+
+function endGame(){
+  if(!running)return;
+  running=false;go.classList.add('show');
+  const modeLabel=gmode===0?'🖐️ MANUAL':gmode===1?'🤖 AI-ASSISTED':'✨ AI AUTO';
+  let vegaEnd,novaEnd;
+  if(chapterId>0){
+    const cn=CHAPTERS[chapterId]?CHAPTERS[chapterId].name:'';
+    vegaEnd=landed>0?'📋 "'+cn+' training incomplete. '+landed+' landed — needed '+CHAPTERS[chapterId].winLanded+'. Nova learned from every landing."':'💥 "'+cn+' training failed. Nova needs more practice before she is ready."';
+    novaEnd=landed>=3?'😤':'💥';
+  }else{
+    vegaEnd=landed>=15?'🔥 "Tower record! You and Nova just handled the busiest night at Gateway."':landed>=10?'👏 "Incredible shift! Nova learned so fast."':landed>=5?'👍 "Solid work! Nova got real training tonight."':landed>0?'📋 "We learned. Nova\'s training data just got better."':'💥 "Total systems failure. Nova needs more training."';
+    novaEnd=landed>=10?'😎':landed>=5?'😤':landed>0?'😵':'💥';
+  }
+  _N.setMood(novaEnd);
+  finalScore.textContent=score;
+  finalStats.innerHTML='<b>'+(chapterId>0?'Ch.'+chapterId+': ':'')+modeLabel+'</b><br><span style="color:#7CFFB3;font-size:12px">'+vegaEnd+'</span><br><br>🏆 '+landed+' planes landed<br>AI predictions: '+predCount+'<br>AI routes: '+routeCount+'<br>AI approaches: '+approachCount+'<br>Time: '+Math.floor(timer)+'s';
+  for(let i=0;i<30;i++)particles.push({x:Math.random()*vw,y:vh+20,vx:(Math.random()-.5)*4,vy:-3-Math.random()*6,co:['#7CFFB3','#FFB347','#66BB6A'][i%3],sz:2+Math.random()*4,life:1});
+  // Offer retry to menu for chapters
+  const retBtn=document.getElementById('retryBtn');
+  if(chapterId>0){retBtn.textContent='↩ Back to Menu';retBtn.onclick=showMenu_}
+  else{retBtn.textContent='Play Again';retBtn.onclick=function(){startFreePlay(gmode)}}
+}
+
+//=== UPDATE ===
+function update(dt){
+  timer+=dt;diff=timer/60;
+  spawnT+=dt;
+  // Chapter 4: after 10 airborne planes, spawn at steady 2.5s to prevent congestion
+  if(chapterId===4&&planes.filter(p=>!p.ld).length>=10){if(spawnT>=2.5){spawnT=0;spawn()}}else{if(spawnT>=Math.max(.8,3-timer*.025)){spawnT=0;spawn()}}
+  
+  // Unlock tools (only in AI mode free play — chapters have fixed tool config)
+  if(gmode===1&&!chCfg){
+    if(!trailOn&&timer>15){trailOn=true;document.getElementById('bTrail').style.display='inline-block';flash('🔮 AI PREDICT unlocked! Ghost trails predict collisions.');
+      _N.vegaSay('Ghost trails online. Nova can see 5 seconds ahead — that is prediction in action.');_N.setMood('predict');
+      _N.narrate('🔮 Nova Learned: PREDICTION','Ghost trails show where each plane will be in 5 seconds. AI prediction helps you see the future before it happens.');
+      speakVega('Ghost trails online! Nova learned predictive modeling. She can see 5 seconds ahead now. AI prediction helps you see the future before it happens.')}
+    if(!routeOn&&timer>40){routeOn=true;document.getElementById('bRoute').style.display='inline-block';flash('🛣️ AI ROUTE unlocked! Navigate around storms.');
+      _N.vegaSay('Nova can auto-route around storms now. She learned from watching you navigate.');_N.setMood('storm');
+      _N.narrate('🛣️ Nova Learned: ROUTING','Novas AI predicts the storms path and finds the safest route around it. She learned this from watching you.');
+      speakVega('Routing unlocked! Nova learned AI pathfinding. She can find safe routes around storms — just like GPS navigation avoids traffic jams.')}
+    if(!approachOn&&timer>55){approachOn=true;document.getElementById('bApproach').style.display='inline-block';flash('🛬 AI APPROACH unlocked! Glide slope available.');
+      _N.vegaSay('Glide slope calibrated. Nova is sequencing landings — one at a time, like a real tower controller.');_N.setMood('approach');
+      _N.narrate('🛬 Nova Learned: APPROACH SEQUENCING','Nova can now manage the final landing approach — spacing planes 2 seconds apart. Multi-agent coordination, fully autonomous.');
+      speakVega('Approach sequencing unlocked! Nova can manage multiple aircraft at once — spacing them safely. Real air traffic control uses this every day!')}
+  }
+  
+  // Auto-pilot for AI AUTO MODE (gmode===2) — only in free play, chapters keep their tool config
+  if(gmode===2&&!chCfg){
+    if(!trailOn){trailOn=true;document.getElementById('bTrail').style.display='inline-block'}
+    if(!routeOn){routeOn=true;document.getElementById('bRoute').style.display='inline-block'}
+    if(!approachOn){approachOn=true;document.getElementById('bApproach').style.display='inline-block'}
+  }
+  
+  hudTime.textContent='Time: '+Math.floor(timer)+'s';
+  
+  // Storms appear (timing from chapter config or 30s for free play)
+  const stormTime=chCfg?chCfg.stormsAt:30;
+  if(timer>stormTime&&storms.length===0&&stormTime<Infinity){
+    flash('⛈️ STORMS INCOMING! Avoid them or lose Brain Power!');
+    _N.narrate('⛈️ STORM CELLS DETECTED','Three storm cells on the radar. Planes that fly through them lose their AI guidance. Nova needs to route around them.');
+    _N.vegaSay('Weather radar just lit up. Three cells incoming. Nova, route those planes around the storms.');_N.setMood('storm');
+    speakVega('Storm cells detected on radar! Three incoming. Planes that fly through them lose AI guidance. Nova needs to find safe routes around them.');
+    const c=[{x:350,y:AP-310,r:55},{x:520,y:AP-290,r:50},{x:680,y:AP-330,r:45}];
+    for(let i=0;i<c.length;i++)storms.push({x:c[i].x,y:c[i].y,r:c[i].r})
+  }
+  
+  // Update planes
+  let releasedThisFrame=false;
+  for(let i=0;i<planes.length;i++){
+    const p=planes[i];if(p.ld)continue;
+    if(p.es<0)p.es=performance.now();
+    if(p.ep<1&&!p.wp.length){p.ep=Math.min(1,(performance.now()-p.es)/1500);p.x=-40+70*lerp(p.ep);if(p.ep>=1){p.x=30;p.h=Math.atan2(AP-p.y,TH-p.x)}continue}
+    // Auto-pilot steering (AI AUTO MODE)
+    if(gmode===2&&!p.ld&&!p.onApproach){
+      // Chapter 4 rigged mode: two big holding circles
+      if(chapterId===4){
+        // Follow waypoints to circle entry point
+        if(p.wp&&p.wi<p.wp.length){
+          const t=p.wp[p.wi];const dx=t.x-p.x,dy=t.y-p.y;
+          if(dx*dx+dy*dy<625)p.wi++;else p.h=Math.atan2(t.y-p.y,t.x-p.x);
+          p.sp=25;
+        }
+        // Orbit the holding circle
+        else if(!p.released){
+          if(!p.orbitStart)p.orbitStart=timer;
+          const cc=HOLD_CIRCLES[p.holdCircle];
+          const a=performance.now()*.002+p.phaseOffset;
+          p.h=Math.atan2(cc.cy+Math.sin(a)*cc.r-p.y,cc.cx+Math.cos(a)*cc.r-p.x);
+          p.sp=18;
+          // Auto-release after 10s circling — no plane orbits forever
+          if(timer-p.orbitStart>=10){p.released=1;p.sp=35}
+          // Normal release: one per frame, closest to approach zone gets it
+          if(!releasedThisFrame&&timer>=nextApproachTime){
+            let bk=-1,bd=Infinity;
+            for(let k=0;k<planes.length;k++){
+              if(k===i||planes[k].ld||planes[k].onApproach||planes[k].released)continue;
+              if(planes[k].wp&&planes[k].wi<planes[k].wp.length)continue;
+              const d=Math.hypot(planes[k].x-110,planes[k].y-210);
+              if(d<bd){bd=d;bk=k}
+            }
+            if(bk>=0){planes[bk].released=1;planes[bk].sp=35;releasedThisFrame=true}
+          }
+        }
+        // Released: fly to approach zone
+        if(p.released&&!p.onApproach){
+          p.h=Math.atan2(210-p.y,110-p.x);
+          p.sp=35;
+        }
+      }
+      // Free play AI auto: original steering logic
+      else if(!chCfg){
+        if(!p._hb)p._hb=(Math.random()-0.5)*0.12;
+        const nearStorm=storms.some(s=>Math.hypot(p.x-s.x,p.y-s.y)<s.r+40);
+        if(nearStorm&&!p.rt){const nr=storms.filter(s=>Math.hypot(p.x-s.x,p.y-s.y)<180).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y));if(nr.length){const s=nr[0];p.h=Math.atan2(AP-(s.y>p.y?s.y+s.r+20:s.y-s.r-20),TH-p.x)+p._hb;p.rt=1;routeCount++}}
+        else if(approachOn&&timer>=nextApproachTime&&Math.hypot(p.x-110,p.y-210)<200&&!p.rt){const la=p.x+90;const t=Math.min(1,Math.max(0,(la-100)/(550)));p.h=Math.atan2(200+(AP-200)*t-p.y,la-p.x);if(Math.hypot(p.x-110,p.y-210)<55){p.onApproach=1;approachCount++;nextApproachTime=timer+2}}
+        else{p.h=Math.atan2(AP-p.y,TH-p.x)+p._hb}
+        p.sp=Math.min(50,30+diff*5);
+      }
+    }
+    // Plane-to-plane separation (AI AUTO MODE only — skip for rigged ch4, circles are safe)
+    if(gmode===2&&!p.ld&&!p.onApproach&&chapterId!==4){
+      for(let k=0;k<planes.length;k++){
+        if(k===i||planes[k].ld||planes[k].td||planes[k].onApproach)continue;
+        const d=Math.hypot(p.x-planes[k].x,p.y-planes[k].y);
+        if(d<80){
+          const myDist=Math.hypot(p.x-TH,p.y-AP);
+          const otherDist=Math.hypot(planes[k].x-TH,planes[k].y-AP);
+          if(myDist>otherDist){
+            p.sp*=Math.max(0.2,d/80);
+          }
+        }
+      }
+    }
+    p.x+=Math.cos(p.h)*p.sp*dt;p.y+=Math.sin(p.h)*p.sp*dt;
+    // Contrail particles
+    if(!p.ld&&Math.random()<.25){particles.push({x:(p.x-Math.cos(p.h)*10)*sx+ox,y:(p.y-Math.sin(p.h)*10)*sy+oy,vx:(Math.random()-.5)*.5,vy:(Math.random()-.5)*.5,co:'rgba(255,255,255,0.4)',sz:1+Math.random()*1.5,life:.3+Math.random()*.3})}
+    // Storm penalty
+    p.inStorm=false;
+    if(storms.length){for(const s of storms){if(Math.hypot(p.x-s.x,p.y-p.y)<s.r){p.inStorm=true}}}
+    if(trailOn&&(!p.tr||!p.tr.length||p.tr[p.tr.length-1].t>=4)){p.tr=[];let t=0;while(t<=4){p.tr.push({x:p.x+Math.cos(p.h)*p.sp*t,y:p.y+Math.sin(p.h)*p.sp*t,t});t+=.25}}
+    // Glide slope approach AI — 2-second spacing between planes
+    if(approachOn){
+      const zoneLocked=timer<nextApproachTime;
+      if(!p.onApproach&&!p.ld&&!p.td&&Math.hypot(p.x-110,p.y-210)<85){
+        if(!zoneLocked){p.onApproach=1;p.sp=45;approachCount++;nextApproachTime=timer+3;flash('🛬 '+p.ca+' locked onto approach! Next open in 3s.')}
+        else{flash('⏳ Approach locked! Wait '+Math.ceil(nextApproachTime-timer)+'s...')}
+      }
+      if(p.onApproach&&!p.ld){
+        const rx=650;
+        if(p.x<550){
+          // Follow glide slope using look-ahead (aim 90px ahead on the line)
+          const la=p.x+90;
+          const t=Math.min(1,Math.max(0,(la-100)/(rx-100)));
+          p.h=Math.atan2(200+(AP-200)*t-p.y,la-p.x);
+        }else{
+          // Flare — level out just above runway
+          const la=p.x+50;
+          const ty=AP-15;
+          p.h=Math.atan2(ty-p.y,la-p.x);
+          if(p.y>=AP-20)p.h=0;
+        }
+        p.sp=Math.min(52,p.sp+1.5*dt);
+        // Approach speed matching: trailing plane matches ahead plane's speed
+        if(chapterId===4){
+          for(let k=0;k<planes.length;k++){
+            if(k===i||!planes[k].onApproach||planes[k].ld)continue;
+            // If k is ahead and slower, p (behind) must slow down to match
+            if(planes[k].x>p.x+10&&planes[k].sp<p.sp)p.sp=planes[k].sp;
+          }
+        }
+        if(p.x>=TH-10&&p.y>=AP-30&&!p.td){p.td=1;p.ld=1;landed++;score+=15;hudLanded.textContent='Landed: '+landed;hudScore.textContent='Score: '+score;sfxLand();flash('🛬 '+p.ca+' landed smoothly via glide slope!')}
+      }
+    }
+    // Normal landing (non-approach planes still reach the runway)
+    if(p.x>=TH&&!p.ld&&!p.td&&(!approachOn||!p.onApproach)){p.td=1;p.ld=1;landed++;score+=10;hudLanded.textContent='Landed: '+landed;hudScore.textContent='Score: '+score;sfxLand()}
+    // Landing milestone narrative (free play only)
+    if(chapterId===0&&landed>_N.lastMilestone){
+      _N.lastMilestone=landed;
+      if(landed===3)_N.vegaSay('Three down! You and Nova are getting into a rhythm.')
+      else       if(landed===5){_N.narrate('✅ 5 PLANES LANDED','Commander Vega: "Five on the ground. Nova is learning fast."');speakVega('Five planes landed! Commander Vega says Nova is learning fast.')}
+      else if(landed===8)_N.vegaSay('Eighth plane down. Nova is reading the patterns well now.')
+      else if(landed===10){_N.narrate('🎯 10 PLANES LANDED!','Commander Vega: "Double digits! Nova is getting sharp."');speakVega('Ten planes landed! Double digits! Nova is getting sharp.')}
+      else if(landed===15)_N.vegaSay('Fifteen planes! Nova is handling the load. Impressive.')
+      else if(landed===20)_N.vegaSay('Twenty planes! Nova is on fire tonight!')
+    }
+    // Chapter win condition
+    if(chapterId>0&&chCfg&&landed>=chCfg.winLanded&&!go.classList.contains('show')){
+      running=false;
+      completeChapter(chapterId);
+    }
+  }
+  // Crash detection: off-screen or plane-to-plane collision
+  for(let i=0;i<planes.length;i++){
+    if(planes[i].ld||planes[i].td)continue;
+    // Off-screen
+    if(planes[i].x<-100||planes[i].x>WW+100||planes[i].y<-100||planes[i].y>HH+100){endGame();return}
+    // Plane-to-plane collision (skip for ch4 — routes are designed safe, transit passes are momentary)
+    if(chapterId!==4||gmode!==2){
+    for(let j=i+1;j<planes.length;j++){
+      if(planes[j].ld||planes[j].td)continue;
+      if(Math.hypot(planes[i].x-planes[j].x,planes[i].y-planes[j].y)<15){endGame();return}
+    }
+    }
+  }
+  hudScore.textContent='Score: '+score;
+}
+
+//=== GAME LOOP ===
+function loop(ts){
+  if(!lastTime)lastTime=ts;
+  let dt=(ts-lastTime)/1000;if(dt<=0)dt=.016;if(dt>.1)dt=.1;lastTime=ts;
+  if(running){update(dt)}
+  ctx.clearRect(0,0,canvas.width,canvas.height);drawBg();drawRwy();
+  for(const s of storms){const p=w2c(s.x,s.y),r=s.r*Math.min(sx,sy);ctx.save();ctx.fillStyle='rgba(120,130,140,0.18)';ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();ctx.restore()}
+  // Glide slope approach path (ends at runway start x=650, with level flare)
+  if(approachOn){
+    const rx=650; // runway start
+    const gs=w2c(100,200),ge=w2c(rx,AP);
+    ctx.save();ctx.strokeStyle='rgba(124,255,179,0.25)';ctx.lineWidth=2.5;ctx.setLineDash([10,12]);
+    ctx.beginPath();ctx.moveTo(gs.x,gs.y);ctx.lineTo(ge.x,ge.y);ctx.stroke();ctx.setLineDash([]);
+    // Glow dots
+    for(let t=0;t<=1;t+=.08){const p=w2c(100+(rx-100)*t,200+(AP-200)*t);ctx.fillStyle='rgba(124,255,179,0.2)';ctx.beginPath();ctx.arc(p.x,p.y,4*Math.min(sx,sy),0,Math.PI*2);ctx.fill()}
+    // Entry zone — red when locked, green when open (2s spacing)
+    const ez=w2c(110,210);const ezr=38*Math.min(sx,sy);
+    const zoneLocked=timer<nextApproachTime;
+    const pulse=.5+.5*Math.sin(performance.now()/400);
+    const ezc=zoneLocked?'rgba(255,80,80,'+(.25+pulse*.15)+')':'rgba(124,255,179,'+(.25+pulse*.15)+')';
+    const ezf=zoneLocked?'rgba(255,80,80,0.08)':'rgba(124,255,179,0.08)';
+    const ezl=zoneLocked?'⏳ APPROACH LOCKED '+(Math.ceil(Math.max(0,nextApproachTime-timer)))+'s':'🛬 APPROACH OPEN';
+    ctx.strokeStyle=ezc;ctx.lineWidth=2.5;ctx.setLineDash([5,5]);
+    ctx.beginPath();ctx.arc(ez.x,ez.y,ezr,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=ezf;ctx.beginPath();ctx.arc(ez.x,ez.y,ezr,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=zoneLocked?'rgba(255,80,80,0.6)':'rgba(124,255,179,0.6)';
+    ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(ezl,ez.x,ez.y-ezr-5);
+    // Flare zone marker
+    const fz=w2c(550,200+(AP-200)*(550-100)/(rx-100));
+    ctx.fillStyle='rgba(255,200,50,0.2)';ctx.beginPath();ctx.arc(fz.x,fz.y,6*Math.min(sx,sy),0,Math.PI*2);ctx.fill();
+    ctx.restore()
+  }
+  if(trailOn){drawAlerts();for(const p of planes){if(!p.ld&&p.tr)drawTr(p)}}
+  for(const p of planes){if(!p.ld)drawPl(p)}
+  // Altitude label: when planes are close in AI auto mode, show "changing altitude"
+  if(gmode===2){for(let i=0;i<planes.length;i++){if(planes[i].ld)continue;
+    for(let j=i+1;j<planes.length;j++){if(planes[j].ld)continue;
+      const d=Math.hypot(planes[i].x-planes[j].x,planes[i].y-planes[j].y);
+      if(d<55){
+        const pi=w2c(planes[i].x,planes[i].y),pj=w2c(planes[j].x,planes[j].y);
+        const alpha=Math.min(1,1-d/55);
+        ctx.save();ctx.globalAlpha=alpha;
+        ctx.fillStyle='#7CFFB3';ctx.font='bold 11px monospace';ctx.textAlign='center';
+        ctx.fillText('↕ ALTITUDE',pi.x,pi.y-24);ctx.fillText('↕ ALTITUDE',pj.x,pj.y-24);
+        ctx.restore();
+      }
+    }
+  }}
+  // Particles
+  for(const p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.06;p.life-=.015;ctx.save();ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.co;ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);ctx.fill();ctx.restore()}
+  particles=particles.filter(p=>p.life>0);
+  requestAnimationFrame(loop)
+}
+
+//=== CONTROL ===
+function findPlane(wx,wy){for(let i=0;i<planes.length;i++){if(planes[i].ld)continue;if(Math.hypot(wx-planes[i].x,wy-planes[i].y)<55)return i}return-1}
+function onPD(e){if(!running)return;e.preventDefault();const r=canvas.getBoundingClientRect(),cx=(e.clientX||0)-r.left,cy=(e.clientY||0)-r.top;const ww=(cx-ox)/sx,wh=(cy-oy)/sy,i=findPlane(ww,wh);if(i>=0){sel=i;drag=i;b(600)}}
+function onPM(e){if(!running)return;e.preventDefault();const r=canvas.getBoundingClientRect(),cx=(e.clientX||0)-r.left,cy=(e.clientY||0)-r.top;const ww=(cx-ox)/sx,wh=(cy-oy)/sy;if(drag>=0&&drag<planes.length&&!planes[drag].ld){planes[drag].h=Math.atan2(wh-planes[drag].y,ww-planes[drag].x)}}
+function onPU(e){if(!running)return;e.preventDefault();drag=-1}
+function speedUp(){if(!running||sel<0||sel>=planes.length)return;const p=planes[sel];if(!p.ld){p.sp=Math.min(55,p.sp+5);b(500)}}
+function speedDown(){if(!running||sel<0||sel>=planes.length)return;const p=planes[sel];if(!p.ld){p.sp=Math.max(15,p.sp-5);b(500)}}
+
+//=== RESIZE ===
+function resize(){
+  const d=Math.min(window.devicePixelRatio||1,2);
+  vw=window.innerWidth;vh=window.innerHeight;
+  canvas.width=vw*d;canvas.height=vh*d;canvas.style.width=vw+'px';canvas.style.height=vh+'px';
+  ctx.setTransform(1,0,0,1,0,0);ctx.scale(d,d);
+  const s=Math.min((vw-20)/WW,(vh-20)/HH);sx=s;sy=s;ox=(vw-WW*s)/2;oy=(vh-HH*s)/2
+}
+
+//=== EXAM ===
+const EXAM_QUESTIONS=[
+  {concept:'Predictive Modeling',emoji:'🔮',
+    question:'Nova predicts where a plane will be in 5 seconds. What information does she use?',
+    choices:[
+      {text:'The weather forecast for the next 5 seconds',correct:false},
+      {text:'The pilot\'s planned route for the entire flight',correct:false},
+      {text:'The plane\'s current position, speed, and direction',correct:true},
+      {text:'The positions of all other planes in the sky',correct:false},
+    ],explanation:'Predictive modeling projects future position from current state — like knowing where a thrown ball will land by watching its speed and direction.'},
+  {concept:'Predictive Modeling',emoji:'🔮',
+    question:'Two planes\' ghost trails cross on the radar. What is Nova warning about?',
+    choices:[
+      {text:'One plane is flying faster than the other',correct:false},
+      {text:'The planes will collide if they continue on their current paths',correct:true},
+      {text:'A storm is forming at the crossing point',correct:false},
+      {text:'The planes need to change altitude',correct:false},
+    ],explanation:'Ghost trails show where each plane WILL be. When they cross at the same time, it means the planes will collide — like two people walking toward the same door from different directions.'},
+  {concept:'AI Pathfinding',emoji:'🛣️',
+    question:'A storm blocks the runway approach. Nova finds a safe route around it. What AI method is this?',
+    choices:[
+      {text:'Supervised learning — learning from labeled examples',correct:false},
+      {text:'Sensor fusion — combining data from multiple sensors',correct:false},
+      {text:'Predictive modeling — forecasting where the storm will be',correct:false},
+      {text:'Pathfinding — scanning for obstacles and finding a clear route',correct:true},
+    ],explanation:'Pathfinding is like GPS navigation: you tell it where you want to go, it scans for obstacles (traffic, roads, storms), and finds the safest route around them.'},
+  {concept:'AI Pathfinding',emoji:'🛣️',
+    question:'Nova routed a plane around one storm, but now another storm appears ahead. What should she do?',
+    choices:[
+      {text:'Recalculate the route to avoid the new storm too',correct:true},
+      {text:'Send the plane back to where it started',correct:false},
+      {text:'Ignore the new storm — one detour is enough',correct:false},
+      {text:'Increase the plane\'s speed to outrun the storm',correct:false},
+    ],explanation:'AI pathfinding constantly re-evaluates. When new obstacles appear, it recalculates — like how your GPS re-routes when a new traffic jam appears ahead.'},
+  {concept:'Multi-Agent Coordination',emoji:'🛬',
+    question:'Two planes approach the runway. Nova spaces them 3 seconds apart. What is she managing?',
+    choices:[
+      {text:'Pathfinding — finding a path for each plane',correct:false},
+      {text:'Predictive modeling — predicting where each plane will be',correct:false},
+      {text:'Sequencing — controlling the order and timing of multiple agents',correct:true},
+      {text:'Collision detection — checking if planes will crash',correct:false},
+    ],explanation:'Multi-agent coordination is like a traffic light at a busy intersection — it sequences cars (agents) so each gets a turn without crashing. Nova sequences planes onto the runway one at a time.'},
+  {concept:'Multi-Agent Coordination',emoji:'🛬',
+    question:'A plane on approach is faster than the plane ahead of it. Nova slows it down. Why?',
+    choices:[
+      {text:'To save fuel for the plane behind',correct:false},
+      {text:'Because the runway is busy with other traffic',correct:false},
+      {text:'To let the faster plane land first',correct:false},
+      {text:'To maintain safe separation and prevent catching up',correct:true},
+    ],explanation:'If the trailing plane is faster, it will catch up to the one ahead — like cars on a highway. Nova matches their speeds so they stay safely separated all the way to the runway.'},
+  {concept:'Combined AI Systems',emoji:'🏆',
+    question:'Nova uses prediction + pathfinding + sequencing all at the same time in the Full Tower. What is this called?',
+    choices:[
+      {text:'Machine learning — training on new data',correct:false},
+      {text:'Combined AI systems — multiple AI skills working together',correct:true},
+      {text:'Data preprocessing — cleaning up raw data',correct:false},
+      {text:'Single-agent planning — controlling one plane at a time',correct:false},
+    ],explanation:'Combined AI systems is the most advanced level — like a self-driving car that predicts pedestrians, routes around obstacles, AND coordinates with other cars, all at the same time.'},
+  {concept:'Combined AI Systems',emoji:'🏆',
+    question:'Nova\'s three tools (prediction, routing, sequencing) work together. Which real system uses the same approach?',
+    choices:[
+      {text:'A calculator adding numbers',correct:false},
+      {text:'A light switch turning on and off',correct:false},
+      {text:'A self-driving car navigating through city traffic',correct:true},
+      {text:'A thermostat maintaining temperature',correct:false},
+    ],explanation:'Self-driving cars combine prediction (where will that person walk?), pathfinding (which street is safest?), and multi-agent coordination (when to go through the intersection) — exactly like Nova in the Full Tower!'},
+];
+
+let examState=null;
+function startExam(){
+  menu.style.display='none';hud.style.display='none';
+  examState={q:0,correct:0,results:[]};
+  const e=document.getElementById('examOverlay');
+  e.style.display='flex';
+  showExamQ(0);
+}
+function showExamQ(idx){
+  const q=EXAM_QUESTIONS[idx];
+  if(!q){finishExam();return;}
+  document.getElementById('examHeader').textContent=q.emoji+' '+q.concept;
+  document.getElementById('examQuestion').textContent=q.question;
+  document.getElementById('examProgress').textContent='Question '+(idx+1)+' of '+EXAM_QUESTIONS.length;
+  document.getElementById('examFeedback').style.display='none';
+  document.getElementById('examComplete').style.display='none';
+  const letters=['A','B','C','D'];
+  const cEl=document.getElementById('examChoices');
+  cEl.innerHTML='';
+  q.choices.forEach((c,i)=>{
+    const btn=document.createElement('button');
+    btn.className='exam-choice';
+    btn.innerHTML='<span class="exam-letter">'+letters[i]+'</span>'+c.text;
+    btn.onclick=function(){handleExam(idx,i);};
+    cEl.appendChild(btn);
+  });
+}
+function handleExam(qIdx,cIdx){
+  const q=EXAM_QUESTIONS[qIdx];
+  const choice=q.choices[cIdx];
+  const isCorrect=choice.correct;
+  if(isCorrect)examState.correct++;
+  examState.results[qIdx]=isCorrect;
+
+  // Mark choices
+  const btns=document.getElementById('examChoices').querySelectorAll('.exam-choice');
+  btns.forEach((b,i)=>{
+    b.disabled=true;
+    b.classList.toggle('correct',q.choices[i].correct);
+    if(i===cIdx&&!isCorrect)b.classList.add('wrong');
+  });
+
+  document.getElementById('examResult').textContent=isCorrect?'✅ Correct!':'❌ Wrong';
+  document.getElementById('examResult').style.color=isCorrect?'#7CFFB3':'#FF6B35';
+  document.getElementById('examConceptName').textContent='🧠 AI Concept: '+q.concept;
+  document.getElementById('examExplanation').textContent=q.explanation;
+  document.getElementById('examFeedback').style.display='block';
+
+  const nextBtn=document.getElementById('examNextBtn');
+  if(qIdx+1<EXAM_QUESTIONS.length){
+    nextBtn.textContent='Next Question →';
+    nextBtn.onclick=function(){showExamQ(qIdx+1);};
+  }else{
+    nextBtn.textContent='🎓 See Results';
+    nextBtn.onclick=finishExam;
+  }
+}
+function finishExam(){
+  const total=EXAM_QUESTIONS.length;
+  const correct=examState.correct;
+  const stars=correct>=total-1?3:correct>=Math.ceil(total/2)?2:1;
+  const titles={3:'🏆 Master Controller!',2:'👨‍✈️ Senior Controller',1:'🎓 Trainee Controller'};
+  const msgs={3:'Perfect score! You understand all 4 AI concepts! Nova is proud of her commander!',
+    2:'Good job! You know most of the AI concepts. Try again to ace them all!',
+    1:'Keep learning! Each question teaches an AI concept. Try again to improve your score!'};
+  document.getElementById('examStars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  document.getElementById('examMsg').innerHTML='<b>'+titles[stars]+'</b><br>'+msgs[stars];
+  document.getElementById('examFeedback').style.display='none';
+  document.getElementById('examProgress').style.display='none';
+
+  let recap='';
+  EXAM_QUESTIONS.forEach((q,i)=>{
+    const ok=examState.results[i];
+    recap+='<div style="display:flex;align-items:center;gap:4px;padding:3px 4px;background:rgba(255,255,255,.03);border-radius:4px;font-size:10px">'+
+      '<span>'+(ok?'✅':'❌')+'</span><span>'+q.emoji+'</span><span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+q.concept+'</span></div>';
+  });
+  document.getElementById('examRecap').innerHTML=recap;
+  document.getElementById('examRecap').style.display='grid';
+  document.getElementById('examComplete').style.display='block';
+}
+
+//=== INIT ===
+window.onload=function(){
+  try{
+    resize();
+    window.addEventListener('resize',resize);
+    canvas.addEventListener('pointerdown',onPD);canvas.addEventListener('pointermove',onPM);canvas.addEventListener('pointerup',onPU);canvas.addEventListener('pointerleave',onPU);
+    canvas.addEventListener('touchstart',function(e){if(e.target===canvas)e.preventDefault()},{passive:false});
+
+    // Mode toggle (delegate)
+    // Build chapter menu
+    renderMenu();
+    document.getElementById('btnFreePlay').addEventListener('click',function(){startFreePlay(gmode)});
+    document.getElementById('btnExam').addEventListener('click',startExam);
+    document.getElementById('chIntroBegin').addEventListener('click',function(){const ch=parseInt(this.dataset.ch);if(ch)startChapter(ch,gmode);else startFreePlay(gmode)});
+    document.getElementById('chDoneMenu').addEventListener('click',function(){document.getElementById('chapterDone').style.display='none';showMenu_()});
+    document.getElementById('certFreePlay').addEventListener('click',function(){document.getElementById('certScreen').style.display='none';startFreePlay(gmode)});
+    document.getElementById('certMenu').addEventListener('click',function(){document.getElementById('certScreen').style.display='none';showMenu_()});
+    document.getElementById('examMenuBtn').addEventListener('click',function(){document.getElementById('examOverlay').style.display='none';showMenu_()});
+    document.getElementById('retryBtn').addEventListener('click',function(){location.reload()});
+    document.getElementById('bUp').onclick=speedUp;document.getElementById('bDown').onclick=speedDown;
+    document.getElementById('bTrail').onclick=function(){trailOn=!trailOn;this.style.borderColor=trailOn?'#7CFFB3':'#AB47BC';b(500)};
+    document.getElementById('bApproach').onclick=function(){approachOn=!approachOn;this.style.borderColor=approachOn?'#7CFFB3':'#66BB6A';flash(approachOn?'🛬 GLIDE SLOPE active — steer planes to the entry zone!':'Approach off');b(500)};
+    document.getElementById('bRoute').onclick=function(){
+      if(!running||sel<0||sel>=planes.length)return;const p=planes[sel];if(p.ld||p.rt)return;
+      const nr=storms.filter(s=>Math.hypot(s.x-p.x,s.y-p.y)<180).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y));
+      if(nr.length){const s=nr[0];p.h=Math.atan2(AP-(s.y>p.y?s.y+s.r+20:s.y-s.r-20),TH-p.x)}else{p.h=Math.atan2(AP-p.y,TH-p.x)}
+      p.rt=1;routeCount++;b(500);flash('🛣️ '+p.ca+' navigated around storm!')
+    };
+    requestAnimationFrame(loop)
+  }catch(e){document.body.innerHTML='<div style="padding:40px;color:red;font-size:20px">ERROR: '+e.message+' at line '+(e.lineNumber||'?')+'</div>'}
+};
+</script>
+</body>
+</html>

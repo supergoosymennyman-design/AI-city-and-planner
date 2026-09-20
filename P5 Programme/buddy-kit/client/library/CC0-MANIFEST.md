@@ -1,9 +1,37 @@
 # CC0 Model Manifest — policy: only free-for-all-use models ship
 
+## Environment foundation (version 1)
+
+| Source | License | Processed files | Use / fallback |
+|---|---|---|---|
+| Poly Haven — [Aerial Asphalt 01](https://polyhaven.com/a/aerial_asphalt_01) | CC0 | `city-builder/assets/textures/{ground-asphalt.jpg,aerial_asphalt_01_nor_gl_1k.jpg,aerial_asphalt_01_rough_1k.jpg}` | Road material; flat charcoal fallback |
+| Poly Haven — [Kiara 1 Dawn](https://polyhaven.com/a/kiara_1_dawn) | CC0 | _Reserved; no raw HDR ships_ | PMREM environment loader; procedural sky/sun fallback |
+| Poly Haven — [Leafy Grass](https://polyhaven.com/a/leafy_grass) | CC0 | `city-builder/assets/textures/leafy_grass_{diff,nor_gl,rough}_1k.jpg` | Realistic City Look terrain and park surfaces; procedural grass fallback |
+| Poly Haven — [Concrete Pavers 03](https://polyhaven.com/a/concrete_pavers_03) | CC0 | `city-builder/assets/textures/concrete_pavers_03_{diff,nor_gl,rough}_1k.jpg` | Realistic City Look sidewalks and public paving; flat concrete fallback |
+| Poly Haven — [Gravel Floor 03](https://polyhaven.com/a/gravel_floor_03) | CC0 | `city-builder/assets/textures/gravel_floor_03_{diff,nor_gl,rough}_1k.jpg` | Realistic City Look Urban Gravel terrain option; restrained normal fallback |
+| Poly Haven — Pure-sky HDRI gallery | CC0 | `city-builder/assets/environment/*.png` | Local preview cards for six child-selectable City Looks; the runtime remains offline-safe |
+
+The machine-readable, versioned companion is `city-builder/assets/environment-manifest.json`. HDRIs are enabled only after a processed, size-reviewed file is added there and to the loader manifest.
+
 Keep: **CC0 / public-domain only** (Kenney, Quaternius, KayKit, objcar, planets,
 documented CC0 city-builder assets, custom/champion assets). Remove:
 attribution-required (CC-BY), non-commercial (CC-BY-NC), unverified itch
 "personal-use" packs, and mixed-provenance building GLBs — none may ship.
+
+## Owner-vetted commercial vehicle exception (strictly limited)
+
+The owner-vetted commercial-use vehicle intake is a one-batch exception to the
+CC0 rule above. It applies only to records explicitly marked `accepted` in
+`library/COMMERCIAL-VEHICLE-INTAKE.json`, only when their `license` is
+`owner-vetted-commercial-use`, and only to their listed `library/vehicles/*.glb`
+output. The library audit rejects any other `commercialVehicle` catalogue entry.
+The nine supplied-source records are retained there even when their source file
+has not been attached; a record remains non-shippable until its normalized GLB,
+size review, and thumbnail are recorded. All non-vehicle assets remain CC0 / public domain only.
+
+| Source | License | Files admitted (library/) |
+|---|---|---|
+| Owner-vetted commercial-use intake — Audi A7 + Audi RS Q8 | owner-vetted-commercial-use | `library/vehicles/audi-a7.glb` (2.56 MiB; 2.13 × 1.43 × 4.96 m), `library/vehicles/audi-rs-q8.glb` (2.60 MiB; 2.23 × 1.70 × 5.00 m). Both reviewed Y-up, grounded, centred, and Z-length; their original material and texture groups are retained for rendering. |
 
 ## Summary
 - Total GLBs audited: 186 (baseline) + 140 (batch 1) + 10 (batch 2) + 21 (batch 3) + 16 (batch 4) = 373
@@ -257,6 +285,48 @@ packs) copied into each category's `Textures/` dir. KayKit GLBs embed their atla
 | `champion-city/assets/models/taxi.glb` | Custom/champion asset (own work / Kenney trees) |
 | `champion-city/assets/models/tree-high.glb` | Custom/champion asset (own work / Kenney trees) |
 
+## Round-3 provenance gap-fill (2026-09-10) — all KEEP
+
+Rows added for runtime GLBs that were shipped without a manifest entry (Round-3
+audit B1). The provenance gate (`scripts/library-audit.mjs`) now fails a deploy
+when a shipped GLB has no entry here or in `scripts/cc0-provenance.list`.
+
+| File | Reason |
+|---|---|
+| `city-builder/assets/models/hospital.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/school.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/shop.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/office.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/library.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `city-builder/assets/models/police.glb` | Documented CC0 city-builder asset (Kenney City Kit Commercial — ATTRIBUTION.md) |
+| `champion-city/assets/clips/breakdance.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/champion_base.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/chickendance.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/fastrun.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/hiphop.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/idle.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/idle_bunny.glb` | Custom/champion asset (in-repo bunny skin + idle) |
+| `champion-city/assets/clips/idle_dragon.glb` | Custom/champion asset (in-repo dragon skin + idle) |
+| `champion-city/assets/clips/idle_neondragon.glb` | Custom/champion asset (in-repo neon-dragon skin + idle) |
+| `champion-city/assets/clips/idle_sentinel.glb` | Custom/champion asset (in-repo sentinel skin + idle) |
+| `champion-city/assets/clips/jumping.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/leftturn.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/lockingdance.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/mmakick.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/rightturn.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/sittinglaugh.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/strikejog.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/walking.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `champion-city/assets/clips/waving.glb` | Custom/champion asset (in-repo Mixamo animation set) |
+| `home/champion.glb` | Custom/champion asset (byte-copy of `champion-city/assets/clips/idle.glb`) |
+| `library/props/kaykit-base.glb` | KayKit CC0 pack leftover — deliberately uncatalogued (kept; no library.js entry) |
+| `library/props/poly-market-stand.glb` | CC0 1.0 Poly Pizza batch-7 upload — deliberately uncatalogued (kept; no library.js entry) |
+
+> Summary note (Round 3): the manifest's "373 GLBs audited" figure predates the
+> later batch tables; the on-disk shipped set is larger and is fully mirrored by
+> the machine snapshot `scripts/cc0-provenance.list` (1529 entries, regenerable
+> with `node scripts/library-audit.mjs --write-provenance`).
+
 ## DELETE (0)
 | File | Reason |
 |---|---|
@@ -313,3 +383,7 @@ packs) copied into each category's `Textures/` dir. KayKit GLBs embed their atla
 | Quaternius Stylized Tree Pack — https://quaternius.com/packs/stylizedtree.html | CC0 1.0 | `nature/quaternius-tree-{stylized,birch,birch-dead,dead,pine,pine-2,pine-3}.glb` (7, Blender-normalized) |
 
 249 objects total. glTF packs converted via gltf-transform (embedded textures). Rigged characters render as static rest-pose figures. FBX packs normalized via headless Blender (grounded, centred, single mesh). Cars re-oriented length-along-Z. Skipped this batch: Downtown City MegaKit (modular facades, objects-only rule) and the pack13 aircraft re-download (already in library). Footprints/heights from actual GLB bounds or Blender RESULT dims.
+
+## City foreground citizens — 2026-09-13
+
+`city-builder/assets/models/citizens/casual-{male,female}.glb` are local derivatives of the KEEP-listed Quaternius Ultimate Animated Character Pack, specifically `library/characters/quaternius-animchar-casual2-{male,female}.glb` (CC0 1.0). Derived with `scripts/build-city-citizens.py` and `scripts/compact-city-glb.py`: Idle/Walk only, under 3,000 triangles each, one vertex-coloured material, no textures, normalized integer attributes using KHR_mesh_quantization. The two files total 415,376 bytes. Source files remain unchanged. These are city runtime assets rather than additional picker entries.

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Edge Mode Detective — AI Vision Training</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;background:#0a0e1a;touch-action:manipulation;user-select:none;color:#e0e6f0}
+#app{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
+
+:root{--cyan:#00e5ff;--green:#39ff14;--amber:#ffab00;--red:#ff1744;--bg:#0a0e1a;--card:#141b2d;--surface:#1a2340}
+
+.phase{display:none;width:100%;height:100%;position:absolute;top:0;left:0;flex-direction:column;align-items:center;padding:12px;overflow-y:auto}
+.phase.active{display:flex}
+.phase::-webkit-scrollbar{width:3px}
+.phase::-webkit-scrollbar-thumb{background:var(--cyan);border-radius:3px}
+
+/* ── Byte character ── */
+.byte-avatar{width:52px;height:64px;flex-shrink:0;animation:byteFloat 3s ease-in-out infinite}
+@keyframes byteFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.byte-avatar svg{width:100%;height:100%;filter:drop-shadow(0 0 6px rgba(0,229,255,.3))}
+
+/* ── Bubble ── */
+.bubble{background:var(--card);border:1px solid #2a3560;border-radius:14px;padding:10px 14px;max-width:380px;font-size:13px;line-height:1.5;position:relative;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.bubble::after{content:'';position:absolute;top:-7px;left:24px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:7px solid var(--card)}
+.bubble .who{color:var(--cyan);font-weight:700;font-size:11px;display:block;margin-bottom:2px}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:transform .12s;font-family:inherit;min-height:44px;touch-action:manipulation}
+.btn:active{transform:scale(.92)}
+.btn-cyan{background:var(--cyan);color:#0a0e1a;box-shadow:0 0 16px rgba(0,229,255,.25)}
+.btn-green{background:var(--green);color:#0a0e1a;box-shadow:0 0 16px rgba(57,255,20,.25)}
+.btn-amber{background:var(--amber);color:#0a0e1a}
+.btn-outline{background:transparent;border:2px solid var(--cyan);color:var(--cyan)}
+.btn-ghost{background:var(--surface);color:var(--text);border:1px solid #2a3560;font-size:13px;padding:8px 14px;min-height:36px}
+
+/* ── Menu ── */
+#phase-menu{z-index:10;justify-content:center;gap:10px}
+.menu-title{font-size:32px;font-weight:800;text-align:center;line-height:1.2}
+.menu-title .line1{display:block;color:var(--cyan);text-shadow:0 0 20px rgba(0,229,255,.3)}
+.menu-title .line2{display:block;color:var(--green);font-size:24px}
+.menu-sub{font-size:13px;color:#8892b0;text-align:center;max-width:340px}
+.level-strip{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;max-width:480px;width:100%}
+.level-card{background:var(--card);border:2px solid #2a3560;border-radius:12px;padding:14px 12px;cursor:pointer;transition:all .2s;text-align:center;min-width:130px;flex:1}
+.level-card:hover{border-color:var(--cyan)}
+.level-card:active{transform:scale(.96)}
+.level-card .lv-num{font-size:10px;color:var(--cyan);font-weight:700}
+.level-card .lv-name{font-size:14px;font-weight:700;margin:4px 0}
+.level-card .lv-desc{font-size:10px;color:#8892b0}
+
+/* ── Game header ── */
+.game-header{display:flex;align-items:flex-start;gap:8px;width:100%;max-width:620px;margin-bottom:4px}
+.game-area{width:100%;max-width:620px;background:var(--card);border:1px solid #2a3560;border-radius:12px;padding:10px;flex:1;display:flex;flex-direction:column;gap:8px;position:relative}
+#game-canvas{width:100%;max-width:580px;height:260px;background:#111;border-radius:8px;display:block;margin:0 auto;touch-action:none;cursor:pointer}
+.game-controls{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+
+/* ── Toggle ── */
+.toggle-wrap{display:flex;align-items:center;gap:6px;font-size:11px;color:#8892b0}
+.toggle-btn{width:60px;height:30px;border-radius:15px;background:#1a2340;border:2px solid #2a3560;cursor:pointer;position:relative;transition:all .3s;flex-shrink:0}
+.toggle-btn.on{background:var(--cyan);border-color:var(--cyan)}
+.toggle-btn .knob{width:22px;height:22px;border-radius:50%;background:#e0e6f0;position:absolute;top:2px;left:3px;transition:all .3s}
+.toggle-btn.on .knob{left:31px;background:#0a0e1a}
+.toggle-label{font-size:10px;color:#8892b0}
+
+/* ── Counter ── */
+.counter-wrap{display:flex;align-items:center;gap:8px}
+.counter-display{font-size:28px;font-weight:800;color:var(--cyan);min-width:50px;text-align:center;font-family:monospace;text-shadow:0 0 10px rgba(0,229,255,.3)}
+.counter-btn{width:36px;height:36px;border:none;border-radius:50%;background:var(--surface);color:#e0e6f0;font-size:20px;cursor:pointer;border:1px solid #2a3560;transition:all .1s}
+.counter-btn:active{transform:scale(.88);background:var(--cyan);color:#0a0e1a}
+.submit-btn{padding:10px 24px;font-size:15px}
+
+/* ── Level progress ── */
+.lv-progress{display:flex;gap:4px;justify-content:center;width:100%}
+.lv-dot{width:10px;height:10px;border-radius:50%;background:#2a3560;transition:all .3s}
+.lv-dot.done{background:var(--green);box-shadow:0 0 6px rgba(57,255,20,.4)}
+.lv-dot.current{background:var(--cyan);box-shadow:0 0 6px rgba(0,229,255,.4)}
+.lv-dot.locked{opacity:.3}
+
+/* ── Debug panel ── */
+.debug-info{font-size:10px;color:#4a5580;text-align:center;padding:2px 8px;border-radius:4px;background:rgba(0,0,0,.3);display:none}
+.debug-btn{font-size:10px;padding:2px 8px;background:transparent;border:1px solid #4a5580;color:#4a5580;border-radius:4px;cursor:pointer}
+
+/* ── Completion ── */
+.complete-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(10,14,26,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:11px;z-index:20;gap:8px;padding:16px}
+.complete-overlay .big{font-size:42px}
+.complete-overlay h2{color:var(--cyan);font-size:22px}
+.complete-overlay p{font-size:13px;color:#8892b0;text-align:center;max-width:280px}
+
+/* ── Diploma ── */
+.diploma{background:var(--card);border:3px solid var(--cyan);border-radius:14px;padding:24px;text-align:center;max-width:380px;width:100%}
+.diploma h2{font-size:24px;color:var(--cyan)}
+.diploma .badge{font-size:48px;margin:8px 0;animation:shimmer 2s ease-in-out infinite}
+@keyframes shimmer{0%,100%{filter:brightness(1)}50%{filter:brightness(1.3)}}
+.diploma .sub{font-size:12px;color:#8892b0;margin:6px 0}
+
+/* ── Confetti ── */
+#confetti-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999}
+
+/* ── Responsive ── */
+@media(max-width:500px){
+  .menu-title{font-size:26px}.menu-title .line2{font-size:18px}
+  #game-canvas{height:190px}
+  .counter-display{font-size:22px}.btn{font-size:13px;padding:10px 16px;min-height:40px}
+  .bubble{font-size:12px;max-width:280px}
+  .level-card{min-width:100px}
+}
+@media(max-height:500px){
+  #game-canvas{height:150px}.byte-avatar{width:36px;height:44px}
+  .bubble{font-size:11px;padding:6px 10px}
+}</style>
+</head>
+<body>
+<div id="app">
+
+<canvas id="confetti-canvas"></canvas>
+
+<!-- ═══ MENU ═══ -->
+<div id="phase-menu" class="phase active" style="z-index:10">
+  <div class="menu-title">
+    <span class="line1">🔍 Edge Mode Detective</span>
+    <span class="line2">⚡ AI Vision Training</span>
+  </div>
+  <div class="byte-avatar" style="width:80px;height:100px">
+    <svg viewBox="0 0 60 74"><rect x="12" y="18" width="36" height="36" rx="10" fill="#141b2d" stroke="#00e5ff" stroke-width="2.5"/>
+    <circle cx="24" cy="36" r="5" fill="#00e5ff"/><circle cx="36" cy="36" r="5" fill="#00e5ff"/>
+    <circle cx="25" cy="35" r="2.5" fill="#fff"/><circle cx="37" cy="35" r="2.5" fill="#fff"/>
+    <path d="M24 44 Q30 50 36 44" stroke="#00e5ff" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <rect x="20" y="6" width="20" height="10" rx="5" fill="#141b2d" stroke="#00e5ff" stroke-width="2"/>
+    <circle cx="28" cy="12" r="3" fill="#39ff14"/><circle cx="38" cy="12" r="3" fill="#ffab00"/>
+    <rect x="10" y="52" width="8" height="12" rx="3" fill="#141b2d" stroke="#00e5ff" stroke-width="2"/>
+    <rect x="42" y="52" width="8" height="12" rx="3" fill="#141b2d" stroke="#00e5ff" stroke-width="2"/>
+    <circle cx="10" cy="58" r="4" fill="#39ff14"/><circle cx="50" cy="58" r="4" fill="#39ff14"/></svg>
+  </div>
+  <div class="bubble" style="text-align:center">
+    <span class="who">🕵️ Detective Byte</span>
+    Neo-City's AI cameras are broken! They see too much noise — shadows, glare, overlapping crowds. I need YOU to become an <b>AI Vision Detective</b> and teach them to use <b>Edge Detection</b>!
+  </div>
+  <div class="level-strip" id="menu-levels"></div>
+  <div style="font-size:10px;color:#4a5580;text-align:center;margin-top:4px">🕵️ Learn how AI sees by stripping away visual noise</div>
+</div>
+
+<!-- ═══ GAME ═══ -->
+<div id="phase-game" class="phase" style="z-index:10">
+  <div class="game-header">
+    <div class="byte-avatar"><svg viewBox="0 0 60 74"><rect x="12" y="18" width="36" height="36" rx="10" fill="#141b2d" stroke="#00e5ff" stroke-width="2.5"/><circle cx="24" cy="36" r="5" fill="#00e5ff"/><circle cx="36" cy="36" r="5" fill="#00e5ff"/><circle cx="25" cy="35" r="2.5" fill="#fff"/><circle cx="37" cy="35" r="2.5" fill="#fff"/><path d="M24 44 Q30 50 36 44" stroke="#00e5ff" stroke-width="2" fill="none" stroke-linecap="round"/><rect x="20" y="6" width="20" height="10" rx="5" fill="#141b2d" stroke="#00e5ff" stroke-width="2"/><circle cx="28" cy="12" r="3" fill="#39ff14"/><circle cx="38" cy="12" r="3" fill="#ffab00"/><rect x="10" y="52" width="8" height="12" rx="3" fill="#141b2d" stroke="#00e5ff" stroke-width="2"/><rect x="42" y="52" width="8" height="12" rx="3" fill="#141b2d" stroke="#00e5ff" stroke-width="2"/><circle cx="10" cy="58" r="4" fill="#39ff14"/><circle cx="50" cy="58" r="4" fill="#39ff14"/></svg></div>
+    <div class="bubble" id="game-bubble"><span class="who">🕵️ Detective Byte</span>Let's go!</div>
+  </div>
+  <div class="game-area">
+    <div class="lv-progress" id="lv-progress"></div>
+    <canvas id="game-canvas"></canvas>
+    <div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;">
+      <div class="toggle-wrap">
+        <span class="toggle-label">👁️ Normal</span>
+        <div class="toggle-btn" id="toggle-btn"><div class="knob"></div></div>
+        <span class="toggle-label">🔲 Edge</span>
+      </div>
+      <div class="counter-wrap">
+        <button class="counter-btn" id="c-dec">−</button>
+        <div class="counter-display" id="c-display">0</div>
+        <button class="counter-btn" id="c-inc">+</button>
+      </div>
+      <button class="btn btn-cyan submit-btn" id="btn-submit">✔ Submit Count</button>
+      <button class="btn btn-ghost" id="btn-hint" title="Hint">💡</button>
+      <button class="btn btn-ghost" id="btn-back-menu" style="font-size:11px;padding:6px 10px;min-height:30px">↩ Menu</button>
+    </div>
+    <div id="game-status" style="font-size:12px;color:#8892b0;text-align:center">Level 1/5 — Count the objects. Toggle to Edge Mode!</div>
+    <div id="l4-filter" style="display:none;text-align:center;font-size:11px;color:#8892b0">
+      🎛️ Filter sensitivity:
+      <input type="range" id="filter-slider" min="1" max="5" value="3" style="width:120px;vertical-align:middle;accent-color:var(--cyan)">
+      <span id="filter-label" style="color:var(--cyan);font-weight:700">Normal</span>
+    </div>
+    <div id="l5-timer" style="display:none;text-align:center">
+      <span style="font-size:12px;color:var(--amber)">⏱️ </span>
+      <span id="timer-display" style="font-size:20px;font-weight:800;color:var(--amber);font-family:monospace">15</span>
+      <span style="font-size:12px;color:#8892b0">s remaining</span>
+    </div>
+    <div class="debug-info" id="debug-info">🔧 Dev: <span id="debug-answer">0</span></div>
+    <!-- Completion overlay -->
+    <div class="complete-overlay" id="complete-overlay" style="display:none">
+      <div class="big" id="comp-emoji">🎉</div>
+      <h2 id="comp-title">Level Complete!</h2>
+      <p id="comp-text">Great detective work!</p>
+      <p id="comp-ai" style="font-size:11px;color:var(--cyan);max-width:260px"></p>
+      <button class="btn btn-cyan" id="comp-next">➡ Next Level</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DIPLOMA ═══ -->
+<div id="phase-diploma" class="phase" style="z-index:20;justify-content:center">
+  <div class="diploma">
+    <div class="badge">🕵️</div>
+    <h2>Certified AI Vision Detective</h2>
+    <div class="sub">has mastered the art of <b>Edge Detection</b> —<br>teaching AI to see through visual noise</div>
+    <div style="margin:10px 0;font-size:12px;color:#8892b0">
+      ✅ Strip visual noise &bull; ✅ Detect overlapping objects<br>
+      ✅ Remove glare &bull; ✅ Tune filters &bull; ✅ Speed counting
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-cyan" id="diploma-replay">🔄 Play Again</button>
+      <button class="btn btn-ghost" id="diploma-menu">🏠 Menu</button>
+    </div>
+    <div class="sub" style="margin-top:8px;color:#4a5580;font-size:10px">Neo-City's AI cameras are <span style="color:var(--green)">FIXED</span> thanks to you!</div>
+  </div>
+</div>
+
+</div>
+<script>
+// ═══════════════════════════════════════
+// EDGE MODE DETECTIVE — Main Script
+// ═══════════════════════════════════════
+const App = {
+  state: { phase:'menu', currentLevel:0, count:0, edgeMode:false, submitted:false,
+    completed:[], lvAttempts:0 },
+
+  // ── LEVEL DATA ──
+  levels: [
+    { id:1, name:'Too Dark!', desc:'Night scene — too dim to see!', answer:4,
+      objects:null, // built at init
+      hint:'The shadows make it impossible. Try Edge Mode!',
+      aiLesson:'Edge Detection lets AI see through darkness by tracing outlines — ignoring light and color!',
+      rgbBg:'#0a0e1a', edgeBg:'#050810' },
+    { id:2, name:'Crowded Crossing', desc:'People overlapping!', answer:5,
+      hint:'A shadow looks like a person in Normal mode. Edge Mode removes the shadow — count only the real outlines!',
+      aiLesson:'AI uses Edge Detection to separate overlapping objects — shadows disappear, only real shapes remain.',
+      rgbBg:'#1a1a2e', edgeBg:'#050810' },
+    { id:3, name:'Traffic Jam!', desc:'Car headlights create glare!', answer:6,
+      hint:'The glare is blinding! Edge Mode removes it completely.',
+      aiLesson:'Glare fools cameras. Edge Detection ignores light — it only looks at object outlines, so glare vanishes!',
+      rgbBg:'#1a0a0a', edgeBg:'#050810' },
+    { id:4, name:'The Filter', desc:'Tune the AI sensitivity!', answer:4,
+      hint:'Try different filter levels to find the setting that only shows cars.',
+      aiLesson:'AI engineers tune filter thresholds — too sensitive sees noise, too strict misses real objects. Balance is key!',
+      rgbBg:'#0a1a0a', edgeBg:'#050810' },
+    { id:5, name:'Speed Count!', desc:'Objects zoom by! Count them!', answer:10,
+      hint:'Quick! Toggle between modes to check your count before they move on!',
+      aiLesson:'AI counts objects in real-time video — faster than humans, frame by frame, even in noisy conditions!',
+      rgbBg:'#0a0e1a', edgeBg:'#050810' }
+  ],
+
+  // ── OBJECT GENERATORS ──
+  genObjects(levelIdx){
+    const levels=[
+      // Level 1: 4 pedestrians in dark
+      function(){
+        const objs=[];
+        for(let i=0;i<4;i++){
+          const x=40+i*130, y=140+Math.sin(i)*20;
+          objs.push({type:'person',x,y,w:22,h:40,color:'#4a5568',id:i});
+        }
+        // Add noise: trees, shadows
+        for(let i=0;i<4;i++)objs.push({type:'tree',x:20+i*140,y:160,w:30,h:45,color:'#2d3748',noise:true,id:10+i});
+        return objs;
+      },
+      // Level 2: 5 overlapping pedestrians + 1 noise shadow
+      function(){
+        const objs=[];
+        for(let i=0;i<5;i++){
+          const x=60+i*75, y=125+Math.sin(i*1.3)*15;
+          objs.push({type:'person',x,y,w:26,h:48,color:'#5a6a7e',id:i});
+        }
+        // A shadow/blob that looks like a person in RGB but disappears in Edge Mode
+        objs.push({type:'shadow',x:190,y:150,w:30,h:40,color:'#2a3550c0',noise:true,id:10});
+        return objs;
+      },
+      // Level 3: 6 cars with headlight glare
+      function(){
+        const objs=[];
+        for(let i=0;i<6;i++){
+          const x=30+i*85, y=140+Math.sin(i)*18;
+          objs.push({type:'car',x,y,w:40,h:22,color:'#e53935',id:i});
+        }
+        // Glare noise: bright circles
+        for(let i=0;i<5;i++)objs.push({type:'glare',x:50+i*90,y:130+Math.sin(i*2)*10,w:30,h:30,color:'#ffff0080',noise:true,id:20+i});
+        return objs;
+      },
+      // Level 4: 4 cars + plant noise at various filter levels
+      function(){
+        const objs=[];
+        for(let i=0;i<4;i++){
+          const x=60+i*120, y=145;
+          objs.push({type:'car',x,y,w:40,h:22,color:'#1565c0',id:i});
+        }
+        // Plant noise: trees and bushes
+        for(let i=0;i<6;i++){
+          objs.push({type:'bush',x:30+i*90,y:155,w:30+Math.sin(i)*10,h:30,color:'#2e7d3280',noise:true,id:20+i});
+        }
+        return objs;
+      },
+      // Level 5: 10 speeding objects
+      function(){
+        const objs=[];
+        for(let i=0;i<10;i++){
+          const x=30+i*52, y=135+Math.sin(i*0.8)*20;
+          if(i%2===0)objs.push({type:'person',x,y,w:20,h:38,color:'#7e57c2',id:i});
+          else objs.push({type:'car',x,y,w:36,h:20,color:'#ef6c00',id:i});
+        }
+        return objs;
+      }
+    ];
+    return (levels[levelIdx]||levels[0])();
+  },
+
+  // ── RENDERER ──
+  renderLevel(levelIdx){
+    const lv=this.levels[levelIdx];
+    const c=document.getElementById('game-canvas');
+    const ctx=c.getContext('2d');
+    const w=c.width, h=c.height;
+    const objects=this.genObjects(levelIdx);
+    const edge=this.state.edgeMode;
+    const filterLvl=this.state.filterLevel||3;
+    // Filter threshold: 1=thinnest(sees everything), 5=thickest(only big objects)
+    const minSize=6-filterLvl; // 1→5, 2→4, 3→3, 4→2, 5→1 (lower = more detail)
+
+    ctx.clearRect(0,0,w,h);
+    // Background
+    ctx.fillStyle=edge?'#050810':lv.rgbBg;
+    ctx.fillRect(0,0,w,h);
+
+    // Grid dots (edge mode only)
+    if(edge){
+      ctx.fillStyle='rgba(0,229,255,.05)';
+      for(let x=0;x<w;x+=20)for(let y=0;y<h;y+=20)ctx.fillRect(x,y,1,1);
+    }
+
+    // Draw each object
+    objects.forEach(obj=>{
+      const isReal=!obj.noise;
+      const o=obj;
+      ctx.save();
+      if(edge){
+        // Filter: in Level 4 (idx=3), slider controls noise visibility
+        if(levelIdx===3&&o.noise){
+          if(filterLvl>=5)return; // Thick: hides noise — only cars visible!
+          if(filterLvl>=3){ctx.strokeStyle='#1a4020';ctx.lineWidth=1;ctx.shadowColor='transparent';ctx.shadowBlur=0;}
+          // Thin (1-2): noise visible with full green — falls through to normal drawing
+        }
+        ctx.strokeStyle=isReal? '#39ff14':'#2a5540';
+        ctx.lineWidth=isReal?2:1;
+        ctx.shadowColor=isReal?'rgba(57,255,20,.3)':'transparent';
+        ctx.shadowBlur=isReal?6:0;
+        if(o.type==='person'||o.type==='pedestrian'){
+          // Head
+          ctx.beginPath();ctx.arc(o.x+o.w/2,o.y+10,8,0,Math.PI*2);ctx.stroke();
+          // Body
+          ctx.strokeRect(o.x+4,o.y+18,o.w-8,o.h-22);
+          // Legs
+          ctx.beginPath();ctx.moveTo(o.x+8,o.y+o.h-4);ctx.lineTo(o.x+6,o.y+o.h+6);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(o.x+o.w-8,o.y+o.h-4);ctx.lineTo(o.x+o.w-6,o.y+o.h+6);ctx.stroke();
+        }else if(o.type==='car'){
+          ctx.strokeRect(o.x,o.y,o.w,o.h);
+          ctx.beginPath();ctx.arc(o.x+8,o.y+o.h+3,6,0,Math.PI*2);ctx.stroke();
+          ctx.beginPath();ctx.arc(o.x+o.w-8,o.y+o.h+3,6,0,Math.PI*2);ctx.stroke();
+        }else if(o.type==='tree'||o.type==='bush'){
+          ctx.strokeStyle='#2a5540';
+          ctx.lineWidth=1;
+          ctx.beginPath();ctx.arc(o.x+o.w/2,o.y+15,o.w/2,0,Math.PI*2);ctx.stroke();
+          ctx.strokeRect(o.x+o.w/2-3,o.y+30,6,15);
+        }else if(o.type==='glare'||o.type==='shadow'){
+          // Invisible in edge mode — it was just visual noise!
+        }
+      }else{
+        // RGB mode: filled, colored, with shadows
+        if(o.type==='person'||o.type==='pedestrian'){
+          ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
+          ctx.fillStyle=o.color||'#4a5568';
+          ctx.beginPath();ctx.arc(o.x+o.w/2,o.y+10,8,0,Math.PI*2);ctx.fill();
+          ctx.fillRect(o.x+4,o.y+18,o.w-8,o.h-22);
+          ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+          ctx.fillStyle='#2d3748';
+          ctx.fillRect(o.x+6,o.y+o.h-4,4,8);ctx.fillRect(o.x+o.w-10,o.y+o.h-4,4,8);
+        }else if(o.type==='car'){
+          ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=10;ctx.shadowOffsetY=3;
+          ctx.fillStyle=o.color||'#e53935';
+          ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,4);ctx.fill();
+          ctx.fillStyle='#1a237e';ctx.fillRect(o.x+4,o.y+4,8,6);ctx.fillRect(o.x+o.w-12,o.y+4,8,6);
+          ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+          ctx.fillStyle='#37474f';ctx.beginPath();ctx.arc(o.x+8,o.y+o.h+3,5,0,Math.PI*2);ctx.fill();
+          ctx.beginPath();ctx.arc(o.x+o.w-8,o.y+o.h+3,5,0,Math.PI*2);ctx.fill();
+        }else if(o.type==='tree'){
+          ctx.fillStyle='#1b5e20';ctx.beginPath();ctx.arc(o.x+o.w/2,o.y+15,o.w/2,0,Math.PI*2);ctx.fill();
+          ctx.fillStyle='#4e342e';ctx.fillRect(o.x+o.w/2-4,o.y+30,8,15);
+        }else if(o.type==='bush'){
+          ctx.fillStyle='#2e7d32';ctx.beginPath();ctx.arc(o.x+o.w/2,o.y+20,o.w/2-4,0,Math.PI*2);ctx.fill();
+        }else if(o.type==='glare'){
+          ctx.fillStyle='rgba(255,255,200,.3)';
+          ctx.beginPath();ctx.arc(o.x,o.y,o.w/2,0,Math.PI*2);ctx.fill();
+          ctx.fillStyle='rgba(255,255,200,.15)';
+          ctx.beginPath();ctx.arc(o.x+5,o.y-3,o.w/2+5,0,Math.PI*2);ctx.fill();
+        }else if(o.type==='shadow'){
+          // Dark semi-transparent blob — looks like a person in RGB, invisible in Edge
+          ctx.fillStyle='rgba(30,40,60,.35)';
+          ctx.beginPath();ctx.ellipse(o.x+o.w/2,o.y+o.h/2,o.w/2,o.h/3,0,0,Math.PI*2);ctx.fill();
+        }
+      }
+      ctx.restore();
+    });
+
+    // Edge mode label
+    if(edge){
+      ctx.fillStyle='rgba(0,229,255,.6)';ctx.font='10px monospace';ctx.textAlign='right';
+      ctx.fillText('EDGE MODE — AI VISION',w-8,16);
+      ctx.fillStyle='rgba(57,255,20,.3)';ctx.textAlign='left';
+      ctx.fillText(`◈ ${this.levels[levelIdx].name} ◈`,8,16);
+    }else{
+      ctx.fillStyle='rgba(255,255,255,.3)';ctx.font='10px monospace';ctx.textAlign='right';
+      ctx.fillText('NORMAL MODE — HUMAN VISION',w-8,16);
+    }
+
+    // Store correct answer in debug
+    document.getElementById('debug-answer').textContent=this.levels[levelIdx].answer;
+  },
+
+  // ═══════════════════════════════════════
+  // GAME LOGIC
+  // ═══════════════════════════════════════
+  startLevel(levelIdx){
+    this.state.currentLevel=levelIdx;
+    this.state.count=0;this.state.edgeMode=false;this.state.submitted=false;
+    this.state.lvAttempts=0;this.state.filterLevel=3;this._timerInterval=null;
+    document.getElementById('toggle-btn').classList.remove('on');
+    document.getElementById('c-display').textContent='0';
+    document.getElementById('complete-overlay').style.display='none';
+    document.getElementById('debug-info').style.display='none';
+    document.getElementById('l4-filter').style.display=levelIdx===3?'block':'none';
+    document.getElementById('l5-timer').style.display=levelIdx===4?'block':'none';
+    document.getElementById('filter-slider').value=3;
+    document.getElementById('filter-label').textContent='Normal';
+    document.getElementById('timer-display').textContent='15';
+    this.showPhase('game');
+    this.renderLevelUI(levelIdx);
+    this.renderLevel(levelIdx);
+    // Level-specific instructions
+    if(levelIdx===3)this.speak('game-bubble','🎛️ Tune the <b>Filter Sensitivity</b> slider! Too thin = see noise. Too thick = miss cars. Find the sweet spot where only cars show in Edge Mode!');
+    else if(levelIdx===4)this.speak('game-bubble','⏱️ <b>Speed Count!</b> 15 seconds! Count the objects before time runs out! Toggle between modes to double-check!');
+    else this.speak('game-bubble','🕵️ <b>'+this.levels[levelIdx].desc+'</b> — Count the objects! Try toggling between Normal and Edge Mode!');
+    // Start timer for Level 5
+    if(levelIdx===4)this.startTimer();
+  },
+
+  renderLevelUI(levelIdx){
+    // Progress dots
+    const prog=document.getElementById('lv-progress');prog.innerHTML='';
+    this.levels.forEach((lv,i)=>{
+      const dot=document.createElement('div');dot.className='lv-dot';
+      if(this.state.completed.includes(i))dot.classList.add('done');
+      else if(i===levelIdx)dot.classList.add('current');
+      prog.appendChild(dot);
+    });
+    document.getElementById('game-status').textContent='Level '+(levelIdx+1)+'/5 — '+this.levels[levelIdx].desc;
+  },
+
+  toggleEdge(){
+    this.state.edgeMode=!this.state.edgeMode;
+    document.getElementById('toggle-btn').classList.toggle('on',this.state.edgeMode);
+    this.renderLevel(this.state.currentLevel);
+    if(this.state.edgeMode)this.speak('game-bubble','🔲 Edge Mode activated! Only <b>outlines</b> remain — the AI strips away colors, shadows, and glare to find shapes!');
+    else this.speak('game-bubble','👁️ Normal mode — colors and shadows create <b>visual noise</b> that confuses AI!');
+  },
+
+  startTimer(){
+    let t=15;
+    document.getElementById('timer-display').textContent=t;
+    if(this._timerInterval)clearInterval(this._timerInterval);
+    this._timerInterval=setInterval(()=>{
+      t--;
+      document.getElementById('timer-display').textContent=t;
+      if(t<=5)document.getElementById('timer-display').style.color='var(--red)';
+      if(t<=0){
+        clearInterval(this._timerInterval);
+        this._timerInterval=null;
+        if(!this.state.submitted)this.speak('game-bubble','⏰ Time\'s up! Submit your count now!');
+      }
+    },1000);
+  },
+
+  submitCount(){
+    if(this.state.submitted)return;
+    const guess=this.state.count;
+    const lv=this.levels[this.state.currentLevel];
+    const correct=lv.answer;
+    this.state.lvAttempts++;
+
+    if(guess===correct){
+      this.state.submitted=true;
+      if(!this.state.completed.includes(this.state.currentLevel))
+        this.state.completed.push(this.state.currentLevel);
+      // Show completion
+      const overlay=document.getElementById('complete-overlay');
+      document.getElementById('comp-emoji').textContent='🎉';
+      document.getElementById('comp-title').textContent='✅ Level '+(this.state.currentLevel+1)+' Complete!';
+      document.getElementById('comp-text').textContent='You counted '+correct+' objects. '+lv.hint;
+      document.getElementById('comp-ai').textContent='🧠 AI Lesson: '+lv.aiLesson;
+      const nextBtn=document.getElementById('comp-next');
+      if(this.state.currentLevel>=this.levels.length-1){
+        nextBtn.textContent='🏆 Get Your Diploma!';
+        nextBtn.onclick=()=>this.showDiploma();
+      }else{
+        nextBtn.textContent='➡ Next Level';
+        nextBtn.onclick=()=>this.startLevel(this.state.currentLevel+1);
+      }
+      overlay.style.display='flex';
+      this.startConfetti();
+      this.playChime();
+    }else{
+      this.playBuzz();
+      let msg=guess<correct?'That\'s too few! Try toggling to Edge Mode to see them more clearly.':'That\'s too many! Some objects might be noise — Edge Mode helps you spot the difference.';
+      this.speak('game-bubble','❌ '+msg);
+    }
+  },
+
+  showDiploma(){
+    this.startConfetti();
+    this.showPhase('diploma');
+    setTimeout(()=>this.startConfetti(),800);
+  },
+
+  // ═══════════════════════════════════════
+  // MENU
+  // ═══════════════════════════════════════
+  renderMenu(){
+    const strip=document.getElementById('menu-levels');strip.innerHTML='';
+    this.levels.forEach((lv,i)=>{
+      const card=document.createElement('div');card.className='level-card';
+      card.innerHTML=`
+        <div class="lv-num">LEVEL ${i+1}</div>
+        <div class="lv-name">${lv.name}</div>
+        <div class="lv-desc">${lv.desc}</div>
+      `;
+      card.onclick=()=>this.startLevel(i);
+      strip.appendChild(card);
+    });
+  },
+
+  // ═══════════════════════════════════════
+  // SPEECH
+  // ═══════════════════════════════════════
+  speak(elId,text){
+    const el=document.getElementById(elId);
+    if(el)el.innerHTML='<span class="who">🕵️ Detective Byte</span>'+text;
+  },
+
+  // ═══════════════════════════════════════
+  // CONFETTI
+  // ═══════════════════════════════════════
+  startConfetti(){
+    const cnv=document.getElementById('confetti-canvas');
+    cnv.width=window.innerWidth;cnv.height=window.innerHeight;
+    const ctx=cnv.getContext('2d');
+    const colors=['#00e5ff','#39ff14','#ffab00','#ff1744','#7c4dff','#e0e6f0'];
+    const pts=Array.from({length:60},()=>({
+      x:Math.random()*cnv.width,y:-12,vx:(Math.random()-.5)*5,vy:Math.random()*3+1,
+      s:Math.random()*5+3,c:colors[Math.floor(Math.random()*colors.length)],r:Math.random()*360,rv:Math.random()*8-4
+    }));
+    let f=0;
+    function anim(){
+      ctx.clearRect(0,0,cnv.width,cnv.height);
+      pts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.r+=p.rv;
+        ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r*Math.PI/180);
+        ctx.fillStyle=p.c;ctx.globalAlpha=Math.max(0,1-f/120);
+        ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s);ctx.restore();
+      });
+      f++;if(f<120)requestAnimationFrame(anim);else ctx.clearRect(0,0,cnv.width,cnv.height);
+    }
+    anim();
+  },
+
+  // ── Sound effects ──
+  _audioCtx:null,_getCtx(){if(!this._audioCtx)this._audioCtx=new(window.AudioContext||window.webkitAudioContext)();return this._audioCtx},
+  playTone(f,d,t,v){
+    try{const ctx=this._getCtx();const o=ctx.createOscillator();const g=ctx.createGain();
+      o.type=t||'sine';o.frequency.value=f;g.gain.value=v||.1;
+      g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+d);
+      o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+d);
+    }catch(e){}
+  },
+  playChime(){this.playTone(523,.15,'sine',.12);setTimeout(()=>this.playTone(659,.15,'sine',.1),130);setTimeout(()=>this.playTone(784,.2,'sine',.1),260)},
+  playBuzz(){this.playTone(180,.25,'sawtooth',.07)},
+
+  // ═══════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════
+  init(){
+    this.renderMenu();
+
+    // Canvas sizing
+    const resizeCanvas=()=>{
+      const c=document.getElementById('game-canvas');
+      const rect=c.parentElement.getBoundingClientRect();
+      c.width=Math.min(580,rect.width-24);
+      c.height=Math.min(260,c.width*0.45);
+      if(this.state.phase==='game')this.renderLevel(this.state.currentLevel);
+    };
+    window.addEventListener('resize',resizeCanvas);
+    setTimeout(resizeCanvas,100);
+
+    // Toggle
+    document.getElementById('toggle-btn').onclick=()=>this.toggleEdge();
+
+    // Counter
+    document.getElementById('c-inc').onclick=()=>{
+      if(this.state.count<99)this.state.count++;
+      document.getElementById('c-display').textContent=this.state.count;
+    };
+    document.getElementById('c-dec').onclick=()=>{
+      if(this.state.count>0)this.state.count--;
+      document.getElementById('c-display').textContent=this.state.count;
+    };
+
+    // Submit
+    document.getElementById('btn-submit').onclick=()=>this.submitCount();
+
+    // Hint
+    document.getElementById('btn-hint').onclick=()=>{
+      const lv=this.levels[this.state.currentLevel];
+      this.speak('game-bubble','💡 '+lv.hint);
+    };
+
+    // Diploma buttons
+    document.getElementById('diploma-replay').onclick=()=>{
+      this.state.completed=[];this.renderMenu();this.showPhase('menu');
+    };
+    document.getElementById('diploma-menu').onclick=()=>{
+      this.renderMenu();this.showPhase('menu');
+    };
+
+    // Back to menu button
+    document.getElementById('btn-back-menu').onclick=()=>{
+      if(this._timerInterval){clearInterval(this._timerInterval);this._timerInterval=null;}
+      this.renderMenu();this.showPhase('menu');
+    };
+
+    // Filter slider (Level 4)
+    document.getElementById('filter-slider').oninput=function(){
+      const val=parseInt(this.value);
+      const labels=['Very Thin','Thin','Normal','Thick','Very Thick'];
+      document.getElementById('filter-label').textContent=labels[val-1];
+      App.state.filterLevel=val;
+      App.renderLevel(App.state.currentLevel);
+    };
+
+    // Keyboard
+    document.addEventListener('keydown',(e)=>{
+      if(e.key==='ArrowRight'||e.key==='+')document.getElementById('c-inc').click();
+      if(e.key==='ArrowLeft'||e.key==='-')document.getElementById('c-dec').click();
+      if(e.key==='Enter')document.getElementById('btn-submit').click();
+      if(e.key===' '){e.preventDefault();this.toggleEdge();}
+    });
+
+    this.renderMenu();
+  }
+};
+
+document.addEventListener('DOMContentLoaded',()=>App.init());
+</script>
+</body>
+</html>

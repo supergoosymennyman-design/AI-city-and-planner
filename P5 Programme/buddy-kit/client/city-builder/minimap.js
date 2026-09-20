@@ -8,6 +8,7 @@
  */
 
 import { catalogType, isSpecial } from '../city-common/catalog.js';
+import { t } from './i18n.js';
 import { typeSpec } from '../city-common/layout.js';
 
 export function createMinimap(city, champion, taxi, opts = {}) {
@@ -26,6 +27,27 @@ export function createMinimap(city, champion, taxi, opts = {}) {
 
   function wx(x) { return (x - bounds.minX) * S; }
   function wz(z) { return SIZE - (z - bounds.minZ) * S; }   // flip → north up
+
+  // The map and destination panel use the same purpose names as the planner.
+  const destinations = document.createElement('button');
+  destinations.type = 'button';
+  destinations.setAttribute('data-i18n', 'work.destinations');
+  destinations.textContent = t('work.destinations');
+  destinations.style.cssText = 'min-height:44px;width:100%';
+  destinations.onclick = () => opts.openDestinations?.();
+  wrap.appendChild(destinations);
+  canvas.setAttribute('role','button');
+  canvas.tabIndex = 0;
+  canvas.setAttribute('aria-label',t('work.destinations'));
+  canvas.addEventListener('click',()=>opts.openDestinations?.());
+  canvas.addEventListener('keydown',(event)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();opts.openDestinations?.();}});
+  canvas.addEventListener('pointermove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left) * SIZE / rect.width;
+    const y = (event.clientY - rect.top) * SIZE / rect.height;
+    const near = (city.layout?.buildings || []).find(b => Math.hypot(wx(b.pos[0])-x,wz(b.pos[1])-y) < 8);
+    canvas.title = near ? (typeSpec(near.type)?.name || near.type) : '';
+  });
 
   // ── Static layer (student layout) ──
   const staticCanvas = document.createElement('canvas');
@@ -80,7 +102,10 @@ export function createMinimap(city, champion, taxi, opts = {}) {
     // Drones (tiny white specks) — reused across both city builders
     const droneList = (city.drones && city.drones.drones) || [];
     for (const d of droneList) {
-      const A = d.route[d.seg], B = d.route[(d.seg + 1) % d.route.length];
+      // Guard: a drone that hasn't been given a route yet would make A/B undefined.
+      if (!d.route || d.route.length < 2) continue;
+      const seg = Math.min(Math.max(0, d.seg | 0), d.route.length - 1);
+      const A = d.route[seg], B = d.route[(seg + 1) % d.route.length];
       const x = A.x + (B.x - A.x) * Math.min(1, d.t);
       const z = A.z + (B.z - A.z) * Math.min(1, d.t);
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -113,5 +138,5 @@ export function createMinimap(city, champion, taxi, opts = {}) {
     }
   }
 
-  return { update, canvas, wx, wz };
+  return { update, canvas, wx, wz, destroy() { destinations.onclick = null; wrap.remove(); } };
 }
