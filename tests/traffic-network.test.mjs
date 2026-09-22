@@ -455,6 +455,53 @@ test('a ring with a dead-end spur circulates without a U-turn lollipop', () => {
   }
 });
 
+test('a densely hand-drawn ring keeps its circuit (freehand sampling never starves traffic)', () => {
+  // Champion files are drawn by finger/mouse: a closed ring is sampled every
+  // ~2-10 m, so many of its links are far shorter than the old 12 m usability
+  // floor. That fragmented the ring and left the whole city carless.
+  const SEGMENTS = 220, R = 340;
+  const ring = [];
+  for (let i = 0; i <= SEGMENTS; i++) {
+    const a = (i / SEGMENTS) * Math.PI * 2;
+    const r = R + Math.sin(i * 0.7) * 6 + Math.cos(i * 0.23) * 4;   // hand-drawn wobble
+    ring.push([Math.round(1000 + Math.cos(a) * r), Math.round(1000 + Math.sin(a) * r)]);
+  }
+  ring[ring.length - 1] = ring[0].slice();   // explicit closed loop
+  const roads = [{ width: 7, class: 'residential', points: ring }];
+  const network = buildTrafficNetwork(roads);
+  assert.ok(network.links.some((link) => link.length < 12), 'fixture must reproduce dense sampling');
+  const plan = planTrafficLoops(roads);
+  assert.ok(plan.routes.length >= 1, 'a densely sampled closed ring still gets a circuit');
+
+  const flow = createTrafficFlow(roads, { seed: 11 });
+  const placements = initialLoopPlacements(flow.routePlan, 6);
+  for (const placement of placements) flow.addVehicle({ ...placement, length: 5, width: 2.05, speed: 8 });
+  const initial = flow.vehicles.length;
+  assert.ok(initial > 0, 'a dense ring admits safely spaced vehicles');
+  for (let tick = 0; tick < 1200; tick++) {
+    flow.update(.1);
+    assert.equal(flow.vehicles.length, initial, `frame ${tick}: no route vehicle disappeared`);
+    for (let a = 0; a < flow.vehicles.length; a++) for (let b = a + 1; b < flow.vehicles.length; b++) {
+      assert.equal(flow.vehiclesOverlap(flow.vehicles[a], flow.vehicles[b]), false, `frame ${tick}: no body overlap`);
+    }
+  }
+});
+
+test('loop startup reserves visible cars near the Champion without losing circuit coverage', () => {
+  const roads = [
+    { width: 9, points: [[0, 0], [300, 0], [300, 300], [0, 300], [0, 0]] },
+    { width: 9, points: [[700, 0], [1100, 0], [1100, 400], [700, 400], [700, 0]] },
+  ];
+  const plan = planTrafficLoops(roads);
+  const spawn = { x: 20, z: 20 };
+  const placed = initialLoopPlacements(plan, 8, spawn);
+  assert.equal(placed.length, 8);
+  const near = placed[0].link;
+  const midpoint = { x: (near.from.x + near.to.x) / 2, z: (near.from.z + near.to.z) / 2 };
+  assert.ok(Math.hypot(midpoint.x - spawn.x, midpoint.z - spawn.z) < 300, 'first car is on the nearest circuit');
+  assert.equal(new Set(placed.map((p) => p.route.componentId)).size, 2, 'remaining fleet still covers both districts');
+});
+
 test('a four-way grid of separate straight roads forms a directed cycle', () => {
   const roads = [
     { width: 12, points: [[0, 500], [1000, 500]] },

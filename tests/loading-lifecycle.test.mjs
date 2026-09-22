@@ -20,6 +20,33 @@ test('bounded load queue never exceeds its concurrency and cancels pending work'
   assert.deepEqual(await Promise.all(jobs), [undefined, undefined, undefined, undefined, undefined]);
 });
 
+test('bounded load queue starts pending jobs by stable priority', async () => {
+  const order = [], releases = [];
+  const queue = createLoadQueue({ concurrency: 1 });
+  const first = queue.add(async () => { order.push('running'); await new Promise(resolve => releases.push(resolve)); });
+  const low = queue.add(async () => order.push('low'), { priority: 1 });
+  const nearA = queue.add(async () => order.push('near-a'), { priority: 10 });
+  const nearB = queue.add(async () => order.push('near-b'), { priority: 10 });
+  await new Promise(resolve => setImmediate(resolve));
+  releases[0]();
+  await Promise.all([first, low, nearA, nearB]);
+  assert.deepEqual(order, ['running', 'near-a', 'near-b', 'low']);
+});
+
+test('bounded load queue disposes a running result that becomes stale', async () => {
+  let active = true, release;
+  const disposed = [];
+  const queue = createLoadQueue({ concurrency: 1, isActive: () => active });
+  const result = queue.add(() => new Promise(resolve => { release = () => resolve('model'); }), {
+    onStale: value => disposed.push(value),
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  active = false;
+  release();
+  assert.equal(await result, undefined);
+  assert.deepEqual(disposed, ['model']);
+});
+
 test('boot owner rejects stale callbacks and releases listeners, timers and RAFs', () => {
   const calls = [];
   const target = new EventTarget();

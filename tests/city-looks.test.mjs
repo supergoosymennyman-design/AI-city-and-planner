@@ -1,33 +1,67 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CITY_LOOKS, validCityLook } from '../P5 Programme/buddy-kit/client/city-builder/city-looks.js';
+import { CITY_LOOKS, DEFAULT_CITY_LOOK, readCityLook, validCityLook, legacyTimeForLook } from '../P5 Programme/buddy-kit/client/city-builder/city-looks.js';
+import { DAY_SKIES, DEFAULT_DAY_SKY, readDaySky, validDaySky } from '../P5 Programme/buddy-kit/client/city-builder/day-skies.js';
 import { GROUND_TEXTURES, validGroundTexture } from '../P5 Programme/buddy-kit/client/city-builder/ground-textures.js';
+import { EXAMPLE_APPEARANCE, applyExampleAppearance } from '../P5 Programme/buddy-kit/client/city-builder/example-appearance.js';
 import { CF_KEYS, collectState, writeState } from '../P5 Programme/buddy-kit/client/city-common/champion-file.js';
 
-test('City Look gallery has a stable toy fallback and eight realistic alternatives', () => {
-  assert.equal(validCityLook('missing-look'), 'toy-town');
-  assert.equal(validCityLook('golden'), 'golden');
-  assert.equal(validCityLook('azure'), 'azure');
-  assert.equal(validCityLook('bluebird'), 'bluebird');
-  assert.equal(Object.keys(CITY_LOOKS).length, 9);
-  assert.equal(Object.values(CITY_LOOKS).filter(look => look.realistic).length, 8);
+test('example appearance overwrites all four existing preferences', () => {
+  const data = new Map([
+    ['p5_city_look_v1', 'future'], ['p5_city_day_sky_v1', 'calm-overcast'],
+    ['p5_city_ground_texture_v1', 'withered'], ['p5_city_time_v1', 'night'],
+  ]);
+  const writes = [];
+  const storage = { setItem(key, value) { writes.push([key, value]); data.set(key, value); } };
+  assert.equal(applyExampleAppearance(storage), true);
+  assert.deepEqual(EXAMPLE_APPEARANCE, {
+    cityLook: 'natural', daySky: 'natural-blue', groundTexture: 'asphalt', timeOfDay: 'sunset',
+  });
+  assert.deepEqual(writes, [
+    ['p5_city_look_v1', 'natural'], ['p5_city_day_sky_v1', 'natural-blue'],
+    ['p5_city_ground_texture_v1', 'asphalt'], ['p5_city_time_v1', 'sunset'],
+  ]);
+});
+
+test('City Style has four distinct worlds and maps legacy sky choices safely', () => {
+  assert.equal(DEFAULT_CITY_LOOK, 'natural');
+  assert.equal(validCityLook('missing-look'), 'natural');
+  assert.equal(readCityLook({ getItem: () => null }), 'natural');
+  assert.deepEqual(Object.keys(CITY_LOOKS), ['natural', 'toy-town', 'storybook', 'future']);
+  assert.equal(validCityLook('golden'), 'natural');
+  assert.equal(validCityLook('moonlit'), 'natural');
+  assert.equal(legacyTimeForLook('golden'), 'sunset');
+  assert.equal(legacyTimeForLook('moonlit'), 'night');
 });
 
 test('City Look travels in the Champion File state', () => {
-  const data = new Map([[CF_KEYS.cityLook, 'moonlit']]);
+  const data = new Map([[CF_KEYS.cityLook, 'future'], [CF_KEYS.daySky, 'bright-clouds'], [CF_KEYS.timeOfDay, 'night']]);
   const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
   const state = collectState(storage);
-  assert.equal(state.cityLook, 'moonlit');
+  assert.equal(state.cityLook, 'future');
+  assert.equal(state.daySky, 'bright-clouds');
+  assert.equal(state.timeOfDay, 'night');
   const restored = new Map();
   writeState(state, { setItem: (key, value) => restored.set(key, value) });
-  assert.equal(restored.get(CF_KEYS.cityLook), 'moonlit');
+  assert.equal(restored.get(CF_KEYS.cityLook), 'future');
+  assert.equal(restored.get(CF_KEYS.daySky), 'bright-clouds');
+  assert.equal(restored.get(CF_KEYS.timeOfDay), 'night');
 });
 
-test('City Look controls use the loaded presentation stylesheet and do not cover the minimap', () => {
+test('Natural City keeps its current day sky and offers three sharp alternatives', () => {
+  assert.equal(DEFAULT_DAY_SKY, 'natural-blue');
+  assert.equal(readDaySky({ getItem: () => null }), 'natural-blue');
+  assert.equal(validDaySky('missing'), 'natural-blue');
+  assert.deepEqual(Object.keys(DAY_SKIES), ['natural-blue', 'clear-blue', 'bright-clouds', 'calm-overcast']);
+  assert.equal(DAY_SKIES['natural-blue'].desktopSkyFile, 'assets/environment/kloppenheim-03-sky-4k.jpg');
+  assert.equal(DAY_SKIES['clear-blue'].desktopSkyFile, 'assets/environment/qwantani-clear-sky-4k.jpg');
+});
+
+test('one Appearance control groups style, ground and time away from the minimap', () => {
   const presentation = readFileSync(new URL('../P5 Programme/buddy-kit/client/city-builder/presentation.css', import.meta.url), 'utf8');
-  assert.match(presentation, /\.city-look\{position:fixed;top:66px;left:16px/);
-  assert.match(presentation, /\.city-look-panel\{position:fixed;[^}]*left:16px/);
+  assert.match(presentation, /\.appearance-toggle\{position:fixed;top:66px;left:16px/);
+  assert.match(presentation, /\.appearance-panel\{position:fixed;[^}]*left:16px/);
 });
 
 test('realistic City Look options reuse shipped 4K desktop and 2K tablet panorama derivatives', () => {
@@ -35,9 +69,11 @@ test('realistic City Look options reuse shipped 4K desktop and 2K tablet panoram
   const skies = manifest.assets.find(asset => asset.id === 'city-look-sky-previews').processed;
   const desktop = skies.filter(asset => asset.role === 'equirectangular-background-desktop');
   const tablet = skies.filter(asset => asset.role === 'equirectangular-background-tablet');
-  assert.equal(desktop.length, 6); assert.equal(tablet.length, 6);
+  assert.equal(desktop.length, 7); assert.equal(tablet.length, 7);
   for (const sky of desktop) assert.deepEqual([sky.width, sky.height], [4096, 2048]);
   for (const sky of tablet) assert.deepEqual([sky.width, sky.height], [2048, 1024]);
+  const source = manifest.assets.find(asset => asset.id === 'city-look-sky-previews').sourceUrls;
+  assert.ok(source.includes('https://polyhaven.com/a/qwantani_puresky'));
 });
 
 test('ground texture choice has five CC0 PBR options and survives a Champion File', () => {
@@ -65,10 +101,10 @@ test('realistic terrain uses the selected triplet while parks keep Leafy Grass',
   assert.match(source, /Toy Town is intentionally map-free for both open terrain and park lawns/);
 });
 
-test('city samples panorama JPEGs directly on the sky dome instead of scene.background cubemaps', () => {
+test('Natural City samples time-matched panorama JPEGs directly on the sky dome', () => {
   const source = readFileSync(new URL('../P5 Programme/buddy-kit/client/city-builder/city-builder.js', import.meta.url), 'utf8');
   assert.match(source, /uniform sampler2D equirectMap/);
-  assert.match(source, /skyDesktopFile/);
+  assert.match(source, /desktopSkies\?\.\[time\]/);
   assert.match(source, /duskSky\.material\.uniforms\.equirectMap\.value = texture/);
   assert.match(source, /equirectHorizonBlend/);
   assert.match(source, /smoothstep\(equirectHorizonBlend\.x,equirectHorizonBlend\.y,d\.y\)/);

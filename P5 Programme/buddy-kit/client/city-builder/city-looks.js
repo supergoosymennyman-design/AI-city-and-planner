@@ -1,25 +1,32 @@
-// Child-facing environment choices. These deliberately affect the setting, not
-// the city a child built: a saved layout must look like the same city in every
-// look and remain easy to inspect for the AI-literacy activities.
+// City Style is deliberately separate from time. A child can make the same
+// city look like a toy, a storybook, a real place or a future city without
+// accidentally selecting a daylight sky with night lighting.
 import { currentLang } from './i18n.js';
 
 export const CITY_LOOK_KEY = 'p5_city_look_v1';
+export const DEFAULT_CITY_LOOK = 'natural';
+
+const naturalSkies = Object.freeze({
+  morning: 'assets/environment/qwantani-dawn-sky.jpg',
+  day: 'assets/environment/kloppenheim-03-sky.jpg',
+  sunset: 'assets/environment/wasteland-golden-sky.jpg',
+  night: 'assets/environment/kloppenheim-night-sky.jpg',
+});
+const naturalDesktopSkies = Object.freeze(Object.fromEntries(Object.entries(naturalSkies)
+  .map(([time, file]) => [time, file.replace('-sky.jpg', '-sky-4k.jpg')])));
 
 export const CITY_LOOKS = Object.freeze({
-  'toy-town': { icon: '🧸', en: 'Toy Town', zh: '玩具城市', preview: null, horizon: 0xc4aaa0, sky: 0x6c7d9a, realistic: false },
-  dawn: { icon: '🌅', en: 'Soft Dawn', zh: '柔和清晨', preview: 'assets/environment/qwantani-dawn.png', skyFile: 'assets/environment/qwantani-dawn-sky.jpg', skyDesktopFile: 'assets/environment/qwantani-dawn-sky-4k.jpg', horizon: 0xe5c7a9, sky: 0x87a8c8, realistic: true },
-  blue: { icon: '☀️', en: 'Clear Blue Day', zh: '晴朗藍天', preview: 'assets/environment/kloppenheim-03.png', skyFile: 'assets/environment/kloppenheim-03-sky.jpg', skyDesktopFile: 'assets/environment/kloppenheim-03-sky-4k.jpg', horizon: 0xb9dce4, sky: 0x4f94c6, realistic: true },
-  azure: { icon: '💠', en: 'Crisp Azure', zh: '清澈湛藍', preview: 'assets/environment/kloppenheim-03.png', skyFile: 'assets/environment/kloppenheim-03-sky.jpg', skyDesktopFile: 'assets/environment/kloppenheim-03-sky-4k.jpg', horizon: 0xc6e4eb, sky: 0x3c91d0, equirectSaturation: 1.14, equirectContrast: 1.06, realistic: true },
-  bluebird: { icon: '🪁', en: 'Bluebird Sky', zh: '蔚藍晴空', preview: 'assets/environment/qwantani-dawn.png', skyFile: 'assets/environment/qwantani-dawn-sky.jpg', skyDesktopFile: 'assets/environment/qwantani-dawn-sky-4k.jpg', horizon: 0xc8dfdf, sky: 0x4c9ed0, equirectSaturation: 1.10, equirectContrast: 1.05, realistic: true },
-  clouds: { icon: '🌤️', en: 'Bright Clouds', zh: '明亮雲朵', preview: 'assets/environment/kloofendal-clouds.png', skyFile: 'assets/environment/kloofendal-clouds-sky.jpg', skyDesktopFile: 'assets/environment/kloofendal-clouds-sky-4k.jpg', horizon: 0xc8d9df, sky: 0x789ec0, realistic: true },
-  overcast: { icon: '☁️', en: 'Calm Overcast', zh: '寧靜陰天', preview: 'assets/environment/kloofendal-overcast.png', skyFile: 'assets/environment/kloofendal-overcast-sky.jpg', skyDesktopFile: 'assets/environment/kloofendal-overcast-sky-4k.jpg', horizon: 0xb5c2c9, sky: 0x718497, realistic: true },
-  golden: { icon: '🌇', en: 'Golden Hour', zh: '金色時刻', preview: 'assets/environment/wasteland-golden.png', skyFile: 'assets/environment/wasteland-golden-sky.jpg', skyDesktopFile: 'assets/environment/wasteland-golden-sky-4k.jpg', horizon: 0xd3ad8d, sky: 0x8c84a1, realistic: true },
-  moonlit: { icon: '🌙', en: 'Moonlit City', zh: '月夜城市', preview: 'assets/environment/kloppenheim-night.png', skyFile: 'assets/environment/kloppenheim-night-sky.jpg', skyDesktopFile: 'assets/environment/kloppenheim-night-sky-4k.jpg', horizon: 0x45566b, sky: 0x1b3151, realistic: true },
+  natural: { icon: '🌿', en: 'Natural City', zh: '自然城市', horizon: 0xb9dce4, sky: 0x5d9fce, horizonMix: .08, skyMix: .08, bloomScale: .82, saturation: 1, vignette: 0, grade: '#ffffff', contrast: 1, realistic: true, skies: naturalSkies, desktopSkies: naturalDesktopSkies },
+  'toy-town': { icon: '🧸', en: 'Toy Town', zh: '玩具城市', horizon: 0xc7dce2, sky: 0x79add0, horizonMix: .34, skyMix: .26, bloomScale: .55, saturation: 1.12, vignette: -.03, grade: '#fff1d1', contrast: .92, realistic: false },
+  storybook: { icon: '📖', en: 'Storybook', zh: '故事城市', horizon: 0xe2cdb7, sky: 0x91b8d0, horizonMix: .28, skyMix: .20, bloomScale: .72, saturation: .96, vignette: .01, grade: '#ffe3c5', contrast: .94, realistic: false },
+  future: { icon: '🚀', en: 'Future City', zh: '未來城市', horizon: 0x607a99, sky: 0x355f91, horizonMix: .42, skyMix: .46, bloomScale: 1.18, saturation: 1.08, vignette: .05, grade: '#b7e9ff', contrast: 1.08, realistic: false },
 });
 
-export function validCityLook(id) { return Object.hasOwn(CITY_LOOKS, id) ? id : 'toy-town'; }
+const LEGACY_LOOKS = new Set(['dawn', 'blue', 'azure', 'bluebird', 'clouds', 'overcast', 'golden', 'moonlit']);
+export function validCityLook(id) { return Object.hasOwn(CITY_LOOKS, id) ? id : (LEGACY_LOOKS.has(id) ? 'natural' : DEFAULT_CITY_LOOK); }
+export function legacyTimeForLook(id) { return ({ dawn: 'morning', golden: 'sunset', moonlit: 'night' })[id] || 'day'; }
 export function readCityLook(storage = globalThis.localStorage) {
-  try { return validCityLook(storage?.getItem(CITY_LOOK_KEY)); } catch { return 'toy-town'; }
+  try { return validCityLook(storage?.getItem(CITY_LOOK_KEY)); } catch { return DEFAULT_CITY_LOOK; }
 }
 export function cityLookName(id, lang = currentLang()) {
   const look = CITY_LOOKS[validCityLook(id)];

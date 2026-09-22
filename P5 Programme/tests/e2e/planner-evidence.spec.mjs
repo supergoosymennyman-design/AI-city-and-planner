@@ -148,6 +148,8 @@ test('road templates replace a non-empty city after confirmation without page er
   await boot(page);
   await page.locator('#planner-more > summary').click();
   await page.locator('#btn-template').click();
+  await expect(page.locator('#template-list .template-item')).toHaveCount(8);
+  await expect(page.locator('#template-list .tpl-preview svg')).toHaveCount(8);
   const template=page.locator('#template-list .template-item').first();
   const templateId=await template.getAttribute('data-template');
   await template.click();
@@ -159,5 +161,7 @@ test('road templates replace a non-empty city after confirmation without page er
     return getRoadTemplate(id).roads;
   },templateId);
   expect((await saved(page)).roads).toEqual(expected);
+  await page.locator('#btn-undo').click();
+  await expect.poll(async()=> (await saved(page)).buildings.length).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });

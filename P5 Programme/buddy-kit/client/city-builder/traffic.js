@@ -4,10 +4,9 @@
  * Each road polyline becomes a driving path; vehicles cruise along them in a
  * loop, keeping to Hong Kong's left-hand lane and facing the direction of travel.
  *
- * VISUALS: the procedural fleet is the immediate startup/failure fallback.
- * Accepted commercial GLBs asynchronously replace its cars with shared,
- * instanced geometry/material batches; placed, driven, and ambient vehicles
- * therefore continue to use the same normalized library source.
+ * VISUALS: traffic simulation starts immediately, but a car is invisible until
+ * its assigned Audi GLB settles. Models stream independently; a failed model
+ * never turns into an obsolete block-car substitute.
  */
 
 import * as THREE from 'three';
@@ -137,52 +136,27 @@ export function createTraffic(group, roads, opts = {}) {
   const availableTrafficItems = selectedItems.length
     ? selectedItems
     : DEFAULT_TRAFFIC_VEHICLE_IDS.map((id) => libraryItem(id)).filter(Boolean);
-  // Six five-layer fallbacks plus the bus renderer exactly consume the 35-call
-  // budget; keep any persisted experimental selection within that hard limit.
   const trafficItems = availableTrafficItems.slice(0, 6);
-
-  // Every archetype has five purpose-built instanced material batches. This
-  // bounds desktop traffic at 35 draw calls (and remains equally bounded on
-  // tablet), while retaining windows, tyres, trim and readable lamps.
-  const carEntries = TRAFFIC_VEHICLES;
-  const perCar = Math.ceil(carCount / carEntries.length);
-  const carRenderers = carEntries.map((entry) => ({ entry, renderer: createVehicleRenderer(group, entry.id.replace('veh_', '').replace('_q', ''), perCar) }));
-  const busRenderer = createVehicleRenderer(group, 'bus', busCount);
-  let renderers = [...carRenderers.map(h => h.renderer), busRenderer];
-  let instancedHolders = renderers.flatMap(renderer => Object.values(renderer.batches));
+  let renderers = [];
+  let instancedHolders = [];
 
   // Attach rendering metadata to graph vehicles. The graph owns position,
   // following distance and intersection reservations; this file only draws it.
-  const carHolders = carRenderers.map(h => ({ renderer: h.renderer, modelId: h.entry.id }));
-  const busHolder = { renderer: busRenderer, modelId: BUS_MODEL.id };
-  const initialPlacements = initialLoopPlacements(flow.routePlan, carCount + busCount);
+  const initialPlacements = initialLoopPlacements(flow.routePlan, carCount + busCount, opts.spawn || null);
   const initialPlacement = (index) => initialPlacements[index] || null;
   let safelyOmitted = 0;
   const spawnCar = (index) => {
-    const holder = carHolders[index % carHolders.length], modelId = holder.modelId;
-    // The graph envelope follows the chosen car, even while the bounded
-    // procedural fallback is visible during GLB loading.
-    const selected = trafficItems[index % trafficItems.length] || libraryItem(modelId);
-    const item = selected || libraryItem(modelId), length = vehicleTargetLength(item) || 5, width = vehicleTargetWidth(item);
+    const item = trafficItems[index % trafficItems.length];
+    if (!item) { safelyOmitted++; return null; }
+    const length = vehicleTargetLength(item) || 5, width = vehicleTargetWidth(item);
     const candidates = [initialPlacement(index)].filter(Boolean);
     for (const place of candidates) {
       const vehicle = flow.addVehicle({ kind: 'car', speed: TRAFFIC_SPEED, length, width, ...place });
-      if (vehicle) { Object.assign(vehicle, { renderer: holder.renderer, inst: holder.renderer.batches.body, modelId: item.id, paint: trafficPaint(holder.renderer.kind, index) }); return vehicle; }
-    }
-    safelyOmitted++; return null;
-  };
-  const spawnBus = (index) => {
-    const holder = busHolder;
-    const item = libraryItem(BUS_MODEL.id), length = vehicleTargetLength(item) || 8.8, width = vehicleTargetWidth(item);
-    const candidates = [initialPlacement(index)].filter(Boolean);
-    for (const place of candidates) {
-      const vehicle = flow.addVehicle({ kind: 'bus', speed: TRAFFIC_SPEED, length, width, ...place });
-      if (vehicle) { Object.assign(vehicle, { renderer: holder.renderer, inst: holder.renderer.batches.body, modelId: BUS_MODEL.id, paint: trafficPaint('bus', index) }); return vehicle; }
+      if (vehicle) { Object.assign(vehicle, { renderer: null, inst: null, modelId: item.id, paint: PAINTS[index % PAINTS.length] }); return vehicle; }
     }
     safelyOmitted++; return null;
   };
   for (let i = 0; i < carCount; i++) spawnCar(i);
-  for (let i = 0; i < busCount; i++) spawnBus(i + carCount);
 
   const m = new THREE.Matrix4();
   const pos = new THREE.Vector3();
@@ -191,68 +165,42 @@ export function createTraffic(group, roads, opts = {}) {
   const scl = new THREE.Vector3(1, 1, 1);
   const rendererDiagnostics = {
     overflow: 0, nonFinite: 0,
-    batches: Object.fromEntries(renderers.map(renderer => [renderer.kind, Object.keys(renderer.batches)])),
-    drawCalls: instancedHolders.length,
+    batches: {}, drawCalls: 0,
   };
   let destroyed = false;
 
-  // Loading a photographic-quality fleet must never hold up city startup. The
-  // procedural renderer above remains visible until every usable GLB settles;
-  // each successful variant then replaces a deterministic subset of cars.
-  const realisticFleet = { requested: trafficItems.map((item) => item.id), loaded: [], failed: [], errors: {} };
+  // Loading never holds up city startup. Each Audi reveals only its own stable
+  // assignment as soon as it settles; rejected assignments remain invisible.
+  const realisticFleet = {
+    requested: trafficItems.map((item) => item.id), loaded: [], failed: [], errors: {},
+    models: Object.fromEntries(trafficItems.map(item => [item.id, { state: 'loading' }])),
+  };
   if (trafficItems.length) {
-    preloadRealisticTrafficFleet(group, trafficItems, carCount).then((results) => {
-      if (destroyed) {
-        for (const { renderer } of results) if (renderer) for (const inst of Object.values(renderer.batches)) { inst.removeFromParent(); inst.dispose(); }
-        return;
-      }
-      // Keep the existing 35-call desktop/tablet ceiling. Failed variants get
-      // their own five-layer procedural fallback, rather than retaining every
-      // generic car archetype alongside the successful GLB batches.
-      // Reserve five calls for every model's procedural fallback first. A
-      // successful GLB only replaces that reservation by its primitive cost,
-      // which makes a mixed success/failure fleet obey the cap too.
-      let calls = 5 + results.length * 5;
-      const bounded = [];
-      for (const result of results) {
-        const { renderer } = result;
-        if (!renderer) {
-          realisticFleet.errors[result.item.id] = result.reason;
-          continue;
+    realisticFleet.ready = preloadRealisticTrafficFleet(group, trafficItems, carCount, {
+      isActive: () => !destroyed,
+      onSettle(result) {
+        const id = result.item.id;
+        if (destroyed) return;
+        if (!result.renderer) {
+          realisticFleet.models[id] = { state: 'failed', reason: result.reason };
+          realisticFleet.failed.push(id);
+          realisticFleet.errors[id] = result.reason;
+          return;
         }
-        const cost = Object.keys(renderer.batches).length;
-        if (calls + cost - 5 <= 35) { bounded.push(renderer); calls += cost - 5; }
-        else {
-          realisticFleet.errors[result.item.id] = 'draw-call-cap';
-          for (const inst of Object.values(renderer.batches)) { inst.removeFromParent(); inst.dispose(); }
+        renderers.push(result.renderer);
+        realisticFleet.models[id] = { state: 'loaded' };
+        realisticFleet.loaded.push(id);
+        for (const vehicle of flow.vehicles) if (vehicle.modelId === id) {
+          vehicle.renderer = result.renderer;
+          vehicle.inst = Object.values(result.renderer.batches)[0] || null;
         }
-      }
-      const loadedIds = new Set(bounded.map((renderer) => renderer.modelId));
-      realisticFleet.loaded = [...loadedIds];
-      realisticFleet.failed = trafficItems.map((item) => item.id).filter((id) => !loadedIds.has(id));
-      const fallbackRenderers = realisticFleet.failed.map((id) => ({
-        modelId: id,
-        renderer: createVehicleRenderer(group, `fallback-${id}`, carCount),
-      }));
-      // Every model keeps its deterministic assignment. Collision dimensions
-      // remain graph-owned, whether it is rendered from GLB primitives or its
-      // own procedural fallback family.
-      for (const vehicle of flow.vehicles) {
-        if (vehicle.kind !== 'car') continue;
-        const wanted = vehicle.modelId;
-        const renderer = bounded.find((candidate) => candidate.modelId === wanted)
-          || fallbackRenderers.find((candidate) => candidate.modelId === wanted)?.renderer;
-        if (!renderer) continue;
-        vehicle.renderer = renderer;
-        vehicle.inst = Object.values(renderer.batches)[0];
-      }
-      for (const fallback of carRenderers.map((h) => h.renderer)) {
-        for (const inst of Object.values(fallback.batches)) { inst.removeFromParent(); inst.dispose(); }
-      }
-      renderers = [...bounded, ...fallbackRenderers.map((entry) => entry.renderer), busRenderer];
-      instancedHolders = renderers.flatMap((renderer) => Object.values(renderer.batches));
-      rendererDiagnostics.batches = Object.fromEntries(renderers.map((renderer) => [renderer.kind, Object.keys(renderer.batches)]));
-      rendererDiagnostics.drawCalls = instancedHolders.length;
+        instancedHolders = renderers.flatMap((renderer) => Object.values(renderer.batches));
+        rendererDiagnostics.batches = Object.fromEntries(renderers.map((renderer) => [renderer.kind, Object.keys(renderer.batches)]));
+        rendererDiagnostics.drawCalls = instancedHolders.length;
+      },
+    }).catch((error) => {
+      // Per-model work already settles; this is a final defensive boundary.
+      realisticFleet.errors.loader = error?.message || 'fleet-load-failed';
     });
   }
 

@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const key = 'hk_ai_city_props_citybuilder_v1';
-async function harness(page, records = [{id:'prop_bench_k',x:1,z:2},{id:'prop_bench_k',x:3,z:4}]) {
+async function harness(page, records = [{id:'prop_bench_k',x:1,z:2},{id:'prop_bench_k',x:3,z:4}], customManifest = null) {
   await page.route('**/prop-test', r => r.fulfill({contentType:'text/html',body:`<script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three/addons/"}}</script>`}));
   await page.goto('/prop-test');
-  await page.evaluate(async ({key,records}) => {
+  await page.evaluate(async ({key,records,customManifest}) => {
     const THREE = await import('three');
     const {mountPropLibrary} = await import('/city-builder/prop-library.js');
     const {createGrabSystem} = await import('/shared/grab.js');
@@ -13,6 +13,7 @@ async function harness(page, records = [{id:'prop_bench_k',x:1,z:2},{id:'prop_be
     records = records.map(r => r?.id === 'prop_bench_k' ? {...r,id:window.id} : r);
     window.raw = JSON.stringify({version:1,props:records},null,2);
     localStorage.setItem(key,window.raw);
+    if(customManifest)localStorage.setItem('hk_ai_city_custom_models_v1',JSON.stringify(customManifest));
     window.scene = new THREE.Scene();
     window.camera = new THREE.PerspectiveCamera(60,1,0.1,100);
     camera.position.set(0,10,10); camera.lookAt(0,0,0); camera.updateMatrixWorld();
@@ -26,7 +27,7 @@ async function harness(page, records = [{id:'prop_bench_k',x:1,z:2},{id:'prop_be
     window.grab = createGrabSystem(scene,{colliders, getChampion:()=>({group:new THREE.Group(),state:{pos:new THREE.Vector3(),facing:0}})});
     window.mount = () => mountPropLibrary({scene,camera,renderer:{domElement:canvas},loadModel:()=>new Promise(resolve=>pending.push(resolve)),onPlacedMesh:mesh=>{mounted.push(mesh);grab.register(mesh,{movable:true});grab.addSurfaces(mesh);grab.attach(mesh);},onRemovedMesh:mesh=>{removed.push(mesh);grab.unregister(mesh);}});
     window.api = mount();
-  },{key,records});
+  },{key,records,customManifest});
 }
 const settle = (page, indices, missing=false) => page.evaluate(({indices,missing})=>{ for(const i of indices) pending[i](missing ? null : model); },{indices,missing});
 
@@ -59,6 +60,23 @@ test('clear invalidates restore and preview; no resurrection or shared disposal'
  expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props)).toEqual([]);
 });
 
+test('selected decoration inspector has bounded undo/redo and a real movement lock',async({page})=>{
+ await harness(page,[{id:'prop_bench_k',x:1,z:2}]); await settle(page,[0]);
+ await page.evaluate(()=>api.selectMesh(mounted[0]));
+ await expect(page.locator('#prop-inspector')).toBeVisible();
+ await page.locator('[data-inspect="rotate-right"]').click();
+ expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props[0].yaw)).toBeCloseTo(Math.PI/12);
+ await page.locator('[data-inspect="undo"]').click();
+ expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props[0].yaw ?? 0)).toBe(0);
+ await page.locator('[data-inspect="redo"]').click();
+ expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props[0].yaw)).toBeCloseTo(Math.PI/12);
+ await page.locator('#prop-inspector input[type="checkbox"]').check();
+ await page.waitForFunction(()=>grab.interactables.length===1);
+ await page.evaluate(()=>{ grab.select(grab.interactables[0]); grab.pickUp(); });
+ expect(await page.evaluate(()=>grab.mode)).toBe('idle');
+ expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props[0].locked)).toBe(true);
+});
+
 test('refresh twice and destroy during load cancel obsolete generations and release owned DOM/listeners',async({page})=>{
  await harness(page);
  await page.evaluate(()=>{api.refresh();api.refresh();});
@@ -83,6 +101,61 @@ test('missing model retains raw record; quota warning and current snapshot survi
  await page.evaluate(k=>{Storage.prototype.setItem=window.set;localStorage.setItem(k,api.snapshot());api.destroy();api=mount();},key);
  await settle(page,[4,5]);
  expect(await page.evaluate(()=>({pos:mounted.at(-1).position.toArray(),yaw:mounted.at(-1).rotation.y,scale:mounted.at(-1).scale.toArray()}))).toEqual({pos:[9,3,8],yaw:1.5,scale:[2,3,4]});
+});
+
+test('restored custom metadata without a device-local GLB shows a clear re-add state',async({page})=>{
+ await harness(page,[],{version:2,models:[{id:'park-art',name:'My Park Art'}],overrides:{school:'park-art'}});
+ await page.click('#prop-toggle');
+ await page.locator('.prop-lib-tabs').selectOption('mine');
+ const card=page.locator('[data-model-state="missing"]');
+ await expect(card).toContainText('My Park Art · file needed');
+ await expect(card.getByRole('button',{name:'Place'})).toBeDisabled();
+ await expect(card.getByRole('button',{name:'Re-add file'})).toBeVisible();
+ expect(await page.evaluate(()=>api.snapshot())).toContain('props');
+});
+
+test('a valid device-local GLB can be named, role-assigned, placed and restored',async({page})=>{
+ await harness(page,[]);
+ await page.click('#prop-toggle');
+ await page.locator('.prop-lib-tabs').selectOption('mine');
+ page.once('dialog',dialog=>dialog.accept('Park Sculpture'));
+ await page.locator('input[type="file"][accept*=".glb"]').setInputFiles({
+  name:'park-sculpture.glb',mimeType:'model/gltf-binary',
+  buffer:readFileSync(new URL('../../buddy-kit/client/library/props/kenney-bench.glb',import.meta.url)),
+ });
+ const card=page.locator('[data-model-state="ready"]');
+ await expect(card).toContainText('Park Sculpture');
+ page.once('dialog',dialog=>dialog.accept('school'));
+ await card.getByRole('button',{name:'Building role'}).click();
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('hk_ai_city_custom_models_v1')).overrides.school)).toBeTruthy();
+ await card.getByRole('button',{name:'Place',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>api.isReadyToPlace())).toBe(true);
+ await page.locator('.prop-lib-overlay').dispatchEvent('pointermove',{clientX:250,clientY:250});
+ await page.locator('.prop-lib-overlay').dispatchEvent('pointerdown',{clientX:250,clientY:250});
+ await page.locator('[data-act="done"]').click();
+ const saved=await page.evaluate(()=>JSON.parse(api.snapshot()).props[0]);
+ expect(saved.id).toMatch(/^custom:/);
+ const mountedBefore=await page.evaluate(()=>mounted.length);
+ await page.evaluate(()=>{api.destroy();api=mount();});
+ await expect.poll(()=>page.evaluate(n=>mounted.length>n,mountedBefore)).toBe(true);
+ expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props[0])).toMatchObject(saved);
+});
+
+test('one custom building-role GLB renders every repeated planner instance',async({page})=>{
+ const bytes=[...readFileSync(new URL('../../buddy-kit/client/library/props/kenney-bench.glb',import.meta.url))];
+ await page.goto('/city-builder/');
+ await page.evaluate(async bytes=>{
+  const {customModelStore,writeCustomManifest}=await import('/city-common/custom-models.js');
+  await customModelStore.put({id:'repeat-role',bytes:new Uint8Array(bytes).buffer,name:'Repeated School',createdAt:new Date().toISOString()});
+  writeCustomManifest({version:2,models:[{id:'repeat-role',name:'Repeated School'}],overrides:{school:'repeat-role'}});
+  localStorage.setItem('p5_city_planner_layout_v1',JSON.stringify({version:2,scaleMeters:500,roads:[],parks:[],buildings:[
+   {type:'school',pos:[150,250],footprint:[26,24],height:20},
+   {type:'school',pos:[350,250],footprint:[26,24],height:20},
+  ]}));
+ },bytes);
+ await page.goto('/city-builder/?from=planner');
+ await page.waitForFunction(()=>document.querySelector('#loading.done')&&window.__city?.loading?.assets?.buildings?.school?.instances===2,null,{timeout:90000});
+ expect(await page.evaluate(()=>__city.loading.assets.buildings.school)).toMatchObject({state:'loaded',instances:2});
 });
 
 test('City slider and grab drop persist transforms; Champion download includes current props after quota failure',async({page})=>{

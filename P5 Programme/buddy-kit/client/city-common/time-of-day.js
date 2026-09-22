@@ -10,5 +10,5 @@ export const TIME_PRESETS = Object.freeze({
  sunset:{en:'Sunset',zh:'黃昏',icon:'🌇',horizon:0xc4aaa0,sky:0x6c7d9a,skyLight:0xd7d5cf,groundLight:0x928265,sun:0xffbd7d,rim:0xd5b9a6,window:0xffc06d,lamp:0xffbc67,ambient:1.92,sunIntensity:2.18,rimIntensity:.38,sunX:1550,sunY:690,sunZ:1050,exposure:1.09,fog:.00061,night:.62,starVisibility:.5,bloom:.16,bloomThreshold:.70,saturation:1.045,vignette:.17,grassWarmth:.16,grassDayTint:0xffffff,grassDayBrightness:0,cloud:0xd0b39d},
  night:{en:'Night',zh:'夜晚',icon:'🌙',horizon:0x3d526a,sky:0x132947,skyLight:0x89a9cd,groundLight:0x526456,sun:0xb7d4f4,rim:0x82b8d3,window:0xffc875,lamp:0xffca78,ambient:1.48,sunIntensity:.72,rimIntensity:.34,sunX:-980,sunY:1500,sunZ:-460,exposure:1.12,fog:.00068,night:1,starVisibility:1,bloom:.21,bloomThreshold:.66,saturation:1.015,vignette:.21,grassWarmth:-.05,grassDayTint:0xffffff,grassDayBrightness:0,cloud:0x607891},
 });
-export function validTime(id){return TIME_ORDER.includes(id)?id:'sunset';}
+export function validTime(id){return TIME_ORDER.includes(id)?id:'day';}
 export function nextTime(id){return TIME_ORDER[(TIME_ORDER.indexOf(validTime(id))+1)%TIME_ORDER.length];}

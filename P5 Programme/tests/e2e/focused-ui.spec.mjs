@@ -7,6 +7,40 @@ const sizes = [
   { width:390, height:844, name:'mobile' },
 ];
 
+test('city header spacing stays readable in English and Traditional Chinese', async ({page}) => {
+  for (const lang of ['en','zh-Hant']) {
+    for (const width of [1440,1024,720,520]) {
+      await page.setViewportSize({width,height:800});
+      await page.goto('/city-builder/');
+      await page.evaluate(value => localStorage.setItem('hk_ai_city_lang_v1',value),lang);
+      await page.reload();
+      const geometry = await page.evaluate(() => {
+        const rect = selector => {
+          const element = document.querySelector(selector);
+          const box = element.getBoundingClientRect();
+          return {left:box.left,right:box.right,top:box.top,bottom:box.bottom,width:box.width,height:box.height,visible:box.width>0&&box.height>0};
+        };
+        const title = rect('#hud-top .hud-left');
+        const modes = rect('#city-mode-switch');
+        const buttons = [...document.querySelectorAll('#city-mode-switch .city-mode')].map(element => {
+          const box=element.getBoundingClientRect(); return {left:box.left,right:box.right,height:box.height};
+        });
+        return {
+          title,modes,buttons,
+          titleGap:title.visible ? modes.left-title.right : null,
+          modeGaps:buttons.slice(1).map((button,index)=>button.left-buttons[index].right),
+          overflow:document.documentElement.scrollWidth-window.innerWidth,
+        };
+      });
+      if (geometry.title.visible) expect(geometry.titleGap,`${lang} ${width}px title gap`).toBeGreaterThanOrEqual(15.5);
+      expect(geometry.modeGaps,`${lang} ${width}px mode gaps`).toEqual(geometry.modeGaps.map(() => 8));
+      expect(geometry.buttons.every(button=>button.height>=44),`${lang} ${width}px touch targets`).toBe(true);
+      expect(geometry.overflow,`${lang} ${width}px horizontal overflow`).toBeLessThanOrEqual(0);
+      expect(geometry.title.right<=geometry.modes.left || !geometry.title.visible,`${lang} ${width}px title overlap`).toBe(true);
+    }
+  }
+});
+
 for (const size of sizes) {
   test(`planner keeps the map primary at ${size.name}`, async ({page},testInfo) => {
     await page.setViewportSize(size);
@@ -24,7 +58,7 @@ for (const size of sizes) {
   });
 }
 
-test('Explore and Decorate expose exclusive controls and panels',async({page},testInfo)=>{
+test('Explore and Decorate expose exclusive controls and panels',async({page})=>{
   await page.goto('/city-builder/');
   await page.locator('#entry-local').click();
   await page.waitForFunction(()=>window.__focusedCityUI && document.querySelector('#loading.done'));
@@ -49,7 +83,6 @@ test('Explore and Decorate expose exclusive controls and panels',async({page},te
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await expect(page.locator('button[data-city-mode="explore"]')).toHaveAttribute('aria-pressed','true');
-  await page.screenshot({path:testInfo.outputPath('explore.png')});
 });
 
 test('fitted Champion can be uploaded before entry or replaced from the wardrobe', async ({page}) => {

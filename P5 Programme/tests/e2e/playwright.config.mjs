@@ -8,10 +8,11 @@ import { defineConfig } from '@playwright/test';
 
 const PORT = Number(process.env.E2E_PORT || 8377);
 // SwiftShader rendering plus the per-test `Emulation.setCPUThrottlingRate`
-// makes these specs CPU-bound. Playwright's default (= os.cpus(), 8 here)
-// oversubscribes and turns throttled specs into timeout flakes that pass solo.
-// Cap it; override with E2E_WORKERS for a deliberate stress run.
-const WORKERS = Number(process.env.E2E_WORKERS) || (process.env.CI ? 1 : 2);
+// makes these specs CPU- and GPU-bound. One City can consume the headless
+// SwiftShader budget; parallel City boots make unrelated tests time out after
+// command-buffer failures. Keep release verification serial; E2E_WORKERS can
+// opt into deliberate concurrency stress.
+const WORKERS = Number(process.env.E2E_WORKERS) || 1;
 
 export default defineConfig({
   testDir: '.',

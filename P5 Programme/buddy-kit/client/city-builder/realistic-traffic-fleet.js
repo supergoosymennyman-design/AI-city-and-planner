@@ -1,18 +1,18 @@
 // Instanced renderer for normalized commercial vehicle GLBs. It never clones
 // scene graphs per moving car: every GLTF primitive/material group gets one
 // bounded InstancedMesh for the whole variant. A failed GLB simply contributes
-// no renderer, leaving that model on the procedural traffic fallback.
+// no renderer, leaving that model's assigned traffic slots invisible.
 import * as THREE from 'three';
 import { createGLTFLoader } from '../shared/gltf.js';
 import { libraryUrl } from '../city-common/library.js';
 import { vehicleTargetLength } from '../city-common/vehicle-scale.js';
 
 function load(item) {
-  return new Promise((resolve) => createGLTFLoader().load(
+  return new Promise((resolve, reject) => createGLTFLoader().load(
     libraryUrl(item),
     (gltf) => resolve(gltf.scene || gltf.scenes?.[0] || null),
     undefined,
-    () => resolve(null),
+    reject,
   ));
 }
 
@@ -98,13 +98,23 @@ export function rendererFromScene(group, item, scene, capacity) {
   return { kind: `realistic-${item.id}`, modelId: item.id, capacity, batches };
 }
 
-export async function preloadRealisticTrafficFleet(group, items, capacity) {
-  const settled = await Promise.all(items.map(async (item) => {
+export async function preloadRealisticTrafficFleet(group, items, capacity, { onSettle = () => {}, isActive = () => true } = {}) {
+  const settle = async (item) => {
     try {
       const scene = await load(item);
       const renderer = scene ? rendererFromScene(group, item, scene, capacity) : null;
-      return { item, renderer, reason: renderer ? null : (scene ? 'invalid-material-batches' : 'load-failed') };
-    } catch { return { item, renderer: null, reason: 'load-failed' }; }
-  }));
-  return settled;
+      const result = { item, renderer, reason: renderer ? null : 'invalid-material-batches' };
+      if (!isActive() && renderer) {
+        for (const inst of Object.values(renderer.batches)) { inst.removeFromParent(); inst.dispose(); }
+        result.renderer = null; result.reason = 'stale-generation';
+      }
+      onSettle(result);
+      return result;
+    } catch (error) {
+      const result = { item, renderer: null, reason: 'load-failed', error };
+      onSettle(result);
+      return result;
+    }
+  };
+  return Promise.all(items.map(settle));
 }

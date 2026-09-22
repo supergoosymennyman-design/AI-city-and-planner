@@ -86,11 +86,13 @@
     // Ignore element-targeted errors (img/script load failures) — decoration,
     // not an app crash. Only window-level errors mean the app is broken.
     if (e && e.target && e.target !== window) return;
+    if (typeof window.__cityHandleGlobalError === 'function' && window.__cityHandleGlobalError(e, e && e.error)) return;
     show(e && e.message ? e.message : 'Runtime error', e && e.error ? e.error : null);
   });
   window.addEventListener('unhandledrejection', function (e) {
     if (shown) return;
     var reason = e && e.reason ? e.reason : null;
+    if (typeof window.__cityHandleGlobalError === 'function' && window.__cityHandleGlobalError(e, reason)) return;
     show(reason && typeof reason.message === 'string' ? reason.message : 'Promise rejected', reason);
   });
 

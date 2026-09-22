@@ -33,6 +33,109 @@ import * as SkeletonUtils from './vendor/utils/SkeletonUtils.js';
 import { saveWardrobe } from './wardrobe-store.js';
 import { progressUI, fetchWithProgress } from './progress.js';
 
+const CITY_CLIPS = { idle: './assets/clips/idle.glb', walk: './assets/clips/walk.glb' };
+const CITY_DOCUMENT_KEY = 'passiona_studio_document_v2';
+const CITY_ID = 'passiona_champion_id_v1';
+
+function stableBoneName(name) { return String(name || '').replace(/:/g, '_').replace(/[^A-Za-z0-9_-]/g, '_'); }
+function fnv1a(text) { let h = 2166136261; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); } return `fnv1a-${(h >>> 0).toString(16)}`; }
+function studioIdentity() {
+  let id = localStorage.getItem(CITY_ID);
+  if (!id) { id = `champion-${crypto.randomUUID?.() || Date.now()}`; localStorage.setItem(CITY_ID, id); }
+  return id;
+}
+
+function loadAnimation(url) {
+  return new Promise((resolve, reject) => new GLTFLoader().load(url, gltf => {
+    const clip = gltf.animations?.[0];
+    clip ? resolve(clip) : reject(new Error(`${url} contains no animation`));
+  }, undefined, reject));
+}
+
+function retargetTrackNames(clip, boneNames) {
+  const renamed = clip.clone();
+  renamed.tracks = renamed.tracks.map(track => {
+    const copy = track.clone();
+    const dot = copy.name.indexOf('.');
+    const rawTarget = dot < 0 ? copy.name : copy.name.slice(0, dot);
+    const property = dot < 0 ? '' : copy.name.slice(dot);
+    const target = stableBoneName(rawTarget);
+    copy.name = `${target}${property}`;
+    return copy;
+  });
+  const missing = renamed.tracks.map(t => t.name.split('.')[0]).filter(name => !boneNames.has(name));
+  if (missing.length) throw new Error(`movement clip targets missing bone “${missing[0]}”`);
+  return renamed;
+}
+
+async function cityAnimationSet(root) {
+  const bones = [];
+  root.traverse(node => { if (node.isBone) { node.name = stableBoneName(node.name); bones.push(node.name); } });
+  if (!bones.length) throw new Error('the Champion has no skeleton');
+  const boneNames = new Set(bones);
+  const quadruped = bones.filter(name => /(foot|paw|hoof)$/i.test(name)).length >= 4;
+  const byPattern = pattern => loadedChampionAnimations.find(clip => pattern.test(clip.name));
+  let idleSource, walkSource, runSource;
+  if (quadruped) {
+    idleSource = byPattern(/idle|rest/i);
+    walkSource = byPattern(/walk/i);
+    const preferredFast = localStorage.getItem('passiona_quadruped_gait_v1') === 'gallop' ? /gallop|run|trot/i : /trot|gallop|run/i;
+    runSource = byPattern(preferredFast);
+    if (!idleSource || !walkSource || !runSource) throw new Error('the quadruped needs idle, walk, and trot/gallop clips');
+  } else {
+    [idleSource, walkSource] = await Promise.all([loadAnimation(CITY_CLIPS.idle), loadAnimation(CITY_CLIPS.walk)]);
+  }
+  const idle = retargetTrackNames(idleSource, boneNames); idle.name = 'Passiona_Idle';
+  const walk = retargetTrackNames(walkSource, boneNames); walk.name = 'Passiona_Walk';
+  const run = retargetTrackNames(runSource || walkSource, boneNames); run.name = 'Passiona_Run';
+  // Same authored gait, played faster. Position remains bone-local: City alone
+  // translates the Champion through the world.
+  if (!runSource) { run.tracks.forEach(track => { for (let i = 0; i < track.times.length; i++) track.times[i] *= 0.65; }); run.resetDuration(); }
+  return { clips: [idle, walk, run], actions: { idle: idle.name, walk: walk.name, run: run.name }, boneNames: bones };
+}
+
+function wardrobeRecipe() {
+  return wardrobe.map(entry => ({ name: entry.name, slot: entry.slotKey, socket: entry.socketKey,
+    position: entry.group.position.toArray(), quaternion: entry.group.quaternion.toArray(), scale: entry.group.scale.toArray() }));
+}
+
+function saveStudioDocument(metadata) {
+  const doc = { formatVersion: 2, championId: metadata.championId, revision: metadata.studioRevision,
+    savedAt: new Date().toISOString(), rigKind: metadata.rigKind, actions: metadata.actions,
+    wardrobe: wardrobeRecipe(), roleMap: Object.fromEntries(metadata.boneNames.map(name => [name, name])) };
+  localStorage.setItem(CITY_DOCUMENT_KEY, JSON.stringify(doc));
+  return doc;
+}
+
+function migrateSavedStudioDocument() {
+  try {
+    const raw = localStorage.getItem(CITY_DOCUMENT_KEY) || localStorage.getItem('passiona_studio_document_v1');
+    if (!raw) return null;
+    const doc = JSON.parse(raw); const roleMap = { ...(doc.roleMap || {}) };
+    for (const bone of doc.bones || []) {
+      const old = bone.name; bone.name = stableBoneName(old);
+      if (bone.role) roleMap[bone.role] = bone.name;
+      for (const [role, name] of Object.entries(roleMap)) if (name === old) roleMap[role] = bone.name;
+    }
+    doc.roleMap = roleMap; doc.formatVersion = Math.max(2, Number(doc.formatVersion) || 0);
+    localStorage.setItem(CITY_DOCUMENT_KEY, JSON.stringify(doc));
+    return doc;
+  } catch { return null; }
+}
+const savedStudioDocument = migrateSavedStudioDocument();
+
+async function commitStudioProject(doc, metadata) {
+  // Available in the same-origin City build. The separately deployed Studio
+  // keeps working and still offers the GLB download/local handoff.
+  if (!/\/studio\/?$/.test(location.pathname)) return;
+  try {
+    const { createProjectStore } = await import('../city-common/project-store.js');
+    const store = createProjectStore(); const project = await store.openActiveProject();
+    const result = await store.commitSection('studio', { revision: doc.revision, document: doc, champion: { ...metadata, boneNames: undefined } }, project.revision);
+    if (!result.ok) throw new Error(result.conflict ? 'the project changed in another tab' : 'the project could not be saved');
+  } catch (error) { throw new Error(`Champion is built, but ${error?.message || 'the Studio revision could not be saved'}`); }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Renderer / scene / cameras
 // ---------------------------------------------------------------------------------------------
@@ -1642,15 +1745,14 @@ function normalizeDressedRoot(root) {
  *  — or any Mixamo-clip runtime — can ANIMATE the dressed champion. Normalized to feet at
  *  y=0 and centred on X/Z so the city's loader grounds it with no further math.
  *  Resolves with the ArrayBuffer. Rejects when no champion is loaded or the export fails. */
-function bakeDressedChampion() {
-  return new Promise((resolve, reject) => {
-    if (!championPristine) { reject(new Error('no champion loaded')); return; }
+async function buildDressedChampionRoot() {
+    if (!championPristine) throw new Error('no champion loaded');
     const root = SkeletonUtils.clone(championPristine); // re-bind the skeleton to the cloned bones
     root.updateMatrixWorld(true);   // fresh bone matrixWorld for the pair re-parent below
     wardrobe.forEach((entry) => {
       const boneKey = entry.socketKey || entry.group.userData.championFit || 'head';
       const bone = findBoneIn(root, boneKey);
-      if (!bone) return; // socket bone missing on this champion — skip the piece, keep the rest
+      if (!bone) throw new Error(`fitted item “${entry.name}” cannot be included: socket “${boneKey}” is missing`);
       const gear = entry.pristine.clone(true);
       gear.traverse((o) => {
         if (o.userData) { delete o.userData.championFit; delete o.userData.championSlot; }
@@ -1688,8 +1790,75 @@ function bakeDressedChampion() {
       }
     });
     normalizeDressedRoot(root);
-    new GLTFExporter().parse(root, resolve, reject, { binary: true });
+    return root;
+}
+
+function exportGLB(root, animations = []) {
+  return new Promise((resolve, reject) => new GLTFExporter().parse(root, resolve, reject, { binary: true, animations }));
+}
+
+function bakeDressedChampion() {
+  return buildDressedChampionRoot().then(root => exportGLB(root));
+}
+
+async function bakeCityChampion() {
+  const root = await buildDressedChampionRoot();
+  const movement = await cityAnimationSet(root);
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  const height = box.getSize(new THREE.Vector3()).y;
+  if (!Number.isFinite(height) || height <= 0) throw new Error('the Champion height could not be measured');
+  const old = JSON.parse(localStorage.getItem(CITY_DOCUMENT_KEY) || 'null');
+  const revision = Math.max(1, Number(old?.revision || 0) + 1);
+  const rigKind = movement.boneNames.filter(name => /(foot|paw|hoof)$/i.test(name)).length >= 4 ? 'quadruped' : 'biped';
+  const metadata = {
+    formatVersion: 1, championId: studioIdentity(), studioRevision: revision, rigKind,
+    actions: movement.actions, height,
+    assetHash: fnv1a(JSON.stringify({ revision, rigKind, actions: movement.actions, wardrobe: wardrobeRecipe(), bones: movement.boneNames })),
+    boneNames: movement.boneNames,
+  };
+  root.userData.passionaChampion = { ...metadata };
+  delete root.userData.passionaChampion.boneNames;
+  const buffer = await exportGLB(root, movement.clips);
+  const doc = saveStudioDocument(metadata);
+  return { buffer, metadata, doc };
+}
+
+function saveCitySkin(buffer, metadata) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('p5_champion_custom_skin', 1);
+    req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains('skins')) req.result.createObjectStore('skins'); };
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result; const tx = db.transaction('skins', 'readwrite'); const store = tx.objectStore('skins');
+      const previousBytes = store.get('custom'); const previousMeta = store.get('custom-meta'); const priorRevisions = store.get('custom-revisions');
+      priorRevisions.onsuccess = () => {
+        const revisions = Array.isArray(priorRevisions.result) ? priorRevisions.result : [];
+        if (previousBytes.result && previousMeta.result) revisions.push({ buffer: previousBytes.result, metadata: previousMeta.result, savedAt: new Date().toISOString() });
+        store.put(revisions.slice(-5), 'custom-revisions');
+      };
+      store.put(buffer, 'custom'); store.put(metadata, 'custom-meta');
+      tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => { db.close(); reject(tx.error); };
+    };
   });
+}
+
+async function useInCity() {
+  const button = document.getElementById('btnUseInCity');
+  if (button) button.disabled = true;
+  showHudMessage('Checking the rig, fitted gear, and three City movements…');
+  try {
+    await whenWardrobeSynced();
+    const { buffer, metadata, doc } = await bakeCityChampion();
+    await saveCitySkin(buffer, metadata);
+    await commitStudioProject(doc, metadata);
+    showHudMessage(`Ready for AI City — ${metadata.rigKind}, revision ${metadata.studioRevision}, idle + walk + run saved.`);
+    if (button) { button.textContent = 'Ready for AI City ✓'; button.dataset.ready = 'true'; }
+    setTimeout(() => { window.location.href = '../city-builder/?champion=studio'; }, 650);
+  } catch (err) {
+    showHudMessage('Not ready for AI City: ' + (err?.message || err));
+    if (button) button.disabled = false;
+  }
 }
 
 /** The download handler for the dressed-champion button: status message up front (the 24 MB
@@ -1811,6 +1980,10 @@ async function restoreWardrobeFromStore() {
     }
     endMutation();
     progress.hide();
+    if (new URLSearchParams(location.search).get('resume') === '1' && savedStudioDocument?.wardrobe?.length) {
+      await restoreWardrobeFromStore();
+      say(`Restored Studio revision ${savedStudioDocument.revision || 1}.`);
+    }
     showHudMessage('Restored ' + stored.length + ' piece' + (stored.length === 1 ? '' : 's') + ' from your saved look — Undo brings the old look back.');
   } catch (err) {
     // Keep the undo unit if a PARTIAL restore happened (some pieces adopted before the failure)
@@ -1839,6 +2012,7 @@ let currentModel = null;
 /** Untoonified, out-of-scene clone of the loaded champion — the export source for the dressed
  * champion download (see loadGLBFromArrayBuffer). Null until a champion loads. */
 let championPristine = null;
+let loadedChampionAnimations = [];
 let currentModelOutlines = [];
 let mixer = null;
 let clipActions = {};
@@ -1955,6 +2129,7 @@ function loadGLBFromArrayBuffer(buffer, sourceName) {
       // outlined, which would bake the spike look into the file). SkeletonUtils.clone re-binds
       // the skeleton to the cloned bones, so GLTFExporter can write it out as a valid rig.
       championPristine = SkeletonUtils.clone(currentModel);
+      loadedChampionAnimations = (gltf.animations || []).map(clip => clip.clone());
       scene.add(currentModel);
       currentModelOutlines = toonify(currentModel);
       applyPosterizeLevel(currentPosterizeLevel); // re-apply: fresh toon materials start un-posterized
@@ -2470,6 +2645,8 @@ document.getElementById('fitDone').addEventListener('click', () => setGizmoMode(
 document.getElementById('fitDownload').addEventListener('click', downloadFittedGear);
 const btnDressedDownload = document.getElementById('btnDressedDownload');
 if (btnDressedDownload) btnDressedDownload.addEventListener('click', downloadDressedChampion);
+const btnUseInCity = document.getElementById('btnUseInCity');
+if (btnUseInCity) btnUseInCity.addEventListener('click', useInCity);
 window.addEventListener('keydown', (e) => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
   if (!loadedGearProp) return;

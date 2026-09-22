@@ -122,7 +122,9 @@ test('Chinese recovery owns focus and preserves both raw backup downloads',async
  const raw=' {"version":2,"scaleMeters":2000,"buildings":[],"parks":[],"roads":[]} ';
  await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='p5_city_planner_layout_v1')throw new DOMException('full','QuotaExceededError');return original.call(this,k,v);};});
  await page.setInputFiles('#import-file',{name:'restore.champion.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({kind:'passiona-champion-file',version:1,state:{layout:raw,quests:history}}))});
- await expect(page.locator('#restore-results')).toContainText('城市規劃: 未儲存');await expect(page.locator('#restore-results')).toContainText('歷史活動: 已還原');
+ // Restore is transactional: if the layout write fails, the later history
+ // section is not committed either and the complete existing city is kept.
+ await expect(page.locator('#restore-results')).toContainText('城市規劃: 未儲存');await expect(page.locator('#restore-results')).toContainText('歷史活動: 未儲存');
  await page.keyboard.press('Escape');await expect(page.locator('#restore-results')).toBeVisible();await page.keyboard.press('Delete');
  await page.locator('#restore-continue').focus();await page.keyboard.press('Tab');await expect(page.locator('#restore-recovery')).toBeFocused();
  for(const [id,expected] of [['restore-recovery',null],['restore-imported',raw]]){

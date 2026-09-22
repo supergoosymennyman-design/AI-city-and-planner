@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="../champion-city/styles.css">
   <link rel="stylesheet" href="./my-work.css">
   <link rel="stylesheet" href="./presentation.css">
+  <link rel="stylesheet" href="../city-common/project-bar.css">
   <script src="/crash-guard.js"></script>
   <style>
     #entry-overlay {
@@ -244,6 +245,7 @@
   <div class="loading-sub">Building your city…</div>
   <div class="loading-bar"><div id="loading-fill"></div></div>
 </div>
+<div id="streaming-status" role="status" aria-live="polite" hidden></div>
 
 <!-- Entry: load a student layout -->
 <div id="entry-overlay">
@@ -355,8 +357,9 @@
 <header id="hud-top">
   <div class="hud-left"><span class="hud-title" data-i18n="hud.title">🏙️ My AI City</span></div>
   <nav id="city-mode-switch" aria-label="City mode">
-    <button type="button" class="city-mode active" data-city-mode="explore" aria-pressed="true" data-i18n="ui.explore">Explore</button>
-    <button type="button" class="city-mode" data-city-mode="decorate" aria-pressed="false" data-i18n="ui.decorate">Decorate</button>
+    <a class="city-mode" href="/planner/" data-i18n="ui.editPlan">Edit plan</a>
+    <button type="button" class="city-mode active" data-city-mode="explore" aria-pressed="true" data-i18n="ui.explore">Explore city</button>
+    <button type="button" class="city-mode" data-city-mode="decorate" aria-pressed="false" data-i18n="ui.decorate">Decorate city</button>
   </nav>
   <div class="hud-right">
     <span class="hud-mission-count" data-i18n="hud.cityLabel">🤖 Your AI City</span>
@@ -430,5 +433,6 @@
 
 <script src="/buddy-boot.js"></script>
 <script type="module" src="city-builder.js"></script>
+<script type="module">import { mountProjectBar } from '../city-common/project-bar.js'; mountProjectBar({ workspace: 'city' });</script>
 </body>
 </html>

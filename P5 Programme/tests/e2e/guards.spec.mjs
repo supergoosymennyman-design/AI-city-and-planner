@@ -73,5 +73,11 @@ test('corrupt saved city falls back to the sample with an explanation', async ({
   await expect(page.locator('.entry-card')).toContainText('could not be read', { timeout: 10000 });
   // …and the sample city still boots (canvas appears).
   await expect(page.locator('canvas')).toBeVisible({ timeout: 60000 });
+  expect(await page.evaluate(() => ({
+    style: localStorage.getItem('p5_city_look_v1'),
+    sky: localStorage.getItem('p5_city_day_sky_v1'),
+    ground: localStorage.getItem('p5_city_ground_texture_v1'),
+    time: localStorage.getItem('p5_city_time_v1'),
+  }))).toEqual({ style: 'natural', sky: 'natural-blue', ground: 'asphalt', time: 'sunset' });
   expect(errors, `unexpected errors:\n${errors.join('\n') || '(none)'}`).toEqual([]);
 });

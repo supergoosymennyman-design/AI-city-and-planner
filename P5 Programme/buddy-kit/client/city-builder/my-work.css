@@ -42,7 +42,7 @@
 #minimap button { pointer-events: auto; color: #f4f5ef; background: #233e4b; border: 1px solid #688792; border-radius: 8px; font: inherit; }
 
 /* Primary work stays visible; historical records remain available in More. */
-#hud-top { height:auto; min-height:56px; align-items:center; }
+#hud-top { height:auto; min-height:56px; align-items:center; column-gap:16px; }
 #hud-top .hud-right { display:flex; align-items:center; gap:8px; margin-left:auto; }
 #hud-top .hud-chip { flex-shrink:0; }
 #hud-top .hud-mission-count, #hud-top .hud-center { display:none; }
@@ -78,12 +78,13 @@ body #quest-prompt { top:124px; max-width:calc(100vw - 24px); font-size:14px; }
 
 /* Focused City chrome: Explore and Decorate never compete for the same space. */
 #city-mode-switch {
-  display:flex; align-items:center; gap:3px; padding:3px;
+  display:flex; align-items:center; gap:8px; padding:3px;
   border:1px solid #46576a; border-radius:11px; background:#111d2a;
 }
 .city-mode {
-  min-width:92px; min-height:42px; padding:7px 13px; border:0; border-radius:8px;
+  min-width:92px; min-height:44px; padding:7px 13px; border:0; border-radius:8px;
   background:transparent; color:#c4d0dc; font:800 14px/1 "Nunito",sans-serif; cursor:pointer;
+  text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
 }
 .city-mode.active { background:#d8fbfb; color:#09212a; }
 

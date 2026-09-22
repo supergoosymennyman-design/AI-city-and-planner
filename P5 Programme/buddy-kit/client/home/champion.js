@@ -8,9 +8,9 @@
 // the head out of frame — the bind pose is already a natural standing pose and
 // frames cleanly on the turntable.
 //
-// Graceful degradation: the static SVG illustration stays in the DOM and is
-// shown whenever WebGL is unavailable, the import map is missing, or the model
-// fails to load — the page is a launcher, so it must never look broken.
+// Graceful degradation: the reserved header space stays transparent whenever
+// WebGL is unavailable or the model fails to load. The old 2D illustration is
+// deliberately not used, so only the real 3D champion is ever shown.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
@@ -26,9 +26,9 @@ function hasWebGL() {
   } catch { return false; }
 }
 
-/** Show the SVG illustration (default state) and drop any half-built canvas. */
-function useFallback(reason) {
-  if (reason) console.warn('[home-champion] using illustration:', reason);
+/** Leave the reserved header space blank and drop any half-built canvas. */
+function leaveBlank(reason) {
+  if (reason) console.warn('[home-champion] unavailable:', reason);
   host.querySelectorAll('canvas').forEach((c) => c.remove());
   host.classList.remove('has3d');
   host.classList.add('no3d');
@@ -47,7 +47,7 @@ function createDecoderLoader() {
 }
 
 if (!hasWebGL()) {
-  useFallback('no WebGL');
+  leaveBlank('no WebGL');
 } else {
   const loader = createDecoderLoader();
   loader.load('champion.glb', (gltf) => {
@@ -141,15 +141,15 @@ if (!hasWebGL()) {
         else if (!raf && host.classList.contains('has3d')) animate();
       });
 
-      // Hide the SVG now that the real champion is on screen.
+      // Paint once while the canvas is hidden, then reveal only the completed
+      // 3D frame. Until this point the host shows the normal page background.
+      renderer.render(scene, camera);
       host.classList.add('has3d');
-      const img = host.querySelector('img');
-      if (img) img.style.display = 'none';
       animate();
     } catch (e) {
-      useFallback(e && e.message ? e.message : 'render failed');
+      leaveBlank(e && e.message ? e.message : 'render failed');
     }
   }, undefined, (e) => {
-    useFallback('GLB load failed');
+    leaveBlank('GLB load failed');
   });
 }

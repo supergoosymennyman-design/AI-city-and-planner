@@ -11,9 +11,14 @@
     "test:library": "cd \"P5 Programme\" && node scripts/library-audit.mjs",
     "preflight:commercial-vehicles": "cd \"P5 Programme\" && node scripts/commercial-vehicle-preflight.mjs",
     "test:imports": "cd \"P5 Programme\" && node scripts/check-imports.mjs",
-    "test:e2e": "bash \"P5 Programme/deploy/scripts/deploy-city-apps.sh\" --build-only --city-sim && E2E_DOCROOT=\"P5 Programme/deploy/city-sim\" playwright test --config \"P5 Programme/tests/e2e/playwright.config.mjs\"",
-    "test:e2e:source": "playwright test --config \"P5 Programme/tests/e2e/playwright.config.mjs\"",
-    "test:all": "npm run test:unit && npm run test:library && npm run test:e2e && npm run test:imports"
+    "preview:city": "node \"P5 Programme/tests/e2e/static-server.mjs\" 8377",
+    "build:city": "bash \"P5 Programme/deploy/scripts/deploy-city-apps.sh\" --build-only --city-sim",
+    "test:e2e": "bash \"P5 Programme/deploy/scripts/deploy-city-apps.sh\" --build-only --city-sim && E2E_DOCROOT=\"P5 Programme/deploy/city-sim\" node \"P5 Programme/tests/e2e/run-sharded.mjs\"",
+    "test:e2e:source": "node \"P5 Programme/tests/e2e/run-sharded.mjs\"",
+    "test:e2e:built": "E2E_DOCROOT=\"P5 Programme/deploy/city-sim\" node \"P5 Programme/tests/e2e/run-sharded.mjs\"",
+    "deploy:city:built": "bash \"P5 Programme/deploy/scripts/deploy-city-apps.sh\" --deploy-only --city-sim",
+    "test:all": "npm run test:unit && npm run test:library && npm run test:e2e:source && npm run test:imports",
+    "release:city": "npm run test:all && npm run build:city && npm run test:unit && npm run test:library && npm run test:e2e:built && npm run deploy:city:built"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

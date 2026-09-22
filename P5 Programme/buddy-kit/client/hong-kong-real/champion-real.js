@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { createGLTFLoader } from '../shared/gltf.js';
 import { buildAccessoryMesh } from '../champion-city/accessories.js';
+import { championMetadataFromGLTF, collectRigInfo, validateStudioChampion } from '../city-common/champion-contract.js';
 
 // Champion is scaled up on the real-HK map (buildings are real meters tall) so
 // students can actually see the robot. Speed is proportional to the scale.
@@ -57,6 +58,8 @@ export async function createChampion(assetBase, city, opts = {}) {
   // The model itself is never touched (display, gear and fit all stay perfect).
   let clipPool = clips;     // raw, or scaled copies for a non-clip-space skin
   let clipScale = 1;
+  let locomotionNames = { idle: CLIP_NAMES.idle, walk: CLIP_NAMES.walk, run: CLIP_NAMES.run };
+  let studioAnimation = null;
   // Grounding is per-skin now: the idle/walk/run clips hold the feet above the
   // bind-pose ground by an amount proportional to the SKIN's height. The
   // fractions below were measured from the bunny (~2 m tall): idle ~1.25 m,
@@ -192,8 +195,9 @@ export async function createChampion(assetBase, city, opts = {}) {
     m.traverse((o) => { if (o.isSkinnedMesh && !skinned) skinned = o; });
     if (!skinned || !skinned.skeleton) return null;
     const bones = skinned.skeleton.bones;
-    const left = bones.find((b) => /LeftFoot$/.test(b.name)) || null;
-    const right = bones.find((b) => /RightFoot$/.test(b.name)) || null;
+    const footLike = bones.filter((b) => /(foot|paw|hoof)$/i.test(b.name));
+    const left = bones.find((b) => /LeftFoot$/i.test(b.name)) || footLike.find((b) => /left|[_-]l$/i.test(b.name)) || footLike[0] || null;
+    const right = bones.find((b) => /RightFoot$/i.test(b.name)) || footLike.find((b) => /right|[_-]r$/i.test(b.name)) || footLike.find((b) => b !== left) || null;
     return left || right ? { left, right } : null;
   }
 
@@ -241,7 +245,8 @@ export async function createChampion(assetBase, city, opts = {}) {
     mixer = new THREE.AnimationMixer(m);
     actions = {};
     for (const key of Object.keys(CLIP_NAMES)) {
-      const clip = clipPool[CLIP_NAMES[key]];
+      const clipName = locomotionNames[key] || CLIP_NAMES[key];
+      const clip = clipPool[clipName];
       if (clip) actions[key] = mixer.clipAction(clip);
     }
     for (const d of DANCE_NAMES) if (clipPool[d]) actions[d] = mixer.clipAction(clipPool[d]);
@@ -305,6 +310,14 @@ export async function createChampion(assetBase, city, opts = {}) {
       return false;   // keep the current model — caller decides the fallback
     }
     const newModel = gltf.scene;
+    const rig = collectRigInfo(newModel);
+    const declared = championMetadataFromGLTF(gltf);
+    const studioCheck = validateStudioChampion({ metadata: declared, animations: gltf.animations || [], boneNames: rig.boneNames });
+    if (declared && !studioCheck.ok) {
+      console.warn('[champion] Studio Champion rejected:', studioCheck.error);
+      opts.onChampionWarning?.(studioCheck.error);
+      return false;
+    }
     normalizeModel(newModel);
     _footBones = findFootBones(newModel);
     // soleOff is measured lazily on the first grounded update (once the group
@@ -312,9 +325,23 @@ export async function createChampion(assetBase, city, opts = {}) {
     _soleOffWorld = 0;
     // Adapt the shared clips to this skin's skeleton unit-space (meter-scale
     // fitted champions vs the bunny's ~100× rig) BEFORE the mixer is built.
-    const s = skinClipScaleFor(newModel);
-    if (s !== 1) { clipScale = s; clipPool = scaledClipMap(s); }
-    else { clipScale = 1; clipPool = clips; }
+    if (studioCheck.ok) {
+      // Studio owns deformation. City only selects these embedded actions and
+      // continues to own translation, facing, speed, jumping and ground height.
+      clipScale = 1;
+      clipPool = { ...clips };
+      for (const clip of gltf.animations || []) clipPool[clip.name] = clip;
+      locomotionNames = { ...studioCheck.metadata.actions };
+      studioAnimation = { source: 'Studio', ready: true, ...studioCheck.metadata };
+    } else {
+      // Explicit legacy path: compatible older uploads keep the bundled Mixamo
+      // library. It is never used for a valid Studio Champion.
+      locomotionNames = { idle: CLIP_NAMES.idle, walk: CLIP_NAMES.walk, run: CLIP_NAMES.run };
+      studioAnimation = { source: 'Legacy upload', ready: false, warning: studioCheck.error };
+      const s = skinClipScaleFor(newModel);
+      if (s !== 1) { clipScale = s; clipPool = scaledClipMap(s); }
+      else { clipScale = 1; clipPool = clips; }
+    }
     if (model) {
       group.remove(model);
       model.traverse((n) => {
@@ -445,6 +472,7 @@ export async function createChampion(assetBase, city, opts = {}) {
     group, mixer, state,
     name: () => currentName,
     skinId: initialLoaded ? initialSkinId : 'bunny',
+    animationInfo: () => studioAnimation ? { ...studioAnimation } : { source: 'Bundled Champion', ready: false },
     async swapSkin(glbUrl, skinId) {
       const ok = await loadSkin(glbUrl);
       api.skinId = skinId || api.skinId;

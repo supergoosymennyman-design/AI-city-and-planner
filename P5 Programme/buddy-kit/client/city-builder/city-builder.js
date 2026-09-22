@@ -50,12 +50,15 @@ import { createPedestrians } from './pedestrians.js';
 import {createParkLandscape} from './park-landscape.js';
 import {batchBuildings,prepareBuildingMaterials} from './building-batches.js';
 import { createTimeOfDay } from './time-of-day.js';
-import { CITY_LOOK_KEY, CITY_LOOKS, readCityLook, validCityLook, mountCityLookPicker } from './city-looks.js';
-import { GROUND_TEXTURES, readGroundTexture, validGroundTexture, mountGroundTexturePicker } from './ground-textures.js';
+import { CITY_LOOK_KEY, CITY_LOOKS, readCityLook, validCityLook, legacyTimeForLook } from './city-looks.js';
+import { GROUND_TEXTURES, readGroundTexture, validGroundTexture } from './ground-textures.js';
+import { DAY_SKY_KEY, DAY_SKIES, readDaySky, validDaySky } from './day-skies.js';
+import { mountAppearancePanel } from './appearance-panel.js';
+import { applyExampleAppearance } from './example-appearance.js';
 import { CITY_PALETTE as DUSK } from './city-palette.js';
 import { createNeighbourhood, createStreetLife } from '../city-common/neighbourhood.js';
 import { buildTrafficNetwork, isRoadsideSceneryClear, resolveRoadCarriageway } from '../city-common/traffic-network.js';
-import { junctionMouthMaskHalf, junctionPadOutline, ribbonNormals } from '../city-common/road-geometry.js';
+import { junctionMouthMaskHalf, junctionPadOutline, ribbonNormals, resolveRoadSafePlacement } from '../city-common/road-geometry.js';
 import { PARK_VEGETATION_ASSETS, createParkVegetation } from '../city-common/park-vegetation.js';
 import { createPublicSpaces } from './public-spaces.js';
 import { createClouds } from './clouds.js';
@@ -68,19 +71,20 @@ import { mountCityAiNodes } from './ai-nodes.js';
 import { createLabelRenderer, updateLabels } from '../champion-city/labels.js';
 import { mountSkinSidebar, equipCustomDefault, skinLabel } from '../champion-city/skins.js';
 import { preloadAccessories } from '../champion-city/accessories.js';
-import { saveCustomSkin, loadCustomSkinBlob, blobToObjectUrl, revokeObjectUrl, looksLikeGlb } from '../champion-city/custom-skin.js';
+import { saveCustomSkin, loadCustomSkinBlob, loadCustomSkinMetadata, loadCustomSkinRevisions, blobToObjectUrl, revokeObjectUrl, looksLikeGlb } from '../champion-city/custom-skin.js';
 import { playTap, armAudioGestureUnlock } from '../champion-city/sound.js';
 import { attachContextLossGuard } from '../champion-city/context-guard.js';
 import { ParticlePool } from '../champion-city/particles.js';
 import { catalogType, isSpecial } from '../city-common/catalog.js';
-import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout, typeSpec } from '../city-common/layout.js';
+import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout, occupiedBounds, typeSpec } from '../city-common/layout.js';
 import { LIBRARY, libraryUrl, libraryItem } from '../city-common/library.js';
+import { HUNYUAN_IDS, EMERALD_RAIN_TREE_CANOPY_METRES, coordinateKey, selectHunyuanBuildingVariants, emeraldRainTreePlacement } from '../city-common/hunyuan-wave.js';
 import { buildSampleCity } from '../city-common/sample-city.js';
 import { isRoadVehicle, vehicleTargetLength } from '../city-common/vehicle-scale.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, rememberSavedAt, lastSavedAt, CF_KEYS } from '../city-common/champion-file.js';
 import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
 import { readMilestones, milestoneSectionHTML } from '../city-common/milestones.js';
-import { parseCapability, capabilityDescriptor, stage1Note } from '../city-common/cap-runtime.js';
+import { parseCapability, capabilityDescriptor, installCapability } from '../city-common/cap-runtime.js';
 import { mountPropLibrary } from './prop-library.js';
 import { customModelStore, readCustomManifest, resolveCustomOverride } from '../city-common/custom-models.js';
 import { createGrabSystem } from '../shared/grab.js';
@@ -97,6 +101,7 @@ const STORAGE_KEY = 'p5_city_planner_layout_v1';
 // Object URL for the child's uploaded "fitted champion" GLB (Fit Studio), if
 // any. Created at boot from IndexedDB and handed to spawnChampion + skins.
 let _customSkinUrl = null;
+let _customSkinMetadata = null;
 
 /** Save a fitted Champion GLB locally and make its object URL available to the
  * current city session. The entry screen and in-city wardrobe deliberately
@@ -233,10 +238,11 @@ function getWindowBumpTexture() {
 let _groundMat = null;   // ref for the per-frame camera uniform
 const _grassMats = new Set();
 let _cityLook = readCityLook();
-let _cityLookPicker = null;
 let _groundTexture = readGroundTexture();
-let _groundTexturePicker = null;
+let _daySky = readDaySky();
+let _appearancePanel = null;
 let _citySkyTexture = null;
+let _citySkyFile = null;
 const _environmentTextures = new Map();
 // The selected ground map remains the student's choice. Leafy Grass gets a
 // deliberately quiet moonlit grade: its real PBR albedo, normal and roughness
@@ -251,6 +257,45 @@ const GRASS_PBR_TREATMENTS = Object.freeze({
   pavers: { saturation: 1, albedoMix: 1, tint: '#ffffff', tintStrength: 0, terrainNormal: 0.10, parkNormal: 0.12, parkLift: 0 },
   asphalt: { saturation: 1, albedoMix: 1, tint: '#ffffff', tintStrength: 0, terrainNormal: 0.10, parkNormal: 0.12, parkLift: 0 },
 });
+// Parks always use Leafy Grass detail, but the photographed beige soil must
+// not overpower their civic-lawn identity (especially beside asphalt).
+const PARK_LAWN_PBR_TREATMENT = Object.freeze({
+  saturation: 0.92, albedoMix: 0.36, tint: '#ffffff', tintStrength: 0,
+  terrainNormal: 0.16, parkNormal: 0.12, parkLift: 0.04,
+});
+const PROCEDURAL_GROUND_PALETTES = Object.freeze({
+  leafy: ['#33502a','#4c7c3f','#6a8f4e','#9a9450'],
+  sparse: ['#56613a','#7a7e4b','#9a9450','#b29a63'],
+  withered: ['#645c36','#8a7544','#ae9258','#c1a16a'],
+  pavers: ['#50565a','#70757a','#8b8e90','#9fa096'],
+  asphalt: ['#303a42','#47545d','#5d6870','#747a7b'],
+});
+
+function applyProceduralGroundPalette(id) {
+  const colors = PROCEDURAL_GROUND_PALETTES[validGroundTexture(id)] || PROCEDURAL_GROUND_PALETTES.leafy;
+  for (const mat of _grassMats) {
+    if (mat.userData.grassSurface === 'park') continue;
+    mat.userData.proceduralPalette = colors;
+    const palette = mat.userData.__uGrassPalette;
+    if (palette) {
+      palette.moss.value.set(colors[0]); palette.leaf.value.set(colors[1]);
+      palette.sun.value.set(colors[2]); palette.dry.value.set(colors[3]);
+    }
+  }
+}
+
+// Old builds stored sky/time labels in the City Look key. Preserve the child's
+// intent on first launch of the new appearance system, then normalise it.
+function migrateLegacyAppearance() {
+  try {
+    const raw = localStorage.getItem(CITY_LOOK_KEY);
+    const oldLooks = new Set(['dawn', 'blue', 'azure', 'bluebird', 'clouds', 'overcast', 'golden', 'moonlit']);
+    if (!oldLooks.has(raw)) return;
+    if (!localStorage.getItem('p5_city_time_v1')) localStorage.setItem('p5_city_time_v1', legacyTimeForLook(raw));
+    localStorage.setItem(CITY_LOOK_KEY, 'natural');
+    _cityLook = 'natural';
+  } catch { /* storage is optional */ }
+}
 
 function loadEnvironmentTexture(file, { color = false, repeat = 1 } = {}) {
   const key = `${file}|${color}|${repeat}`;
@@ -266,30 +311,61 @@ function loadEnvironmentTexture(file, { color = false, repeat = 1 } = {}) {
   return pending;
 }
 
+function releaseCitySky(nextFile = null) {
+  if (_citySkyFile && _citySkyFile !== nextFile) _environmentTextures.delete(`${_citySkyFile}|true|1`);
+  if (_citySkyTexture && _citySkyFile !== nextFile) _citySkyTexture.dispose();
+  if (_citySkyFile !== nextFile) { _citySkyTexture = null; _citySkyFile = null; }
+}
+
 function applyCityLook(id) {
   _cityLook = validCityLook(id);
   const look = CITY_LOOKS[_cityLook];
+  const time = timeOfDay?.id || 'day';
+  const selectedDaySky = _cityLook === 'natural' && time === 'day' ? DAY_SKIES[_daySky] : null;
+  const presentationLook = selectedDaySky ? { ...look, ...selectedDaySky } : look;
+  if (_styleGradePass) {
+    _styleGradePass.uniforms.tint.value.set(look.grade || '#ffffff');
+    _styleGradePass.uniforms.contrast.value = look.contrast ?? 1;
+  }
   try { localStorage.setItem(CITY_LOOK_KEY, _cityLook); } catch { /* storage is optional */ }
-  if (timeOfDay?.setLook) timeOfDay.setLook(look);
+  if (timeOfDay?.setLook) timeOfDay.setLook(presentationLook);
   if (!look.realistic) {
+    releaseCitySky();
     duskSky.visible = true;
     scene.background = new THREE.Color(look.horizon);
-    duskSky.material.uniforms.useEquirect.value = 0;
-    _citySkyTexture = null;
+    duskSky.material.uniforms.equirectMap.value = null; duskSky.material.uniforms.useEquirect.value = 0;
     _roadMats.sw.map = _roadMats.sw.normalMap = _roadMats.sw.roughnessMap = null; _roadMats.sw.needsUpdate = true;
     return;
   }
   applyGroundTexture(_groundTexture);
+  // A 2K panorama is a poor trade on the constrained tablet profile: the
+  // procedural sky still carries the selected time and style without spending
+  // a large, permanently resident GPU texture.
+  if (LOW_END) {
+    releaseCitySky();
+    duskSky.material.uniforms.equirectMap.value = null;
+    duskSky.material.uniforms.useEquirect.value = 0;
+    return;
+  }
   // Sample the equirectangular JPG on the sky dome itself. Do not assign this
   // to scene.background: Three converts equirect backgrounds into a small cube
   // texture, throwing away the panorama's horizontal detail.
-  const skyFile = (!IS_MOBILE && !LOW_END) ? look.skyDesktopFile : look.skyFile;
+  const skyFile = selectedDaySky
+    ? ((!IS_MOBILE && !LOW_END) ? selectedDaySky.desktopSkyFile : selectedDaySky.skyFile)
+    : ((!IS_MOBILE && !LOW_END) ? look.desktopSkies?.[time] : look.skies?.[time]);
+  if (!skyFile) return;
+  const requestedDaySky = _daySky;
   loadEnvironmentTexture(skyFile, { color: true }).then(texture => {
-    if (_cityLook !== id) return;
-    _citySkyTexture = texture; scene.background = new THREE.Color(look.horizon); duskSky.material.uniforms.equirectMap.value = texture;
-    duskSky.material.uniforms.equirectSaturation.value = look.equirectSaturation ?? 1;
-    duskSky.material.uniforms.equirectContrast.value = look.equirectContrast ?? 1;
-    duskSky.material.uniforms.equirectTint.value.set(look.equirectTint ?? '#ffffff');
+    if (_cityLook !== id || (timeOfDay?.id || 'day') !== time || (time === 'day' && requestedDaySky !== _daySky)) { texture.dispose(); _environmentTextures.delete(`${skyFile}|true|1`); return; }
+    // Longitude wraps; latitude must not. Repeating vertically makes the exact
+    // zenith interpolate across the image seam and leak the ground band into
+    // the top of the sky even when the equirectangular UV itself is correct.
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.needsUpdate = true;
+    releaseCitySky(skyFile); _citySkyTexture = texture; _citySkyFile = skyFile; scene.background = new THREE.Color(presentationLook.horizon); duskSky.material.uniforms.equirectMap.value = texture;
+    duskSky.material.uniforms.equirectSaturation.value = presentationLook.equirectSaturation ?? 1;
+    duskSky.material.uniforms.equirectContrast.value = presentationLook.equirectContrast ?? 1;
+    duskSky.material.uniforms.equirectTint.value.set(presentationLook.equirectTint ?? '#ffffff');
     duskSky.material.uniforms.useEquirect.value = 1; duskSky.visible = true;
   }).catch(error => console.warn('[city-look] sky unavailable; using procedural sky', error));
   // Sidewalk maps belong to a realistic City Look. Ground maps are a separate
@@ -304,6 +380,12 @@ function applyCityLook(id) {
   }).catch(error => console.warn('[city-look] environment textures unavailable; using procedural surfaces', error));
 }
 
+function applyDaySky(id) {
+  _daySky = validDaySky(id);
+  try { localStorage.setItem(DAY_SKY_KEY, _daySky); } catch { /* storage is optional */ }
+  applyCityLook(_cityLook);
+}
+
 function applyGroundTexture(id) {
   _groundTexture = validGroundTexture(id);
   const selectedTexture = _groundTexture;
@@ -312,11 +394,12 @@ function applyGroundTexture(id) {
   // Parks remain welcoming green lawns, even when a student chooses paving or
   // asphalt for the surrounding open city terrain.
   const parkChoice = GROUND_TEXTURES.leafy;
-  const parkTreatment = GRASS_PBR_TREATMENTS.leafy;
+  const parkTreatment = PARK_LAWN_PBR_TREATMENT;
   try { localStorage.setItem('p5_city_ground_texture_v1', _groundTexture); } catch {}
   // Toy Town is intentionally map-free for both open terrain and park lawns.
   if (!CITY_LOOKS[_cityLook]?.realistic) {
     for (const mat of _grassMats) { mat.map = mat.normalMap = mat.roughnessMap = null; mat.userData.grassTextureDetail = 0; mat.userData.__uGrassTextureDetail && (mat.userData.__uGrassTextureDetail.value = 0); mat.needsUpdate = true; }
+    applyProceduralGroundPalette(_groundTexture);
     return;
   }
   const root = 'assets/textures/';
@@ -359,7 +442,7 @@ function stylizedGrassMaterial({park=false,distanceFade=false}={}) {
   if(distanceFade)_groundMat=material;
   material.userData.grassSurface=park?'park':'terrain';
   material.userData.grassTextureDetail=0;
-  material.userData.grassPbrTreatment=GRASS_PBR_TREATMENTS.leafy;
+  material.userData.grassPbrTreatment=park?PARK_LAWN_PBR_TREATMENT:GRASS_PBR_TREATMENTS.leafy;
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uFogColor = { value: new THREE.Color(DUSK.horizon) };
     shader.uniforms.uCamPos = { value: new THREE.Vector3(1000, 220, 1000) };
@@ -367,6 +450,7 @@ function stylizedGrassMaterial({park=false,distanceFade=false}={}) {
     shader.uniforms.uFadeFar = { value: 1700 };
     shader.uniforms.uGrassNight = { value: 0.55 };
     shader.uniforms.uGrassWarmth = { value: 0.0 };
+    shader.uniforms.uGrassWarmthScale = { value: park ? 0.06 : 0.22 };
     shader.uniforms.uGrassDayTint = { value: new THREE.Color(0xffffff) };
     shader.uniforms.uGrassDayBrightness = { value: 0 };
     // Realistic looks keep the PBR albedo's photographed leaf, soil and blade
@@ -381,10 +465,11 @@ function stylizedGrassMaterial({park=false,distanceFade=false}={}) {
     // Shader literals are linear values. Keeping the palette as Three Colors
     // avoids accidentally treating display-space green values as linear (the
     // reason the first pass looked pale under the city's bright daylight).
-    shader.uniforms.uGrassMoss = { value: new THREE.Color('#33502a') };
-    shader.uniforms.uGrassLeaf = { value: new THREE.Color('#4c7c3f') };
-    shader.uniforms.uGrassSun = { value: new THREE.Color('#6a8f4e') };
-    shader.uniforms.uGrassDry = { value: new THREE.Color('#9a9450') };
+    const palette = material.userData.proceduralPalette || PROCEDURAL_GROUND_PALETTES.leafy;
+    shader.uniforms.uGrassMoss = { value: new THREE.Color(palette[0]) };
+    shader.uniforms.uGrassLeaf = { value: new THREE.Color(palette[1]) };
+    shader.uniforms.uGrassSun = { value: new THREE.Color(palette[2]) };
+    shader.uniforms.uGrassDry = { value: new THREE.Color(palette[3]) };
     // Parks are mown, welcoming lawns: use the same civic greens, but keep
     // their blend distinctly more even than the open city ground.
     shader.uniforms.uParkLawn = { value: new THREE.Color('#4c7c3f') };
@@ -410,8 +495,8 @@ function stylizedGrassMaterial({park=false,distanceFade=false}={}) {
       .replace('#include <common>', '#include <common>\nvarying vec3 vGndWorld;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gndW = modelMatrix * vec4(transformed, 1.0); vGndWorld = gndW.xyz;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vGndWorld;\nuniform vec3 uFogColor;\nuniform vec3 uCamPos;\nuniform float uFadeNear;\nuniform float uFadeFar;\nuniform float uGrassNight;\nuniform float uGrassWarmth;\nuniform vec3 uGrassDayTint;\nuniform float uGrassDayBrightness;\nuniform vec3 uGrassMoss;\nuniform vec3 uGrassLeaf;\nuniform vec3 uGrassSun;\nuniform vec3 uGrassDry;\nuniform vec3 uParkLawn;\nuniform float uGrassPbrSaturation;\nuniform float uGrassPbrAlbedoMix;\nuniform vec3 uGrassPbrTint;\nuniform float uGrassPbrTintStrength;\nuniform float uGrassParkLift;\nfloat grassHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat grassNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(grassHash(i),grassHash(i+vec2(1.,0.)),f.x),mix(grassHash(i+vec2(0.,1.)),grassHash(i+vec2(1.)),f.x),f.y);}\nfloat grassFbm(vec2 p){float n=grassNoise(p)*.56;p=mat2(.82,-.57,.57,.82)*p*2.03;n+=grassNoise(p)*.28;p=mat2(.76,.65,-.65,.76)*p*2.01;n+=grassNoise(p)*.16;return n;}')
-      .replace('#include <color_fragment>', '#include <color_fragment>\nvec2 grassP=vGndWorld.xz;float grassMacro=grassFbm(grassP*.006);float grassMid=grassFbm(mat2(.84,-.54,.54,.84)*grassP*.045);float grassFine=grassFbm(grassP*.32);vec3 grassTone=mix(uGrassLeaf,uGrassMoss,(1.0-grassMacro)*.18);grassTone=mix(grassTone,uGrassSun,smoothstep(.64,.88,grassMid)*.10);grassTone*=mix(.97,1.03,grassFine);'+(park?'grassTone=mix(grassTone,uParkLawn,.62);':'grassTone=mix(grassTone,uGrassDry,smoothstep(.78,.92,grassFbm(grassP*.009))*.035);')+'grassTone=mix(grassTone,grassTone*vec3(1.08,.96,.82),max(0.0,uGrassWarmth)*.22);grassTone=mix(grassTone,grassTone*uGrassDayTint,uGrassDayBrightness);grassTone*=1.0+uGrassDayBrightness;grassTone=mix(grassTone,grassTone*vec3(.55,.67,.63),uGrassNight*.44);vec3 grassDetail=diffuseColor.rgb;grassDetail=mix(vec3(dot(grassDetail,vec3(.2126,.7152,.0722))),grassDetail,uGrassPbrSaturation);grassDetail=mix(grassDetail,grassDetail*uGrassPbrTint,uGrassPbrTintStrength);grassDetail*=1.0+uGrassParkLift;diffuseColor.rgb=mix(grassTone,grassDetail,uGrassTextureDetail*uGrassPbrAlbedoMix);')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGndWorld;\nuniform vec3 uFogColor;\nuniform vec3 uCamPos;\nuniform float uFadeNear;\nuniform float uFadeFar;\nuniform float uGrassNight;\nuniform float uGrassWarmth;\nuniform float uGrassWarmthScale;\nuniform vec3 uGrassDayTint;\nuniform float uGrassDayBrightness;\nuniform vec3 uGrassMoss;\nuniform vec3 uGrassLeaf;\nuniform vec3 uGrassSun;\nuniform vec3 uGrassDry;\nuniform vec3 uParkLawn;\nuniform float uGrassPbrSaturation;\nuniform float uGrassPbrAlbedoMix;\nuniform vec3 uGrassPbrTint;\nuniform float uGrassPbrTintStrength;\nuniform float uGrassParkLift;\nfloat grassHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat grassNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(grassHash(i),grassHash(i+vec2(1.,0.)),f.x),mix(grassHash(i+vec2(0.,1.)),grassHash(i+vec2(1.)),f.x),f.y);}\nfloat grassFbm(vec2 p){float n=grassNoise(p)*.56;p=mat2(.82,-.57,.57,.82)*p*2.03;n+=grassNoise(p)*.28;p=mat2(.76,.65,-.65,.76)*p*2.01;n+=grassNoise(p)*.16;return n;}')
+      .replace('#include <color_fragment>', '#include <color_fragment>\nvec2 grassP=vGndWorld.xz;float grassMacro=grassFbm(grassP*.006);float grassMid=grassFbm(mat2(.84,-.54,.54,.84)*grassP*.045);float grassFine=grassFbm(grassP*.32);vec3 grassTone=mix(uGrassLeaf,uGrassMoss,(1.0-grassMacro)*.18);grassTone=mix(grassTone,uGrassSun,smoothstep(.64,.88,grassMid)*.10);grassTone*=mix(.97,1.03,grassFine);'+(park?'grassTone=mix(grassTone,uParkLawn,.78);':'grassTone=mix(grassTone,uGrassDry,smoothstep(.78,.92,grassFbm(grassP*.009))*.035);')+'grassTone=mix(grassTone,grassTone*vec3(1.08,.96,.82),max(0.0,uGrassWarmth)*uGrassWarmthScale);grassTone=mix(grassTone,grassTone*uGrassDayTint,uGrassDayBrightness);grassTone*=1.0+uGrassDayBrightness;grassTone=mix(grassTone,grassTone*vec3(.55,.67,.63),uGrassNight*.44);vec3 grassDetail=diffuseColor.rgb;grassDetail=mix(vec3(dot(grassDetail,vec3(.2126,.7152,.0722))),grassDetail,uGrassPbrSaturation);grassDetail=mix(grassDetail,grassDetail*uGrassPbrTint,uGrassPbrTintStrength);grassDetail*=1.0+uGrassParkLift;diffuseColor.rgb=mix(grassTone,grassDetail,uGrassTextureDetail*uGrassPbrAlbedoMix);')
       .replace('#include <fog_fragment>',
         '#include <fog_fragment>\n' +
         (distanceFade?
@@ -543,6 +628,12 @@ function hashString(s) {
 // builder and the unit tests share one source of truth. The example city is the
 // Radial Ring template + cross avenue with shared-library model variety baked in.
 function sampleLayout() {
+  applyExampleAppearance();
+  // These values were read before the entry choice. Synchronise them so this
+  // boot uses the example preset immediately, not only after a reload.
+  _cityLook = readCityLook();
+  _daySky = readDaySky();
+  _groundTexture = readGroundTexture();
   return buildSampleCity();
 }
 
@@ -556,6 +647,7 @@ let obstacleCheckTime = 0;
 const environmentProps = new Set();
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let _bloomPass = null;   // glow pass ref (altitude backstop drives its strength)
+let _styleGradePass = null;
 const buildingLabels = [];   // CSS2D building badges — distance-faded every DOM tick
 let city = {};            // object passed to champion/buddy (scene/camera/renderer/spawnWorld)
 let champion = null;
@@ -564,7 +656,8 @@ let layout = null;
 let _bootGen = 0;         // bumped on every boot; stale loops cancel themselves
 let _bootOwner = null;     // owns this boot's RAFs, listeners, timers and deferred work
 let _bootWatchdog = 0;    // boot-hang guard (see bootInner)
-const BOOT_TIMEOUT_MS = 60000; // a hung GLB fetch (flaky Wi-Fi) must never leave the loader frozen
+const BOOT_TIMEOUT_MS = 120000; // required boot deadline; optional assets never hold this screen
+const BOOT_SLOW_COPY_MS = 20000;
 const CHAMPION_TIMEOUT_MS = 12000;
 let _contextPaused = false;
 
@@ -598,8 +691,7 @@ function cleanupPropTools() {
 
 function cleanupBootSystems() {
   cleanupPropTools();
-  _cityLookPicker?.destroy?.(); _cityLookPicker = null;
-  _groundTexturePicker?.destroy?.(); _groundTexturePicker = null;
+  _appearancePanel?.destroy?.(); _appearancePanel = null;
   focusedUI?.dispose?.(); focusedUI = null;
   myWork?.dispose?.(); myWork = null;
   learningVisuals?.destroy?.(); learningVisuals = null;
@@ -612,6 +704,7 @@ function cleanupBootSystems() {
   publicSpaces?.destroy?.(); streetLife?.destroy?.();
   citizens = clouds = publicSpaces = streetLife = neighbourhood = null;
   minimap?.destroy?.(); minimap = null;
+  rareLandmark?.destroy?.(); rareLandmark = null;
   labelRenderer?.domElement?.remove(); labelRenderer = null;
   for (const label of buildingLabels.splice(0)) { label.removeFromParent?.(); label.element?.remove?.(); }
   interactMeshes.length = 0;
@@ -656,6 +749,7 @@ let citizens = null;      // human citizens (posed people) near buildings
 let clouds = null;        // drifting clouds in the sky
 let streetProps = null;   // streetlights + benches
 let minimap = null;
+let rareLandmark = null;
 
 // Drivable cars (placed from the model library or the 🚗 Drive chooser).
 let drivingCar = null;    // active createDrivableCar instance (null = walking/flying)
@@ -669,12 +763,14 @@ let taxiNav = null;       // {x, z, y} — taxi auto-flies here
 // Densify state (from loadLayout)
 let growScale = 1;        // champion scale multiplier (buildings grow too)
 let cityBounds = null;    // tightened bounds for minimap + sky traffic
+let cityFocusBounds = null; // occupied content only: spawn + first overview
 
 // Orbit / input state
 // Distances are context-aware: overview (no champion) / walk / taxi ride.
 const orbit = {
   theta: 0.6, phi: 1.1, dist: 62, target: new THREE.Vector3(1000, 0, 1000), locked: false,
-  distWalk: 26, distTaxi: 15, distDrive: 13,
+  distOverview: 62, distWalk: 26, distTaxi: 15, distDrive: 13,
+  introUntil: 0,
   lastOrbitTs: 0,          // last manual orbit drag (for idle camera auto-reset)
 };
 window.__orbit = orbit;    // debug hook — visual QA scripts drive the camera
@@ -683,8 +779,11 @@ let keys = {};
 
 // ─── Scene setup (osm-city look) ─────────────────────────────────────────
 function setupScene(owner) {
+  migrateLegacyAppearance();
   cleanupBootSystems();
+  releaseCitySky();
   _bloomPass = null;
+  _styleGradePass = null;
   if (environmentMap) { environmentMap.dispose(); environmentMap = null; }
   if(duskSky){duskSky.geometry.dispose();duskSky.material.dispose();duskSky=null;}
   // Re-boot after a failure: dispose the previous renderer/composer so a stale
@@ -713,14 +812,23 @@ function setupScene(owner) {
     vertexShader: 'varying vec3 direction; void main(){direction=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
     // Direct equirectangular sampler: this deliberately bypasses the renderer's
     // scene.background cube conversion and retains the selected 4K panorama.
-    fragmentShader: 'uniform vec3 horizon;uniform vec3 zenith;uniform sampler2D equirectMap;uniform float useEquirect;uniform vec2 equirectHorizonBlend;uniform float equirectSaturation;uniform float equirectContrast;uniform vec3 equirectTint;varying vec3 direction;const float PI=3.14159265359;void main(){vec3 d=normalize(direction);vec3 procedural=mix(horizon,zenith,smoothstep(0.0,0.75,d.y));vec2 uv=vec2(atan(d.z,d.x)/(2.0*PI)+0.5,acos(clamp(d.y,-1.0,1.0))/PI);vec3 panorama=texture2D(equirectMap,uv).rgb;panorama=mix(vec3(dot(panorama,vec3(.2126,.7152,.0722))),panorama,equirectSaturation);panorama=(panorama-.5)*equirectContrast+.5;panorama=clamp(panorama*equirectTint,0.0,1.0);float skyOnly=smoothstep(equirectHorizonBlend.x,equirectHorizonBlend.y,d.y);gl_FragColor=vec4(mix(procedural,panorama,useEquirect*skyOnly),1.0);\n#include <colorspace_fragment>\n}',
+    // Three's texture UVs put the top of the source image at v=1. Keep the
+    // equirectangular horizon at v=.5 and map an upward ray to that top half;
+    // acos(d.y)/PI did the opposite and put the photographed ground overhead.
+    fragmentShader: 'uniform vec3 horizon;uniform vec3 zenith;uniform sampler2D equirectMap;uniform float useEquirect;uniform vec2 equirectHorizonBlend;uniform float equirectSaturation;uniform float equirectContrast;uniform vec3 equirectTint;varying vec3 direction;const float PI=3.14159265359;void main(){vec3 d=normalize(direction);vec3 procedural=mix(horizon,zenith,smoothstep(0.0,0.75,d.y));vec2 uv=vec2(atan(d.z,d.x)/(2.0*PI)+0.5,0.5+asin(clamp(d.y,-1.0,1.0))/PI);vec3 panorama=texture2D(equirectMap,uv).rgb;panorama=mix(vec3(dot(panorama,vec3(.2126,.7152,.0722))),panorama,equirectSaturation);panorama=(panorama-.5)*equirectContrast+.5;panorama=clamp(panorama*equirectTint,0.0,1.0);float skyOnly=smoothstep(equirectHorizonBlend.x,equirectHorizonBlend.y,d.y);gl_FragColor=vec4(mix(procedural,panorama,useEquirect*skyOnly),1.0);\n#include <colorspace_fragment>\n}',
   }));
   duskSky.renderOrder=-10000;duskSky.frustumCulled=false;scene.add(duskSky);
 
 
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1.0, 8000);
-  camera.position.set(1000, 220, 1350);
-  camera.lookAt(1000, 10, 1000);
+  const focus = cityFocusBounds || { minX: 0, minZ: 0, maxX: 2000, maxZ: 2000 };
+  const focusX = (focus.minX + focus.maxX) / 2, focusZ = (focus.minZ + focus.maxZ) / 2;
+  const focusSpan = Math.max(120, focus.maxX - focus.minX, focus.maxZ - focus.minZ);
+  orbit.distOverview = Math.max(62, Math.min(2200, focusSpan * 1.15));
+  orbit.dist = orbit.distOverview;
+  orbit.target.set(focusX, 0, focusZ);
+  camera.position.set(focusX + focusSpan * 0.32, Math.max(120, focusSpan * 0.48), focusZ + focusSpan * 0.42);
+  camera.lookAt(focusX, 10, focusZ);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   applyResolution();
@@ -789,6 +897,10 @@ function setupScene(owner) {
       vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
       fragmentShader: 'uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv; const vec3 LUMA=vec3(0.2126,0.7152,0.0722); void main(){ vec4 c=texture2D(tDiffuse,vUv); float luma=dot(c.rgb,LUMA); c.rgb=mix(vec3(luma),c.rgb,amount); gl_FragColor=c; }' };
     composer.addPass(new ShaderPass(sat));
+    const grade = { uniforms: { tDiffuse: { value: null }, tint: { value: new THREE.Color('#ffe3c5') }, contrast: { value: .94 } },
+      vertexShader: 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+      fragmentShader: 'uniform sampler2D tDiffuse;uniform vec3 tint;uniform float contrast;varying vec2 vUv;void main(){vec4 c=texture2D(tDiffuse,vUv);c.rgb=clamp((c.rgb-.5)*contrast+.5,0.,1.)*tint;gl_FragColor=c;}' };
+    _styleGradePass = new ShaderPass(grade); composer.addPass(_styleGradePass);
     const vig = { uniforms: { tDiffuse: { value: null }, intensity: { value: 0.16 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
       fragmentShader: 'uniform sampler2D tDiffuse; uniform float intensity; varying vec2 vUv; void main(){ vec4 c=texture2D(tDiffuse,vUv); float d=distance(vUv,vec2(0.5)); float v=1.0-intensity*smoothstep(0.4,0.9,d); gl_FragColor=vec4(c.rgb*v,c.a); }' };
@@ -853,10 +965,14 @@ function setupScene(owner) {
     scene.add(pts);
   })();
 
-  timeOfDay=createTimeOfDay({scene,renderer,sky:duskSky,hemi,sun,rim,ground:()=>_groundMat,grasses:()=>_grassMats,reducedMotion:()=>reducedMotion.matches,getClouds:()=>clouds,onPresetChange:setEnvironmentPreset,post:{bloom:_bloomPass,saturation:composer?composer.passes.find(p=>p.uniforms?.amount)?.uniforms.amount:null,vignette:composer?composer.passes.find(p=>p.uniforms?.intensity)?.uniforms.intensity:null}});
+  timeOfDay=createTimeOfDay({scene,renderer,sky:duskSky,hemi,sun,rim,ground:()=>_groundMat,grasses:()=>_grassMats,reducedMotion:()=>reducedMotion.matches,getClouds:()=>clouds,onPresetChange:id=>{setEnvironmentPreset(id);applyCityLook(_cityLook);},post:{bloom:_bloomPass,saturation:composer?composer.passes.find(p=>p.uniforms?.amount)?.uniforms.amount:null,vignette:composer?composer.passes.find(p=>p.uniforms?.intensity)?.uniforms.intensity:null}});
   city.setTimeOfDay=id=>timeOfDay.setTimeOfDay(id);city.timeOfDay=timeOfDay;
-  _cityLookPicker = mountCityLookPicker({ initial: _cityLook, onChange: applyCityLook });
-  _groundTexturePicker = mountGroundTexturePicker({ initial: _groundTexture, onChange: applyGroundTexture });
+  _appearancePanel = mountAppearancePanel({ style:_cityLook, ground:_groundTexture, time:timeOfDay.id, daySky:_daySky,
+    onStyle:id=>{applyCityLook(id);_appearancePanel?.set({style:id});},
+    onGround:id=>{applyGroundTexture(id);_appearancePanel?.set({ground:id});},
+    onTime:id=>{timeOfDay.setTimeOfDay(id);_appearancePanel?.set({time:id});},
+    onDaySky:id=>{applyDaySky(id);_appearancePanel?.set({daySky:id});} });
+  city.setCityStyle=id=>applyCityLook(id);city.setGroundTexture=id=>applyGroundTexture(id);city.setDaySky=id=>applyDaySky(id);
   applyCityLook(_cityLook);
   applyGroundTexture(_groundTexture);
 
@@ -1057,9 +1173,12 @@ function pushRibbon(Pos, Uv, path, width, y, wantUv) {
     Pos.push(xL0, y, zL0, xR0, y, zR0, xL1, y, zL1);
     Pos.push(xL1, y, zL1, xR0, y, zR0, xR1, y, zR1);
     if (wantUv && Uv) {
-      const u0 = cum[i] / ROAD_FX.tileM, u1 = cum[i + 1] / ROAD_FX.tileM;
-      const vL = -half / ROAD_FX.tileM, vR = half / ROAD_FX.tileM;
-      Uv.push(u0, vL, u0, vR, u1, vL, u1, vL, u0, vR, u1, vR);
+      // World-aligned asphalt: every independently-authored road and every
+      // junction samples the same texel at the same city coordinate. A road's
+      // direction can no longer rotate/offset the grain and reveal a join.
+      const t = ROAD_FX.tileM;
+      Uv.push(xL0 / t, zL0 / t, xR0 / t, zR0 / t, xL1 / t, zL1 / t,
+        xL1 / t, zL1 / t, xR0 / t, zR0 / t, xR1 / t, zR1 / t);
     }
   }
 }
@@ -1091,24 +1210,7 @@ function pushDashes(Pos, poly, cum, y, skipArc) {
  *  exactly the (u, v) `pushRibbon` uses, so a junction pad continues the same
  *  asphalt at the same grain and scale instead of looking like another material. */
 function roadUV(info, P) {
-  let bestD = Infinity, bestArc = 0, bestLat = 0;
-  for (let i = 0; i < info.poly.length - 1; i++) {
-    const a = info.poly[i], b = info.poly[i + 1];
-    const dx = b.x - a.x, dz = b.z - a.z;
-    const l2 = dx * dx + dz * dz;
-    let t = l2 ? ((P.x - a.x) * dx + (P.z - a.z) * dz) / l2 : 0;
-    t = Math.max(0, Math.min(1, t));
-    const qx = a.x + dx * t, qz = a.z + dz * t;
-    const d = Math.hypot(P.x - qx, P.z - qz);
-    if (d < bestD) {
-      const l = Math.sqrt(l2) || 1;
-      const nlx = -dz / l, nlz = dx / l;             // left normal
-      bestD = d;
-      bestArc = info.cum[i] + (info.cum[i + 1] - info.cum[i]) * t;
-      bestLat = (P.x - qx) * nlx + (P.z - qz) * nlz;
-    }
-  }
-  return { u: bestArc / ROAD_FX.tileM, v: bestLat / ROAD_FX.tileM };
+  return { u: P.x / ROAD_FX.tileM, v: P.z / ROAD_FX.tileM };
 }
 
 /** Fan-triangulate a star-shaped outline (from junctionPadOutline) about its
@@ -1426,7 +1528,9 @@ function buildRoadsInto(group, roads, opts = {}) {
     mesh.receiveShadow = true;
     group.add(mesh);
   }
-  addFlatFanMesh(group, P.pad, P.padUv, _roadMats.pad);
+  // Exactly the same asphalt material as the road ribbons. The +3 mm layer is
+  // only a z-fighting guard, not a visibly raised or differently shaded patch.
+  addFlatFanMesh(group, P.pad, P.padUv, _roadMats.asph);
   addFlatMesh(group, P.jct, _roadMats.jct, false);
   addFlatMesh(group, P.dash, _roadMats.dash, false);
   addFlatMesh(group, P.glow, _roadMats.glow, false);
@@ -1464,7 +1568,6 @@ function pushArcBar(Pos, info, arc, half, halfThick, y) {
 const _treeLoader = createGLTFLoader();
 let _treeModels = null;
 let _treePacks = null;    // Quaternius tree packs (each holds 5 named variants)
-let _parkModel = null;   // shared park GLB (trees + benches + fountain)
 
 // Tree instancing: each GLB pack variant is normalised ONCE into a shared
 // single-geometry mesh; addTree() only QUEUES a placement, and flushTrees()
@@ -1480,7 +1583,7 @@ function loadTreeModels(isCurrent = () => true) {
     _treeLoader.loadAsync('../library/nature/kenney-tree_oak.glb').catch((e) => { console.warn('[city-builder] tree GLB failed', e); return null; }),
     _treeLoader.loadAsync('../library/nature/kenney-tree_default.glb').catch((e) => { console.warn('[city-builder] tree-high GLB failed', e); return null; }),
   ]).then(([a, b]) => {
-    if (!isCurrent()) return null;
+    if (!isCurrent()) { disposeDetachedModel(a); disposeDetachedModel(b); return null; }
     _treeModels = {};
     if (a) _treeModels.tree = a.scene;
     if (b) _treeModels.treeHigh = b.scene;
@@ -1504,7 +1607,7 @@ function loadTreePacks(isCurrent = () => true) {
       return null;
     })
   )).then((scenes) => {
-    if (!isCurrent()) return null;
+    if (!isCurrent()) { for (const gltf of scenes) disposeDetachedModel(gltf); return null; }
     _treePacks = {};
     scenes.forEach((gltf, i) => {
       if (gltf?.scene) _treePacks[keys[i]] = gltf.scene;
@@ -1512,23 +1615,6 @@ function loadTreePacks(isCurrent = () => true) {
     return Object.keys(_treePacks).length ? _treePacks : null;
   });
 }
-function loadParkModel(isCurrent = () => true) {
-  return _treeLoader.loadAsync('assets/models/park.glb')
-    .then((gltf) => {
-      if (!isCurrent()) return null;
-      const m = gltf.scene;
-      const box = new THREE.Box3().setFromObject(m);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      m.position.sub(center);            // centre the model on its origin
-      m.position.y -= size.y / 2;        // sit its base on y=0
-      m.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-      _parkModel = m;
-      return m;
-    })
-    .catch((e) => { console.warn('[city-builder] park GLB failed', e); _parkModel = null; return null; });
-}
-
 // Convert any interleaved-buffer attributes to plain BufferAttributes so
 // BufferGeometryUtils.mergeGeometries can merge them (it refuses interleaved).
 // Read through the attribute's own getX/getY/getZ/getW accessors — they
@@ -1750,6 +1836,7 @@ function loadNatureFiller(gen = _bootGen) {
   Promise.all(PARK_VEGETATION_ASSETS.map((asset) =>
     loader.loadAsync(asset.file).catch((e) => { console.warn('[nature-filler] failed', asset.file, e); return null; })
   )).then((gltfs) => {
+    if(gen!==_bootGen){for(const gltf of gltfs)disposeDetachedModel(gltf);return;}
     for (let i=0;i<gltfs.length;i++) {
       const gltf=gltfs[i];
       if (!gltf) continue;
@@ -1761,7 +1848,7 @@ function loadNatureFiller(gen = _bootGen) {
       }
     }
     // If any variants loaded, flush anything queued before load finished.
-    if(gen===_bootGen)flushNatureFiller();
+    flushNatureFiller();
   });
 }
 
@@ -1832,43 +1919,22 @@ function flushNatureFiller() {
 function addPark(cx, cz, radius) {
   const grass = new THREE.Mesh(
     new THREE.CircleGeometry(radius, 28),
-    // Matches the ground texture of the park GLB (dominant #386800 olive green)
-    // so the circle blends into the park model instead of clashing with it.
+    // The park is deliberately a neutral lawn: children can make its centre
+    // their own with a curated or My Models placement.
     stylizedGrassMaterial({park:true})
   );
   grass.rotation.x = -Math.PI / 2;
   grass.position.set(cx, 0.02, cz);
   grass.receiveShadow = true;
   scene.add(grass);
-  // Shared park model (trees + benches + fountain) in the middle of the circle.
-  if (_parkModel && layout.autoScenery!==false) {
-    const clone = _parkModel.clone(true);
-    // Scale so the model's footprint (~2.6×2.5m after the baked rotation) fits
-    // comfortably inside the circle — about 60% of the diameter.
-    const target = Math.min(22,radius * 0.45);
-    const box = new THREE.Box3().setFromObject(clone);
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z) || 1;
-    clone.scale.setScalar(target / maxDim);
-    clone.position.set(cx, 0, cz);
-    scene.add(clone);
-  }
-  // trees ring — denser, and fill the empty inner band so the green circle
-  // reads as a lush park, not a sparse lawn. Keep the middle clear where the
-  // park model (fountain/benches) sits.
+  // A loose outer tree ring frames the park without choosing a universal
+  // centrepiece. The deterministic vegetation pass below fills the middle
+  // band while preserving the central lawn, loop path, and entrances.
   const count = Math.max(6, Math.round(radius / 8));
   for (let i = 0; i < count; i++) {
     const ang = (i / count) * Math.PI * 2 + hashString(i + '') * 0.3;
     const r = radius * (0.69 + 0.16 * ((hashString(i * 7) % 10) / 10));
     addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.8 + ((hashString(i * 13) % 10) / 10) * 0.6);
-  }
-  // Fill the mid band (between the centre model and the outer ring).
-  const fillCount = Math.max(3, Math.round(radius / 12));
-  for (let i = 0; i < fillCount; i++) {
-    const ang = hashString(i * 31 + Math.round(cx)) * 0.7 + i * 1.7;
-    const centreClear=Math.min(radius*.42,Math.min(22,radius*.45)*.5+3);
-    const r = centreClear+Math.max(0,radius*.46-centreClear)*((hashString(i * 17 + Math.round(cz)) % 10) / 10);
-    addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.7 + ((hashString(i * 23) % 10) / 10) * 0.5);
   }
 }
 
@@ -1897,20 +1963,12 @@ function buildQuestLandmarks() {
     // questDesign path below is the fallback for any unmapped type.
     const missionUrl = SPECIAL_BUILDING_MODELS[b.type];
     if (missionUrl) {
-      const st = (glbState[b.type] || (glbState[b.type] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false }));
-      st.spots.push({ x: cx, z: cz, fp, h, glbType: b.type });
-      // Plain placeholder until the GLB loads (or if it never does).
-      const ph = new THREE.Mesh(
-        new THREE.BoxGeometry(fp[0], h, fp[1]),
-        new THREE.MeshStandardMaterial({ color: 0x4a5560, roughness: 0.8, metalness: 0.3 })
-      );
-      ph.position.set(cx, h / 2, cz);
-      ph.castShadow = true;
-      scene.add(ph);
-      st.fallbacks.push(ph);
+      const st = ensureGlbState(b.type);
+      addBuildingPlot(b.type, cx, cz, fp);
       beaconPositions.push({ x: cx, y: h + 6, z: cz, anchor: h });
       questRefs.push({ q, cx, cz, top: h });
-      addBuildingLabel(q.labelZh, q.labelEn, cx, h + 14, cz);
+      const label = addBuildingLabel(q.labelZh, q.labelEn, cx, 3, cz);
+      st.spots.push({ x: cx, z: cz, fp, h, glbType: b.type, label });
       continue;
     }
 
@@ -1994,6 +2052,7 @@ function addBuildingLabel(zh, en, x, y, z) {
   label.position.set(x, y, z);
   scene.add(label);
   buildingLabels.push(label);
+  return label;
 }
 
 // ─── Generic facilities (realistic facades + label) ───────────────────────
@@ -2052,7 +2111,53 @@ const GENERIC_FACILITY_TYPES = [];
 // Mission buildings that use the industrial GLB instead of a procedural design.
 // (Legacy — all 18 mission buildings now map via SPECIAL_BUILDING_MODELS.)
 const INDUSTRIAL_SPECIALS = [];
-const glbState = {};   // type → { model, size, spots:[], fallbacks:[], loading }
+const glbState = {};   // type → { model, size, spots:[], fallbacks:[], loading, status, reason }
+
+function ensureGlbState(type) {
+  return glbState[type] || (glbState[type] = {
+    model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false,
+    status: 'idle', reason: null,
+  });
+}
+
+function recordBuildingDiagnostic(type, state = ensureGlbState(type)) {
+  if (!city?.loading?.assets?.buildings) return;
+  const entries = city.loading.assets.buildings;
+  if (!Object.hasOwn(entries, type) && Object.keys(entries).length >= 64) return;
+  entries[type] = { state: state.status || 'idle', reason: state.reason || null, instances: state.applied?.length || 0 };
+}
+
+function disposeDetachedModel(value) {
+  const root = value?.scene || value?.scenes?.[0] || value;
+  value?.geometry?.dispose?.();
+  const directMaterials = Array.isArray(value?.material) ? value.material : [value?.material];
+  for (const material of directMaterials) material?.dispose?.();
+  root?.traverse?.((node) => {
+    node.geometry?.dispose?.();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) material?.dispose?.();
+  });
+}
+
+function buildingLoadPriority(spots = []) {
+  const spawn = city?.spawnWorld || findSpawn();
+  const origin = spawn || { x: 0, z: 0 };
+  const distance = spots.reduce((best, spot) => Math.min(best, Math.hypot(spot.x - origin.x, spot.z - origin.z)), Infinity);
+  return Number.isFinite(distance) ? 100000 - distance : 0;
+}
+
+function addBuildingPlot(type, cx, cz, fp) {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(Math.max(2, fp[0] - 1), Math.max(2, fp[1] - 1)),
+    new THREE.MeshStandardMaterial({ color: 0x71806f, roughness: 1, transparent: true, opacity: .38, depthWrite: false })
+  );
+  mesh.name = `building-plot-${type}`;
+  mesh.userData.kind = 'building-plot';
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(cx, .025, cz);
+  scene.add(mesh);
+  return mesh;
+}
 
 // Housing variants loader: every residential model shares the same base unit
 // scale (Kenney suburban buildings are ~1.3m units), so we load them into a
@@ -2065,8 +2170,8 @@ function loadHousingVariants(gen, queue) {
   if (housingVariantsLoaded) return;
   housingVariantsLoaded = true;
   const loader = createGLTFLoader();
-  Promise.all(HOUSING_VARIANTS.map(url=>queue.add(()=>loader.loadAsync(url)).catch(e=>{console.warn('[housing variant]',url,e);return null;}))).then(gltfs=>{
-    if(gen!==_bootGen){housingVariantsLoaded=false;return;}
+  Promise.all(HOUSING_VARIANTS.map(url=>queue.add(()=>loader.loadAsync(url), { onStale: disposeDetachedModel }).catch(e=>{console.warn('[housing variant]',url,e);return null;}))).then(gltfs=>{
+    if(gen!==_bootGen){housingVariantsLoaded=false;for(const gltf of gltfs)disposeDetachedModel(gltf);return;}
     housingVariantModels.length=0;
     for(const gltf of gltfs){if(!gltf)continue;const m=new THREE.Group();m.add(gltf.scene);const box=new THREE.Box3().setFromObject(m),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());gltf.scene.position.x-=center.x;gltf.scene.position.z-=center.z;gltf.scene.position.y-=box.min.y;prepareBuildingMaterials(m);housingVariantModels.push({model:m,size});}
     applyBuildingModel('housing');
@@ -2075,25 +2180,73 @@ function loadHousingVariants(gen, queue) {
 
 const officeVariantModels=[];
 let officeVariantsLoaded=false;
+const hunyuanVariantModels = { sunstack: null, beacon: null };
+let hunyuanVariantsLoaded = false;
+let hunyuanSelection = { sunstackKey: null, beaconKey: null };
 function loadOfficeVariants(gen,queue){if(officeVariantsLoaded)return;officeVariantsLoaded=true;
- Promise.all(['a','b','c'].map(c=>queue.add(()=>createGLTFLoader().loadAsync(`../library/buildings/kenney-skyscraper-${c}.glb`)).catch(()=>null))).then(gltfs=>{
-  if(gen!==_bootGen){officeVariantsLoaded=false;return;}
+ Promise.all(['a','b','c'].map(c=>queue.add(()=>createGLTFLoader().loadAsync(`../library/buildings/kenney-skyscraper-${c}.glb`), { onStale: disposeDetachedModel }).catch(()=>null))).then(gltfs=>{
+  if(gen!==_bootGen){officeVariantsLoaded=false;for(const gltf of gltfs)disposeDetachedModel(gltf);return;}
   for(const g of gltfs){if(!g)continue;const m=new THREE.Group();m.add(g.scene);const box=new THREE.Box3().setFromObject(m),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());g.scene.position.x-=center.x;g.scene.position.z-=center.z;g.scene.position.y-=box.min.y;prepareBuildingMaterials(m);officeVariantModels.push({model:m,size});}applyBuildingModel('office');
  });
 }
 
+function normalizedBuildingModel(gltf) {
+  const model = new THREE.Group(); model.add(gltf.scene);
+  const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
+  gltf.scene.position.x -= center.x; gltf.scene.position.z -= center.z; gltf.scene.position.y -= box.min.y;
+  prepareBuildingMaterials(model); return { model, size };
+}
+function loadHunyuanBuildingVariants(gen, queue) {
+  if (hunyuanVariantsLoaded) return;
+  hunyuanVariantsLoaded = true;
+  const entries = [['sunstack', HUNYUAN_IDS.sunstack], ['beacon', HUNYUAN_IDS.beacon]];
+  Promise.all(entries.map(([key, id]) => queue.add(() => createGLTFLoader().loadAsync(libraryItem(id).glb), { onStale: disposeDetachedModel })
+    .then((gltf) => [key, normalizedBuildingModel(gltf)]).catch((error) => { console.warn('[hunyuan variant]', key, error); return [key, null]; })))
+    .then((models) => {
+      if (gen !== _bootGen) { hunyuanVariantsLoaded = false; return; }
+      for (const [key, value] of models) hunyuanVariantModels[key] = value;
+      if (glbState.shop?.spots.length) applyBuildingModel('shop');
+      if (glbState.office?.spots.length) applyBuildingModel('office');
+    });
+}
+
+// A single rare landmark, deliberately separate from street-tree and ordinary
+// park vegetation pools. Its visibility follows the saved prop records, so a
+// child's centred exhibit always gets the stage without mutating their layout.
+function mountEmeraldRainTree(gen, queue) {
+  const group = new THREE.Group(); group.name = 'Emerald Rain Tree landmark'; scene.add(group);
+  let model = null, disposed = false;
+  const refresh = (records = []) => {
+    const placement = emeraldRainTreePlacement(layout, records, (id) => libraryItem(id));
+    group.visible = !!placement && !!model;
+    if (placement && model) group.position.set(placement.x, 0, placement.z);
+  };
+  const item = libraryItem(HUNYUAN_IDS.emeraldRainTree);
+  queue.add(() => createGLTFLoader().loadAsync(item.glb), { onStale: disposeDetachedModel }).then((gltf) => {
+    if (disposed || gen !== _bootGen) { disposeDetachedModel(gltf); return; }
+    model = gltf.scene;
+    const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
+    model.position.set(-center.x, -box.min.y, -center.z);
+    const scale = EMERALD_RAIN_TREE_CANOPY_METRES / Math.max(size.x, size.z, 1);
+    model.scale.setScalar(scale); model.traverse((node) => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
+    group.add(model); refresh(propLibrary?.getRecords?.() || []);
+  }).catch((error) => console.warn('[emerald-rain-tree] unavailable', error));
+  return { refresh, destroy() { disposed = true; group.removeFromParent(); } };
+}
+
 function loadBuildingModel(type, url, gen = _bootGen, queue = null) {
-  const st = glbState[type] || (glbState[type] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false });
-  if(st.model){if(gen===_bootGen)applyBuildingModel(type);return Promise.resolve(st.model);}
+  const st = ensureGlbState(type);
+  if(st.model){st.status='loaded';st.reason=null;if(gen===_bootGen)applyBuildingModel(type);recordBuildingDiagnostic(type,st);return Promise.resolve(st.model);}
   if (st.loading) return Promise.resolve(st.loading).then((value) => {
     if (value && gen === _bootGen) applyBuildingModel(type);
     return value;
   });
   const run = () => createGLTFLoader().loadAsync(url);
-  st.loading = true;
-  const promise = (queue ? queue.add(run) : run())
+  st.loading = true; st.status = 'loading'; st.reason = null; recordBuildingDiagnostic(type, st);
+  const promise = (queue ? queue.add(run, { priority: buildingLoadPriority(st.spots), onStale: disposeDetachedModel }) : run())
     .then((gltf) => {
       if (!gltf) return null;
+      if (gen !== _bootGen) { disposeDetachedModel(gltf); return null; }
       const m = gltf.scene;
       const box = new THREE.Box3().setFromObject(m);
       const size = box.getSize(new THREE.Vector3());
@@ -2112,14 +2265,17 @@ function loadBuildingModel(type, url, gen = _bootGen, queue = null) {
         }
       });
       if(GLB_BUILDING_TYPES[type] || SPECIAL_BUILDING_MODELS[type] || libraryItem(type)?.category==='buildings')prepareBuildingMaterials(m);
-      st.model = m; st.size = size;
+      st.model = m; st.size = size; st.status = 'loaded'; st.reason = null;
       st.loading = false;
       if(gen===_bootGen)applyBuildingModel(type);
+      recordBuildingDiagnostic(type, st);
       return m;
     })
     .catch((e) => {
-      console.warn(`[${type}] GLB load failed — keeping procedural`, e);
+      console.warn(`[${type}] GLB load failed — keeping labelled plot`, e);
       st.model = null;
+      st.status = 'failed'; st.reason = (e?.name || 'load-error').slice(0, 48);
+      recordBuildingDiagnostic(type, st);
       st.loading = false;   // allow a later retry (e.g. re-boot)
       return null;
     });
@@ -2131,22 +2287,25 @@ function loadBuildingModel(type, url, gen = _bootGen, queue = null) {
 // This intentionally falls back to the normal building if a Champion File is
 // opened on another device without its corresponding GLB.
 function loadCustomBuildingModel(type, customId, gen = _bootGen, queue = null) {
-  const st = glbState[type] || (glbState[type] = { model:null, size:null, spots:[], fallbacks:[], applied:[], loading:false });
+  const st = ensureGlbState(type);
   if (st.model || st.loading) return Promise.resolve(st.model);
   const run = async () => {
     const saved = await customModelStore.get(customId);
     if (!saved?.bytes) throw new Error('model is not on this device');
     return new Promise((resolve, reject) => createGLTFLoader().parse(saved.bytes.slice(0), '', resolve, reject));
   };
-  st.loading = (queue ? queue.add(run) : run()).then((gltf) => {
+  st.status = 'loading'; st.reason = null;recordBuildingDiagnostic(type,st);
+  st.loading = (queue ? queue.add(run, { priority: buildingLoadPriority(st.spots), onStale: disposeDetachedModel }) : run()).then((gltf) => {
+    if (!gltf) return null;
+    if (gen !== _bootGen) { disposeDetachedModel(gltf); return null; }
     const m = gltf.scene || gltf.scenes?.[0];
     if (!m || !m.getObjectByProperty('isMesh', true)) throw new Error('no renderable mesh');
     const box=new THREE.Box3().setFromObject(m), size=box.getSize(new THREE.Vector3()), center=box.getCenter(new THREE.Vector3());
     m.position.x-=center.x; m.position.z-=center.z;
     m.traverse(o=>{ if(o.isMesh&&o.geometry)o.geometry.translate(0,-box.min.y,0); });
-    prepareBuildingMaterials(m); st.model=m; st.size=size; st.loading=false;
-    if(gen===_bootGen)applyBuildingModel(type); return m;
-  }).catch((e) => { console.warn(`[${type}] custom GLB unavailable`,e); st.loading=false; if(gen===_bootGen)showToast('Re-add this building GLB to use its custom look.'); return null; });
+    prepareBuildingMaterials(m); st.model=m; st.size=size; st.loading=false;st.status='loaded';st.reason=null;
+    if(gen===_bootGen)applyBuildingModel(type);recordBuildingDiagnostic(type,st); return m;
+  }).catch((e) => { console.warn(`[${type}] custom GLB unavailable`,e); st.loading=false;st.status='failed';st.reason=(e?.name||'custom-load-error').slice(0,48);recordBuildingDiagnostic(type,st); if(gen===_bootGen)showToast('Re-add this building GLB to use its custom look.'); return null; });
   return st.loading;
 }
 
@@ -2170,6 +2329,7 @@ function applyBuildingModel(type) {
   st.applied = [];
   // …and place a GLB clone on every spot (geometry shared, cheap).
   for (const spot of st.spots) {
+    if (spot.label) spot.label.position.y = (spot.h || 2) + 6;
     // Housing renders as a 2×2 block of four smaller units inside the same
     // footprint — one map icon = one residential block, not one tower. Each
     // unit picks a deterministic variant from the Kenney suburban pool when any have
@@ -2193,7 +2353,9 @@ function applyBuildingModel(type) {
       }
       continue;
     }
-    const source=type==='office' && officeVariantModels.length?officeVariantModels[hashString(`${spot.x}|${spot.z}`)%officeVariantModels.length]:st;
+    const source = spot.variant === 'sunstack' && hunyuanVariantModels.sunstack ? hunyuanVariantModels.sunstack
+      : spot.variant === 'beacon' && hunyuanVariantModels.beacon ? hunyuanVariantModels.beacon
+      : type==='office' && officeVariantModels.length ? officeVariantModels[hashString(`${spot.x}|${spot.z}`)%officeVariantModels.length] : st;
     const clone = source.model.clone(true);
     // Facility + mission buildings stretch to fill their footprint AND catalog
     // height (non-uniform) so e.g. an office tower or the Finance Tower actually
@@ -2224,6 +2386,7 @@ function applyBuildingModel(type) {
 
 function buildGenericFacilities() {
   const libIdsToLoad = new Set();
+  hunyuanSelection = selectHunyuanBuildingVariants(layout);
   for (const b of layout.buildings) {
     if (isSpecial(b.type)) continue;
     const isLib = b.type.startsWith('lib:');
@@ -2243,26 +2406,21 @@ function buildGenericFacilities() {
     // the GLB loads (and as a fallback if it fails).
     if (isLib) {
       const libId = b.type.slice(4);
-      (glbState[libId] || (glbState[libId] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false })).spots.push({ x: cx, z: cz, fp, h: spec.height || 2, glbType: libId });
+      const state = ensureGlbState(libId);
       libIdsToLoad.add(libId);
-      const box = new THREE.Mesh(
-        new THREE.BoxGeometry(fp[0], spec.height || 2, fp[1]),
-        new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.85 })
-      );
-      box.position.set(cx, (spec.height || 2) / 2, cz);
-      scene.add(box);
-      glbState[libId].fallbacks.push(box);
+      addBuildingPlot(libId, cx, cz, fp);
+      let label = null;
       if (labelRenderer) {
         const el = document.createElement('div');
         el.className = 'building-label';
         el.dataset.displayType = b.type;
         el.textContent = displayName(b.type,currentLang());
-        const label = new CSS2DObject(el);
-        label.position.set(cx, (spec.height || 2) + 1.5, cz);
-        label.userData.mesh = box;
+        label = new CSS2DObject(el);
+        label.position.set(cx, 3, cz);
         scene.add(label);
         buildingLabels.push(label);
       }
+      state.spots.push({ x: cx, z: cz, fp, h: spec.height || 2, glbType: libId, label });
       continue;
     }
 
@@ -2330,7 +2488,26 @@ function buildGenericFacilities() {
     // Route each facility to its GLB slot: dedicated (office/housing) or the
     // shared generic model for the plain facilities.
     const glbType = GLB_BUILDING_TYPES[b.type] ? b.type : (GENERIC_FACILITY_TYPES.includes(b.type) ? 'generic' : null);
-    if (glbType) (glbState[glbType] || (glbState[glbType] = { model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false })).spots.push({ x: cx, z: cz, fp, h, glbType });
+    if (glbType) {
+      const state = ensureGlbState(glbType);
+      addBuildingPlot(glbType, cx, cz, fp);
+      let label = null;
+      if (labelRenderer) {
+        const el = document.createElement('div');
+        el.className = 'building-label';
+        el.dataset.displayType = b.type;
+        el.textContent = displayName(b.type,currentLang());
+        label = new CSS2DObject(el);
+        label.position.set(cx, 3, cz);
+        scene.add(label);
+        buildingLabels.push(label);
+      }
+      const key = coordinateKey([cx, cz]);
+      const variant = b.type === 'shop' && key === hunyuanSelection.sunstackKey ? 'sunstack'
+        : b.type === 'office' && key === hunyuanSelection.beaconKey ? 'beacon' : null;
+      state.spots.push({ x: cx, z: cz, fp, h, glbType, label, variant });
+      continue;
+    }
 
     // Facade colour by height band (osm-city palette), with the lit-window
     // emissive texture on mid/high-rise so the student's own buildings read
@@ -2410,9 +2587,10 @@ function loadParkedVehicleModel(key, gen = _bootGen, queue = null) {
   if (!cfg || _parkedVehicleState.models[key] || _parkedVehicleState.loading.has(key)) return;
   _parkedVehicleState.loading.add(key);
   const run=()=>createGLTFLoader().loadAsync(cfg.file);
-  (queue?queue.add(run):run())
+  (queue?queue.add(run,{onStale:disposeDetachedModel}):run())
     .then((gltf) => {
       if(!gltf)return;
+      if(gen!==_bootGen){disposeDetachedModel(gltf);_parkedVehicleState.loading.delete(key);return;}
       _parkedVehicleState.models[key] = gltf.scene;
       _parkedVehicleState.loading.delete(key);
       if(gen===_bootGen)placeParkedVehicles();
@@ -2571,8 +2749,8 @@ function scatterStreetTrees() {
 // building (the champion's follow camera orbits ~26m out, so spawning next to
 // or inside a building starts the camera inside its walls — looks bad), off
 // every road carriageway (spawning in a lane puts the champion where cars
-// drive), and outside every park (parks carry trees + a centre model — a spawn
-// inside the grass would put the champion inside a fountain/trunk). Roads are
+// drive), and outside every park (parks carry trees and student decorations — a
+// spawn inside the grass could put the champion inside a trunk or placed model). Roads are
 // stored as centreline polylines, so we clear the centreline by width/2 +
 // SPAWN_ROAD_CLEAR.
 const SPAWN_CLEAR = 30;
@@ -2580,7 +2758,20 @@ const SPAWN_ROAD_CLEAR = 5;
 const SPAWN_PARK_CLEAR = 4;
 function findSpawn() {
   const SCALE = (layout && layout.scaleMeters) || 2000;
-  const cx = SCALE / 2, cz = SCALE / 2;
+  const focus = cityFocusBounds || occupiedBounds(layout || { scaleMeters: SCALE }, { pad: 0 });
+  let cx = (focus.minX + focus.maxX) / 2, cz = (focus.minZ + focus.maxZ) / 2;
+  // A bounding-box centre can be an empty crossroads between four populated
+  // districts. Use the occupied medoid for the walking spawn: it is guaranteed
+  // to belong to a real cluster while remaining deterministic.
+  const occupied = (layout.buildings || []).map((b) => b.pos);
+  if (occupied.length) {
+    const medoid = occupied.slice().sort((a, b) => {
+      const da = occupied.reduce((sum, p) => sum + Math.hypot(a[0] - p[0], a[1] - p[1]), 0);
+      const db = occupied.reduce((sum, p) => sum + Math.hypot(b[0] - p[0], b[1] - p[1]), 0);
+      return da - db || a[0] - b[0] || a[1] - b[1];
+    })[0];
+    cx = medoid[0]; cz = medoid[1];
+  }
   const boxes = (layout.buildings || []).map((b) => {
     const fp = b.footprint || [20, 20];
     return {
@@ -2638,6 +2829,7 @@ async function spawnChampion(isCurrent = () => true) {
       // Start with the uploaded fitted champion (if any) instead of the bunny.
       initialSkin: _customSkinUrl,
       initialSkinId: '__custom__',
+      onChampionWarning: message => showToast(`Champion: ${message}`),
     });
   } catch (e) {
     // Champion GLB failed to load — the city still renders; run without one
@@ -2656,7 +2848,10 @@ async function spawnChampion(isCurrent = () => true) {
   // Plant the champion on the spawn surface immediately (spawn may sit on a
   // raised plaza/sidewalk) so the first rendered frame is never a hover.
   if (champion.landAt) champion.landAt(spawn.x, spawn.z);
-  orbit.target.copy(city.spawnWorld);
+  const focus = cityFocusBounds || occupiedBounds(layout, { pad: 0 });
+  orbit.target.set((focus.minX + focus.maxX) / 2, 0, (focus.minZ + focus.maxZ) / 2);
+  orbit.dist = orbit.distOverview;
+  orbit.introUntil = performance.now() + 15000;
   // Start the idle-camera timer from spawn so the camera doesn't snap on boot.
   orbit.lastOrbitTs = performance.now();
 
@@ -2726,7 +2921,6 @@ async function spawnChampion(isCurrent = () => true) {
       return { ok: true, note: `Opening ${quest.labelEn}` };
     },
   };
-  setupAirTraffic();
 }
 
 function buildingName(b) {
@@ -2837,7 +3031,7 @@ function rebuildNeighbourhood(obstacles = []) {
     crossings: [], obstacles });
   streetLife = createStreetLife(neighbourhood, { mobile: IS_MOBILE, reducedMotion: reducedMotion.matches, previousActors });
   publicSpaces = createPublicSpaces(scene, neighbourhood, {treeVariants: _treeVariants});
-  parkLandscape=createParkLandscape(scene,layout,neighbourhood,{mobile:IS_MOBILE,lawnMaterial:()=>stylizedGrassMaterial({park:true})});city.parkLandscape=parkLandscape;
+  parkLandscape=createParkLandscape(scene,layout,neighbourhood,{mobile:IS_MOBILE});city.parkLandscape=parkLandscape;
   applyGroundTexture(_groundTexture);
   city.neighbourhood = neighbourhood; city.streetLife = streetLife; city.publicSpaces = publicSpaces;
 }
@@ -2853,6 +3047,21 @@ function updateNeighbourhoodObstacles(dt) {
   }
   const key=signature.join(',');if(key!==propObstacleSignature){propObstacleSignature=key;rebuildNeighbourhood(obstacles);}
 }
+function setupRoadTraffic() {
+  if (traffic) return traffic;
+  try {
+    traffic = createTraffic(scene, layout.roads, {
+      density: IS_MOBILE ? 0.8 : 1,
+      mobile: IS_MOBILE,
+      spawn: city.spawnWorld,
+      vehicleIds: readTrafficVehicleIds(),
+    });
+    city.traffic = traffic;
+  }
+  catch (e) { console.warn('[city-builder] traffic init failed', e); traffic = null; }
+  return traffic;
+}
+
 function setupAirTraffic() {
   // Flying taxi: board → rise to cruise height (240 m, clearing the 220 m
   // skyline), then the pilot climbs/descends freely. Buddy "fly to X" auto-nav
@@ -2879,16 +3088,7 @@ function setupAirTraffic() {
   // Road traffic — cars & buses cruising along the student's roads. Its fleet
   // policy uses usable road length with a separate tablet cap; opening cars
   // favour links near the Champion before fanning out across the city.
-  try {
-    traffic = createTraffic(scene, layout.roads, {
-      density: IS_MOBILE ? 0.8 : 1,
-      mobile: IS_MOBILE,
-      spawn: city.spawnWorld,
-      vehicleIds: readTrafficVehicleIds(),
-    });
-    city.traffic = traffic;
-  }
-  catch (e) { console.warn('[city-builder] traffic init failed', e); traffic = null; }
+  setupRoadTraffic();
 
   // Pedestrians — two instanced populations for the "living city" layer.
   // Only human citizens animate around the city. Robot props/catalogue entries
@@ -3188,6 +3388,12 @@ async function spawnDriveCar(item) {
   const car = createDrivableCar(scene, carGroup, {
     walkSpeed: 15, runSpeed: 30,
     radius: bodyRadius,
+    resolveParking: ({ position, footprint, rotation }) => resolveRoadSafePlacement({
+      position, footprint, rotation, roads: layout,
+      bounds: [0, 0, layout.scaleMeters || 2000, layout.scaleMeters || 2000],
+      obstacles: (layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint })),
+      maxDistance: 80,
+    }),
   });
   car.name = item.name;
   drivingCar = car;
@@ -3203,6 +3409,7 @@ async function spawnDriveCar(item) {
 }
 
 const _camPos = new THREE.Vector3();
+const _occupiedFocus = new THREE.Vector3();
 function updateCamera(dt, taxiActive, driveActive) {
   // QA hook: visual-test scripts pin an exact viewpoint for screenshots.
   // `pos`/`target` may be THREE.Vector3 or [x,y,z] arrays.
@@ -3217,13 +3424,17 @@ function updateCamera(dt, taxiActive, driveActive) {
     return;
   }
   const driving = driveActive && drivingCar;
-  const focus = driving
+  const introOverview = !!champion && !driving && !taxiActive && performance.now() < orbit.introUntil;
+  const occupiedFocus = cityFocusBounds
+    ? _occupiedFocus.set((cityFocusBounds.minX + cityFocusBounds.maxX) / 2, 0, (cityFocusBounds.minZ + cityFocusBounds.maxZ) / 2)
+    : orbit.target;
+  const focus = introOverview ? occupiedFocus : driving
     ? drivingCar.getPos()
     : taxiActive ? taxi.getPos() : (champion ? champion.state.pos : orbit.target);
   // Ease the zoom toward the mode's distance: overview → walk → taxi → drive (closest).
   const wantDist = driving ? (orbit.distDrive || 13)
     : taxiActive ? orbit.distTaxi
-    : (champion ? orbit.distWalk : 62);
+    : (champion && !introOverview ? orbit.distWalk : orbit.distOverview);
   orbit.dist += (wantDist - orbit.dist) * Math.min(1, dt * 2.5);
   if (!reducedMotion.matches && (!champion || orbit.locked)) {
     // gentle auto-orbit when no champion yet / locked view
@@ -3310,6 +3521,7 @@ function wireRendererInteraction(owner) {
   owner.listen(renderer.domElement, 'pointerdown', (e) => {
     if (_primaryPointerId !== null) return;   // a second pointer must not steal the drag
     _primaryPointerId = e.pointerId;
+    orbit.introUntil = 0;
     dragState.on = true;
     dragState.sx = e.clientX; dragState.sy = e.clientY;
     dragState.moved = 0;
@@ -3458,7 +3670,7 @@ function mountSkins(owner) {
   // layout is usable, and cancel the deferred start when this boot is replaced.
   owner.defer(() => preloadAccessories(ASSET_BASE), 1500);
   skinSidebar = mountSkinSidebar(ASSET_BASE, champion, (skin) => showToast(`👑 ${skinLabel(skin)} ${t('toast.skinEquipped')}`),
-    _customSkinUrl ? { url: _customSkinUrl } : null, {
+    _customSkinUrl ? { url: _customSkinUrl, metadata: _customSkinMetadata } : null, {
       onUploadCustom: async (file) => {
         const result = await importCustomChampion(file);
         if (!result.ok) {
@@ -3466,6 +3678,16 @@ function mountSkins(owner) {
           return null;
         }
         return result.skin;
+      },
+      editStudioUrl: '../studio/?resume=1',
+      onRestoreCustom: async () => {
+        const revisions = await loadCustomSkinRevisions(); const previous = revisions.at(-1);
+        if (!previous?.buffer) return null;
+        const blob = new Blob([previous.buffer], { type: 'model/gltf-binary' });
+        await saveCustomSkin(blob, previous.metadata || null);
+        if (_customSkinUrl) revokeObjectUrl(_customSkinUrl);
+        _customSkinUrl = blobToObjectUrl(blob); _customSkinMetadata = previous.metadata || null;
+        return { url: _customSkinUrl, name: 'My Champion', metadata: _customSkinMetadata };
       },
     });
 }
@@ -3904,6 +4126,7 @@ function readInput() {
   if (k['arrowdown'] || k['s'] || k['dir:down']) z -= 1;
   if (k['arrowleft'] || k['a'] || k['dir:left']) x -= 1;
   if (k['arrowright'] || k['d'] || k['dir:right']) x += 1;
+  if (x || z) orbit.introUntil = 0;
   input.x = x; input.z = z;
 }
 
@@ -3929,6 +4152,7 @@ function loadLayout(raw) {
   layout = dense.layout;
   growScale = dense.grow;
   cityBounds = dense.bounds;
+  cityFocusBounds = occupiedBounds(layout, { pad: 0 });
 
   // Planner AI context survives sanitizeLayout/densifyLayout (which rebuild the
   // layout from known geometry fields and would drop extras). Attached to the
@@ -4295,7 +4519,7 @@ function renderCapPanel() {
       <div class="cap-meta">${esc(d.algorithm)} · ${d.labels.length} labels · threshold ${d.threshold}</div>
       <div class="cap-scores">${esc(scoreLine)}</div>
       ${ld ? `<div class="cap-last">${zh ? '歷史紀錄（未重新驗證）：' : 'Historical record (not reverified): '}<b>${esc(ld.label)}</b></div>` : ''}
-      <div class="cap-note">${esc(stage1Note(zh))}</div>
+      <div class="cap-note">${d.connected ? (zh ? '自我測試通過 · 正在運行' : 'Self-tests passed · live-running') : (zh ? '只供展示 · 自我測試未通過' : 'Display-only · self-tests did not pass')}</div>
       <button class="cap-try" data-try-cap="${esc(d.id)}">🧪 ${zh ? '查看證據' : 'Inspect evidence'}</button>
     </div>`;
   }).join('');
@@ -4354,7 +4578,9 @@ function mountCapabilityUi() {
       return;
     }
     const caps = readPlantedCaps();
-    if (!caps.some((c) => c?.id === r.capability.id)) {
+    const installed = installCapability(r.capability);
+    const immutableId = installed.ok ? installed.installation.id : `${r.capability.id}@${r.capability.revision || 1}`;
+    if (!caps.some((c) => `${c?.id}@${c?.revision || 1}` === immutableId)) {
       if (caps.length >= 12) { if (err) err.textContent = t('work.capLimit'); return; }
       caps.push(r.capability);
       writePlantedCaps(caps);
@@ -4505,7 +4731,8 @@ function startEntryFlow() {
   if (fromPlanner && saved) {
     try {
       begin(JSON.parse(saved));
-      history.replaceState(null, '', '/city-builder/'); // tidy the URL
+      const mode = new URLSearchParams(location.search).get('mode');
+      history.replaceState(null, '', mode === 'decorate' ? '/city-builder/?mode=decorate' : '/city-builder/'); // tidy the URL
     } catch (e) {
       // corrupt save → fall through; the overlay shows "Start my saved city"
     }
@@ -4569,9 +4796,24 @@ async function bootInner() {
   _bootOwner?.cancel();
   const owner = createBootOwner(gen, window);
   _bootOwner = owner;
-  const loadQueue = createLoadQueue({ concurrency: IS_MOBILE ? 3 : 4, isActive: () => owner.active && gen === _bootGen });
+  const loadingDiagnostics = {
+    generation: gen, phase: 'booting', startedAt: Date.now(), completedAt: null,
+    queueStats: null, assets: { buildings: {}, traffic: {} }, failures: [],
+  };
+  const loadQueue = createLoadQueue({
+    concurrency: IS_MOBILE ? 3 : 4,
+    isActive: () => owner.active && gen === _bootGen,
+    onChange: stats => { loadingDiagnostics.queueStats = stats; },
+  });
+  loadingDiagnostics.queue = () => loadQueue.stats();
   owner.own(() => loadQueue.cancel());
   _contextPaused = false;
+  window.__cityHandleGlobalError = (event, error) => {
+    if (!owner.active || gen !== _bootGen || loadingDiagnostics.phase !== 'booting') return false;
+    event?.preventDefault?.();
+    failBoot(gen, 'uncaught-required-boot', error || new Error('uncaught boot failure'));
+    return true;
+  };
   // Watchdog: if boot hangs (a loadAsync that never settles on a flaky network),
   // surface the retry screen instead of a frozen loading bar. Cleared on success
   // (end of bootInner) and on failure (showBootError).
@@ -4583,7 +4825,12 @@ async function bootInner() {
       error.stage = 'city-ready-deadline';
       failBoot(gen, error.stage, error);
     }
-  }, BOOT_TIMEOUT_MS);
+  }, window.__CITY_BOOT_DEADLINE_MS__ ?? BOOT_TIMEOUT_MS);
+  const loadingSub = document.querySelector('#loading .loading-sub');
+  if (loadingSub) loadingSub.textContent = currentLang() === 'zh-Hant' ? '正在建立你的城市…' : 'Building your city…';
+  owner.timeout(() => {
+    if (loadingDiagnostics.phase === 'booting' && loadingSub) loadingSub.textContent = t('ui.bootStillBuilding');
+  }, window.__CITY_BOOT_SLOW_COPY_MS__ ?? BOOT_SLOW_COPY_MS);
 
   // Resilience: one bad model or build step must never take down the whole
   // city. Every step is wrapped — failures log + continue (the city degrades
@@ -4593,7 +4840,8 @@ async function bootInner() {
   const safeAwait = async (name, p) => { try { const value=await p; return owner.active ? value : null; } catch (e) { warn(name, e); return null; } };
   const assertActive = () => { if (!owner.active || gen !== _bootGen) { const e=new Error('boot replaced');e.name='StaleBootError';throw e; } };
 
-  city = {};
+  city = { loading: loadingDiagnostics };
+  const primaryAssetPromises = [];
   // Deterministic test seam for the retry lifecycle; never enabled by normal
   // application state.
   const forcedFailure = typeof window.__CITY_FORCE_BOOT_FAILURE__ === 'function'
@@ -4632,6 +4880,12 @@ async function bootInner() {
   let activeLibraryIds = new Set();
   safe('generic-facilities', () => { activeLibraryIds = buildGenericFacilities() || new Set(); });
   safe('building-shadows', addBuildingContactShadows);
+  // Traffic owns only the road graph and the already-known spawn point. Start
+  // it before the Champion GLB so simulation and independent Audi streaming do
+  // not wait on an unrelated avatar download.
+  const initialSpawn = findSpawn();
+  city.spawnWorld = new THREE.Vector3(initialSpawn.x, 0, initialSpawn.z);
+  safe('road-traffic', setupRoadTraffic);
   fill.style.width = '80%';
   // Active-layout models enter one bounded queue first. Procedural buildings
   // remain useful while a model is delayed or rejected.
@@ -4640,9 +4894,20 @@ async function bootInner() {
     const customId = resolveCustomOverride(type, customRoleManifest);
     return customId ? loadCustomBuildingModel(type, customId, gen, loadQueue) : loadBuildingModel(type, url, gen, loadQueue);
   };
-  safe('facility-glbs', () => { for (const [type, url] of Object.entries(GLB_BUILDING_TYPES)) if(glbState[type]?.spots.length)loadRoleVisual(type, url); });
-  safe('mission-glbs', () => { for (const [type, url] of Object.entries(SPECIAL_BUILDING_MODELS)) if(glbState[type]?.spots.length)loadRoleVisual(type, url); });
-  safe('library-glbs', () => { for (const id of activeLibraryIds) { const item=libraryItem(id); if(item)loadBuildingModel(id,item.glb,gen,loadQueue); } });
+  safe('active-building-glbs', () => {
+    const jobs = [];
+    for (const [type, url] of [...Object.entries(GLB_BUILDING_TYPES), ...Object.entries(SPECIAL_BUILDING_MODELS)]) {
+      if (glbState[type]?.spots.length) jobs.push({ type, url, role: true, priority: buildingLoadPriority(glbState[type].spots) });
+    }
+    for (const id of activeLibraryIds) {
+      const item = libraryItem(id);
+      if (item) jobs.push({ type: id, url: item.glb, role: false, priority: buildingLoadPriority(glbState[id]?.spots) });
+    }
+    jobs.sort((a, b) => b.priority - a.priority || a.type.localeCompare(b.type));
+    for (const job of jobs) primaryAssetPromises.push(job.role
+      ? loadRoleVisual(job.type, job.url)
+      : loadBuildingModel(job.type, job.url, gen, loadQueue));
+  });
 
   // Cosmetic variants, accessories and street decoration wait until after the
   // usable city is mounted. Their starts are owned by this boot.
@@ -4654,7 +4919,6 @@ async function bootInner() {
     Promise.all([
       loadTreeModels(current),
       loadTreePacks(current),
-      layout.autoScenery !== false ? loadParkModel(current) : null,
     ]).then(() => { if (current()) { buildTreeVariants(); flushTrees(); } })
       .catch(e => console.warn('[city-builder] optional landscape unavailable', e));
     createStreetProps(scene, layout).then(props => {
@@ -4664,11 +4928,15 @@ async function bootInner() {
     }).catch(e => console.warn('[city-builder] optional street props unavailable', e));
     if(glbState.housing?.spots.length)loadHousingVariants(gen,loadQueue);
     if(glbState.office?.spots.length)loadOfficeVariants(gen,loadQueue);
+    if (glbState.shop?.spots.length || glbState.office?.spots.length) loadHunyuanBuildingVariants(gen,loadQueue);
+    if (layout.autoScenery !== false) {
+      rareLandmark = mountEmeraldRainTree(gen, loadQueue);
+    }
     if(layout.autoScenery!==false) {
       for (const key of Object.keys(PARKED_VEHICLES)) loadParkedVehicleModel(key,gen,loadQueue);
-      scatterStreetDeco(scene, layout, {schedule:(task)=>loadQueue.add(task)});
+      scatterStreetDeco(scene, layout, {schedule:(task)=>loadQueue.add(task,{onStale:disposeDetachedModel})});
       const plannedSpaces = createNeighbourhood(layout, {mobile:IS_MOBILE, roads:publicRoads, crossings:publicCrossings}).spaces;
-      createStreetFurniture(scene, layout, {schedule:(task)=>loadQueue.add(task),exclude:(x,z)=>plannedSpaces.some(p=>Math.hypot(p.x-x,p.z-z)<p.radius+2)})
+      createStreetFurniture(scene, layout, {schedule:(task)=>loadQueue.add(task,{onStale:disposeDetachedModel}),exclude:(x,z)=>plannedSpaces.some(p=>Math.hypot(p.x-x,p.z-z)<p.radius+2)})
         .catch((e) => console.warn('[city-builder] street furniture init failed', e));
     }
   };
@@ -4676,6 +4944,7 @@ async function bootInner() {
   // Load the child's uploaded "fitted champion" GLB (Fit Studio) so it becomes
   // the default skin this session. Read from IndexedDB → object URL.
   const customBlob = await safeAwait('custom-skin', loadCustomSkinBlob());
+  _customSkinMetadata = await safeAwait('custom-skin-metadata', loadCustomSkinMetadata());
   assertActive();
   if (customBlob) {
     if (_customSkinUrl) revokeObjectUrl(_customSkinUrl);
@@ -4685,9 +4954,10 @@ async function bootInner() {
   let championDeadlineActive = true;
   await safeAwait('champion', withDeadline(
     () => spawnChampion(() => championDeadlineActive && owner.active && gen === _bootGen),
-    { owner, ms: CHAMPION_TIMEOUT_MS, label: 'champion', onExpire: () => { championDeadlineActive = false; } },
+    { owner, ms: window.__CITY_CHAMPION_TIMEOUT_MS__ ?? CHAMPION_TIMEOUT_MS, label: 'champion', onExpire: () => { championDeadlineActive = false; } },
   ));
   assertActive();
+  safe('air-traffic', setupAirTraffic);
   safe('renderer-interaction', () => wireRendererInteraction(owner));
 
   // Selected-object resize slider (2026-08-29): library models can ship at the
@@ -4707,6 +4977,9 @@ async function bootInner() {
     document.body.appendChild(panel);
     const slider = panel.querySelector('#resize-slider');
     const valueEl = panel.querySelector('#resize-value');
+    slider.addEventListener('pointerdown', () => {
+      propLibrary?.beginTransform(grab?.getSelected() || grab?.holding);
+    });
     slider.addEventListener('input', () => {
       const v = parseFloat(slider.value);
       valueEl.textContent = Math.round(v * 100) + '%';
@@ -4715,6 +4988,8 @@ async function bootInner() {
         propLibrary?.updateTransform(grab.getSelected() || grab.holding, true);
       }
     });
+    slider.addEventListener('change', () => propLibrary?.endTransform());
+    slider.addEventListener('blur', () => propLibrary?.endTransform());
     const style = document.createElement('style');
     style.textContent = `
       .resize-panel{
@@ -4752,16 +5027,24 @@ async function bootInner() {
   // Grab / select / pick-up / move system for placed library models.
   cleanupPropTools();
   safe('grab', () => {
+    const resolveCityPlacement = ({ position, footprint, rotation }) => resolveRoadSafePlacement({
+      position, footprint, rotation, roads: layout,
+      bounds: [0, 0, layout.scaleMeters || 2000, layout.scaleMeters || 2000],
+      obstacles: (layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })),
+      maxDistance: 60,
+    });
     grab = createGrabSystem(scene, {
       getChampion: () => champion,
       getCamera: () => camera,
       getScene: () => scene,
       colliders: buildingColliders,
+      resolvePlacement: resolveCityPlacement,
       onToast: showToast,
       onSelection: (sel) => {
         const rs = mountResizeSlider();
         rs.setVisible(!!sel);
         if (sel) rs.reset();
+        propLibrary?.selectMesh(sel);
       },
       onDrop: (item) => {
         propLibrary?.updateTransform(item);
@@ -4803,12 +5086,21 @@ async function bootInner() {
     propLibrary = mountPropLibrary({
       scene, camera, renderer,
       storageKey: 'hk_ai_city_props_citybuilder_v1',
+      resolvePlacement: ({ position, footprint, rotation }) => resolveRoadSafePlacement({
+        position, footprint, rotation, roads: layout,
+        bounds: [0, 0, layout.scaleMeters || 2000, layout.scaleMeters || 2000],
+        obstacles: (layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })),
+        maxDistance: 60,
+      }),
       onPlaced: (x, z) => placementDust.spawn({ x, y: 0, z }, 6, 0.8, 1.6),
       onPlacedMesh: (mesh, item) => { environmentProps.add(mesh); registerGrabbableProp(mesh, item); },
       onRemovedMesh: mesh => { environmentProps.delete(mesh); grab?.unregister(mesh); },
+      onChanged: (records) => rareLandmark?.refresh(records),
       onPlacementDone: (mesh) => { if (grab && mesh) grab.select(mesh); },
       onPlacementEnd: () => { if (grab) grab.clearSelection(); },
+      onInspectorClearSelection: () => { if (grab) grab.clearSelection(); },
     });
+    rareLandmark?.refresh(propLibrary.getRecords?.() || []);
   });
   safe('focused-ui', () => {
     focusedUI?.dispose?.();
@@ -4822,6 +5114,14 @@ async function bootInner() {
 
   document.getElementById('loading').classList.add('done');
   fill.style.width = '100%';
+  // The child's first usable frame is the overview. Asset loading can outlast
+  // Champion creation, so start the intro clock here (not at GLB completion).
+  if (cityFocusBounds) {
+    orbit.target.set((cityFocusBounds.minX + cityFocusBounds.maxX) / 2, 0, (cityFocusBounds.minZ + cityFocusBounds.maxZ) / 2);
+    orbit.dist = orbit.distOverview;
+    orbit.introUntil = performance.now() + 15000;
+  }
+  loadingDiagnostics.phase = 'usable';
   clearTimeout(_bootWatchdog);   // boot completed — disarm the hang guard
   // Non-blocking warning: a city with no roads renders as a bare ground (no
   // streets, streetlights, cars or road trees). Let the child know WHY instead
@@ -4841,9 +5141,38 @@ async function bootInner() {
   window.__scene = scene;   // debug hook (harmless)
   window.__layout = layout; // debug hook
   window.__city = city;     // debug hook (champion/taxi/pedestrians handles)
-  city.loading = { generation: gen, queue: () => loadQueue.stats() };
   startLoop(owner);
   owner.defer(startDeferredAssets, 1200);
+  const streamingStatus = document.getElementById('streaming-status');
+  const trafficReady = traffic?.realisticFleet?.ready;
+  const primaryStreaming = [...primaryAssetPromises, ...(trafficReady ? [trafficReady] : [])];
+  if (primaryStreaming.length) {
+    loadingDiagnostics.phase = 'streaming';
+    if (streamingStatus) { streamingStatus.textContent = t('ui.cityStreaming'); streamingStatus.hidden = false; }
+    owner.timeout(() => { if (streamingStatus) streamingStatus.hidden = true; }, 30000);
+    Promise.allSettled(primaryStreaming).then(() => {
+      if (!owner.active || gen !== _bootGen) return;
+      loadingDiagnostics.assets.buildings = Object.fromEntries(Object.entries(glbState).slice(0, 64).map(([id, state]) => [id, {
+        state: state.status || (state.model ? 'loaded' : 'idle'), reason: state.reason || null, instances: state.applied?.length || 0,
+      }]));
+      loadingDiagnostics.assets.traffic = Object.fromEntries(Object.entries(traffic?.realisticFleet?.models || {}).slice(0, 8));
+      const failures = [
+        ...Object.entries(loadingDiagnostics.assets.buildings).filter(([, value]) => value.state === 'failed').map(([id, value]) => ({ kind: 'building', id, reason: value.reason })),
+        ...Object.entries(loadingDiagnostics.assets.traffic).filter(([, value]) => value.state === 'failed').map(([id, value]) => ({ kind: 'traffic', id, reason: value.reason })),
+      ].slice(0, 32);
+      loadingDiagnostics.failures = failures;
+      loadingDiagnostics.phase = failures.length ? 'failed' : 'complete';
+      loadingDiagnostics.completedAt = Date.now();
+      if (streamingStatus) streamingStatus.hidden = true;
+    }).catch(error => {
+      if (!owner.active || gen !== _bootGen) return;
+      loadingDiagnostics.phase = 'failed';
+      loadingDiagnostics.failures = [{ kind: 'streaming', id: 'settlement', reason: (error?.name || 'error').slice(0, 48) }];
+      if (streamingStatus) streamingStatus.hidden = true;
+    });
+  } else {
+    loadingDiagnostics.phase = 'complete'; loadingDiagnostics.completedAt = Date.now();
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────

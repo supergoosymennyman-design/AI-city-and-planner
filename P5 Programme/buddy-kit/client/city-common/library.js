@@ -20,6 +20,9 @@ export const LIBRARY_CATEGORIES = [
 ];
 
 export const LIBRARY = [
+  { id: 'bld_passiona_sunstack', name: 'Sunstack Mixed-Use Block', emoji: '🏬', glb: '../library/buildings/passiona-sunstack-mixed-use.glb', category: 'buildings', footprint: [26, 24], height: 42 },
+  { id: 'bld_passiona_beacon', name: 'Beacon Deco Tower', emoji: '🏙️', glb: '../library/buildings/passiona-beacon-deco-tower.glb', category: 'buildings', footprint: [24, 24], height: 96 },
+  { id: 'nat_passiona_emerald_rain_tree', name: 'Emerald Rain Tree', emoji: '🌳', glb: '../library/nature/passiona-emerald-rain-tree.glb', category: 'nature', footprint: [12, 12], height: 14 },
   { id: 'bld_kenney_a', name: 'City Building A', emoji: '🏢', glb: '../library/buildings/kenney-building-a.glb', category: 'buildings', footprint: [11, 11], height: 15 },
   { id: 'bld_kenney_b', name: 'City Building B', emoji: '🏢', glb: '../library/buildings/kenney-building-b.glb', category: 'buildings', footprint: [12, 11], height: 15 },
   { id: 'bld_kenney_c', name: 'City Building C', emoji: '🏬', glb: '../library/buildings/kenney-building-c.glb', category: 'buildings', footprint: [11, 13], height: 11 },

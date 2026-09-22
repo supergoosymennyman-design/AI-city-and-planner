@@ -14,6 +14,7 @@ import {
   sampleCatmullRom, footprintOf, TIDY_DEFAULTS,
   detectJunctions, materializeJunctions, junctionNodes, junctionMouthMaskHalf, junctionPadOutline,
   ribbonNormals, RIBBON_MITRE_LIMIT,
+  resolveRoadSafePlacement, repairLegacyRoadOverlaps, orientedFootprint,
 } from '../P5 Programme/buddy-kit/client/city-common/road-geometry.js';
 import { createTrafficFlow } from '../P5 Programme/buddy-kit/client/city-common/traffic-network.js';
 
@@ -498,4 +499,26 @@ test('sampleCatmullRom: 1 or 2 control points degrade safely', () => {
   assert.deepEqual(sampleCatmullRom([[3, 4]]), [[3, 4]]);
   assert.deepEqual(sampleCatmullRom([[0, 0], [50, 50]]), [[0, 0], [50, 50]]);
   assert.deepEqual(sampleCatmullRom([]), []);
+});
+
+test('resolveRoadSafePlacement handles rotated footprints, bounds and obstacles', () => {
+  const roads = [{ width: 12, points: [[0, 100], [300, 100]] }];
+  const result = resolveRoadSafePlacement({ position: [150, 100], footprint: [40, 12], rotation: Math.PI / 4,
+    roads, bounds: [0, 0, 300, 300], obstacles: [{ pos: [150, 70], footprint: [25, 25] }] });
+  assert.ok(result.ok && result.moved, 'an on-road rotated object gets the nearest safe nudge');
+  const check = resolveRoadSafePlacement({ position: result.position, footprint: [40, 12], rotation: Math.PI / 4,
+    roads, bounds: [0, 0, 300, 300], obstacles: [{ pos: [150, 70], footprint: [25, 25] }], search: false });
+  assert.ok(check.ok, 'resolved pose clears the full ribbon and obstacle');
+  assert.equal(resolveRoadSafePlacement({ position: [2, 2], footprint: [30, 30], roads: [], bounds: [0, 0, 10, 10], maxDistance: 10 }).ok, false);
+  assert.equal(orientedFootprint([0, 0], [20, 10], Math.PI / 2).length, 4);
+});
+
+test('legacy road-overlap repair is deterministic and reversible', () => {
+  const items = [{ id: 'tree', pos: [100, 100], footprint: [8, 8], locked: true }, { id: 'bench', pos: [180, 180], footprint: [8, 4] }];
+  const options = { roads: [{ width: 10, points: [[0, 100], [200, 100]] }], bounds: [0, 0, 250, 250] };
+  const a = repairLegacyRoadOverlaps(items, options), b = repairLegacyRoadOverlaps(items, options);
+  assert.equal(a.moved, 1, 'only the overlapping item moves');
+  assert.deepEqual(a, b, 'repair is deterministic');
+  assert.deepEqual(a.snapshot[0].pos, items[0].pos, 'original position remains available for recovery');
+  assert.equal(a.changes[0].locked, true, 'road safety is allowed to minimally nudge a lock');
 });

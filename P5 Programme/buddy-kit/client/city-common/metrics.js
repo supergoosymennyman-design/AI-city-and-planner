@@ -28,6 +28,7 @@
  */
 
 import { catalogType } from './catalog.js';
+import { resolveRoadSafePlacement, roadHalfWidth, orientedFootprint, roadBands } from './road-geometry.js';
 
 export const METRIC_PARAMS = {
   accessibleDist: 60,     // a building is "accessible" if within 60m of a road
@@ -125,17 +126,326 @@ export function stars(score01) {
   return Math.max(0, Math.min(5, Math.round(s * 5)));
 }
 
+/** Total road centreline length (metres) — the student's own drawn design. */
+export function roadLengthOf(layout) {
+  let total = 0;
+  for (const r of (layout && layout.roads) || []) {
+    const pts = (r && r.points) || [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+    }
+  }
+  return total;
+}
+
+/** How much road a town needs per home — sets the scale of the fill. */
+export const METRES_OF_ROAD_PER_HOME = 180;
+/** Hard ceiling on how large a town the optimiser will fill. */
+export const MAX_CAPACITY_HOMES = 40;
+
+const FRONTAGE_STEP = 60;
+// A frontage sample is only a geometric opportunity, not permission to pack a
+// house into every 60 m slot: civic buildings, gardens and access gaps share
+// the same edge. Twenty viable samples per target home produces a bounded
+// hamlet→district band for the authored templates (roughly 14–25 homes).
+// A frontage sample is deliberately conservative (it excludes junction mouths,
+// parks and any road-clearance collision). Seven such samples per home keeps
+// small hand-drawn hamlets modest while allowing a complete 11–18 km starter
+// network to reach the planner's 40-home ceiling.
+const FRONTAGE_SLOTS_PER_HOME = 6;
+const FRONTAGE_CACHE = new Map();
+const FRONTAGE_CACHE_LIMIT = 96;
+
+function pointInPark(x, z, parks, radius = 16) {
+  return (parks || []).some((p) => Math.hypot(x - p.cx, z - p.cz) < (p.radius || 0) + radius);
+}
+
+function pointInObject(x, z, object, margin = 0) {
+  const polygon = orientedFootprint(object.pos, object.footprint || catalogType(object.type)?.footprint || [20, 20], object.rotation ?? object.yaw ?? 0);
+  // Convex polygon point test; a small centre-distance margin covers the slot's
+  // nominal home half-width without coupling metrics to renderer geometry.
+  let sign = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+    const cross = (b[0] - a[0]) * (z - a[1]) - (b[1] - a[1]) * (x - a[0]);
+    if (Math.abs(cross) < 1e-9) continue;
+    if (sign && Math.sign(cross) !== sign) return false;
+    sign = Math.sign(cross);
+  }
+  if (sign) return true;
+  return Math.hypot(x - object.pos[0], z - object.pos[1]) <= margin;
+}
+
+/**
+ * Deterministic usable roadside frontage samples. Both sides are sampled, but
+ * nearby/parallel roads share a quantised slot so capacity cannot be inflated
+ * by drawing the same street repeatedly. Junction mouths, parks, bounds and
+ * parks and bounds are excluded. Buildings are checked by the placement
+ * evaluator, not capacity sampling, so adding a utility cannot move a district.
+ */
+export function buildableFrontage(layout, opts = {}) {
+  const slots = [], used = new Set(), roads = layout?.roads || [];
+  const scale = layout?.scaleMeters || 2000;
+  const step = opts.step || FRONTAGE_STEP;
+  // District capacity belongs to the road/park plan and must not drift as the
+  // optimiser adds utility buildings (three utilities are also mission types
+  // in the legacy catalog). Real placement still checks every building later.
+  const protectedObjects = [];
+  const signature = JSON.stringify([step, scale, roads, layout?.parks || []]);
+  const cached = FRONTAGE_CACHE.get(signature);
+  if (cached) return cached;
+  const bands = roadBands(roads);
+  const nodeDegree = new Map();
+  for (const road of roads) for (const p of road.points || []) {
+    const key = `${Math.round(p[0] * 2) / 2},${Math.round(p[1] * 2) / 2}`;
+    nodeDegree.set(key, (nodeDegree.get(key) || 0) + 1);
+  }
+  const junctionPoints = [...nodeDegree].filter(([, degree]) => degree >= 2).map(([key]) => key.split(',').map(Number));
+  let sampled = 0;
+  for (const road of roads) for (let i = 1; i < (road.points || []).length; i++) {
+    const a = road.points[i - 1], b = road.points[i];
+    const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
+    if (!(len > 1)) continue;
+    const count = Math.max(1, Math.floor(len / step));
+    const half = roadHalfWidth(road), offset = half + 3 + 10;
+    for (let k = 0; k < count; k++) for (const side of [-1, 1]) {
+      sampled++;
+      const along = (k + .5) / count;
+      const cx = a[0] + dx * along, cz = a[1] + dz * along;
+      // Leave the complete mouth around topology-derived junctions.
+      const nearJunction = junctionPoints.some(([x, z]) => Math.hypot(cx - x, cz - z) < half + 12);
+      if (nearJunction) continue;
+      const x = cx - dz / len * offset * side, z = cz + dx / len * offset * side;
+      const dedupe = `${Math.round(x / 30)},${Math.round(z / 30)}`;
+      if (used.has(dedupe) || pointInPark(x, z, layout.parks, 12)) continue;
+      if (protectedObjects.some((o) => pointInObject(x, z, o, 12))) continue;
+      const safe = resolveRoadSafePlacement({ position: [x, z], footprint: [20, 20], roads: layout, bands,
+        bounds: [0, 0, scale, scale], obstacles: protectedObjects, search: false });
+      if (!safe.ok) continue;
+      used.add(dedupe); slots.push({ position: safe.position, roadClass: road.class || 'residential', roadWidth: road.width || 0 });
+    }
+  }
+  const result = { slots, sampled, viableSlots: slots.length, metres: slots.length * step / 2 };
+  FRONTAGE_CACHE.set(signature, result);
+  if (FRONTAGE_CACHE.size > FRONTAGE_CACHE_LIMIT) FRONTAGE_CACHE.delete(FRONTAGE_CACHE.keys().next().value);
+  return result;
+}
+
+/**
+ * Homes the STUDENT'S road network can support. This is the heart of tailoring
+ * the optimiser to the child's design: a big drawn network supports a big town,
+ * a short lane supports a hamlet, and no roads support nothing. Length is
+ * measured from the actual polylines, so scaleMeters and drawing effort both
+ * count.
+ */
+export function townCapacity(layout) {
+  if (!roadLengthOf(layout)) return 0;
+  const slots = buildableFrontage(layout).viableSlots;
+  if (!slots) return 0;
+  return Math.max(1, Math.min(MAX_CAPACITY_HOMES, Math.round(slots / FRONTAGE_SLOTS_PER_HOME)));
+}
+
+/**
+ * Extra building kinds a town of this size should show. Gated by the student's
+ * own capacity so a one-street hamlet is never asked for a stadium, while a
+ * district-sized network earns the full mix. The 5 required services are scored
+ * separately by `coverage`; these are the kinds nothing else ever adds.
+ */
+export const MIX_KINDS = [
+  { type: 'office', minHomes: 4 },
+  { type: 'library', minHomes: 8 },
+  { type: 'stadium', minHomes: 20 },
+];
+
+export function mixTargetKinds(layout) {
+  const homes = (layout.buildings || []).filter((b) => b.type === 'housing').length;
+  const scale = Math.max(townCapacity(layout), homes);
+  return MIX_KINDS.filter((k) => scale >= k.minHomes).map((k) => k.type);
+}
+
+/** Fraction of the design-appropriate mix kinds the city already has (0..1). */
+export function mixScore(layout) {
+  const kinds = mixTargetKinds(layout);
+  if (!kinds.length) return 1;
+  const present = kinds.filter((t) => (layout.buildings || []).some((b) => b.type === t));
+  return present.length / kinds.length;
+}
+
 /** Per-housing ratio targets (what a city of H homes should have). */
 export function ratioTargets(H) {
   return {
-    school: Math.max(1, Math.ceil(H / 10)),
-    hospital: Math.max(1, Math.ceil(H / 15)),
+    school: Math.max(1, Math.ceil(H / 12)),
+    hospital: Math.max(1, Math.ceil(H / 20)),
     shop: Math.max(1, Math.ceil(H / 8)),
-    office: Math.max(1, Math.ceil(H / 6)),
-    library: Math.max(1, Math.ceil(H / 12)),
-    fire: Math.max(1, Math.ceil(H / 12)),
-    police: Math.max(1, Math.ceil(H / 12)),
-    stadium: Math.max(1, Math.ceil(H / 20)),
+    office: H >= 4 ? Math.ceil(H / 10) : 0,
+    library: H >= 8 ? Math.ceil(H / 15) : 0,
+    fire: Math.max(1, Math.ceil(H / 20)),
+    police: Math.max(1, Math.ceil(H / 20)),
+    stadium: H >= 20 ? Math.ceil(H / 20) : 0,
+  };
+}
+
+const ORDINARY_DISTRIBUTION_TYPES = new Set([
+  'school', 'shop', 'hospital', 'fire', 'police', 'office', 'library',
+  'stadium', 'water', 'power', 'bus',
+]);
+
+function nearestDistrictIndex(pos, anchors) {
+  let best = 0, bestDistance = Infinity;
+  for (let i = 0; i < anchors.length; i++) {
+    const d = dist(pos, anchors[i]);
+    if (d < bestDistance - 1e-9) { best = i; bestDistance = d; }
+  }
+  return best;
+}
+
+function allocateByShare(total, counts) {
+  if (!counts.length || total <= 0) return counts.map(() => 0);
+  const sum = counts.reduce((a, b) => a + b, 0) || counts.length;
+  const allocation = counts.map(() => total >= counts.length ? 1 : 0);
+  let left = total - allocation.reduce((a, b) => a + b, 0);
+  const exact = counts.map((count, i) => Math.max(0, total * count / sum - allocation[i]));
+  while (left-- > 0) {
+    let pick = 0;
+    for (let i = 1; i < counts.length; i++) {
+      const gain = exact[i] - Math.floor(exact[i]);
+      const bestGain = exact[pick] - Math.floor(exact[pick]);
+      if (Math.floor(exact[i]) > 0 && Math.floor(exact[pick]) <= 0) pick = i;
+      else if ((Math.floor(exact[i]) > 0) === (Math.floor(exact[pick]) > 0)
+        && (gain > bestGain + 1e-9 || (Math.abs(gain - bestGain) <= 1e-9 && counts[i] > counts[pick]))) pick = i;
+    }
+    allocation[pick]++;
+    exact[pick] = Math.max(0, exact[pick] - 1);
+  }
+  return allocation;
+}
+
+/**
+ * Split usable road frontage into at most four deterministic districts.
+ * Anchors use farthest-point sampling; every diagnostic is plain JSON so it can
+ * be displayed, saved in a review receipt, and asserted without renderer code.
+ */
+export function frontageDistricts(layout, targetHomes = townCapacity(layout)) {
+  const frontage = buildableFrontage(layout);
+  const points = frontage.slots.map((slot) => slot.position.slice())
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (!points.length || !targetHomes) return [];
+  const wanted = Math.min(4, Math.ceil(targetHomes / 10), points.length);
+  let anchors = [points[0]];
+  const minSeparation = Math.max(120, (layout?.scaleMeters || 2000) * 0.10);
+  while (anchors.length < wanted) {
+    let pick = null, pickDistance = -1;
+    for (const point of points) {
+      const nearest = Math.min(...anchors.map((anchor) => dist(point, anchor)));
+      if (nearest > pickDistance + 1e-9) { pick = point; pickDistance = nearest; }
+    }
+    if (!pick || pickDistance < minSeparation) break;
+    anchors.push(pick);
+  }
+  // Farthest-point sampling chooses stable, separated seeds. Recenter those
+  // seeds onto the medoid of their frontage cells so a district represents the
+  // usable neighbourhood itself, not an extreme map-edge sample.
+  for (let iteration = 0; iteration < 4; iteration++) {
+    const cells = anchors.map(() => []);
+    for (const point of points) cells[nearestDistrictIndex(point, anchors)].push(point);
+    anchors = cells.map((cell, i) => {
+      if (!cell.length) return anchors[i];
+      const cx = cell.reduce((sum, point) => sum + point[0], 0) / cell.length;
+      const cz = cell.reduce((sum, point) => sum + point[1], 0) / cell.length;
+      return cell.slice().sort((a, b) =>
+        Math.hypot(a[0] - cx, a[1] - cz) - Math.hypot(b[0] - cx, b[1] - cz)
+        || a[0] - b[0] || a[1] - b[1])[0];
+    });
+  }
+  const groups = anchors.map(() => []);
+  for (const point of points) groups[nearestDistrictIndex(point, anchors)].push(point);
+  const allocations = allocateByShare(targetHomes, groups.map((group) => group.length));
+  const actualHomes = anchors.map(() => 0);
+  const actualOrdinary = anchors.map(() => 0);
+  for (const building of layout?.buildings || []) {
+    const district = nearestDistrictIndex(building.pos, anchors);
+    if (building.type === 'housing') actualHomes[district]++;
+    else if (ORDINARY_DISTRIBUTION_TYPES.has(building.type)) actualOrdinary[district]++;
+  }
+  const ordinaryTotal = actualOrdinary.reduce((a, b) => a + b, 0);
+  const ordinaryTargets = allocateByShare(ordinaryTotal, groups.map((group) => group.length));
+  const homes = (layout?.buildings || []).filter((b) => b.type === 'housing');
+  return anchors.map((anchor, i) => {
+    const group = groups[i];
+    const districtHomes = homes.filter((home) => nearestDistrictIndex(home.pos, anchors) === i);
+    const deficits = {};
+    for (const type of METRIC_PARAMS.serviceTypes) deficits[type] = districtHomes.filter((home) =>
+      !(layout.buildings || []).some((b) => b.type === type && dist(home.pos, b.pos) <= METRIC_PARAMS.coverageDist)).length;
+    for (const type of METRIC_PARAMS.utilityTypes) deficits[type] = districtHomes.filter((home) =>
+      !(layout.buildings || []).some((b) => b.type === type && dist(home.pos, b.pos) <= METRIC_PARAMS.utilityDist)).length;
+    deficits.green = districtHomes.filter((home) => !(layout.parks || []).some((p) =>
+      dist(home.pos, [p.cx, p.cz]) <= METRIC_PARAMS.coverageDist)).length;
+    const xs = group.map((p) => p[0]), zs = group.map((p) => p[1]);
+    return {
+      id: `district-${i + 1}`,
+      anchor: anchor.slice(),
+      bounds: { minX: Math.min(...xs), minZ: Math.min(...zs), maxX: Math.max(...xs), maxZ: Math.max(...zs) },
+      frontageSlots: group.length,
+      frontageShare: group.length / points.length,
+      targetHomes: allocations[i],
+      actualHomes: actualHomes[i],
+      targetOrdinary: ordinaryTargets[i],
+      actualOrdinary: actualOrdinary[i],
+      distributionScore: allocations[i]
+        ? Math.max(0, 1 - Math.abs(actualHomes[i] - allocations[i]) / allocations[i])
+        : 1,
+      localCoverageDeficits: deficits,
+    };
+  });
+}
+
+export function districtDistributionScore(layout) {
+  const districts = frontageDistricts(layout);
+  if (!districts.length) return 1;
+  const targetHomes = districts.reduce((n, d) => n + d.targetHomes, 0);
+  const actualHomes = districts.reduce((n, d) => n + d.actualHomes, 0);
+  const ordinary = districts.reduce((n, d) => n + d.actualOrdinary, 0);
+  const homeError = districts.reduce((n, d) => n + Math.abs(d.actualHomes - d.targetHomes * actualHomes / Math.max(1, targetHomes)), 0);
+  const ordinaryError = districts.reduce((n, d) => n + Math.abs(d.actualOrdinary - ordinary * d.frontageShare), 0);
+  const homeScore = actualHomes ? Math.max(0, 1 - homeError / (2 * actualHomes)) : 0;
+  const ordinaryScore = ordinary ? Math.max(0, 1 - ordinaryError / (2 * ordinary)) : homeScore;
+  return 0.75 * homeScore + 0.25 * ordinaryScore;
+}
+
+/** Full optimizer composition contract, with target/actual/unresolved fields. */
+export function compositionTargets(layout) {
+  const homes = townCapacity(layout);
+  const actual = {};
+  for (const b of layout?.buildings || []) actual[b.type] = (actual[b.type] || 0) + 1;
+  const ordinary = homes ? ratioTargets(homes) : {};
+  const service = Object.fromEntries(METRIC_PARAMS.serviceTypes.map((type) => [type, ordinary[type] || 0]));
+  // Utilities are district-scale and must cover geography, not merely exist.
+  // One of each serves a small neighbourhood; larger frontage earns another
+  // catchment approximately every twelve homes.
+  const districts = frontageDistricts(layout, homes);
+  const utilityCount = homes ? Math.max(1, districts.length) : 0;
+  const utilities = Object.fromEntries(METRIC_PARAMS.utilityTypes.map((type) => [type, utilityCount]));
+  const targets = {
+    housing: homes,
+    ...service,
+    ...utilities,
+    office: ordinary.office || 0,
+    library: ordinary.library || 0,
+    stadium: ordinary.stadium || 0,
+    parks: homes ? Math.max(1, Math.ceil(homes / 10)) : 0,
+  };
+  const actualVector = { ...actual, parks: (layout?.parks || []).length };
+  const unresolved = Object.fromEntries(Object.entries(targets)
+    .map(([type, target]) => [type, Math.max(0, target - (actualVector[type] || 0))])
+    .filter(([, missing]) => missing > 0));
+  return {
+    capacityHomes: homes,
+    frontage: buildableFrontage(layout),
+    targets,
+    actual: actualVector,
+    unresolved,
+    districts,
+    distributionScore: districtDistributionScore(layout),
   };
 }
 
@@ -243,7 +553,12 @@ function balanceScore(layout, params = METRIC_PARAMS) {
   if (civicCount > H * 3) over += (civicCount - H * 3) * 0.5;
 
   const imbalance = over;
-  return Math.max(0, 1 - imbalance / Math.max(1, H));
+  const supply = Math.max(0, 1 - imbalance / Math.max(1, H));
+  // Completeness of the mix the student's OWN road network can support. Kept a
+  // minority share (25%) so gross over-supply / domination still dominates the
+  // signal — this only nudges a well-served but too-sparse town to grow into a
+  // full one, and it never asks a tiny town for kinds its roads can't support.
+  return 0.75 * supply + 0.25 * mixScore(layout);
 }
 
 /**
@@ -368,7 +683,8 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
     }
   }
 
-  // Spread — how spread out the special buildings are (anti-clustering)
+  // Spread — district land-use distribution first; mission landmark
+  // anti-clustering remains a smaller, secondary signal.
   const specials = buildings.filter((b) => catalogType(b.type)?.category === 'special');
   let clusterPairs = 0;
   for (let i = 0; i < specials.length; i++) {
@@ -376,7 +692,9 @@ export function computeMetrics(layout, params = METRIC_PARAMS, weights = null, w
       if (dist(specials[i].pos, specials[j].pos) < params.clusterDist) clusterPairs++;
     }
   }
-  const spread = specials.length > 1 ? Math.max(0, 1 - clusterPairs / Math.max(1, specials.length)) : 1;
+  const landmarkSpread = specials.length > 1 ? Math.max(0, 1 - clusterPairs / Math.max(1, specials.length)) : 1;
+  const distribution = districtDistributionScore(layout);
+  const spread = 0.8 * distribution + 0.2 * landmarkSpread;
   if (specials.length > 1 && spread < 0.6) {
     problem('spread', zh
       ? '有些任務建築聚在一起 — 把它們分散到城市各處吧。'

@@ -3,8 +3,10 @@
 // Run: node --test tests/road-templates.test.mjs   (from the repo root)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ROAD_TEMPLATES, getRoadTemplate } from '../P5 Programme/buddy-kit/client/city-common/road-templates.js';
+import { ROAD_TEMPLATES, getRoadTemplate, roadTemplateThumbnailSvg } from '../P5 Programme/buddy-kit/client/city-common/road-templates.js';
 import { sanitizeLayout, validateLayout } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
+import { roadBands, rectRoadClearance, ROAD_CLEARANCE_MARGIN } from '../P5 Programme/buddy-kit/client/city-common/road-geometry.js';
+import { auditRoadTemplate } from '../P5 Programme/buddy-kit/client/city-common/road-template-audit.js';
 
 const SCALE = 2000;
 
@@ -12,8 +14,9 @@ test('there are at least 6 road templates', () => {
   assert.ok(ROAD_TEMPLATES.length >= 6, `expected 6+, got ${ROAD_TEMPLATES.length}`);
 });
 
-test('every template has unique id, name, emoji, note and goodFor', () => {
+test('eight stable templates have chooser metadata without unsupported mayor claims', () => {
   const ids = new Set();
+  assert.deepEqual(ROAD_TEMPLATES.map((t) => t.id), ['grid', 'radial', 'superblocks', 'culdesacs', 'twincenters', 'rivercity', 'coastal', 'diagonal']);
   for (const t of ROAD_TEMPLATES) {
     assert.ok(t.id && typeof t.id === 'string');
     assert.ok(!ids.has(t.id), `duplicate id ${t.id}`);
@@ -21,8 +24,40 @@ test('every template has unique id, name, emoji, note and goodFor', () => {
     assert.ok(t.name && typeof t.name === 'string');
     assert.ok(t.emoji && typeof t.emoji === 'string');
     assert.ok(t.note && typeof t.note === 'string');
-    assert.ok(t.goodFor && typeof t.goodFor === 'string');
+    assert.equal('goodFor' in t, false, `${t.id}: chooser must not promise a mayor outcome`);
     assert.ok(Array.isArray(t.roads) && t.roads.length >= 2, `${t.id}: needs >= 2 roads`);
+  }
+});
+
+test('template previews are generated from each template geometry', () => {
+  for (const template of ROAD_TEMPLATES) {
+    const svg = roadTemplateThumbnailSvg(template);
+    assert.match(svg, /<svg/);
+    assert.equal((svg.match(/<polyline/g) || []).length, template.roads.length, template.id);
+    assert.equal((svg.match(/<circle/g) || []).length, (template.parks || []).length, template.id);
+  }
+});
+
+test('parks have their radius plus road clearance clear of asphalt', () => {
+  for (const template of ROAD_TEMPLATES) {
+    const bands = roadBands(template.roads);
+    for (const park of template.parks || []) {
+      assert.ok(rectRoadClearance(park.cx, park.cz, [0, 0], bands) >= park.radius + ROAD_CLEARANCE_MARGIN,
+        `${template.id}: park touches a road ribbon`);
+    }
+  }
+});
+
+test('template quality audit keeps every starter city connected, buildable and close to streets', () => {
+  for (const template of ROAD_TEMPLATES) {
+    const audit = auditRoadTemplate(template);
+    assert.equal(audit.connected, true, `${template.id}: disconnected walking graph`);
+    assert.ok(audit.trafficCircuits >= 1, `${template.id}: no traffic circuit`);
+    assert.equal(audit.capacityHomes, 40, `${template.id}: cannot reach 40 homes`);
+    assert.ok(audit.pads44x40 >= 80, `${template.id}: only ${audit.pads44x40} home pads`);
+    assert.ok(audit.civic60 >= 12, `${template.id}: only ${audit.civic60} civic pads`);
+    assert.ok(audit.farthestRoad <= 350, `${template.id}: land too far from a road`);
+    assert.ok(audit.parkClearance >= ROAD_CLEARANCE_MARGIN, `${template.id}: park clearance`);
   }
 });
 

@@ -237,6 +237,155 @@ export function clearanceOffset(b, others, bands, opts = {}) {
   return null;
 }
 
+// ─── Unified road-safe placement ───────────────────────────────────────
+
+/** Corners of a footprint rotated around its centre (clockwise radians). */
+export function orientedFootprint(position, footprint, rotation = 0) {
+  const [cx, cz] = position || [0, 0];
+  const [w, h] = Array.isArray(footprint) ? footprint : [20, 20];
+  const c = Math.cos(rotation || 0), s = Math.sin(rotation || 0);
+  return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]]
+    .map(([x, z]) => [cx + x * c - z * s, cz + x * s + z * c]);
+}
+
+function pointInConvexPolygon(x, z, polygon) {
+  let sign = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+    const cross = (b[0] - a[0]) * (z - a[1]) - (b[1] - a[1]) * (x - a[0]);
+    if (Math.abs(cross) < 1e-9) continue;
+    const next = Math.sign(cross);
+    if (sign && next !== sign) return false;
+    sign = next;
+  }
+  return true;
+}
+
+function segmentsIntersect(a, b, c, d) {
+  const orient = (p, q, r) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  const abC = orient(a, b, c), abD = orient(a, b, d), cdA = orient(c, d, a), cdB = orient(c, d, b);
+  return abC * abD <= 1e-9 && cdA * cdB <= 1e-9
+    && Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0])) <= Math.min(Math.max(a[0], b[0]), Math.max(c[0], d[0])) + 1e-9
+    && Math.max(Math.min(a[1], b[1]), Math.min(c[1], d[1])) <= Math.min(Math.max(a[1], b[1]), Math.max(c[1], d[1])) + 1e-9;
+}
+
+function polygonSegmentDistance(polygon, ax, az, bx, bz) {
+  if (pointInConvexPolygon(ax, az, polygon) || pointInConvexPolygon(bx, bz, polygon)) return 0;
+  let best = Infinity;
+  const a = [ax, az], b = [bx, bz];
+  for (let i = 0; i < polygon.length; i++) {
+    const p = polygon[i], q = polygon[(i + 1) % polygon.length];
+    if (segmentsIntersect(a, b, p, q)) return 0;
+    best = Math.min(best,
+      distPointToSegment(p[0], p[1], ax, az, bx, bz),
+      distPointToSegment(q[0], q[1], ax, az, bx, bz),
+      distPointToSegment(ax, az, p[0], p[1], q[0], q[1]),
+      distPointToSegment(bx, bz, p[0], p[1], q[0], q[1]));
+  }
+  return best;
+}
+
+function polygonsOverlap(a, b, margin = 0) {
+  const axes = [];
+  for (const polygon of [a, b]) for (let i = 0; i < polygon.length; i++) {
+    const p = polygon[i], q = polygon[(i + 1) % polygon.length];
+    const dx = q[0] - p[0], dz = q[1] - p[1], len = Math.hypot(dx, dz) || 1;
+    axes.push([-dz / len, dx / len]);
+  }
+  for (const [x, z] of axes) {
+    const pa = a.map((p) => p[0] * x + p[1] * z), pb = b.map((p) => p[0] * x + p[1] * z);
+    if (Math.max(...pa) + margin <= Math.min(...pb) || Math.max(...pb) + margin <= Math.min(...pa)) return false;
+  }
+  return true;
+}
+
+function placementBounds(bounds, roadsOrLayout) {
+  if (Array.isArray(bounds) && bounds.length === 4) return bounds;
+  const scale = roadsOrLayout && !Array.isArray(roadsOrLayout) ? roadsOrLayout.scaleMeters : null;
+  return [0, 0, Number.isFinite(scale) ? scale : 2000, Number.isFinite(scale) ? scale : 2000];
+}
+
+function placementIsValid(position, footprint, rotation, bands, bounds, obstacles, margin, overlapMargin) {
+  const polygon = orientedFootprint(position, footprint, rotation);
+  if (polygon.some(([x, z]) => x < bounds[0] || z < bounds[1] || x > bounds[2] || z > bounds[3])) return { ok: false, reason: 'out-of-bounds' };
+  for (const band of bands) {
+    if (polygonSegmentDistance(polygon, band.ax, band.az, band.bx, band.bz) - band.half < margin) return { ok: false, reason: 'road-overlap' };
+  }
+  for (const obstacle of obstacles || []) {
+    if (!obstacle || !Array.isArray(obstacle.pos || obstacle.position)) continue;
+    const other = orientedFootprint(obstacle.pos || obstacle.position, footprintOf(obstacle), obstacle.rotation ?? obstacle.yaw ?? 0);
+    if (polygonsOverlap(polygon, other, overlapMargin)) return { ok: false, reason: 'obstacle-overlap' };
+  }
+  return { ok: true };
+}
+
+/**
+ * Resolve an object to the nearest valid road-clear position. The input is one
+ * object so callers cannot accidentally swap metres, width and rotation:
+ * `{ position:[x,z], footprint:[w,h], rotation, roads, bounds, obstacles }`.
+ * Returns `{ok, position, moved, distance}` or `{ok:false, reason}`.
+ */
+export function resolveRoadSafePlacement(input = {}) {
+  const position = input.position || input.pos;
+  const footprint = input.footprint || [20, 20];
+  if (!Array.isArray(position) || position.length < 2 || !position.every(Number.isFinite)
+      || !Array.isArray(footprint) || footprint.length < 2 || footprint.some((n) => !(n > 0))) {
+    return { ok: false, reason: 'invalid-input' };
+  }
+  const roads = input.roads || input.layout || [];
+  const bands = input.bands || roadBands(roads);
+  const bounds = placementBounds(input.bounds, roads);
+  const rotation = Number.isFinite(input.rotation) ? input.rotation : 0;
+  const margin = input.margin ?? ROAD_CLEARANCE_MARGIN;
+  const overlapMargin = input.overlapMargin ?? BUILDING_OVERLAP_MARGIN;
+  const obstacles = input.obstacles || [];
+  const check = (p) => placementIsValid(p, footprint, rotation, bands, bounds, obstacles, margin, overlapMargin);
+  const direct = check(position);
+  if (direct.ok) return { ok: true, position: [position[0], position[1]], moved: false, distance: 0 };
+  if (input.search === false) return direct;
+
+  const step = Math.max(.5, input.step ?? 2);
+  const maxDistance = Math.max(step, input.maxDistance ?? Math.max(80, Math.hypot(footprint[0], footprint[1]) * 3));
+  const snap = input.snap ?? .5;
+  // Expanding rings ordered by distance then angle are deterministic and make
+  // the smallest practical safety nudge. Sixteen directions also cover an
+  // oblique road without pushing a prop needlessly far along it.
+  for (let radius = step; radius <= maxDistance + 1e-9; radius += step) {
+    const directions = Math.max(16, Math.ceil(2 * Math.PI * radius / Math.max(step * 2, 1)));
+    for (let i = 0; i < directions; i++) {
+      const angle = (i / directions) * Math.PI * 2;
+      const p = [
+        Math.round((position[0] + Math.cos(angle) * radius) / snap) * snap,
+        Math.round((position[1] + Math.sin(angle) * radius) / snap) * snap,
+      ];
+      if (check(p).ok) return { ok: true, position: p, moved: true, distance: Math.hypot(p[0] - position[0], p[1] - position[1]), reason: direct.reason };
+    }
+  }
+  return { ok: false, reason: direct.reason === 'out-of-bounds' ? 'no-position-in-bounds' : 'no-safe-position' };
+}
+
+/** Reversible one-pass repair for restored layouts/props. */
+export function repairLegacyRoadOverlaps(items, options = {}) {
+  const source = Array.isArray(items) ? items : [];
+  const repaired = source.map((item) => ({ ...item, pos: item.pos ? [...item.pos] : item.position ? [...item.position] : undefined }));
+  const snapshot = source.map((item) => ({ pos: item.pos ? [...item.pos] : item.position ? [...item.position] : null, x: item.x, z: item.z }));
+  const changes = [], omitted = [];
+  for (let i = 0; i < repaired.length; i++) {
+    const item = repaired[i];
+    const usesXYZ = !Array.isArray(item.pos) && Number.isFinite(item.x) && Number.isFinite(item.z);
+    const pos = usesXYZ ? [item.x, item.z] : item.pos;
+    const result = resolveRoadSafePlacement({ ...options, position: pos,
+      footprint: item.footprint || options.footprintOf?.(item) || [2, 2], rotation: item.rotation ?? item.yaw ?? 0,
+      obstacles: repaired.filter((_, j) => j !== i).map((o) => ({ ...o, pos: o.pos || [o.x, o.z] })) });
+    if (!result.ok) { omitted.push({ index: i, reason: result.reason }); continue; }
+    if (!result.moved) continue;
+    if (usesXYZ) { item.x = result.position[0]; item.z = result.position[1]; }
+    else item.pos = result.position;
+    changes.push({ index: i, from: pos, to: result.position, locked: !!item.locked });
+  }
+  return { items: repaired, moved: changes.length, changes, omitted, snapshot };
+}
+
 // ─── Simplification + angle snap ────────────────────────────────────────
 
 /**

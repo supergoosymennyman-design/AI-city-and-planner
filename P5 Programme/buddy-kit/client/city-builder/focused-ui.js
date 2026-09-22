@@ -73,7 +73,8 @@ export function mountFocusedCityUI({ propLibrary, myWork, onModeChange = () => {
     if (mode === 'decorate') setMode('explore');
   };
   document.addEventListener('keydown',onKey);
-  setMode('explore',{openLibrary:false});
+  const requestedMode = new URLSearchParams(window.location.search).get('mode');
+  setMode(requestedMode === 'decorate' ? 'decorate' : 'explore', { openLibrary: requestedMode === 'decorate' });
   return {
     get mode(){return mode;}, setMode,
     dispose(){document.removeEventListener('keydown',onKey);window.removeEventListener('city:panel-open',onPanelOpen);window.removeEventListener('city:panel-close',onPanelClose);delete root.dataset.cityMode;}

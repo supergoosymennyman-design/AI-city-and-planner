@@ -41,7 +41,9 @@ export const CF_KEYS = {
   cityName: 'p5_city_save_name_v1',
   customModels: 'hk_ai_city_custom_models_v1',
   cityLook: 'p5_city_look_v1',
+  daySky: 'p5_city_day_sky_v1',
   groundTexture: 'p5_city_ground_texture_v1',
+  timeOfDay: 'p5_city_time_v1',
   trafficVehicles: 'p5_city_traffic_vehicles_v1',
 };
 

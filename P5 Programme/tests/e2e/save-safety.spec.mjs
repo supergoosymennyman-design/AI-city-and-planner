@@ -42,7 +42,7 @@ for (const route of ['/planner/', '/city-builder/']) {
       await r.fulfill({json:champion({layout:JSON.stringify(plan(2))})});
     });
     if (route === '/planner/') { await page.click('#planner-more > summary'); await page.click('#btn-import'); await page.click('#import-cloud-open'); }
-    else { await page.click('#entry-open-flow > summary'); await page.click('#entry-cloud-open'); }
+    else { await page.click('#entry-cloud-open'); }
     await page.fill('#cloud-code','TEST-123456');
     await Promise.all([page.waitForEvent('load'),page.click('#cloud-load')]);
     expect(JSON.parse(await page.evaluate(k => localStorage.getItem(k),key)).buildings).toHaveLength(2);
@@ -58,7 +58,7 @@ for (const route of ['/planner/', '/city-builder/']) {
     await expect(page.locator('#restore-results')).toBeVisible();
     await expect(page.locator('#restore-results')).toContainText('City plan: not stored');
     await expect(page.locator('#restore-results')).toContainText('Champion appearance: not stored');
-    await expect(page.locator('#restore-results')).toContainText('Historical activities: restored');
+    await expect(page.locator('#restore-results')).toContainText('Historical activities: not stored');
     await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
     const before = await download(page,'#restore-recovery');
     const imported = await download(page,'#restore-imported');
@@ -83,7 +83,6 @@ for (const raw of ['{broken', JSON.stringify({version:2,buildings:[null]})]) {
     // The entry is OPEN-ONLY now (#entry-save is display:none): an invalid
     // handoff must still leave the retry + restore controls usable.
     await expect(page.locator('#entry-local')).toBeVisible();
-    await page.click('#entry-open-flow > summary');
     await expect(page.locator('#entry-cloud-open')).toBeVisible();
     await expect(page.locator('#entry-file')).toBeVisible();
   });
@@ -124,7 +123,6 @@ test('failed WebGL start keeps retry and restore controls usable', async ({page}
  // entry deliberately has no Save control (saving happens in the loaded city).
  await page.click('#entry-local');
  await expect(page.locator('#entry-local')).toBeVisible();
- await page.click('#entry-open-flow > summary');
  await expect(page.locator('#entry-cloud-open')).toBeVisible();
  await expect(page.locator('#entry-file')).toBeVisible();
 });
@@ -136,7 +134,7 @@ for (const route of ['/planner/','/city-builder/']) {
   expect(await page.evaluate(() => window.reads)).toBe(0);
  });
 }
-test('Planner partial cloud restore retains written layout on hide, retries, then resumes normal autosave', async ({page}) => {
+test('Planner transactional cloud restore keeps the old layout, retries, then resumes normal autosave', async ({page}) => {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', {rate:4});
   await planner(page);
@@ -161,10 +159,11 @@ test('Planner partial cloud restore retains written layout on hide, retries, the
     window.dispatchEvent(new Event('pagehide'));
   });
   await page.waitForTimeout(1400);
-  expect(JSON.parse(await page.evaluate(k => localStorage.getItem(k),key)).buildings).toHaveLength(2);
+  expect(JSON.parse(await page.evaluate(k => localStorage.getItem(k),key)).buildings).toHaveLength(1);
   await page.evaluate(() => { window.quota = false; });
   await page.click('#restore-retry');
   await expect(page.locator('#restore-results')).toContainText('Champion appearance: restored');
+  expect(JSON.parse(await page.evaluate(k => localStorage.getItem(k),key)).buildings).toHaveLength(2);
   await Promise.all([page.waitForEvent('load'),page.click('#restore-continue')]);
   await upload(page,'#import-file',plan(3));
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));

@@ -339,13 +339,16 @@ export function createFlyingTaxi(scene, opts = {}) {
         while (diff < -Math.PI) diff += Math.PI * 2;
         state.facing += diff * Math.min(1, dt * 6);
       }
-      // Manual altitude: climb / descend freely at 12 m/s. In free flight the
-      // pilot owns the altitude — only a small floor (~3 m) stops the taxi from
-      // clipping the ground. During auto-navigation (setAutoNav) the taxi holds
-      // `autoNavFloor` so it clears every building on its route; the host still
-      // steers it onto a target via the ascend/descend inputs.
-      if (input.ascend) state.pos.y += 12 * dt;
-      else if (input.descend) state.pos.y -= 12 * dt;
+      // Manual altitude: climb / descend freely at 30 m/s (2026-09-20; was 12).
+      // The boarding cruise sits at 240 m in the city builder, so 12 m/s meant a
+      // ~20 s hold to reach the ground — too slow. At 30 m/s a full cruise-to-
+      // ground descent takes ~8 s: clearly quicker, still controllable. In free
+      // flight the pilot owns the altitude — only a small floor (~3 m) stops the
+      // taxi from clipping the ground. During auto-navigation (setAutoNav) the
+      // taxi holds `autoNavFloor` so it clears every building on its route; the
+      // host still steers it onto a target via the ascend/descend inputs.
+      if (input.ascend) state.pos.y += 30 * dt;
+      else if (input.descend) state.pos.y -= 30 * dt;
       const floor = autoNavActive ? autoNavFloor : 3;
       // Smooth climb to the floor — no snap when the floor is above the taxi
       // (e.g. toggling auto-nav while low): rise ~50 m/s instead.

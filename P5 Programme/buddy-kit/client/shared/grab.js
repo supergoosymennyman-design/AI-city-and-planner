@@ -83,6 +83,7 @@ export function createGrabSystem(scene, opts) {
   function setSelectedScale(multiplier) {
     const g = selected || holding;
     if (!g) return;
+    if (g.userData.locked) { opts.onToast && opts.onToast('🔒 Unlock this decoration before resizing it.'); return; }
     if (!isFinite(multiplier)) return;
     const base = g.userData._baseScale ?? g.scale.x ?? 1;
     g.scale.setScalar(Math.max(0.05, Math.min(20, base * multiplier)));
@@ -107,6 +108,7 @@ export function createGrabSystem(scene, opts) {
       g = best;
     }
     if (!g) { opts.onToast && opts.onToast('👀 Tap 👉 Select, then tap an object to pick up.'); return; }
+    if (g.userData.locked) { opts.onToast && opts.onToast('🔒 Unlock this decoration before moving it.'); return; }
     clearSelection();
     if (g.userData.movable) startMove(g); else startCarry(g);
   }
@@ -152,6 +154,11 @@ export function createGrabSystem(scene, opts) {
       _fwd.set(Math.sin(champion.state.facing), 0, Math.cos(champion.state.facing));
       x = p.x + _fwd.x * 1.5; y = 0.2; z = p.z + _fwd.z * 1.5; ry = champion.state.facing;
     }
+    const resolved = opts.resolvePlacement?.({ position: [x, z], footprint: item.userData.footprint,
+      rotation: ry, item, context: 'grab' });
+    if (resolved === false || resolved?.ok === false) { opts.onToast?.('❌ That would block a road — choose a clear place.'); return; }
+    const safe = Array.isArray(resolved) ? resolved : resolved?.position;
+    if (safe) { x = safe[0]; z = safe[1]; }
     champion.group.remove(item);
     scene.add(item);
     item.position.set(x, y, z);
@@ -165,6 +172,14 @@ export function createGrabSystem(scene, opts) {
   function placeLarge() {
     const item = holding;
     const fp = item.userData.footprint;
+    const resolved = opts.resolvePlacement?.({ position: [item.position.x, item.position.z], footprint: fp,
+      rotation: item.rotation.y, item, context: 'grab' });
+    if (resolved === false || resolved?.ok === false) {
+      opts.onToast && opts.onToast('❌ That would block a road — tap somewhere clear.');
+      return;
+    }
+    const safe = Array.isArray(resolved) ? resolved : resolved?.position;
+    if (safe) { item.position.x = safe[0]; item.position.z = safe[1]; }
     const blocked = overlapsCollider(item.position.x, item.position.z, fp);
     if (blocked) {
       opts.onToast && opts.onToast('❌ Too close to something — tap somewhere clear.');
@@ -185,6 +200,14 @@ export function createGrabSystem(scene, opts) {
     if (!champion) return;
     // Reject blocked spots BEFORE committing the item to the scene, so a
     // blocked tap keeps the item carried (consistent with placeLarge).
+    const resolved = opts.resolvePlacement?.({ position: [x, z], footprint: item.userData.footprint,
+      rotation: item.rotation.y, item, context: 'grab' });
+    if (resolved === false || resolved?.ok === false) {
+      opts.onToast && opts.onToast('❌ That would block a road — tap somewhere clear.');
+      return;
+    }
+    const safe = Array.isArray(resolved) ? resolved : resolved?.position;
+    if (safe) { x = safe[0]; z = safe[1]; }
     if (item.userData.movable && overlapsCollider(x, z, item.userData.footprint)) {
       opts.onToast && opts.onToast('❌ Too close to something — tap somewhere clear.');
       return;   // keep carrying

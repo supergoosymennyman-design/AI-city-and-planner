@@ -8,9 +8,10 @@ export const GROUND_TEXTURES = Object.freeze({
   pavers: { icon: '🪨', en: 'Urban Gravel', zh: '城市碎石', files: ['gravel_floor_03_diff_1k.jpg', 'gravel_floor_03_nor_gl_1k.jpg', 'gravel_floor_03_rough_1k.jpg'] },
   asphalt: { icon: '🛣️', en: 'City Asphalt', zh: '城市瀝青', files: ['ground-asphalt.jpg', 'aerial_asphalt_01_nor_gl_1k.jpg', 'aerial_asphalt_01_rough_1k.jpg'] },
 });
-export function validGroundTexture(id) { return Object.hasOwn(GROUND_TEXTURES, id) ? id : 'leafy'; }
+export function validGroundTexture(id) { return id === 'gravel' ? 'pavers' : (Object.hasOwn(GROUND_TEXTURES, id) ? id : 'leafy'); }
 export function readGroundTexture(storage = globalThis.localStorage) { try { return validGroundTexture(storage?.getItem(GROUND_TEXTURE_KEY)); } catch { return 'leafy'; } }
 function name(id) { const item = GROUND_TEXTURES[validGroundTexture(id)]; return currentLang() === 'zh-Hant' ? item.zh : item.en; }
+export const groundTextureName = name;
 
 export function mountGroundTexturePicker({ initial = readGroundTexture(), onChange = () => {} } = {}) {
   let selected = validGroundTexture(initial);

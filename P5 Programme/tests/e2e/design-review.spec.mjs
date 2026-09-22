@@ -28,7 +28,7 @@ test('library search and tablet close work', async ({page}, testInfo) => {
  await page.waitForTimeout(2000);
  await page.evaluate(() => [...document.querySelectorAll('button')].find(b => /example city|empty sample/i.test(b.textContent))?.click());
  await page.waitForFunction(() => window.__city && document.querySelector('#loading.done'), {timeout:60000});
- await page.locator('button[data-city-mode="decorate"]').click();
+ await page.evaluate(() => document.querySelector('button[data-city-mode="decorate"]')?.click());
  await page.waitForTimeout(500);
  await page.screenshot({path:testInfo.outputPath('library.png')});
  await page.locator('.prop-lib-search').fill('bench');

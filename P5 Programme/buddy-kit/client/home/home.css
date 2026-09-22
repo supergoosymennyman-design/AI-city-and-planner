@@ -48,15 +48,15 @@ body {
   flex: none;
   filter: drop-shadow(0 6px 18px rgba(0, 229, 255, 0.25));
 }
-.hub-champion img,
 .hub-champion canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  display: none;
+  border-radius: 12px;
 }
-.hub-champion img { display: block; }
-.hub-champion canvas { border-radius: 12px; }
+.hub-champion.has3d canvas { display: block; }
 .hub-title {
   font-family: var(--font-display);
   font-weight: 600;

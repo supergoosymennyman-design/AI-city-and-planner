@@ -15,6 +15,7 @@
 #   CLOUDFLARE_ACCOUNT_ID=<account> ./deploy-city-apps.sh   # build + deploy all
 #   CLOUDFLARE_ACCOUNT_ID=<account> ./deploy-city-apps.sh --city-sim  # only city-sim
 #   CLOUDFLARE_ACCOUNT_ID=<account> ./deploy-city-apps.sh --build-only --city-sim  # build only
+#   CLOUDFLARE_ACCOUNT_ID=<account> ./deploy-city-apps.sh --deploy-only --city-sim # deploy tested bundle
 #
 # The account id for the Clover Marquis account (where the p3 education games
 # live) is: a0775755ca3c2cf6f795f191bd6d792d
@@ -70,7 +71,6 @@ build_home() {
   cp "$KIT/client/home/links.js"                    home/links.js
   cp "$KIT/client/home/champion.js"                 home/champion.js
   cp "$KIT/client/home/champion.glb"                home/champion.glb
-  cp "$KIT/client/home/champion-illustration.svg"   home/champion-illustration.svg
   cp -r "$KIT/client/home/fonts"                    home/fonts
   cp "$KIT/client/home/fonts.css"                   home/fonts.css
   cp -r "$KIT/client/home/vendor"                   home/vendor
@@ -85,6 +85,8 @@ build_city_sim() {
   rm -rf city-sim/city-builder city-sim/city-common city-sim/champion-city \
          city-sim/hong-kong-real city-sim/vendor city-sim/logic city-sim/buddy \
          city-sim/library city-sim/shared city-sim/planner city-sim/pregame \
+         city-sim/studio city-sim/workshop \
+         city-sim/hub \
          city-sim/project \
          city-sim/buddy-boot.js city-sim/buddy-core.css city-sim/buddy-theme.css \
          city-sim/buddy-widget.css city-sim/buddy-widget.js city-sim/buddy.js \
@@ -96,6 +98,16 @@ build_city_sim() {
   cp -r "$KIT/client/vendor"            city-sim/vendor
   cp -r "$KIT/client/library"           city-sim/library
   cp -r "$KIT/client/shared"            city-sim/shared
+  cp -r "$KIT/client/project-hub"        city-sim/hub
+  # Studio is same-origin with City so its validated GLB + document revision can
+  # be handed over atomically through IndexedDB. Workshop remains bridged while
+  # its separately deployed editor is adopted.
+  mkdir -p city-sim/studio city-sim/workshop
+  rsync -a --exclude '.DS_Store' --exclude '*-t2-stamped.glb' \
+    --exclude 'rover-leg-final-shrunk (1).glb' --exclude 'README.txt' \
+    "$ROOT/Fit Studio/" city-sim/studio/
+  cp "$KIT/client/project-shell/index.html" city-sim/workshop/index.html
+  cp "$KIT/client/project-shell/shell.js" city-sim/workshop/shell.js
   cp -r "$KIT/logic"                    city-sim/logic
   cp "$KIT/client/crash-guard.js"       city-sim/crash-guard.js
   cp "$KIT/client/buddy-boot.js"        city-sim/buddy-boot.js
@@ -127,11 +139,11 @@ build_city_sim() {
   cp "$KIT/client/city-pregame/i18n.js"     city-sim/pregame/i18n.js
   cp "$KIT/client/city-pregame/lesson-core.js" city-sim/pregame/lesson-core.js
   cp "$KIT/client/city-pregame/styles.css"  city-sim/pregame/styles.css
-  # Root landing → the 3D city. (The buddy worker owns the root today, which
-  # would otherwise show the Recycle-Eye demo instead of the city.)
+  # Root landing → the same-origin project dashboard. This replaces a launcher
+  # that sent children straight into one tool with no project-resume context.
   printf '%s\n' '<!doctype html><meta charset="utf-8"><title>My AI City</title>' \
-    '<meta http-equiv="refresh" content="0; url=./city-builder/">' \
-    '<a href="./city-builder/">My AI City — 3D</a>' > city-sim/index.html
+    '<meta http-equiv="refresh" content="0; url=./hub/">' \
+    '<a href="./hub/">My Passiona Project</a>' > city-sim/index.html
   # Drop the .fbx animation SOURCES (never loaded at runtime; ~127M).
   rm -rf city-sim/champion-city/assets/animations
 
@@ -281,12 +293,33 @@ deploy_if() {
 
 ONLY="all"
 BUILD_ONLY=0
+DEPLOY_ONLY=0
 for arg in "$@"; do
   case "$arg" in
     --build-only) BUILD_ONLY=1 ;;
+    --deploy-only) DEPLOY_ONLY=1 ;;
     --planner|--pregame|--home|--city-sim|--fit-studio|all) ONLY="$arg" ;;
   esac
 done
+
+if [ "$BUILD_ONLY" = "1" ] && [ "$DEPLOY_ONLY" = "1" ]; then
+  echo "ERROR: --build-only and --deploy-only cannot be used together." >&2
+  exit 2
+fi
+
+# Release verification runs the browser suite against deploy/city-sim, then
+# uses this path to upload those exact bytes. Cloudflare retains the previous
+# deployment as the immediate rollback target. Import checking is read-only and
+# catches a missing/stale artifact without regenerating anything.
+if [ "$DEPLOY_ONLY" = "1" ]; then
+  case "$ONLY" in
+    --city-sim) run_imports city-sim; deploy_city_sim ;;
+    --home) run_imports home; deploy_home ;;
+    *) echo "ERROR: --deploy-only requires --city-sim or --home." >&2; exit 2 ;;
+  esac
+  echo "✔ Tested artifact deployed without rebuilding."
+  exit 0
+fi
 
 case "$ONLY" in
   --planner) run_audit; build_planner; minify_app planner; deploy_if planner ;;

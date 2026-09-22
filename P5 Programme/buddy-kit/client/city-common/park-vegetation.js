@@ -28,15 +28,23 @@ export function parkVegetationAsset(seed,assets=PARK_VEGETATION_ASSETS){
   return assets[assets.length-1];
 }
 
+// Keep a modest, useful canvas at the heart of every park. This is large
+// enough for a child's fountain/sculpture/playground model, but small enough
+// that the surrounding middle band still reads as a planted civic park.
+export function parkCentreClearance(radius){
+  return Math.min(8,Math.max(4.5,(Number(radius)||0)*.12));
+}
+
 export function createParkVegetation(layout,{mobile=false}={}){
   if(layout.autoScenery===false)return [];
   const roadNetwork=buildTrafficNetwork(layout.roads||[]);
   const result=[];
   for(const [pi,park] of (layout.parks||[]).slice(0,mobile?6:12).entries()){
     const radius=Number(park.radius)||0;if(radius<12)continue;
-    // Central furniture, the .55r loop path, a generous outer/entrance band,
-    // roads, and four radial access corridors remain free for children to use.
-    const centreClear=Math.min(14,Math.max(7,radius*.19));
+    // A modest open centre, the .55r loop path, roads, and four radial access
+    // corridors remain free for children to use. Ground cover can now occupy
+    // the rest of the former fixed-diorama exclusion zone.
+    const centreClear=parkCentreClearance(radius);
     const desired=Math.min(mobile?34:52,Math.max(10,Math.round(radius*(mobile?.42:.58))));
     const attempts=desired*9;
     for(let i=0;i<attempts && result.filter(p=>p.park===pi).length<desired;i++){

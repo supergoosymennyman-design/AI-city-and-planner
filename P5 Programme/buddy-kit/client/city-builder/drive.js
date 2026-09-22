@@ -47,6 +47,15 @@ export function createDrivableCar(scene, group, opts = {}) {
     exit() {
       if (!state.active || state.exiting) return;
       state.exiting = true;
+      // A moving car belongs on the carriageway; once parked it becomes a
+      // static obstruction and must use a safe verge. If the host cannot find
+      // one, omit the parked model instead of leaving it in a traffic lane.
+      const parked = opts.resolveParking?.({ position: [state.pos.x, state.pos.z], footprint: [radius * 2, radius * 4],
+        rotation: state.facing, context: 'parked-vehicle' });
+      const parkingFailed = parked === false || parked?.ok === false;
+      const safe = Array.isArray(parked) ? parked : parked?.position;
+      if (safe) { state.pos.x = safe[0]; state.pos.z = safe[1]; group.position.set(state.pos.x, 0, state.pos.z); }
+      exitSpot.set(state.pos.x - Math.sin(state.facing) * 2.2, 0, state.pos.z - Math.cos(state.facing) * 2.2);
       // Instant step-out: drop the champion beside the car on the same frame.
       const ch = state.champion;
       if (ch) {
@@ -58,8 +67,8 @@ export function createDrivableCar(scene, group, opts = {}) {
       }
       // Leave the car PARKED where it stopped (visible), so the child can walk
       // back and board it again.
-      group.visible = true;
-      state.active = false; state.exiting = false; state.parked = true;
+      group.visible = !parkingFailed;
+      state.active = false; state.exiting = false; state.parked = !parkingFailed;
       state.champion = null;
     },
     /** Instant deactivate (no animation) — used by reset/hub nav. */

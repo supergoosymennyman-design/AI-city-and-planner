@@ -10,6 +10,8 @@ const DB_NAME = 'p5_champion_custom_skin';
 const DB_VERSION = 1;
 const STORE = 'skins';
 const KEY = 'custom';
+const META_KEY = 'custom-meta';
+const REVISIONS_KEY = 'custom-revisions';
 
 // Safety cap — a dressed "fitted champion" (base + all accessories) from Fit
 // Studio can exceed 30 MB (the base alone is ~24 MB; the full-fit sample is
@@ -35,17 +37,51 @@ function openDb() {
 /** Store the uploaded GLB in IndexedDB. The bytes are stored as an ArrayBuffer (NOT the
  *  File/Blob object) because Safari's IndexedDB is unreliable at structured-cloning Blob/File
  *  values (DataCloneError/UnknownError) — ArrayBuffer storage works in every browser. */
-export async function saveCustomSkin(file) {
+export async function saveCustomSkin(file, metadata = null) {
   const buf = await file.arrayBuffer();   // Safari-safe: raw bytes, not a Blob
   const db = await openDb();
   return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put(buf, KEY);
+      const store = tx.objectStore(STORE);
+      store.put(buf, KEY);
+      if (metadata) store.put(metadata, META_KEY);
       tx.oncomplete = () => { db.close(); resolve(); };
       tx.onerror = () => { db.close(); reject(tx.error); };
     } catch (e) { db.close(); reject(e); }
   });
+}
+
+/** Studio provenance shown on the City Champion card. Older raw-buffer entries
+ * intentionally return null and stay on the explicit legacy animation path. */
+export async function loadCustomSkinMetadata() {
+  let db;
+  try { db = await openDb(); } catch { return null; }
+  return new Promise(resolve => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).get(META_KEY);
+    req.onsuccess = () => { db.close(); resolve(req.result || null); };
+    req.onerror = () => { db.close(); resolve(null); };
+  });
+}
+
+export async function saveCustomSkinRevision(buffer, metadata) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite'); const store = tx.objectStore(STORE);
+    const get = store.get(REVISIONS_KEY);
+    get.onsuccess = () => {
+      const revisions = Array.isArray(get.result) ? get.result : [];
+      revisions.push({ buffer, metadata, savedAt: new Date().toISOString() });
+      store.put(revisions.slice(-5), REVISIONS_KEY);
+    };
+    tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+export async function loadCustomSkinRevisions() {
+  let db; try { db = await openDb(); } catch { return []; }
+  return new Promise(resolve => { const tx = db.transaction(STORE, 'readonly'); const req = tx.objectStore(STORE).get(REVISIONS_KEY); req.onsuccess = () => { db.close(); resolve(Array.isArray(req.result) ? req.result : []); }; req.onerror = () => { db.close(); resolve([]); }; });
 }
 
 /** Read the stored GLB back as a Blob (reconstructed from the saved ArrayBuffer), or null. */
@@ -76,6 +112,7 @@ export async function clearCustomSkin() {
     try {
       const tx = db.transaction(STORE, 'readwrite');
       tx.objectStore(STORE).delete(KEY);
+      tx.objectStore(STORE).delete(META_KEY);
       tx.oncomplete = () => { db.close(); resolve(); };
       tx.onerror = () => { db.close(); resolve(); };
     } catch (e) { db.close(); resolve(); }

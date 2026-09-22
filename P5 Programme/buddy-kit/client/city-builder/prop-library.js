@@ -30,6 +30,7 @@ import { LIBRARY, LIBRARY_CATEGORIES, libraryUrl } from '../city-common/library.
 import { LIBRARY_PACKS, libraryByPack, packForLibraryItem, packAssetState } from '../city-common/asset-packs.js';
 import { vehicleTargetLength } from '../city-common/vehicle-scale.js';
 import { CUSTOM_MODEL_PREFIX, customModelStore, readCustomManifest, writeCustomManifest, validateGLB } from '../city-common/custom-models.js';
+import { createCommandHistory } from '../city-common/command-history.js';
 
 // ─── Curated model library (shared catalog) ────────────────────────────────
 // The city-builder's 🧰 reads the SAME catalog the scenarios use
@@ -50,6 +51,7 @@ const PLACED_PROP_WARN = 200;
 // Per-instance id counter: placed props are matched by a unique uid so moving
 // one of several identical props updates THAT instance, not the first match.
 let _uidSeq = 1;
+const instanceId = () => `city-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 
 // ─── Loading + normalization ───────────────────────────────────────────────
 const _loader = createGLTFLoader();
@@ -132,7 +134,14 @@ function cloneGhost(model) {
 function validRecord(r) {
   return r && typeof r === 'object' && typeof r.id === 'string'
     && ['x', 'y', 'z', 'yaw'].every(k => r[k] === undefined || (typeof r[k] === 'number' && Number.isFinite(r[k])))
-    && (r.scale === undefined || (Array.isArray(r.scale) && r.scale.length === 3 && r.scale.every(n => Number.isFinite(n) && n > 0 && n <= 10000)));
+    && (r.scale === undefined || (Array.isArray(r.scale) && r.scale.length === 3 && r.scale.every(n => Number.isFinite(n) && n > 0 && n <= 10000)))
+    && (r.locked === undefined || typeof r.locked === 'boolean');
+}
+function withInstanceId(record) {
+  // Older Champion Files did not have a stable object identity. Assign one on
+  // first write so a later Studio handoff can target this exact chair/tree,
+  // rather than every copy of the same catalog model.
+  return record?.instanceId ? record : { ...record, instanceId: instanceId() };
 }
 
 // ─── Mount ─────────────────────────────────────────────────────────────────
@@ -145,7 +154,10 @@ export function mountPropLibrary(opts) {
   const onPlacementEnd = opts.onPlacementEnd || null;
   const onPlaced = opts.onPlaced || null;   // (x, z) called after each drop
   const onPlacedMesh = opts.onPlacedMesh || null;   // (mesh, item) after each placed prop is created
+  const onChanged = opts.onChanged || null; // (records) after a committed prop edit
   const onPlacementDone = opts.onPlacementDone || null;   // (lastMesh) fired once, when the child presses ✓ Done
+  const resolvePlacement = typeof opts.resolvePlacement === 'function' ? opts.resolvePlacement : null;
+  const onInspectorClearSelection = opts.onInspectorClearSelection || null;
 
   // State
   const state = {
@@ -162,9 +174,13 @@ export function mountPropLibrary(opts) {
   let dirty = false;
   let storageError = false;
   let unreadable = false;
+  let selectedUid = null;
+  let inspectorScaleBefore = null;
+  let transformBefore = null;
   const loadModel = opts.loadModel || loadProp;
   let customManifest = readCustomManifest();
   const customModels = new Map();
+  let myModelsRenderGeneration = 0;
   const customItem = (id) => customModels.get(id) || (() => { const m=customManifest.models.find(m => m.id === id); return m && { id: `${CUSTOM_MODEL_PREFIX}${id}`, name: m.name, emoji: '◆', category: 'prop', footprint: [4,4], height: 4, custom: true }; })();
   function itemFor(id) { return id.startsWith(CUSTOM_MODEL_PREFIX) ? customItem(id.slice(CUSTOM_MODEL_PREFIX.length)) : PROP_MAP[id]; }
   async function loadCustom(item) {
@@ -182,6 +198,9 @@ export function mountPropLibrary(opts) {
     if (!dirty) return raw;
     const props = state.placed.map(p => p.record);
     return JSON.stringify(Array.isArray(envelope) ? props : { ...envelope, version: envelope?.version ?? 1, props });
+  }
+  function notifyChanged() {
+    try { onChanged?.(state.placed.map((p) => ({ ...p.record }))); } catch (e) { console.warn('[prop-library] change listener failed', e); }
   }
   function persist() {
     dirty = true;
@@ -216,6 +235,7 @@ export function mountPropLibrary(opts) {
     mesh.rotation.y = r.yaw ?? 0;
     if (r.scale) mesh.scale.fromArray(r.scale);
     mesh.userData.uid = p.uid;
+    mesh.userData.locked = !!r.locked;
     p.mesh = mesh;
     scene.add(mesh);
     try { onPlacedMesh?.(mesh, itemFor(r.id)); } catch (e) { console.warn('[prop-library] registration failed', e); }
@@ -248,12 +268,20 @@ export function mountPropLibrary(opts) {
   }
   function clearAll() {
     if (destroyed || restoreActive) return;
+    const before = cloneRecords();
+    const wasUnreadable = unreadable;
     ++generation;
     exitPlacement();
     state.placed.forEach(removeMesh);
     state.placed = [];
     if (unreadable) { envelope = null; unreadable = false; }
-    if (persist()) toast(t('props.clearedAll'));
+    // An explicit Clear is the one deliberate recovery action allowed for an
+    // unreadable legacy section. It must replace the bad raw string with an
+    // empty, exportable envelope even though both record arrays are empty.
+    if (wasUnreadable) {
+      dirty = true;
+      if (persist()) toast(t('props.clearedAll'));
+    } else if (commitRecords(before)) toast(t('props.clearedAll'));
     renderCount();
   }
 
@@ -362,6 +390,25 @@ export function mountPropLibrary(opts) {
       transition: opacity 0.3s ease, transform 0.3s ease;
     }
     .prop-lib-toast.show { opacity: 1; transform: translateX(0); }
+    .prop-inspector {
+      position:fixed; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(88px + env(safe-area-inset-bottom, 0px)); z-index:106;
+      width:min(310px, calc(100vw - 32px)); padding:12px; border-radius:14px;
+      color:#f8fafc; background:#101b29; border:1px solid var(--panel-border, rgba(0,242,254,.35));
+      box-shadow:var(--shadow, 0 8px 24px rgba(0,0,0,.4)); font:14px/1.3 system-ui,sans-serif;
+    }
+    .prop-inspector[hidden] { display:none; }
+    .prop-inspector-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .prop-inspector-name { font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .prop-inspector-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:7px; margin-top:10px; }
+    .prop-inspector button { min-height:44px; border:1px solid #41516a; border-radius:8px; background:#182638; color:#f8fafc; font:inherit; font-weight:700; cursor:pointer; }
+    .prop-inspector button:disabled { opacity:.45; cursor:not-allowed; }
+    .prop-inspector .danger { color:#ff9aae; border-color:rgba(255,92,122,.55); }
+    .prop-inspector-scale { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:8px; margin-top:10px; }
+    .prop-inspector-scale input { min-height:44px; width:100%; accent-color:#00f2fe; }
+    .prop-inspector-lock { display:flex; gap:8px; align-items:center; margin-top:10px; color:#cfe9ff; }
+    .prop-inspector-lock input { width:22px; height:22px; }
+    .prop-inspector :focus-visible { outline:3px solid #ffb84c; outline-offset:2px; }
+    @media (max-width:640px) { .prop-inspector { bottom:76px; right:16px; } }
   `;
   document.head.appendChild(style);
 
@@ -407,6 +454,29 @@ export function mountPropLibrary(opts) {
   `;
   document.body.appendChild(toolbar);
 
+  // One contextual inspector keeps decoration controls near the selected prop
+  // instead of scattering fixed buttons across the city HUD.
+  const inspector = document.createElement('aside');
+  inspector.className = 'prop-inspector';
+  inspector.id = 'prop-inspector';
+  inspector.hidden = true;
+  inspector.setAttribute('aria-label', 'Selected decoration');
+  inspector.innerHTML = `
+    <div class="prop-inspector-head"><span class="prop-inspector-name"></span><span class="prop-inspector-history" aria-live="polite"></span></div>
+    <div class="prop-inspector-grid">
+      <button type="button" data-inspect="rotate-left" aria-label="Rotate left 15 degrees">↶ 15°</button>
+      <button type="button" data-inspect="rotate-right" aria-label="Rotate right 15 degrees">↷ 15°</button>
+      <button type="button" data-inspect="rotate-90" aria-label="Rotate 90 degrees">↻ 90°</button>
+      <button type="button" data-inspect="duplicate">Duplicate</button>
+      <button type="button" class="danger" data-inspect="delete">Delete</button>
+      <button type="button" data-inspect="undo">Undo</button>
+      <button type="button" data-inspect="redo">Redo</button>
+    </div>
+    <label class="prop-inspector-scale">Size <input type="range" min="0.2" max="5" step="0.05" value="1" aria-label="Decoration size"><span>100%</span></label>
+    <label class="prop-inspector-lock"><input type="checkbox"> Lock this decoration</label>
+  `;
+  document.body.appendChild(inspector);
+
   const hint = document.createElement('div');
   hint.className = 'prop-lib-hint';
   hint.style.display = 'none';
@@ -431,11 +501,167 @@ export function mountPropLibrary(opts) {
     if (!persistent) toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
   }
 
+  // History is intentionally session-only. The durable props payload is saved
+  // after each successful command, while undo/redo never reaches across a
+  // reload or a switch back to the 2D planner.
+  const cloneRecords = () => state.placed.map((p) => ({ uid: p.uid, record: JSON.parse(JSON.stringify(p.record)) }));
+  const sameRecords = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  function restoreRecords(records, save = true) {
+    const previousSelection = selectedUid;
+    // Keep surviving instances (and their in-flight loads) alive. A history
+    // action such as undoing one newly placed bush must never blank/reload the
+    // rest of a child's city just to restore a small record snapshot.
+    const existing = new Map(state.placed.map((p) => [p.uid, p]));
+    const next = [];
+    const introduced = [];
+    for (const { uid, record } of records) {
+      const prior = existing.get(uid);
+      const copy = withInstanceId(JSON.parse(JSON.stringify(record)));
+      if (prior && prior.record?.id === copy?.id) {
+        prior.record = copy;
+        if (prior.mesh) {
+          prior.mesh.position.set(copy.x ?? 0, copy.y ?? 0, copy.z ?? 0);
+          prior.mesh.rotation.y = copy.yaw ?? 0;
+          if (copy.scale) prior.mesh.scale.fromArray(copy.scale);
+          prior.mesh.userData.locked = !!copy.locked;
+        }
+        next.push(prior);
+        existing.delete(uid);
+      } else {
+        if (prior) { removeMesh(prior); existing.delete(uid); }
+        const added = { uid, record: copy, mesh: null };
+        next.push(added); introduced.push(added);
+      }
+    }
+    existing.forEach(removeMesh);
+    state.placed = next;
+    _uidSeq = Math.max(_uidSeq, ...state.placed.map((p) => p.uid + 1), 1);
+    selectedUid = state.placed.some((p) => p.uid === previousSelection) ? previousSelection : null;
+    if (save) persist();
+    const gen = generation;
+    for (const p of introduced) {
+      if (!validRecord(p.record)) continue;
+      const item = itemFor(p.record.id); if (!item) continue;
+      Promise.resolve().then(() => loadAny(item)).then((model) => {
+        if (destroyed || gen !== generation || !state.placed.includes(p) || !model) return;
+        project(p, model);
+      }).catch(() => {});
+    }
+    renderCount();
+    renderInspector();
+    notifyChanged();
+  }
+  let history = null;
+  history = createCommandHistory({ limit: 50, onChange: () => renderInspector() });
+  function commitRecords(before) {
+    const after = cloneRecords();
+    if (sameRecords(before, after)) return true;
+    // Keep an unsaved edit in memory for the Champion File recovery path when
+    // device storage is full. It is deliberately not added to undo history:
+    // no durable write succeeded, but the child can still download the latest
+    // snapshot instead of losing the work they just made.
+    if (!persist()) return false;
+    history.record({
+      execute: () => restoreRecords(after),
+      undo: () => restoreRecords(before),
+      redo: () => restoreRecords(after),
+    });
+    notifyChanged();
+    return true;
+  }
+  function selectedProp() { return state.placed.find((p) => p.uid === selectedUid) || null; }
+  function renderInspector() {
+    const p = selectedProp();
+    inspector.hidden = !p;
+    if (!p) return;
+    const locked = !!p.record.locked;
+    const item = itemFor(p.record.id);
+    inspector.querySelector('.prop-inspector-name').textContent = item?.name || p.record.id;
+    inspector.querySelector('.prop-inspector-history').textContent = `${history?.size || 0}/50`;
+    const scale = Array.isArray(p.record.scale) ? p.record.scale[0] : 1;
+    const scaleInput = inspector.querySelector('input[type="range"]');
+    scaleInput.value = String(Math.max(.2, Math.min(5, scale)));
+    inspector.querySelector('.prop-inspector-scale span').textContent = `${Math.round(scale * 100)}%`;
+    inspector.querySelector('.prop-inspector-lock input').checked = locked;
+    for (const button of inspector.querySelectorAll('[data-inspect]')) {
+      const action = button.dataset.inspect;
+      button.disabled = (locked && !['undo', 'redo'].includes(action)) || (action === 'undo' && !history?.canUndo) || (action === 'redo' && !history?.canRedo);
+    }
+  }
+
   // ── Ghost ──
   const ghost = new THREE.Group();
   ghost.visible = false;
   ghost.frustumCulled = false;
   scene.add(ghost);
+
+  function changeSelected(mutator) {
+    const p = selectedProp();
+    if (!p || p.record.locked) return false;
+    const before = cloneRecords();
+    mutator(p);
+    if (!validRecord(p.record)) { restoreRecords(before, false); return false; }
+    return commitRecords(before);
+  }
+  inspector.addEventListener('click', (event) => {
+    const action = event.target?.closest?.('[data-inspect]')?.dataset.inspect;
+    if (!action) return;
+    if (action === 'undo') { history.undo(); return; }
+    if (action === 'redo') { history.redo(); return; }
+    if (action === 'delete') {
+      const p = selectedProp(); if (!p || p.record.locked) return;
+      const before = cloneRecords();
+      removeMesh(p);
+      state.placed = state.placed.filter((entry) => entry !== p);
+      selectedUid = null;
+      commitRecords(before);
+      onInspectorClearSelection?.();
+      renderCount(); renderInspector();
+      return;
+    }
+    if (action === 'duplicate') {
+      const p = selectedProp(); if (!p || p.record.locked) return;
+      const before = cloneRecords();
+      const copy = { uid: _uidSeq++, record: { ...p.record, x: (p.record.x || 0) + .8, z: (p.record.z || 0) + .8, locked: false }, mesh: null };
+      state.placed.push(copy);
+      const item = itemFor(copy.record.id);
+      if (item) Promise.resolve(loadAny(item)).then((model) => { if (model && state.placed.includes(copy)) project(copy, model); });
+      selectedUid = copy.uid;
+      if (commitRecords(before)) renderCount();
+      renderInspector();
+      return;
+    }
+    const turn = action === 'rotate-left' ? -Math.PI / 12 : action === 'rotate-right' ? Math.PI / 12 : Math.PI / 2;
+    changeSelected((p) => {
+      p.record = { ...p.record, yaw: (p.record.yaw || 0) + turn };
+      if (p.mesh) p.mesh.rotation.y = p.record.yaw;
+    });
+    renderInspector();
+  });
+  const inspectorScale = inspector.querySelector('input[type="range"]');
+  inspectorScale.addEventListener('pointerdown', () => { inspectorScaleBefore = cloneRecords(); });
+  inspectorScale.addEventListener('input', () => {
+    const p = selectedProp(); if (!p || p.record.locked) return;
+    if (!inspectorScaleBefore) inspectorScaleBefore = cloneRecords();
+    const value = Number(inspectorScale.value);
+    p.record = { ...p.record, scale: [value, value, value] };
+    if (p.mesh) p.mesh.scale.setScalar(value);
+    inspector.querySelector('.prop-inspector-scale span').textContent = `${Math.round(value * 100)}%`;
+  });
+  const finishInspectorScale = () => {
+    if (!inspectorScaleBefore) return;
+    const before = inspectorScaleBefore; inspectorScaleBefore = null;
+    commitRecords(before); renderInspector();
+  };
+  inspectorScale.addEventListener('change', finishInspectorScale);
+  inspectorScale.addEventListener('blur', finishInspectorScale);
+  inspector.querySelector('.prop-inspector-lock input').addEventListener('change', (event) => {
+    const p = selectedProp(); if (!p) return;
+    const before = cloneRecords();
+    p.record = { ...p.record, locked: !!event.target.checked };
+    if (p.mesh) p.mesh.userData.locked = p.record.locked;
+    commitRecords(before); renderInspector();
+  });
 
   // ── Panel rendering ──
   const tabsEl = panel.querySelector('.prop-lib-tabs');
@@ -545,16 +771,26 @@ export function mountPropLibrary(opts) {
     }
   }
 
-  function renderMyModels() {
+  async function renderMyModels() {
+    const renderGeneration=++myModelsRenderGeneration;
+    let stored=[];
+    try { stored=await customModelStore.all(); }
+    catch { /* The cards still render and explain that their files are unavailable. */ }
+    if(destroyed||renderGeneration!==myModelsRenderGeneration||activeCat!=='mine')return;
+    listEl.replaceChildren();
+    const available=new Set(stored.filter(record=>record?.bytes).map(record=>record.id));
     resultsEl.textContent = `${customManifest.models.length} My Models`;
     const upload = document.createElement('button'); upload.type='button'; upload.className='prop-lib-card';
     upload.innerHTML='<span class="prop-lib-name">＋ Add a GLB model</span><span class="prop-lib-place">Device only · 12 MB each</span>';
     upload.addEventListener('click', () => fileInput.click()); listEl.append(upload);
     for (const meta of customManifest.models) {
-      const item = customItem(meta.id); const card=document.createElement('div'); card.className='prop-lib-card';
+      const item = customItem(meta.id); const missing=!available.has(meta.id); const card=document.createElement('div'); card.className='prop-lib-card';
+      card.dataset.modelState=missing?'missing':'ready';
       card.innerHTML='<span class="prop-lib-name"></span><button type="button" class="prop-lib-tb-btn">Place</button><button type="button" class="prop-lib-tb-btn">Replace file</button><button type="button" class="prop-lib-tb-btn">Building role</button><button type="button" class="prop-lib-tb-btn">Rename</button><button type="button" class="prop-lib-tb-btn">Remove</button>';
-      card.querySelector('.prop-lib-name').textContent=`◆ ${item.name}`;
+      card.querySelector('.prop-lib-name').textContent=`◆ ${item.name}${missing?' · file needed':''}`;
       const [place, replace, role, rename, remove] = card.querySelectorAll('button');
+      place.disabled=missing;
+      replace.textContent=missing?'Re-add file':'Replace file';
       place.addEventListener('click', () => startPlacement(item));
       replace.addEventListener('click', () => { fileInput.dataset.replace = meta.id; fileInput.click(); });
       role.addEventListener('click', () => { const current=Object.entries(customManifest.overrides).filter(([,id])=>id===meta.id).map(([r])=>r).join(', '); const named=window.prompt(`Use this model for which planner building role?\nExamples: school, hospital, city_central. Leave blank to clear.\nCurrent: ${current||'none'}`,''); if(named===null)return; for(const [r,id] of Object.entries(customManifest.overrides))if(id===meta.id)delete customManifest.overrides[r]; for(const r of named.split(',').map(x=>x.trim()).filter(Boolean))customManifest.overrides[r]=meta.id; writeCustomManifest(customManifest); toast('Building visual saved. Reload the city to see it.'); });
@@ -648,22 +884,28 @@ export function mountPropLibrary(opts) {
   function dropAt(x, z) {
     if (!state.current || !state.current.ghostModel) return;
     if (destroyed || restoreActive) return;
-    const p = { uid: _uidSeq++, record: { id: state.current.item.id, x, y: 0, z, yaw: state.current.yaw }, mesh: null };
+    const proposed = { id: state.current.item.id, x, y: 0, z, yaw: state.current.yaw };
+    const resolved = resolvePlacement ? resolvePlacement({ position: [x, z], footprint: state.current.item.footprint || [2, 2],
+      rotation: state.current.yaw, item: state.current.item, record: proposed, context: 'new' }) : { ok: true, position: [x, z] };
+    if (resolved === false || (resolved && resolved.ok === false)) { toast('🚧 That spot blocks a road — try the verge or another clear space.', true); return; }
+    const position = Array.isArray(resolved) ? resolved : resolved?.position || [x, z];
+    proposed.x = position[0]; proposed.z = position[1];
+    const before = cloneRecords();
+    const p = { uid: _uidSeq++, record: withInstanceId(proposed), mesh: null };
     state.placed.push(p);
     project(p, state.current.ghostModel);
     // Soft performance warning once a city gets crowded (no behaviour change —
     // the cap is informational only; kids can keep placing if they want).
     if (state.placed.length === PLACED_PROP_WARN) toast(t('props.manyProps'));
-    persist();
+    if (!commitRecords(before)) return;
     renderCount();
-    if (onPlaced) { try { onPlaced(x, z); } catch (e) { /* ignore */ } }
+    if (onPlaced) { try { onPlaced(position[0], position[1]); } catch (e) { /* ignore */ } }
 
   }
 
   function undoLast() {
     if (destroyed || restoreActive) return;
-    const last = state.placed.pop();
-    if (last) { removeMesh(last); persist(); renderCount(); }
+    if (history.undo().ok) { renderCount(); }
     else toast(t('props.nothingToUndo'));
   }
 
@@ -673,8 +915,11 @@ export function mountPropLibrary(opts) {
     if (!state.placing || !state.current || !state.current.ghostModel) return;
     const pt = groundPoint(e.clientX, e.clientY);
     if (pt) {
-      ghost.visible = true;
-      ghost.position.set(pt.x, 0, pt.z);
+      const resolved = resolvePlacement ? resolvePlacement({ position: [pt.x, pt.z], footprint: state.current.item.footprint || [2, 2],
+        rotation: state.current.yaw, item: state.current.item, context: 'preview' }) : { ok: true, position: [pt.x, pt.z] };
+      ghost.visible = !(resolved === false || resolved?.ok === false);
+      const position = Array.isArray(resolved) ? resolved : resolved?.position || [pt.x, pt.z];
+      ghost.position.set(position[0], 0, position[1]);
       ghost.rotation.y = state.current.yaw;
     } else {
       ghost.visible = false;
@@ -725,9 +970,26 @@ export function mountPropLibrary(opts) {
     raw = localStorage.getItem(storageKey);
     envelope = raw === null ? null : JSON.parse(raw);
     const records = Array.isArray(envelope) ? envelope : envelope?.props;
-    if (Array.isArray(records)) state.placed = records.map(record => ({ uid: _uidSeq++, record, mesh: null }));
+    if (Array.isArray(records)) state.placed = records.map(record => ({ uid: _uidSeq++, record: withInstanceId(record), mesh: null }));
     else if (raw !== null) unreadable = true;
   } catch { unreadable = true; }
+  // Legacy records are repaired once through the optional host resolver. Keep
+  // an in-memory recovery snapshot and expose one-tap restore through the API.
+  let safetyRepair = null;
+  if (!unreadable && resolvePlacement && state.placed.length) {
+    const original = state.placed.map((p) => ({ ...p.record }));
+    let moved = 0;
+    for (const p of state.placed) {
+      if (!validRecord(p.record)) continue;
+      const item = itemFor(p.record.id); if (!item) continue;
+      const result = resolvePlacement({ position: [p.record.x || 0, p.record.z || 0], footprint: item.footprint || [2, 2],
+        rotation: p.record.yaw || 0, item, record: p.record, context: 'restore' });
+      if (!result || result.ok === false) continue;
+      const position = Array.isArray(result) ? result : result.position;
+      if (position && (position[0] !== p.record.x || position[1] !== p.record.z)) { p.record.x = position[0]; p.record.z = position[1]; moved++; }
+    }
+    if (moved) { safetyRepair = { moved, original }; persist(); toast(`🛣️ Moved ${moved} saved item${moved === 1 ? '' : 's'} off the road.`, true); }
+  }
   if (unreadable) toast(t('props.unreadableSaved'), true);
   renderRecords();
 
@@ -738,6 +1000,13 @@ export function mountPropLibrary(opts) {
     isPlacing: () => state.placing,
     isReadyToPlace: () => !!state.placing && !!state.current?.ghostModel,
     getCount: () => state.placed.length,
+    getRecords: () => state.placed.map((p) => ({ ...p.record })),
+    getSafetyRepair: () => safetyRepair && { moved: safetyRepair.moved },
+    restoreSafetyRepair() {
+      if (!safetyRepair || safetyRepair.original.length !== state.placed.length) return false;
+      state.placed.forEach((p, i) => { p.record = { ...safetyRepair.original[i] }; });
+      safetyRepair = null; persist(); renderRecords(); notifyChanged(); return true;
+    },
     snapshot,
     get storageFailed() { return storageError; },
     /**
@@ -761,27 +1030,45 @@ export function mountPropLibrary(opts) {
       }
     },
     /** Committed transforms only: carrying is a preview until onDrop. */
+    beginTransform(mesh) {
+      if (!mesh || mesh.userData.locked || transformBefore) return;
+      transformBefore = cloneRecords();
+    },
+    endTransform() {
+      if (!transformBefore) return;
+      const before = transformBefore; transformBefore = null;
+      commitRecords(before); renderInspector();
+    },
     updateTransform(mesh, scaleOnly = false) {
       if (destroyed || restoreActive || !mesh) return;
       const p = state.placed.find(p => p.uid === mesh.userData.uid);
-      if (!p) return;
+      if (!p || p.record.locked) return;
+      const before = transformBefore || cloneRecords();
       const next = { ...p.record, scale: mesh.scale.toArray() };
       if (!scaleOnly) Object.assign(next, { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z, yaw: mesh.rotation.y });
       if (!validRecord(next)) return;
       p.record = next;
-      persist();
+      if (!transformBefore) commitRecords(before);
+      renderInspector();
     },
     moveProp(uidOrId, x, z, yaw) {
       if (destroyed || restoreActive) return;
       const p = state.placed.find(e => e.uid === uidOrId) || state.placed.find(e => e.record?.id === uidOrId);
-      if (!p) return;
+      if (!p || p.record.locked) return;
+      const before = cloneRecords();
       const next = { ...p.record, x, z, yaw };
       if (!validRecord(next)) return;
       p.record = next;
       if (p.mesh) { p.mesh.position.x = x; p.mesh.position.z = z; p.mesh.rotation.y = yaw; }
-      persist();
+      commitRecords(before);
     },
     clear: clearAll,
+    selectMesh(mesh) {
+      selectedUid = mesh?.userData?.uid ?? null;
+      renderInspector();
+    },
+    undo() { const result = history.undo(); if (result.ok) renderCount(); return result; },
+    redo() { const result = history.redo(); if (result.ok) renderCount(); return result; },
     refresh() {
       if (destroyed || restoreActive) return;
       exitPlacement();
@@ -796,7 +1083,7 @@ export function mountPropLibrary(opts) {
       state.placed.forEach(removeMesh);
       clearTimeout(toastTimer);
       window.removeEventListener('i18n:change', relocalize);
-      [style, button, panel, toolbar, hint, overlay, toastEl, fileInput].forEach(el => el?.remove());
+      [style, button, panel, toolbar, inspector, hint, overlay, toastEl, fileInput].forEach(el => el?.remove());
       ghost.removeFromParent();
       if (window.__propLibrary === api) delete window.__propLibrary;
     },

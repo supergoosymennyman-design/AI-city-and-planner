@@ -97,7 +97,9 @@ for (const strategy of ['greedy','explore']) test(`${strategy} preserves all 18 
     assert.deepEqual(a.layout.roads,city.roads);
     assert.equal(a.after.score,computeMetrics(a.layout,undefined,weights,computeWalkReach(a.layout)).score);
     assert.ok(a.after.score>=computeMetrics(city,undefined,weights,computeWalkReach(city)).score);
-    assert.ok(a.diff.every((d)=>!specialKeys().includes(d.what)||d.action==='add'));
+    assert.ok(a.diff.every((d) => !specialKeys().includes(d.what) || d.action === 'add'
+      || (d.action === 'move' && d.kind === 'off-road' && d.safetyNudge)),
+    'mission objects only move for an explicit minimal road-safety repair');
     for (const move of proposeMoves(city,{weights},12,73)) assert.ok(preservesExistingWork(city,applyMove(city,move)));
   }
   const victim=city.buildings[1];

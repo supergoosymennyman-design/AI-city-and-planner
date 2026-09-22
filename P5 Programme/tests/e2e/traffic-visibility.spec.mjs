@@ -5,6 +5,7 @@ async function bootExampleCity(page) {
   await page.waitForTimeout(2000);
   await page.locator('#entry-local').click();
   await page.waitForFunction(() => window.__city?.traffic && document.querySelector('#loading.done'), null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__city?.traffic?.realisticFleet?.loaded?.length > 0, null, { timeout: 60000 });
   // Citizens are a DEFERRED asset: `#loading.done` only means procedural-ready.
   // Wait for the crowd to resolve before snapshotting, or the count reads 0.
   await page.waitForFunction(() => window.__city?.citizens?.getStats?.().models > 0, null, { timeout: 60000 });
@@ -41,12 +42,10 @@ async function trafficSnapshot(page) {
 }
 
 function expectLayeredFleet(traffic) {
-  const roles = ['body', 'glass', 'tyre', 'trim', 'lamp'];
   for (const [archetype, batches] of Object.entries(traffic.renderer.batches)) {
-    expect(batches, `${archetype} has layered material batches`).toEqual(roles);
+    expect(archetype).toMatch(/^realistic-/);
+    expect(batches.length, `${archetype} keeps its GLB material primitives`).toBeGreaterThan(0);
   }
-  // Seven archetypes × five materials. This is a predictable bound rather
-  // than a per-vehicle draw-call cost on either desktop or tablet.
   expect(traffic.renderer.drawCalls).toBeGreaterThan(0);
   expect(traffic.renderer.drawCalls).toBeLessThanOrEqual(35);
   expect(traffic.renderer.overflow).toBe(0);
@@ -81,7 +80,9 @@ test('ambient fleet keeps both Audi GLBs and their material primitive batches', 
   await bootExampleCity(page);
   await page.waitForFunction(() => window.__city?.traffic?.realisticFleet?.loaded?.length === 2, null, { timeout: 60000 });
   const traffic = await trafficSnapshot(page);
-  expect(traffic.realisticFleet.loaded).toEqual(['veh_audi_a7', 'veh_audi_rs_q8']);
+  // Independent streaming intentionally records settlement order, which may
+  // differ with cache/network timing; membership is the stable invariant.
+  expect([...traffic.realisticFleet.loaded].sort()).toEqual(['veh_audi_a7', 'veh_audi_rs_q8']);
   expect(traffic.realisticFleet.failed).toEqual([]);
   expect(traffic.realisticFleet.errors).toEqual({});
   const batches = traffic.renderer.batches;

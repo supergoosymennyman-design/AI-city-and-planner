@@ -4,13 +4,13 @@ import {readFileSync,statSync} from 'node:fs';
 import {TIME_ORDER,TIME_PRESETS,validTime,nextTime} from '../P5 Programme/buddy-kit/client/city-common/time-of-day.js';
 import {CITY_ESSENTIALS,essentialName,essentialSearch} from '../P5 Programme/buddy-kit/client/city-common/city-essentials.js';
 import {libraryItem} from '../P5 Programme/buddy-kit/client/city-common/library.js';
-import {sanitizeLayout,densifyLayout} from '../P5 Programme/buddy-kit/client/city-common/layout.js';
+import {sanitizeLayout,densifyLayout,occupiedBounds} from '../P5 Programme/buddy-kit/client/city-common/layout.js';
 import {buildSampleCity} from '../P5 Programme/buddy-kit/client/city-common/sample-city.js';
 import {createNeighbourhood} from '../P5 Programme/buddy-kit/client/city-common/neighbourhood.js';
-import {PARK_VEGETATION_ASSETS,createParkVegetation} from '../P5 Programme/buddy-kit/client/city-common/park-vegetation.js';
+import {PARK_VEGETATION_ASSETS,createParkVegetation,parkCentreClearance} from '../P5 Programme/buddy-kit/client/city-common/park-vegetation.js';
 const client=new URL('../P5 Programme/buddy-kit/client/',import.meta.url);
-test('time presets cycle, recover invalid preferences, and retain readable ambient light',()=>{
- assert.deepEqual(TIME_ORDER,['morning','day','sunset','night']);assert.equal(validTime('bad'),'sunset');assert.equal(nextTime('night'),'morning');
+test('time presets cycle, default to clear daytime, and retain readable ambient light',()=>{
+ assert.deepEqual(TIME_ORDER,['morning','day','sunset','night']);assert.equal(validTime('bad'),'day');assert.equal(nextTime('night'),'morning');
  for(const p of Object.values(TIME_PRESETS)){assert.ok(p.ambient>=1.4);assert.ok(p.exposure<=1.2);assert.ok(p.bloom<=.3);assert.ok(p.en && p.zh);}
 });
 test('all 24 essentials resolve to placeable models, bilingual names and thumbnails',()=>{
@@ -23,12 +23,22 @@ test('automatic scenery remains a presentation preference through layout transfo
  densifyLayout(off);assert.equal(off.autoScenery,false);assert.equal(createNeighbourhood(off).spaces.length,0);assert.ok(createNeighbourhood(on).spaces.length>0);
  assert.equal(sanitizeLayout({}).autoScenery,true);assert.equal(sanitizeLayout({autoScenery:'false'}).autoScenery,true);
 });
+test('initial 3D spawn and overview frame occupied bounds without transforming geometry',()=>{
+ const raw=buildSampleCity(),layout=sanitizeLayout(raw),snapshot=JSON.stringify(layout),bounds=occupiedBounds(layout,{pad:0});
+ assert.ok(bounds.maxX-bounds.minX>0&&bounds.maxZ-bounds.minZ>0);assert.equal(JSON.stringify(layout),snapshot);
+ const source=readFileSync(new URL('city-builder/city-builder.js',client),'utf8');
+ assert.match(source,/cityFocusBounds = occupiedBounds\(layout, \{ pad: 0 \}\)/);
+ assert.match(source,/const focus = cityFocusBounds \|\| occupiedBounds/);
+ assert.match(source,/orbit\.distOverview = Math\.max/);
+ assert.match(source,/orbit\.target\.set\(focusX, 0, focusZ\)/);
+ assert.match(source,/champion && !introOverview \? orbit\.distWalk : orbit\.distOverview/);
+});
 test('terrain grass keeps a quiet, colour-managed PBR treatment with restrained world-space variation',()=>{
  const source=readFileSync(new URL('city-builder/city-builder.js',client),'utf8');
  assert.match(source,/varying vec3 vGndWorld/);assert.match(source,/uFogColor/);assert.match(source,/uGrassNight/);assert.match(source,/uGrassTextureDetail/);
  assert.match(source,/uGrassMoss/);assert.match(source,/uGrassLeaf/);assert.match(source,/uGrassSun/);assert.match(source,/uGrassDry/);assert.match(source,/uParkLawn/);assert.match(source,/uGrassPbrSaturation/);assert.match(source,/uGrassPbrAlbedoMix/);assert.match(source,/uGrassParkLift/);assert.match(source,/grassFbm/);
- for(const color of ['#33502a','#4c7c3f','#6a8f4e','#9a9450'])assert.match(source,new RegExp(`new THREE\\.Color\\('${color}'\\)`));
- assert.match(source,/terrainNormal: 0\.16, parkNormal: 0\.12, parkLift: 0\.07/);assert.match(source,/\.035/);assert.match(source,/park\?'grassTone=mix\(grassTone,uParkLawn,\.62\)/);assert.match(source,/grassDetail=mix\(vec3\(dot\(grassDetail/);assert.match(source,/diffuseColor\.rgb=mix\(grassTone,grassDetail,uGrassTextureDetail\*uGrassPbrAlbedoMix\)/);assert.match(source,/grasses:\(\)=>_grassMats/);assert.doesNotMatch(source,/diffuseColor\.rgb\*=grassTone/);assert.doesNotMatch(source,/groundTexture\.repeat/);assert.doesNotMatch(source,/vec3\(\.25,\.33,\.19\)/);
+ for(const color of ['#33502a','#4c7c3f','#6a8f4e','#9a9450'])assert.match(source,new RegExp(color));
+ assert.match(source,/PARK_LAWN_PBR_TREATMENT/);assert.match(source,/saturation: 0\.92, albedoMix: 0\.36, tint: '#ffffff', tintStrength: 0/);assert.match(source,/park \? 0\.06 : 0\.22/);assert.match(source,/\.035/);assert.match(source,/park\?'grassTone=mix\(grassTone,uParkLawn,\.78\)/);assert.match(source,/grassDetail=mix\(vec3\(dot\(grassDetail/);assert.match(source,/diffuseColor\.rgb=mix\(grassTone,grassDetail,uGrassTextureDetail\*uGrassPbrAlbedoMix\)/);assert.match(source,/grasses:\(\)=>_grassMats/);assert.doesNotMatch(source,/diffuseColor\.rgb\*=grassTone/);assert.doesNotMatch(source,/groundTexture\.repeat/);assert.doesNotMatch(source,/vec3\(\.25,\.33,\.19\)/);
 });
 test('only Kenney grass batches replace turquoise materials with a height vertex palette and instance jitter',()=>{
  const source=readFileSync(new URL('city-builder/city-builder.js',client),'utf8');
@@ -41,8 +51,18 @@ test('park vegetation uses shipped CC0 grass variants with deterministic safe we
  for(const asset of PARK_VEGETATION_ASSETS)assert.ok(statSync(new URL(asset.file.replace('../library/','library/'),client)).size>0,asset.file);
  const layout={autoScenery:true,roads:[{width:12,points:[[0,50],[100,50]]}],parks:[{cx:50,cz:50,radius:38}]};
  const a=createParkVegetation(layout,{mobile:true}),b=createParkVegetation(layout,{mobile:true});assert.deepEqual(a,b);assert.ok(a.length>=10);
- for(const p of a){const r=Math.hypot(p.x-50,p.z-50);assert.ok(r<35);assert.ok(r>7);assert.ok(Math.abs(r-38*.55)>=3.2);assert.ok(Math.abs(p.z-50)>=8.5);}
+ for(const p of a){const r=Math.hypot(p.x-50,p.z-50);assert.ok(r<35);assert.ok(r>=parkCentreClearance(38));assert.ok(Math.abs(r-38*.55)>=3.2);assert.ok(Math.abs(p.z-50)>=8.5);}
  assert.deepEqual(createParkVegetation({...layout,autoScenery:false},{mobile:true}),[]);
+});
+test('parks keep a modest open centre and never request the retired park diorama',()=>{
+ assert.equal(parkCentreClearance(12),4.5);assert.equal(parkCentreClearance(38),4.56);assert.equal(parkCentreClearance(100),8);
+ const source=readFileSync(new URL('city-builder/city-builder.js',client),'utf8');
+ assert.doesNotMatch(source,/park\.glb|_parkModel|loadParkModel/);
+ const streetDeco=readFileSync(new URL('city-builder/street-deco.js',client),'utf8');
+ assert.doesNotMatch(streetDeco,/PLAYGROUND|street-deco\/(?:fountain|ferris-wheel|gazebo)\.glb/);
+ const landscape=readFileSync(new URL('city-builder/park-landscape.js',client),'utf8');
+ assert.doesNotMatch(landscape,/CircleGeometry|lawns|lawnMaterial/);
+ assert.match(landscape,/const paving=\[\],links=\[\]/);
 });
 test('tablet park vegetation stays within the instance, draw-call and triangle budgets',()=>{
  const layout=buildSampleCity(),placements=createParkVegetation(layout,{mobile:true});

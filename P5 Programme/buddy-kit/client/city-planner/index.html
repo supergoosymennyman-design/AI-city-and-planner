@@ -9,8 +9,11 @@
   <link rel="stylesheet" href="styles.css">
   <script src="/crash-guard.js"></script>
   <link rel="stylesheet" href="../city-common/interface.css">
+  <link rel="stylesheet" href="../city-common/project-bar.css">
 </head>
 <body>
+
+<script type="module">import { mountProjectBar } from '../city-common/project-bar.js'; mountProjectBar({ workspace: 'planner' });</script>
 
 <header id="topbar">
   <a class="planner-back" href="/" aria-label="Back to My AI City">←</a>
@@ -18,12 +21,13 @@
   <div class="actions">
     <span id="autosave-status" class="autosave-status" aria-live="polite"></span>
     <button id="btn-save" class="action-btn" data-i18n="planner.save" data-i18n-title="planner.saveTitle" title="Save a copy of your city to keep (download)">💾 Save</button>
-    <button id="btn-export" class="action-btn primary" data-i18n="planner.viewCity" data-i18n-title="planner.viewCityTitle" title="Save your city and see it in 3D">🌆 View in 3D</button>
+    <button id="btn-decorate" class="action-btn primary" data-i18n="planner.decorateCity" data-i18n-title="planner.decorateCityTitle" title="Save your plan and decorate it in 3D">🎨 Decorate city</button>
+    <button id="btn-export" class="action-btn primary" data-i18n="planner.viewCity" data-i18n-title="planner.viewCityTitle" title="Save your city and explore it in 3D">🌆 Explore city</button>
     <details id="planner-more"><summary data-i18n="planner.moreTools">Revise / open / learn</summary><div class="secondary-tools">
     <button id="btn-clear" class="action-btn" data-i18n="planner.clear" data-i18n-title="planner.clearTitle" title="Clear the city">🗑️ Clear</button>
     <div class="template-wrap">
       <button id="btn-template" class="action-btn" data-i18n="planner.roads" data-i18n-title="planner.roadsTitle" title="Start from a road template">🛤️ Roads</button>
-      <div id="template-menu" class="template-menu hidden">
+      <div id="template-menu" class="template-menu hidden" role="dialog" aria-modal="true" aria-label="Road layouts">
         <div class="template-menu-title" data-i18n="planner.roadsMenuTitle">Start from a road layout</div>
         <div id="template-list"></div>
         <div class="template-note" data-i18n="planner.roadsNote">Replaces the current city with a ready-made road network — you add the buildings!</div>
@@ -128,7 +132,10 @@
 </div>
 
 <div id="plan-dock" role="toolbar" data-i18n-aria="planner.toolbar.aria" aria-label="Planning tools">
-  <button id="btn-undo" class="dock-undo" data-i18n="planner.undo" data-i18n-title="planner.undoTitle" title="Undo last change">↩️ <span>Undo</span></button>
+  <div class="dock-history" role="group" aria-label="Edit history">
+    <button id="btn-undo" class="dock-undo" data-i18n="planner.undo" data-i18n-title="planner.undoTitle" title="Undo last change" disabled>↩️ <span>Undo</span></button>
+    <button id="btn-redo" class="dock-undo" data-i18n="planner.redo" data-i18n-title="planner.redoTitle" title="Redo last change" disabled>↪️ <span>Redo</span></button>
+  </div>
   <div class="tools">
     <button class="tool-btn active" data-tool="place" aria-pressed="true" data-i18n="planner.tool.place">🏗️ Place</button>
     <button class="tool-btn" data-tool="road" aria-pressed="false" data-i18n="planner.tool.road">🛣️ Road</button>

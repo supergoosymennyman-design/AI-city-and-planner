@@ -3,7 +3,7 @@
 // Run: node --test tests/cap-runtime.test.mjs   (from the repo root)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCapability, capabilityDescriptor, CAP_MAGIC } from '../P5 Programme/buddy-kit/client/city-common/cap-runtime.js';
+import { parseCapability, capabilityDescriptor, installCapability, CAP_MAGIC } from '../P5 Programme/buddy-kit/client/city-common/cap-runtime.js';
 
 /** A minimal valid numeric k-NN classifier bundle (shape from docs/capability-bridge.md). */
 function validCap(overrides = {}) {
@@ -48,6 +48,14 @@ test('accepts a valid numeric k-NN classifier bundle', () => {
   const r = parseCapability(JSON.stringify(validCap()));
   assert.equal(r.ok, true);
   assert.equal(r.capability.name, 'Gate watcher');
+});
+
+test('installation is revision-pinned and only live after self-tests pass', () => {
+  const noTests = installCapability(validCap());
+  assert.equal(noTests.installation.id, 'cap_test_0001@3');
+  assert.equal(noTests.installation.mode, 'display-only');
+  const live = installCapability(validCap({ selftest: { cases: [{ name: 'missing values abstain', input: {}, expect: { decision: '__abstain' } }] } }));
+  assert.equal(live.installation.mode, 'live-running');
 });
 
 test('rejects wrong magic / version / kind / algorithm / missing threshold', () => {

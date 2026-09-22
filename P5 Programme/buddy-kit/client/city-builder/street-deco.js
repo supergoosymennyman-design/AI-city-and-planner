@@ -1,22 +1,13 @@
-// street-deco.js — playground equipment (parks) + street furniture
-// (intersections): swing set, slide, fountain in green spaces; traffic lights
-// and stop signs at road junctions. Static, small, fire-and-forget — each
+// street-deco.js — street furniture at intersections and along roads: traffic
+// lights, signs, shelters and civic details. Static, small, fire-and-forget — each
 // model loads async and is placed once per spot; a load failure is silently
 // skipped (no crash, no hang).
 import * as THREE from 'three';
 import { createGLTFLoader } from '../shared/gltf.js';
 import { buildTrafficNetwork, isRoadsideSceneryClear, trafficLightSpots } from '../city-common/traffic-network.js';
 
-// CC0-only street/playground deco. Playground equipment (swing/slide) is still
-// pending CC0 replacements, but parks get a CC0 fountain (Poly Pizza, Isa
-// Lousberg). Street furniture comes from Kenney City Kit (Roads), CC0 —
-// stop/warning/street signs, cones, barriers, dumpsters, electricity poles and
-// traffic-light variants.
-const PLAYGROUND = [
-  { file: 'assets/models/street-deco/fountain.glb', name: 'fountain' },
-  { file: 'assets/models/street-deco/ferris-wheel.glb', name: 'ferris wheel' },
-  { file: 'assets/models/street-deco/gazebo.glb', name: 'gazebo' },
-];
+// Street furniture comes from Kenney City Kit (Roads), CC0. Park-centre props
+// are deliberately not installed here: parks are canvases for student models.
 const STREET_DECO = [
   { file: 'assets/models/street-deco/stop-sign.glb', name: 'stop sign' },
   { file: 'assets/models/street-deco/warning-sign.glb', name: 'warning sign' },
@@ -30,22 +21,12 @@ const STREET_DECO = [
 ];
 
 /**
- * Scatter playground + street deco. Parks get a swing/slide/fountain near the
- * centre; road intersections get a traffic light + stop sign. All async and
- * non-blocking.
+ * Scatter street deco. Road intersections get signals and roadside details.
+ * All async and non-blocking.
  */
 export function scatterStreetDeco(scene, layout, opts = {}) {
   const loader = createGLTFLoader();
   const schedule = opts.schedule || ((task) => task());
-  const parkSpots = (layout.parks || []).map((p) => ({ x: p.cx, z: p.cz, radius: p.radius || 40 }));
-
-  // Playground: one random piece per park (if any CC0 playground models exist).
-  for (const spot of parkSpots) {
-    if (!PLAYGROUND.length) break;
-    const def = PLAYGROUND[Math.floor(Math.random() * PLAYGROUND.length)];
-    place(loader, scene, def, spot.x, spot.z, Math.min(6, spot.radius * 0.25), 0, schedule);
-  }
-
   // Street deco: placed along roads but OFFSET onto the pavement. Roads are
   // stored as centreline polylines, so a bare segment midpoint sits in the
   // middle of the carriageway (cars drive the centreline) — and where roads

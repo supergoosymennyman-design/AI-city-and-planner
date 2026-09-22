@@ -11,8 +11,10 @@ const copy = {
  plannerUnlocked:['Planner access','規劃器使用權'], coachSeen:['Planner introduction','規劃器介紹'],
  pregame:['Academy records','學院紀錄'], badges:['Historical badges','歷史徽章'], cityName:['City name','城市名稱'],
  customModels:['My Models settings (re-add files on this device)','我的模型設定（請在此裝置重新加入檔案）'],
- cityLook:['City Look','城市風格'],
+  cityLook:['City Look','城市風格'],
+  daySky:['Day sky','日間天空'],
   groundTexture:['Ground Texture','地面材質'],
+  timeOfDay:['Time of day','時間'],
   trafficVehicles:['Road Traffic','道路交通'],
 };
 export const recoveryText = (key, lang) => copy[key]?.[lang.startsWith('zh') ? 1 : 0] || key;

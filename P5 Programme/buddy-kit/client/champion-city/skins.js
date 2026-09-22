@@ -212,8 +212,19 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin, opts =
       // switches tablet is not surprised when their champion reverts to the default.
       const note = document.createElement('div');
       note.className = 'skin-note';
-      note.textContent = t('skins.customNote');
+      const meta = state.custom.metadata;
+      note.textContent = meta
+        ? `Studio · ${meta.rigKind} · revision ${meta.studioRevision} · idle, walk, run ready`
+        : t('skins.customNote');
       card.append(name, btn2, rm, note);
+      if (opts.editStudioUrl) {
+        const edit = document.createElement('a'); edit.className = 'skin-equip'; edit.href = opts.editStudioUrl; edit.textContent = 'Edit in Studio'; card.append(edit);
+      }
+      if (typeof opts.onRestoreCustom === 'function') {
+        const restore = document.createElement('button'); restore.className = 'skin-equip'; restore.textContent = 'Restore earlier revision';
+        restore.addEventListener('click', async () => { const previous = await opts.onRestoreCustom(); if (!previous?.url) return; state.custom = previous; await champion.swapSkin(previous.url, CUSTOM_SKIN_ID); state.current = CUSTOM_SKIN_ID; render(); });
+        card.append(restore);
+      }
       list.appendChild(card);
     }
     for (const skin of SKINS) {

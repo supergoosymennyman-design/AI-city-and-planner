@@ -29,6 +29,7 @@
       "sourceUrl": "https://polyhaven.com/hdris",
       "sourceUrls": [
         "https://polyhaven.com/a/qwantani_dawn_puresky",
+        "https://polyhaven.com/a/qwantani_puresky",
         "https://polyhaven.com/a/kloppenheim_03_puresky",
         "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
         "https://polyhaven.com/a/kloofendal_overcast_puresky",
@@ -40,6 +41,9 @@
         { "file": "environment/qwantani-dawn.png", "role": "gallery-preview", "bytes": 259309 },
         { "file": "environment/qwantani-dawn-sky.jpg", "role": "equirectangular-background-tablet", "width": 2048, "height": 1024, "bytes": 47249 },
         { "file": "environment/qwantani-dawn-sky-4k.jpg", "role": "equirectangular-background-desktop", "width": 4096, "height": 2048, "bytes": 330301 },
+        { "file": "environment/qwantani-clear.png", "role": "gallery-preview", "width": 512, "height": 256, "bytes": 87901 },
+        { "file": "environment/qwantani-clear-sky.jpg", "role": "equirectangular-background-tablet", "width": 2048, "height": 1024, "bytes": 72174 },
+        { "file": "environment/qwantani-clear-sky-4k.jpg", "role": "equirectangular-background-desktop", "width": 4096, "height": 2048, "bytes": 252598 },
         { "file": "environment/kloppenheim-03.png", "role": "gallery-preview", "bytes": 362258 },
         { "file": "environment/kloppenheim-03-sky.jpg", "role": "equirectangular-background-tablet", "width": 2048, "height": 1024, "bytes": 99981 },
         { "file": "environment/kloppenheim-03-sky-4k.jpg", "role": "equirectangular-background-desktop", "width": 4096, "height": 2048, "bytes": 519678 },

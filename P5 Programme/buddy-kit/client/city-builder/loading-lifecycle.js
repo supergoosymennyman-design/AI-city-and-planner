@@ -67,20 +67,25 @@ export function createBootOwner(generation, env = globalThis) {
   return owner;
 }
 
-export function createLoadQueue({ concurrency = 4, isActive = () => true } = {}) {
+export function createLoadQueue({ concurrency = 4, isActive = () => true, onChange = () => {} } = {}) {
   const limit = Math.max(1, Math.floor(concurrency));
   const pending = [];
   let running = 0;
   let cancelled = false;
+  let sequence = 0;
 
   function pump() {
     while (!cancelled && isActive() && running < limit && pending.length) {
       const job = pending.shift();
       running++;
+      onChange({ running, pending: pending.length, concurrency: limit, cancelled });
       Promise.resolve().then(job.task).then(
-        (value) => job.resolve(isActive() && !cancelled ? value : undefined),
+        (value) => {
+          if (isActive() && !cancelled) job.resolve(value);
+          else { try { job.onStale?.(value); } finally { job.resolve(undefined); } }
+        },
         (error) => job.reject(error),
-      ).finally(() => { running--; pump(); });
+      ).finally(() => { running--; onChange({ running, pending: pending.length, concurrency: limit, cancelled }); pump(); });
     }
     if ((cancelled || !isActive()) && pending.length) {
       for (const job of pending.splice(0)) job.resolve(undefined);
@@ -88,11 +93,17 @@ export function createLoadQueue({ concurrency = 4, isActive = () => true } = {})
   }
 
   return {
-    add(task) {
+    add(task, { priority = 0, onStale = null } = {}) {
       if (cancelled || !isActive()) return Promise.resolve(undefined);
-      return new Promise((resolve, reject) => { pending.push({ task, resolve, reject }); pump(); });
+      return new Promise((resolve, reject) => {
+        pending.push({ task, resolve, reject, onStale, priority: Number.isFinite(priority) ? priority : 0, sequence: sequence++ });
+        // Higher priority starts first. Sequence makes equal priorities stable.
+        pending.sort((a, b) => b.priority - a.priority || a.sequence - b.sequence);
+        onChange({ running, pending: pending.length, concurrency: limit, cancelled });
+        pump();
+      });
     },
-    cancel() { cancelled = true; pump(); },
+    cancel() { cancelled = true; onChange({ running, pending: pending.length, concurrency: limit, cancelled }); pump(); },
     stats() { return { running, pending: pending.length, concurrency: limit, cancelled }; },
   };
 }

@@ -278,6 +278,38 @@ export function densifyLayout(layout, opts = {}) {
   return { layout, grow: 1, bounds };
 }
 
+/**
+ * Bounds used to frame inhabited content. Buildings and parks define the
+ * primary view; roads are only a fallback for an unbuilt plan. No geometry is
+ * transformed, and the result is deliberately separate from minimap bounds.
+ */
+export function occupiedBounds(layout, opts = {}) {
+  const pad = opts.pad ?? 80;
+  const scale = layout?.scaleMeters || DEFAULT_SCALE;
+  let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+  const consider = (x, z) => {
+    minX = Math.min(minX, x); minZ = Math.min(minZ, z);
+    maxX = Math.max(maxX, x); maxZ = Math.max(maxZ, z);
+  };
+  for (const b of layout?.buildings || []) {
+    const fp = b.footprint || [20, 20];
+    consider(b.pos[0] - fp[0] / 2, b.pos[1] - fp[1] / 2);
+    consider(b.pos[0] + fp[0] / 2, b.pos[1] + fp[1] / 2);
+  }
+  for (const p of layout?.parks || []) {
+    consider(p.cx - p.radius, p.cz - p.radius);
+    consider(p.cx + p.radius, p.cz + p.radius);
+  }
+  if (!Number.isFinite(minX)) {
+    for (const road of layout?.roads || []) for (const [x, z] of road.points || []) consider(x, z);
+  }
+  if (!Number.isFinite(minX)) return { minX: 0, minZ: 0, maxX: scale, maxZ: scale };
+  return {
+    minX: Math.max(0, minX - pad), minZ: Math.max(0, minZ - pad),
+    maxX: Math.min(scale, maxX + pad), maxZ: Math.min(scale, maxZ + pad),
+  };
+}
+
 /** Content bounding box (buildings ± footprint, road points, parks ± radius). */
 function contentBounds(layout, SCALE) {
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;

@@ -27,9 +27,12 @@ import { computeMetrics, METRIC_PARAMS, GOAL_KEYS, stars, normalizeWeights, defa
 import { optimizeLayout, proposeMoves, applyMove, stableSeed } from '../city-common/optimize.js';
 import { readMilestones, writeMilestones, evaluateMilestones, awardMilestone, milestone } from '../city-common/milestones.js';
 import { computeWalkReach, walkPath, homeReachRoutes, WALK_BUDGET } from '../city-common/walkability.js';
-import { ROAD_TEMPLATES, getRoadTemplate } from '../city-common/road-templates.js';
-import { onRoadBuildingIndices, roadBands, rectRoadClearance, clearanceOffset, tidyRoads, sampleCatmullRom, ROAD_CLEARANCE_MARGIN, pointToSegment, detectJunctions, materializeJunctions, junctionNodes } from '../city-common/road-geometry.js';
-import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, rememberSavedAt } from '../city-common/champion-file.js';
+import { ROAD_TEMPLATES, getRoadTemplate, roadTemplateThumbnailSvg } from '../city-common/road-templates.js';
+import { onRoadBuildingIndices, roadBands, rectRoadClearance, clearanceOffset, tidyRoads, sampleCatmullRom, ROAD_CLEARANCE_MARGIN, pointToSegment, detectJunctions, materializeJunctions, junctionNodes, resolveRoadSafePlacement } from '../city-common/road-geometry.js';
+import { analyzeRoadTopology } from '../city-common/road-topology.js';
+import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, rememberSavedAt, lastSavedAt } from '../city-common/champion-file.js';
+import { createSnapshotHistory } from '../city-common/command-history.js';
+import { createProjectStateCoordinator } from '../city-common/project-state-coordinator.js';
 import { initI18n, currentLang, t, mountLangToggle, applyStatic } from './i18n.js';
 
 // Language must be resolved BEFORE the first module-scope render: renderTemplates()
@@ -57,18 +60,12 @@ function templateName(id) {
   }
   return t('planner.template.' + id);
 }
-const GOOD_FOR_KEY = {
-  'any mayor': 'any',
-  'the Busy Mayor': 'busy',
-  'the Quiet Mayor': 'quiet',
-  'the Healthy Mayor': 'healthy',
-  'the Walkable Mayor': 'walkable',
-  'the Green Mayor': 'green',
-};
-function templateGoodFor(raw) {
-  if (currentLang() !== 'zh-Hant') return 'for ' + raw;   // byte-for-byte today
-  const k = GOOD_FOR_KEY[raw];
-  return t('planner.template.forPrefix') + (k ? t('planner.template.goodFor.' + k) : raw);
+function templateNote(template) {
+  const key = 'planner.template.' + template.id + '.note';
+  const localized = t(key);
+  // i18n returns its key for a missing string; the English catalog note is a
+  // deliberate safe fallback for new templates and older language packs.
+  return localized === key ? template.note : localized;
 }
 function planThemeLabel(action) {
   if (currentLang() !== 'zh-Hant') return THEME_LABEL[action] || action;
@@ -84,7 +81,7 @@ function buddyMsg(nameKey, msgKey) {
 
 const SCALE = 2000;                  // plan meters per side
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
-const MAX_UNDO = 60;
+const MAX_UNDO = 50;
 
 // prefers-reduced-motion must be honoured in JS animation loops, not just CSS
 // (P5-LESSON-CONVENTIONS). Under reduce, highlights/route counts render once.
@@ -105,7 +102,6 @@ const state = {
   selectedType: 'housing',
   selectedIdx: -1,
   view: { px: 0.18, ox: 0, oy: 0 },   // px/meter; screen offset of plan (0,0)
-  undoStack: [],
   gesture: null,
   aiBusy: false,
   // Goals: null weights = Balanced (default fixed blend).
@@ -129,6 +125,37 @@ const state = {
   connectAsked: false,    // the suggestion was offered once this session
   connectPreview: null,   // candidates highlighted while the connect sheet is open
 };
+
+const projectState = createProjectStateCoordinator();
+const editorHistory = createSnapshotHistory({
+  limit: MAX_UNDO,
+  snapshot: () => ({
+    layout: JSON.parse(JSON.stringify(state.layout)),
+    goals: JSON.parse(JSON.stringify(state.goals)),
+    // This object is immutable and may contain a multi-megabyte raw import.
+    // Preserve its reference instead of duplicating it for every gesture.
+    rawBaseline: state.rawBaseline,
+  }),
+  clone: value => ({
+    layout: JSON.parse(JSON.stringify(value.layout)),
+    goals: JSON.parse(JSON.stringify(value.goals)),
+    rawBaseline: value.rawBaseline,
+  }),
+  equals: (a, b) => a.rawBaseline === b.rawBaseline
+    && JSON.stringify(a.layout) === JSON.stringify(b.layout)
+    && JSON.stringify(a.goals) === JSON.stringify(b.goals),
+  restore: value => {
+    state.layout = value.layout;
+    state.goals = value.goals;
+    state.rawBaseline = value.rawBaseline;
+  },
+  onChange: ({ canUndo, canRedo }) => {
+    const undoButton = document.getElementById('btn-undo');
+    const redoButton = document.getElementById('btn-redo');
+    if (undoButton) undoButton.disabled = !canUndo;
+    if (redoButton) redoButton.disabled = !canRedo;
+  },
+});
 
 // ─── DOM ────────────────────────────────────────────────
 const canvas = document.getElementById('map');
@@ -849,7 +876,9 @@ function commitRoad(points) {
   // showed the child which roads it touched, and Undo reverses the whole
   // gesture, so this is approval-by-action rather than a silent change.
   const joined = weldRoads({ undo: false });
+  const moved = makeBuildingsRoadSafe();
   if (joined) toast(L('planner.toast.welded', { n: joined }));
+  else if (moved) toast(`🛣️ Moved ${moved} object${moved === 1 ? '' : 's'} the smallest distance off the road.`);
   updateMetrics();
   render();
   return true;
@@ -889,15 +918,7 @@ function tidyUpRoads() {
   if (!validateLayout({ ...state.layout, roads }).ok) { toast(t('planner.toast.tidyNone')); return; }
   pushUndo();
   state.layout.roads = roads;
-  const bands = roadBands(state.layout.roads);
-  let moved = 0;
-  for (const b of state.layout.buildings) {
-    if (b.locked || isSpecial(b.type)) continue;
-    const fp = b.footprint || typeSpec(b.type)?.footprint || [20, 20];
-    if (rectRoadClearance(b.pos[0], b.pos[1], fp, bands) >= ROAD_CLEARANCE_MARGIN) continue;
-    const cand = clearanceOffset(b, state.layout.buildings.filter((o) => o !== b), bands, { scale: state.layout.scaleMeters });
-    if (cand) { b.pos = [Math.round(cand.x * 2) / 2, Math.round(cand.z * 2) / 2]; moved++; }
-  }
+  const moved = makeBuildingsRoadSafe();
   state.selectedIdx = -1;
   cancelCurve(false);
   updateMetrics();
@@ -905,6 +926,24 @@ function tidyUpRoads() {
   const joined = (stats.endpointMerges || 0) + (stats.tJunctions || 0);
   if (stats.pointsAfter === stats.pointsBefore && !joined && !moved) toast(t('planner.toast.tidyNone'));
   else toast(L('planner.toast.tidy', { r: state.layout.roads.length, j: joined, b: moved }));
+}
+
+/** Roads are the sole exception to locks: every object gets only the nearest
+ * safe nudge, while locks remain authoritative for all ordinary restructuring. */
+function makeBuildingsRoadSafe() {
+  let moved = 0;
+  for (const b of state.layout.buildings) {
+    const resolved = resolveRoadSafePlacement({
+      position: b.pos,
+      footprint: b.footprint || typeSpec(b.type)?.footprint || [20, 20],
+      rotation: b.rotation || 0,
+      roads: state.layout,
+      bounds: [0, 0, state.layout.scaleMeters || SCALE, state.layout.scaleMeters || SCALE],
+      obstacles: state.layout.buildings.filter((o) => o !== b),
+    });
+    if (resolved.ok && resolved.moved) { b.pos = resolved.position; moved++; }
+  }
+  return moved;
 }
 
 // ─── Weld loose road connections (opt-in) ───────────────────────────────
@@ -929,6 +968,16 @@ function weldProtectedFootprints() {
 /** Nearest existing road end/body a drawn point could snap onto (or null). */
 function snapTargetFor(x, y) {
   let best = null;
+  // The active stroke's first point is a real snap target. This is what lets a
+  // single freehand/curved stroke visibly close itself before it is committed.
+  const activeStart = state.gesture?.roadPts?.[0]
+    || (state.curvePts.length ? { x: state.curvePts[0][0], y: state.curvePts[0][1] } : null);
+  if (activeStart) {
+    const travelled = state.gesture?.roadPts?.reduce((sum, p, i, list) => i ? sum + Math.hypot(p.x - list[i - 1].x, p.y - list[i - 1].y) : 0, 0)
+      || polylineLength(state.curvePts);
+    const d = Math.hypot(activeStart.x - x, activeStart.y - y);
+    if (travelled >= 40 && d <= JOIN_DIST) best = { x: activeStart.x, y: activeStart.y, d, kind: 'loop' };
+  }
   for (const r of state.layout.roads) {
     const pts = r.points || [];
     for (const end of [0, pts.length - 1]) {
@@ -954,7 +1003,7 @@ function snappedPlan(p) {
 
 /** Weld every detected junction into the current roads. Returns joins or 0. */
 function weldRoads({ undo = true } = {}) {
-  if (state.layout.roads.length < 2) return 0;
+  if (!state.layout.roads.length) return 0;
   const { roads, stats } = materializeJunctions(state.layout, {
     closeLoops: true,
     endpointDist: JOIN_DIST,
@@ -971,7 +1020,7 @@ function weldRoads({ undo = true } = {}) {
 
 /** Recount loose joins and show/hide the join suggestion button. */
 function refreshConnect() {
-  const count = state.layout.roads.length >= 2
+  const count = state.layout.roads.length
     ? detectJunctions(state.layout, { endpointDist: JOIN_DIST, tJunctionDist: JOIN_DIST }).candidates.length
     : 0;
   state.connectCount = count;
@@ -1317,6 +1366,13 @@ function endPointer(e) {
     }
     case 'move': {
       if (g.savedUndo) {
+        const b = state.layout.buildings[g.movingIdx];
+        if (b) {
+          const safe = resolveRoadSafePlacement({ position: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint,
+            rotation: b.rotation || 0, roads: state.layout, bounds: [0, 0, SCALE, SCALE],
+            obstacles: state.layout.buildings.filter((o) => o !== b) });
+          if (safe.ok) b.pos = safe.position;
+        }
         updateMetrics();   // computed once at gesture end, not per pointermove
       }
       break;
@@ -1381,10 +1437,14 @@ function hitBuilding(sx, sy) {
 function placeBuilding(x, y) {
   const spec = typeSpec(state.selectedType);
   if (!spec) return;
+  const safe = resolveRoadSafePlacement({ position: [Math.round(x * 2) / 2, Math.round(y * 2) / 2], footprint: spec.footprint,
+    roads: state.layout, bounds: [0, 0, state.layout.scaleMeters || SCALE, state.layout.scaleMeters || SCALE],
+    obstacles: state.layout.buildings, maxDistance: 80 });
+  if (!safe.ok) { toast('🚧 No safe clear space here — try another side of the road.'); return; }
   pushUndo();
   state.layout.buildings.push({
     type: state.selectedType,
-    pos: [Math.round(x * 2) / 2, Math.round(y * 2) / 2],
+    pos: safe.position,
     footprint: spec.footprint,
     height: spec.height,
   });
@@ -1394,19 +1454,11 @@ function placeBuilding(x, y) {
 
 // ─── Undo / clear ───────────────────────────────────────
 function pushUndo() {
-  state.undoStack.push({
-    snapshot: JSON.stringify({ layout: state.layout, goals: state.goals }),
-    rawBaseline: state.rawBaseline, // immutable reference; do not copy a 5 MiB raw section per edit
-  });
-  if (state.undoStack.length > MAX_UNDO) state.undoStack.shift();
+  editorHistory.capture();
 }
 function undo() {
-  const snap = state.undoStack.pop();
-  if (snap) {
-    const previous = JSON.parse(snap.snapshot);
-    state.layout = previous.layout;
-    state.goals = previous.goals;
-    state.rawBaseline = snap.rawBaseline;
+  const result = editorHistory.undo();
+  if (result.ok) {
     state.goalTab = state.goals.mode === 'mayor' || state.goals.mode === 'default' ? 'mayor' : 'custom';
     state.selectedIdx = -1;
     updateMetrics();
@@ -1414,6 +1466,18 @@ function undo() {
     toast(t('planner.toast.undo'));
   } else {
     toast(t('planner.toast.nothingUndo'));
+  }
+}
+function redo() {
+  const result = editorHistory.redo();
+  if (result.ok) {
+    state.goalTab = state.goals.mode === 'mayor' || state.goals.mode === 'default' ? 'mayor' : 'custom';
+    state.selectedIdx = -1;
+    updateMetrics();
+    render();
+    toast(t('planner.toast.redo'));
+  } else {
+    toast(t('planner.toast.nothingRedo'));
   }
 }
 function clearAll() {
@@ -1505,7 +1569,8 @@ function renderTemplates() {
     const item = document.createElement('button');
     item.className = 'template-item';
     item.dataset.template = template.id;
-    item.innerHTML = `<span class="tpl-emoji">${template.emoji}</span> <span class="tpl-name">${templateName(template.id)}</span><span class="tpl-good">${templateGoodFor(template.goodFor)}</span>`;
+    item.setAttribute('aria-label', `${templateName(template.id)} — ${templateNote(template)}`);
+    item.innerHTML = `<span class="tpl-preview">${roadTemplateThumbnailSvg(template)}</span><span class="tpl-copy"><span class="tpl-emoji">${template.emoji}</span><span class="tpl-name">${templateName(template.id)}</span><span class="tpl-good">${templateNote(template)}</span></span>`;
     item.addEventListener('click', () => {
       const apply = () => {
         loadRoadTemplate(template.id);
@@ -1660,6 +1725,17 @@ function updateMetrics() {
   // Advisory only: loose road joins are worth fixing but never block anything.
   const looseCount = refreshConnect();
   if (looseCount) displayProblems.push(L('planner.problem.connect', { n: looseCount }));
+  const topology = analyzeRoadTopology(state.layout, { touchTolerance: JOIN_DIST, maxRepairDistance: 90,
+    protectedFootprints: weldProtectedFootprints() });
+  state.trafficReadiness = topology;
+  if (topology.readiness === 'cars-ready') {
+    // Positive readiness is exposed in state for the status UI/debug hook but
+    // is not phrased as a problem.
+  } else if (topology.readiness === 'connect-this-gap') {
+    displayProblems.push('Connect this gap to make a safe circuit for cars.');
+  } else if (topology.readiness === 'draw-a-loop') {
+    displayProblems.push('Cars need a circuit: draw a road back to an earlier road instead of ending every branch.');
+  }
   const onRoadCount = onRoadUnprotected.length;
   if (_booted && onRoadCount > (state._onRoadCount || 0)) toast(L('planner.toast.onRoad', { n: onRoadCount }));
   state._onRoadCount = onRoadCount;
@@ -1955,7 +2031,7 @@ function renderReceiptFastest(weights) {
     host.innerHTML = `<div class="ff-line">${t('planner.receipt.fastestNone')}</div>`;
     return;
   }
-  const delta = best.deltaScore > 0 ? `+${best.deltaScore}` : String(best.deltaScore);
+  const delta = moveProgressLabel(best);
   host.classList.remove('hidden');
   host.innerHTML = `
     <div class="ff-line"><span>🚀 ${t('planner.receipt.fastestLabel')}</span></div>
@@ -1977,6 +2053,14 @@ function moveEmoji(m) {
   if (m.action === 'remove') return '🗑️';
   if (m.action === 'move') return '🚚';
   return '🏗️';
+}
+
+function moveProgressLabel(move) {
+  if (move.deltaScore > 0) return `+${move.deltaScore}`;
+  if ((move.viabilityChange || 0) > 0) return currentLang() === 'zh-Hant'
+    ? `可行性 +${move.viabilityChange}`
+    : `viability +${move.viabilityChange}`;
+  return String(move.deltaScore);
 }
 
 // ─── First-run coach ────────────────────────────────────
@@ -2193,7 +2277,7 @@ function renderMyMoveReveal() {
   const body = document.getElementById('mymove-body');
   const { moves, chosenMove, chosenReason } = state.mymove;
   const chosen = moves[chosenMove];
-  const best = moves[0];   // sorted by deltaScore desc = greedy pick
+  const best = moves[0];   // first step in the shared Optimise sequence
   const strictBest = chosenMove === 0;
   // Near-tie tolerance: a move within a small band of the greedy best is still
   // a correct prediction. Hybrid band so tiny deltas (0.3) don't get an
@@ -2222,7 +2306,7 @@ function renderMyMoveReveal() {
     <div class="mymove-question">${t('planner.mymove.changedFor')}<strong>${moveLabel(chosen)}</strong>${t('planner.mymove.changedForPost')}</div>
     <div class="reveal-receipt">${receiptDeltaHTML(chosen, chosenReason, reasonCorrect)}</div>
     ${chosenMove !== 0 ? `<div class="reveal-greedy">
-      <strong>${t('planner.mymove.greedyPick')}</strong> ${moveLabel(best)} (${L('planner.scoreDelta', { n: (best.deltaScore > 0 ? '+' : '') + best.deltaScore })}).${t('planner.mymove.greedyWhy')}
+      <strong>${t('planner.mymove.greedyPick')}</strong> ${moveLabel(best)} (${moveProgressLabel(best)}).${t('planner.mymove.greedyWhy')}
     </div>` : ''}
     <div class="reveal-greedy">
       <strong>${t('planner.mymove.ruleTitle')}</strong> ${t('planner.mymove.ruleBody')}
@@ -2318,8 +2402,13 @@ function receiptDeltaHTML(move, chosenReason, reasonCorrect) {
   const reasonBadge = chosenReason
     ? `<div class="rr-line"><span>${L('planner.mm.yourReason', { label: reasonChipLabel(chosenReason) })}</span><span class="${reasonCorrect ? 'rr-up' : 'rr-down'}">${reasonCorrect ? t('planner.mm.right') : t('planner.mm.wrong')}</span></div>`
     : '';
+  const progress = (move.viabilityChange || 0) > 0 && move.deltaScore <= 0
+    ? `<div class="rr-line"><strong>${currentLang() === 'zh-Hant' ? '區域目標進度' : 'District target progress'}</strong><strong>+${move.viabilityChange}</strong></div>`
+    : '';
+  const signed = move.deltaScore > 0 ? `+${move.deltaScore}` : String(move.deltaScore);
   return `
-    <div class="rr-line"><strong>${t('planner.score.label')}</strong><strong>${move.beforeScore} → ${move.afterScore} (+${move.deltaScore})</strong></div>
+    <div class="rr-line"><strong>${t('planner.score.label')}</strong><strong>${move.beforeScore} → ${move.afterScore} (${signed})</strong></div>
+    ${progress}
     ${reasonBadge}
     ${lines.join('')}`;
 }
@@ -2377,7 +2466,7 @@ function serializeLayout() {
   };
 }
 
-function exportCity() {
+function exportCity(mode = 'explore') {
   const layout = serializeLayout();
   const v = validateLayout(layout);
   if (!v.ok) {
@@ -2387,8 +2476,7 @@ function exportCity() {
   const json = JSON.stringify(layout, null, 2);
   // Save to localStorage — the SAME origin now serves the 3D city, so this IS
   // the handoff (no file download/upload round-trip). Then walk into it.
-  let savedToStorage = false;
-  try { localStorage.setItem(STORAGE_KEY, json); savedToStorage = true; } catch (e) { /* quota — fall back below */ }
+  const savedToStorage = projectState.saveSection('layout', json, { source: 'planner-handoff' }).ok;
   if (!savedToStorage) {
     // Storage full / blocked — fall back to a download so the student can still
     // reach the 3D city by uploading the file there. Keep the instruction on
@@ -2410,7 +2498,7 @@ function exportCity() {
     note: noRoadsNote,
   }));
   // Primary CTA: the 3D city auto-loads the saved layout (?from=planner).
-  window.location.href = '/city-builder/?from=planner';
+  window.location.href = `/city-builder/?from=planner&mode=${mode === 'decorate' ? 'decorate' : 'explore'}`;
 }
 
 /** Optional backup download (separate from the save-and-view flow). */
@@ -2448,8 +2536,7 @@ function saveLayoutToStorage() {
     const layout = serializeLayout();
     const v = validateLayout(layout);
     if (!v.ok) return false;   // never persist an invalid city
-    localStorage.setItem(STORAGE_KEY, currentLayoutString());
-    return true;
+    return projectState.saveSection('layout', currentLayoutString(), { source: 'planner-autosave' }).ok;
   } catch (e) {
     return false;              // quota / blocked storage — keep the in-memory city
   }
@@ -2464,10 +2551,21 @@ function setAutosaveStatus(kind) {
   if (kind === 'saving') {
     el.textContent = t('planner.autosave.saving');
     el.className = 'autosave-status show';
-  } else {
+  } else if (kind === 'saved') {
     el.textContent = t('planner.autosave.saved');
     el.className = 'autosave-status show saved';
-    _statusTimer = setTimeout(() => { el.className = 'autosave-status'; }, 2200);
+    _statusTimer = setTimeout(() => {
+      const backupAt = Date.parse(lastSavedAt() || '');
+      if (!Number.isFinite(backupAt) || Date.now() - backupAt > 7 * 86400000) {
+        el.textContent = t('planner.autosave.backup');
+        el.className = 'autosave-status show backup';
+      } else {
+        el.className = 'autosave-status';
+      }
+    }, 2200);
+  } else {
+    el.textContent = t('planner.autosave.error');
+    el.className = 'autosave-status show error';
   }
 }
 
@@ -2477,14 +2575,14 @@ function scheduleAutosave() {
   clearTimeout(_autosaveTimer);
   setAutosaveStatus('saving');
   _autosaveTimer = setTimeout(() => {
-    if (saveLayoutToStorage()) setAutosaveStatus('saved');
+    setAutosaveStatus(saveLayoutToStorage() ? 'saved' : 'error');
   }, AUTOSAVE_DELAY_MS);
 }
 
 /** Write immediately (tab hidden / closing) so nothing pending is lost. */
 function flushAutosave() {
   clearTimeout(_autosaveTimer);
-  if (saveLayoutToStorage()) setAutosaveStatus('saved');
+  setAutosaveStatus(saveLayoutToStorage() ? 'saved' : 'error');
 }
 
 // Mobile Safari does not reliably fire beforeunload; visibilitychange + pagehide
@@ -2912,6 +3010,14 @@ function flashChanges(oldLayout, diff) {
 }
 // ─── Wire up UI ─────────────────────────────────────────
 document.getElementById('btn-undo').addEventListener('click', undo);
+document.getElementById('btn-redo').addEventListener('click', redo);
+document.addEventListener('keydown', (event) => {
+  const target = event.target;
+  if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== 'z') return;
+  if (target?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+  event.preventDefault();
+  if (event.shiftKey) redo(); else undo();
+});
 document.getElementById('btn-clear').addEventListener('click', deleteSelectedOrClear);
 // Delete/Backspace removes the selected building (or clears when none), but
 // never while the child is typing in a text field.
@@ -2925,7 +3031,8 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('btn-ai').addEventListener('click', askOptimise);
 document.getElementById('btn-step').addEventListener('click', runMyMove);
 document.getElementById('btn-academy').addEventListener('click', () => { window.location.href = '/pregame/'; });
-document.getElementById('btn-export').addEventListener('click', exportCity);
+document.getElementById('btn-export').addEventListener('click', () => exportCity('explore'));
+document.getElementById('btn-decorate').addEventListener('click', () => exportCity('decorate'));
 document.querySelectorAll('.tool-btn').forEach((btn) => {
   btn.addEventListener('click', () => setTool(btn.dataset.tool));
 });
@@ -2982,13 +3089,24 @@ viewRanges.addEventListener('click', () => setViewMode('ranges'));
 // Road template menu
 const templateBtn = document.getElementById('btn-template');
 renderTemplates();
+let templateFocusReturn = null;
+function closeTemplateMenu() {
+  if (templateMenu.classList.contains('hidden')) return;
+  templateMenu.classList.add('hidden');
+  if (templateFocusReturn) templateFocusReturn.focus();
+  templateFocusReturn = null;
+}
 templateBtn.addEventListener('click', (e) => {
   e.stopPropagation();
-  templateMenu.classList.toggle('hidden');
+  if (!templateMenu.classList.contains('hidden')) return closeTemplateMenu();
+  templateFocusReturn = document.activeElement;
+  templateMenu.classList.remove('hidden');
+  templateMenu.querySelector('.template-item')?.focus();
 });
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.template-wrap')) templateMenu.classList.add('hidden');
+  if (!e.target.closest('.template-wrap')) closeTemplateMenu();
 });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTemplateMenu(); });
 
 // Open / import menu
 const importWrap = document.getElementById('import-wrap');

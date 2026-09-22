@@ -207,11 +207,13 @@ function joinsAtNode(from, to) {
   return Math.hypot(from.to.x - to.from.x, from.to.z - to.from.z) < .08;
 }
 
-function findDirectedCycle(component, usableSet, { straightOnly = false, kindByNode = null } = {}) {
+function findDirectedCycle(component, usableSet, { straightOnly = false, kindByNode = null, budget = null } = {}) {
   const maxDepth = Math.max(3, component.length / 2);
   for (const start of [...component].sort((a, b) => a.id - b.id)) {
+    if (budget && budget.used >= budget.limit) return null;
     const walk = [start], used = new Set([physicalKey(start)]);
     const visit = (current) => {
+      if (budget && ++budget.used > budget.limit) return null;
       let exits = current.to.links.filter(next => usableSet.has(next) && next.from !== next.to && joinsAtNode(current, next) && next.to !== current.from);
       // At a plain crossing only the straight continuation may be used. A
       // component that cannot circulate without turning there (a pure grid)
@@ -222,6 +224,7 @@ function findDirectedCycle(component, usableSet, { straightOnly = false, kindByN
       }
       exits.sort((a, b) => a.id - b.id);
       for (const next of exits) {
+        if (budget && ++budget.used > budget.limit) return null;
         const key = physicalKey(next);
         // An edge may never be reused — not even to close. Without this a spur
         // could "close" by doubling back on its own reverse, inventing a U-turn
@@ -255,10 +258,24 @@ const MAX_LOOPS_PER_COMPONENT = 4;
  * Branches and cul-de-sacs without a paved, lane-valid return circuit receive
  * no ambient vehicles rather than a visible U-turn or a disappearing model.
  */
-export function planTrafficLoops(roadsOrNetwork, { minLinkLength = 12, minRoadWidth = 5 } = {}) {
+export function planTrafficLoops(roadsOrNetwork, { minLinkLength = 1, minRoadWidth = 5 } = {}) {
   const network = Array.isArray(roadsOrNetwork) ? buildTrafficNetwork(roadsOrNetwork) : roadsOrNetwork;
+  // A child's freehand stroke is sampled every ~2-3 m, so a short link is an
+  // ordinary continuation of the SAME road, not a broken fragment. Excluding it
+  // fragmented a genuine closed ring into 24 pieces and left the city carless.
+  // Connectivity is therefore judged by width (a car cannot use a footpath);
+  // the length floor only rejects truly degenerate slivers, and vehicle
+  // PLACEMENT stays length-guarded separately (initialLoopPlacements refuses a
+  // link shorter than a car, and routeFromWalk still demands a real >= 18 m
+  // circuit). Widening the floor from 12 m to 1 m recovers hand-drawn rings
+  // without changing any authored network (sample city + every road template
+  // have zero links under 12 m).
   const usable = (network?.links || []).filter(link => link.length >= minLinkLength && (link.width || 0) >= minRoadWidth);
   const usableSet = new Set(usable);
+  // Hard deterministic guard for adversarial dense imports. The physical edge
+  // search remains complete for ordinary student networks, but can never fan
+  // out indefinitely on a 4,000-point mesh.
+  const budget = { used: 0, limit: Math.max(20000, Math.min(120000, usable.length * 40)) };
   const seen = new Set(), components = [], routes = [];
   for (const start of usable) {
     if (seen.has(start)) continue;
@@ -281,10 +298,10 @@ export function planTrafficLoops(roadsOrNetwork, { minLinkLength = 12, minRoadWi
       // Prefer the calm straight-only crossing. Only if that leaves this circuit
       // unfound (a pure grid has no way around a block without turning) do we
       // fall back to allowing legal turns there.
-      let walked = findDirectedCycle(component, available, { straightOnly: true, kindByNode });
+      let walked = findDirectedCycle(component, available, { straightOnly: true, kindByNode, budget });
       let route = walked && routeFromWalk(walked, componentId, network);
       if (!route) {
-        walked = findDirectedCycle(component, available, { straightOnly: false, kindByNode });
+        walked = findDirectedCycle(component, available, { straightOnly: false, kindByNode, budget });
         route = walked && routeFromWalk(walked, componentId, network);
       }
       if (!walked) break;
@@ -296,11 +313,12 @@ export function planTrafficLoops(roadsOrNetwork, { minLinkLength = 12, minRoadWi
   return Object.freeze({ network, routes: Object.freeze(routes), componentCount: components.length,
     coveredComponents: new Set(routes.map(route => route.componentId)).size,
     omittedComponents: components.length - new Set(routes.map(route => route.componentId)).size,
-    omittedLinks: usable.length - covered.size });
+    omittedLinks: usable.length - covered.size, operationCount: budget.used, operationLimit: budget.limit,
+    budgetExhausted: budget.used >= budget.limit });
 }
 
 /** Deterministic, evenly spread starting positions for a continuous fleet. */
-export function initialLoopPlacements(routePlan, count) {
+export function initialLoopPlacements(routePlan, count, spawn = null) {
   const routes = routePlan?.routes || [];
   if (!routes.length || count <= 0) return [];
   // Opening bodies live on the interior of ordinary lane links, never on an
@@ -321,7 +339,25 @@ export function initialLoopPlacements(routePlan, count) {
     }
     placements.push({ route: candidate.route, routeStep: candidate.routeStep, link: candidate.link, dist: 4 + remaining });
   }
-  return placements;
+  if (!spawn || !placements.length) return placements;
+
+  // The first rendered car should be visible from the Champion, while the
+  // physical set of placements remains evenly spread over all admitted loops.
+  // Reordering (rather than inventing extra positions) preserves headway and
+  // district coverage. Reserve at most two candidates on the nearest circuit.
+  let nearestRoute = null, nearestRouteDistance = Infinity;
+  for (const route of routes) for (const link of route.links) {
+    const near = nearestDistanceOnLink(link, spawn);
+    if (near.distance < nearestRouteDistance) { nearestRouteDistance = near.distance; nearestRoute = route; }
+  }
+  const nearby = placements
+    .map((placement, index) => ({ placement, index, ...nearestDistanceOnLink(placement.link, spawn) }))
+    .filter((item) => item.placement.route === nearestRoute)
+    .sort((a, b) => a.distance - b.distance || a.index - b.index)
+    .slice(0, Math.min(2, count));
+  if (!nearby.length) return placements;
+  const reserved = new Set(nearby.map((item) => item.index));
+  return [...nearby.map((item) => item.placement), ...placements.filter((_, index) => !reserved.has(index))];
 }
 
 function nearestDistanceOnLink(link, spawn) {

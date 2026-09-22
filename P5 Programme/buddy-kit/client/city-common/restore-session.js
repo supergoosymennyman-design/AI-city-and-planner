@@ -1,5 +1,6 @@
 import { recoveryText } from './recovery-copy.js';
-import { CF_KEYS, writeState, downloadState } from './champion-file.js';
+import { CF_KEYS, downloadState } from './champion-file.js';
+import { createProjectStateCoordinator } from './project-state-coordinator.js';
 
 // In-memory only. Old scene/editor writes stay suspended until the new page boots.
 export let restoreActive = false;
@@ -8,7 +9,8 @@ export function restoreChampion(state, snapshot, suspend = () => {}) {
   const before = snapshot();
   restoreActive = true;
   suspend();
-  const apply = () => writeState(state);
+  const coordinator = createProjectStateCoordinator();
+  const apply = () => coordinator.commit(state, { source: 'champion-file-restore' });
   const result = apply();
   if (result.ok) { window.location.reload(); return; }
   const tr = key => recoveryText(key, document.documentElement.lang);

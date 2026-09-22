@@ -77,8 +77,7 @@ export function capabilityDescriptor(cap) {
     evidenceCount: Array.isArray(cap.evidence) ? cap.evidence.length : 0,
     hasCityMapping: !!(cap.city && cap.city.mapping),
     mount: cap.city?.mount || null,
-    // Stage 1 honesty: we do NOT claim it is governing the city yet.
-    connected: false,
+    connected: runSelftest(cap).ok,
   };
 }
 
@@ -87,6 +86,25 @@ export function stage1Note(zh = false) {
   return zh
     ? '第一階段：只展示匯入的資料與證據。不執行推論，也不控制城市。'
     : 'Stage 1: imported data and evidence on display only. No inference or city control.';
+}
+
+/** Immutable installation record. The source machine revision is part of its
+ * identity; City never silently replaces one published revision with another. */
+export function installCapability(cap) {
+  const parsed = parseCapability(cap);
+  if (!parsed.ok) return parsed;
+  const selftest = runSelftest(parsed.capability);
+  return {
+    ok: true,
+    installation: {
+      id: `${parsed.capability.id}@${parsed.capability.revision || 1}`,
+      capabilityId: parsed.capability.id,
+      machineRevision: parsed.capability.revision || 1,
+      mode: selftest.ok ? 'live-running' : 'display-only',
+      selftest,
+      capability: JSON.parse(JSON.stringify(parsed.capability)),
+    },
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
