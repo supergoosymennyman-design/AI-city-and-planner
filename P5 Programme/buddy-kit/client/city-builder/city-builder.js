@@ -260,7 +260,7 @@ const GRASS_PBR_TREATMENTS = Object.freeze({
 // Parks always use Leafy Grass detail, but the photographed beige soil must
 // not overpower their civic-lawn identity (especially beside asphalt).
 const PARK_LAWN_PBR_TREATMENT = Object.freeze({
-  saturation: 0.92, albedoMix: 0.36, tint: '#ffffff', tintStrength: 0,
+  saturation: 0.98, albedoMix: 0.18, tint: '#ffffff', tintStrength: 0,
   terrainNormal: 0.16, parkNormal: 0.12, parkLift: 0.04,
 });
 const PROCEDURAL_GROUND_PALETTES = Object.freeze({
@@ -450,7 +450,7 @@ function stylizedGrassMaterial({park=false,distanceFade=false}={}) {
     shader.uniforms.uFadeFar = { value: 1700 };
     shader.uniforms.uGrassNight = { value: 0.55 };
     shader.uniforms.uGrassWarmth = { value: 0.0 };
-    shader.uniforms.uGrassWarmthScale = { value: park ? 0.06 : 0.22 };
+    shader.uniforms.uGrassWarmthScale = { value: park ? 0.02 : 0.22 };
     shader.uniforms.uGrassDayTint = { value: new THREE.Color(0xffffff) };
     shader.uniforms.uGrassDayBrightness = { value: 0 };
     // Realistic looks keep the PBR albedo's photographed leaf, soil and blade
@@ -472,7 +472,7 @@ function stylizedGrassMaterial({park=false,distanceFade=false}={}) {
     shader.uniforms.uGrassDry = { value: new THREE.Color(palette[3]) };
     // Parks are mown, welcoming lawns: use the same civic greens, but keep
     // their blend distinctly more even than the open city ground.
-    shader.uniforms.uParkLawn = { value: new THREE.Color('#4c7c3f') };
+    shader.uniforms.uParkLawn = { value: new THREE.Color('#168d43') };
     // Keep a live handle to the compiled uniform so the frame loop can move it.
     material.userData.__uCamPos = shader.uniforms.uCamPos;
     material.userData.__uFogColor = shader.uniforms.uFogColor;
@@ -496,7 +496,7 @@ function stylizedGrassMaterial({park=false,distanceFade=false}={}) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gndW = modelMatrix * vec4(transformed, 1.0); vGndWorld = gndW.xyz;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vGndWorld;\nuniform vec3 uFogColor;\nuniform vec3 uCamPos;\nuniform float uFadeNear;\nuniform float uFadeFar;\nuniform float uGrassNight;\nuniform float uGrassWarmth;\nuniform float uGrassWarmthScale;\nuniform vec3 uGrassDayTint;\nuniform float uGrassDayBrightness;\nuniform vec3 uGrassMoss;\nuniform vec3 uGrassLeaf;\nuniform vec3 uGrassSun;\nuniform vec3 uGrassDry;\nuniform vec3 uParkLawn;\nuniform float uGrassPbrSaturation;\nuniform float uGrassPbrAlbedoMix;\nuniform vec3 uGrassPbrTint;\nuniform float uGrassPbrTintStrength;\nuniform float uGrassParkLift;\nfloat grassHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat grassNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(grassHash(i),grassHash(i+vec2(1.,0.)),f.x),mix(grassHash(i+vec2(0.,1.)),grassHash(i+vec2(1.)),f.x),f.y);}\nfloat grassFbm(vec2 p){float n=grassNoise(p)*.56;p=mat2(.82,-.57,.57,.82)*p*2.03;n+=grassNoise(p)*.28;p=mat2(.76,.65,-.65,.76)*p*2.01;n+=grassNoise(p)*.16;return n;}')
-      .replace('#include <color_fragment>', '#include <color_fragment>\nvec2 grassP=vGndWorld.xz;float grassMacro=grassFbm(grassP*.006);float grassMid=grassFbm(mat2(.84,-.54,.54,.84)*grassP*.045);float grassFine=grassFbm(grassP*.32);vec3 grassTone=mix(uGrassLeaf,uGrassMoss,(1.0-grassMacro)*.18);grassTone=mix(grassTone,uGrassSun,smoothstep(.64,.88,grassMid)*.10);grassTone*=mix(.97,1.03,grassFine);'+(park?'grassTone=mix(grassTone,uParkLawn,.78);':'grassTone=mix(grassTone,uGrassDry,smoothstep(.78,.92,grassFbm(grassP*.009))*.035);')+'grassTone=mix(grassTone,grassTone*vec3(1.08,.96,.82),max(0.0,uGrassWarmth)*uGrassWarmthScale);grassTone=mix(grassTone,grassTone*uGrassDayTint,uGrassDayBrightness);grassTone*=1.0+uGrassDayBrightness;grassTone=mix(grassTone,grassTone*vec3(.55,.67,.63),uGrassNight*.44);vec3 grassDetail=diffuseColor.rgb;grassDetail=mix(vec3(dot(grassDetail,vec3(.2126,.7152,.0722))),grassDetail,uGrassPbrSaturation);grassDetail=mix(grassDetail,grassDetail*uGrassPbrTint,uGrassPbrTintStrength);grassDetail*=1.0+uGrassParkLift;diffuseColor.rgb=mix(grassTone,grassDetail,uGrassTextureDetail*uGrassPbrAlbedoMix);')
+      .replace('#include <color_fragment>', '#include <color_fragment>\nvec2 grassP=vGndWorld.xz;float grassMacro=grassFbm(grassP*.006);float grassMid=grassFbm(mat2(.84,-.54,.54,.84)*grassP*.045);float grassFine=grassFbm(grassP*.32);vec3 grassTone=mix(uGrassLeaf,uGrassMoss,(1.0-grassMacro)*.18);grassTone=mix(grassTone,uGrassSun,smoothstep(.64,.88,grassMid)*.10);grassTone*=mix(.97,1.03,grassFine);'+(park?'grassTone=mix(grassTone,uParkLawn,.94);':'grassTone=mix(grassTone,uGrassDry,smoothstep(.78,.92,grassFbm(grassP*.009))*.035);')+'grassTone=mix(grassTone,grassTone*vec3(1.08,.96,.82),max(0.0,uGrassWarmth)*uGrassWarmthScale);grassTone=mix(grassTone,grassTone*uGrassDayTint,uGrassDayBrightness);grassTone*=1.0+uGrassDayBrightness;grassTone=mix(grassTone,grassTone*vec3(.55,.67,.63),uGrassNight*.44);vec3 grassDetail=diffuseColor.rgb;grassDetail=mix(vec3(dot(grassDetail,vec3(.2126,.7152,.0722))),grassDetail,uGrassPbrSaturation);grassDetail=mix(grassDetail,grassDetail*uGrassPbrTint,uGrassPbrTintStrength);grassDetail*=1.0+uGrassParkLift;diffuseColor.rgb=mix(grassTone,grassDetail,uGrassTextureDetail*uGrassPbrAlbedoMix);')
       .replace('#include <fog_fragment>',
         '#include <fog_fragment>\n' +
         (distanceFade?

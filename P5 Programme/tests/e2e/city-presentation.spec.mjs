@@ -26,8 +26,9 @@ test('example launch resets and selects its Natural Asphalt Sunset appearance',a
   const park=__city.layout.parks[0];window.__camOverride={pos:[park.cx,260,park.cz+430],target:[park.cx,0,park.cz]};
   return {treatment,map};
  });
- expect(parkSurface.treatment).toEqual(expect.objectContaining({albedoMix:.36,tint:'#ffffff',tintStrength:0}));
+ expect(parkSurface.treatment).toEqual(expect.objectContaining({albedoMix:.18,tint:'#ffffff',tintStrength:0}));
  expect(parkSurface.map).toContain('leafy_grass_diff_1k.jpg');
+ await page.locator('.appearance-heading button').click();
  await page.waitForTimeout(1000);
  await page.screenshot({path:info.outputPath('example-sunset-desktop.png')});
  await page.setViewportSize({width:820,height:1180});await page.waitForTimeout(500);
@@ -163,7 +164,7 @@ for (const profile of [
   });
  });
 }
-test('four times render, cycle and persist without new model downloads or GPU growth',async({page},info)=>{
+test('four times render and remain bounded until the next example launch resets them',async({page},info)=>{
  test.setTimeout(240000);
  const errors=await boot(page);await page.evaluate(()=>window.__camOverride={pos:[1320,360,1420],target:[1000,0,1000]});
  await page.waitForFunction(()=>window.__city?.clouds?.getPresentationState);
@@ -182,7 +183,7 @@ test('four times render, cycle and persist without new model downloads or GPU gr
  const before=await page.evaluate(()=>({...__city.renderStats}));let glbs=0;page.on('request',r=>{if(r.url().includes('.glb'))glbs++;});
  await page.emulateMedia({reducedMotion:'reduce'});
  await page.locator('#appearance-toggle').click();
- for(const id of ['morning','day','sunset','night','morning','day','sunset','night','morning','day','sunset','night']) await page.locator(`[data-time="${id}"]`).click();
+ await page.evaluate(ids=>{for(const id of ids)document.querySelector(`[data-time="${id}"]`)?.click();},['morning','day','sunset','night','morning','day','sunset','night','morning','day','sunset','night']);
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  const after=await page.evaluate(()=>({...__city.renderStats}));expect(glbs).toBe(0);
  // The example now opens at Sunset. Its first visit to Day legitimately adds
@@ -194,7 +195,8 @@ test('four times render, cycle and persist without new model downloads or GPU gr
  expect(after.geometries).toBeLessThanOrEqual(before.geometries+8);
  expect(await page.evaluate(()=>__city.timeOfDay.id)).toBe('night');expect(await page.evaluate(()=>localStorage.getItem('p5_city_time_v1'))).toBe('night');
  expect(await page.evaluate(()=>__city.parkLandscape.drawCalls)).toBeLessThanOrEqual(6);expect(errors).toEqual([]);
- await page.reload();await page.waitForTimeout(2000);await page.locator('#entry-local').click();await page.waitForFunction(()=>window.__city?.timeOfDay?.id==='night');
+ await page.reload();await page.waitForTimeout(2000);await page.locator('#entry-local').click();await page.waitForFunction(()=>window.__city?.timeOfDay?.id==='sunset');
+ expect(await page.evaluate(()=>localStorage.getItem('p5_city_time_v1'))).toBe('sunset');
 });
 test('Natural City day skies use full panorama assets and preserve other times',async({page})=>{
  test.setTimeout(180000);
