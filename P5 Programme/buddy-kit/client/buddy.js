@@ -5,6 +5,7 @@
 //     manifest,           // the host project's manifest (sent with every /api/turn)
 //     getState,           // () => projectState — read fresh on every send
 //     apply,              // (action) => {ok, note} — executes a kid-approved [Do it] card
+//     actionLabel,        // optional (action, defaultLabel) => string for host-specific action cards
 //     gatewayUrl,         // optional base ('' = same-origin, the default)
 //     notes,              // optional string — durable "about the child" memory, resent with every
 //                         // /api/turn now that the gateway is stateless (no server-side /api/memory
@@ -101,7 +102,7 @@
    * wiring the chat loop to the host's project-state adapter. This is the ONE integration surface a
    * host page needs — see the file header for the `opts` shape.
    * @param {HTMLElement} rootEl - empty container the widget takes over completely.
-   * @param {{manifest:object, getState:() => object, apply:(action:object) => {ok:boolean,note:string}, gatewayUrl?:string, notes?:string, persona?:string, getMemory?:() => {notes?:string, persona?:string}, onRemember?:(note:string) => void}} opts
+   * @param {{manifest:object, getState:() => object, apply:(action:object) => {ok:boolean,note:string}, actionLabel?:(action:object,defaultLabel:string) => string, gatewayUrl?:string, notes?:string, persona?:string, getMemory?:() => {notes?:string, persona?:string}, onRemember?:(note:string) => void}} opts
    * @returns {{rootEl: HTMLElement}}
    */
   /**
@@ -1104,7 +1105,10 @@
         if (a.op === 'rememberUser') { addRememberCard(a); continue; }
         const wrap = el('div', 'actions');
         const label = el('span', 'action-label');
-        label.textContent = window.ProjectState.actionLabel(a, opts.manifest);
+        const defaultLabel = window.ProjectState.actionLabel(a, opts.manifest);
+        label.textContent = typeof opts.actionLabel === 'function'
+          ? hostCall('actionLabel', () => opts.actionLabel(a, defaultLabel), defaultLabel) || defaultLabel
+          : defaultLabel;
         const yes = el('button'); yes.textContent = T('action.do');
         const no = el('button', 'ghost'); no.textContent = T('action.no');
         yes.onclick = () => {

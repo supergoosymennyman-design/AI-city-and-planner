@@ -32,9 +32,9 @@ async function openPurpose(page, type) {
   await page.evaluate(type => {
     const b = window.__layout.buildings.find(item => item.type === type);
     window.__city.champion.state.pos.set(b.pos[0] + 20, 0, b.pos[1]);
+    window.__city.openPurpose(type);
   }, type);
-  await expect(page.locator('#quest-prompt')).toBeVisible();
-  await page.locator('#quest-prompt-btn').click();
+  await expect(page.locator('#my-work-modal')).toBeVisible();
 }
 
 test('Visitor Centre shows verified original-plan evidence, a 3D route and complete optional speech', async ({ page }) => {

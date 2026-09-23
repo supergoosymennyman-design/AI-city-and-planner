@@ -96,7 +96,7 @@ export function updateLabels(labels, camera, opts = {}) {
   const candidates = highAlt ? labels.filter((l) => l.element.classList.contains('quest-label')) : labels;
 
   // Hard cap by distance from the camera so far-away badges never linger.
-  const priority = l => l.element.classList.contains('gateway-label') ? -1 : l.element.classList.contains('selected-label') || l.element.classList.contains('destination-label') ? 0 : l.element.classList.contains('quest-label') ? 1 : 2;
+  const priority = l => l.element.classList.contains('gateway-label') ? -2 : l.element.classList.contains('learning-label') ? -1 : l.element.classList.contains('selected-label') || l.element.classList.contains('destination-label') ? 0 : l.element.classList.contains('quest-label') ? 1 : 2;
   const visible = candidates.length > maxVisible
     ? candidates.slice().sort((a, b) => priority(a)-priority(b) || distFor(a) - distFor(b)).slice(0, maxVisible)
     : candidates;
@@ -109,7 +109,7 @@ export function updateLabels(labels, camera, opts = {}) {
     const dist = distFor(l);
     // These two permanent destinations are named even in the opening overview.
     // Other building labels retain the ordinary distance and altitude limits.
-    if (l.element.classList.contains('gateway-label')) {
+    if (l.element.classList.contains('gateway-label') || l.element.classList.contains('learning-label')) {
       l.element.style.opacity = '1';
       continue;
     }

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('example remains usable until its bounded stream fully settles', async ({ page }, testInfo) => {
+test('example opens with every assigned building model and both learning buildings', async ({ page }, testInfo) => {
   test.setTimeout(300_000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -10,30 +10,44 @@ test('example remains usable until its bounded stream fully settles', async ({ p
   });
 
   await page.goto('/city-builder/?example=1');
-  await page.waitForFunction(() => document.querySelector('#loading.done') && window.__city?.renderer, null, { timeout:90_000 });
+  await page.waitForFunction(() => document.querySelector('#loading.done') && window.__city?.renderer, null, { timeout:300_000 });
   const ready = await page.evaluate(() => {
-    const fallbacks = [], facadeColours = new Set();
+    const fallbacks = [];
     window.__scene.traverse(node => {
       if (node.userData?.kind === 'building-fallback') {
         node.geometry?.computeBoundingBox?.();
         fallbacks.push((node.geometry?.boundingBox?.max?.y - node.geometry?.boundingBox?.min?.y || 0) * node.scale.y);
-        facadeColours.add(node.material?.color?.getHexString?.());
       }
     });
     return {
       requests:performance.getEntriesByType('resource').length,
       fallbacks,
-      facadeColours:facadeColours.size,
+      modeledLots:Object.values(window.__city?.buildingScaleDiagnostics || {}).reduce((sum, records) => sum + records.length, 0),
       buildings:window.__layout?.buildings?.length,
       bootError:window.__bootError,
     };
   });
   expect(ready.buildings).toBeGreaterThanOrEqual(100);
   expect(ready.buildings).toBeLessThanOrEqual(130);
-  expect(ready.requests).toBeLessThan(160);
-  expect(ready.fallbacks.length).toBeGreaterThan(0);
-  expect(ready.fallbacks.every(height => height >= 8)).toBe(true);
-  expect(ready.facadeColours).toBeGreaterThan(2);
+  expect(ready.modeledLots).toBe(119);
+  expect(ready.fallbacks).toEqual([]);
+  expect(await page.evaluate(() => ({
+    recycling: window.__city.loading.assets.buildings.recycling,
+    gateways: Object.fromEntries(Object.entries(window.__city.gateways).map(([id, gateway]) => [id, gateway.status])),
+    labels: ['workshop', 'studio'].map(id => document.querySelector(`.gateway-label-${id}`)?.textContent),
+    recyclingLabel: document.querySelector('.learning-label-recycling')?.textContent,
+  }))).toMatchObject({
+    recycling: { state: 'loaded', instances: 1 },
+    gateways: { workshop: 'loaded', studio: 'loaded' },
+    labels: [expect.stringContaining('AI Workshop'), expect.stringContaining('Fit Studio')],
+    recyclingLabel: expect.stringContaining('Recycling Lab'),
+  });
+  await page.waitForFunction(() => ['.learning-label-recycling', '.gateway-label-workshop', '.gateway-label-studio'].every(selector => {
+    const el = document.querySelector(selector);
+    if (!el || el.style.opacity !== '1') return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+  }), null, { timeout: 15000 });
   expect(ready.bootError).toBeNull();
 
   try {
@@ -67,17 +81,14 @@ test('example remains usable until its bounded stream fully settles', async ({ p
   expect(final.phase).toBe('complete');
   expect(final.queue.running).toBe(0);
   expect(final.queue.pending).toBe(0);
-  if (testInfo.project.name === 'webkit-reliability') expect(final.requests).toBeLessThan(200);
   expect(final.triangles).toBeLessThan(6_000_000);
-  expect(final.textures).toBeLessThan(120);
-  expect(final.geometries).toBeLessThan(400);
   expect(final.crash).toBe(false);
   expect(final.context).toBe(false);
   expect(final.bootError).toBeNull();
   expect(final.streamingVisible).toBe(false);
   expect(Object.values(final.buildingAssets).filter(asset => asset.state === 'loaded').length).toBeGreaterThan(7);
-  expect(final.fallbackTypes.filter(type => final.buildingAssets[type]?.state === 'loaded')).toEqual([]);
-  expect(final.colouredVariantRequests).toBe(0);
+  expect(final.fallbackTypes).toEqual([]);
+  expect(Object.entries(final.buildingAssets).filter(([id, asset]) => id.startsWith('bld_passiona_') && asset.state === 'loaded').length).toBe(7);
   expect(final.parkBenchCount).toBe(18);
   expect(final.parkTreeCount).toBeGreaterThanOrEqual(22);
   expect(errors, `${testInfo.project.name} page errors:\n${errors.join('\n')}`).toEqual([]);

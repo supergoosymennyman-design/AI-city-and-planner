@@ -47,7 +47,7 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
     // Run the sustained example budget in the engine implicated by EDVDUVR
     // without doubling every interaction-heavy Chromium spec.
-    { name: 'webkit-reliability', testMatch: '**/example-reliability.spec.mjs', use: {
+    { name: 'webkit-reliability', testMatch: ['**/example-reliability.spec.mjs', '**/progressive-streaming.spec.mjs'], use: {
       browserName: 'webkit', launchOptions: { args: [] },
     } },
   ],

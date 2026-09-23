@@ -63,7 +63,7 @@ export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
         nearBuilding: near ? buildingName(near) : 'open ground',
         buildingCount: String(buildings.length),
         citySummary: `${buildings.length} buildings (${specialCount} landmarks, ${facilityCount} facilities), ${layout.roads.length} roads, ${layout.parks.length} parks`,
-        buildingList: buildings.map((b) => buildingName(b)).join(', '),
+        buildingList: buildings.map((b, index) => `${index + 1}: ${buildingName(b)}`).join(', '),
         roads: String(layout.roads.length),
         parks: String(layout.parks.length),
         championName: 'Champion',
@@ -80,16 +80,17 @@ export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
       return { ok: true, note: `Walk speed set to ${action.value}` };
     }
     const findBuilding = (value) =>
-      buildings.find((b) => buildingName(b).toLowerCase() === String(value).toLowerCase());
+      typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= buildings.length
+        ? buildings[value - 1] : null;
     if (action.op === 'setParam' && action.name === 'walkTo') {
       const target = findBuilding(action.value);
-      if (!target) return { ok: false, note: `I can't find a building called "${action.value}" in your city.` };
+      if (!target) return { ok: false, note: `Building number ${action.value} is not in your city.` };
       if (sim.walkTo && sim.walkTo(target)) { return { ok: true, note: `🚶 Walking to the ${buildingName(target)}!` }; }
       return { ok: false, note: 'Walking is not available on this page.' };
     }
     if (action.op === 'setParam' && action.name === 'flyTo') {
       const target = findBuilding(action.value);
-      if (!target) return { ok: false, note: `I can't find a building called "${action.value}" in your city.` };
+      if (!target) return { ok: false, note: `Building number ${action.value} is not in your city.` };
       if (sim.flyTo && sim.flyTo(target)) { return { ok: true, note: `✈️ Flying by taxi to the ${buildingName(target)}!` }; }
       return { ok: false, note: 'The flying taxi is not available on this page.' };
     }
@@ -100,18 +101,15 @@ export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
     return { ok: false, note: 'That action is not supported here yet.' };
   };
 
-  // Host command: /enter opens the mission building the champion is standing
-  // near. Opens its purpose panel; appears in /help and the slash palette.
+  // Host command: /enter opens a nearby Workshop or Fit Studio gateway.
   const enterCommand = {
     cmd: 'enter',
-    desc: 'open the building you are near',   // <= DESC_MAX(40)
+    desc: 'enter a nearby Workshop or Fit Studio',
     run: () => apply({ op: 'enterNearQuest' }),
   };
 
   // Chips: "✈️ Fly" + "🚶 Walk" to a building, matched against the child's own.
-  // (No "Enter" chip here: a child must TRAVEL to a mission building before
-  // entering it, so entry is offered by the floating 🎮 prompt and /enter,
-  // which only work once the champion is actually standing next to it.)
+  // Entry is offered by the floating prompt and /enter at either gateway.
   const onReply = (text, bubbleEl, userText) => {
     if (!sim || !bubbleEl) return;
     const t = (userText || '') + ' ' + (text || '');
@@ -119,6 +117,7 @@ export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
     const match = buildings.find((b) => lower.includes(buildingName(b).toLowerCase()));
     if (!match) return;
     const name = buildingName(match);
+    const buildingNumber = buildings.indexOf(match) + 1;
 
     const flyBtn = document.createElement('button');
     flyBtn.type = 'button';
@@ -127,7 +126,7 @@ export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
     flyBtn.style.marginTop = '.5rem';
     flyBtn.onclick = () => {
       flyBtn.disabled = true;
-      const res = apply({ op: 'setParam', name: 'flyTo', value: name });
+      const res = apply({ op: 'setParam', name: 'flyTo', value: buildingNumber });
       if (res && res.ok) flyBtn.textContent = '✅ Flying!';
       else { flyBtn.textContent = '❌ Cannot fly'; flyBtn.disabled = false; }
     };
@@ -141,7 +140,7 @@ export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
       walkBtn.style.marginTop = '.35rem';
       walkBtn.onclick = () => {
         walkBtn.disabled = true;
-        const res = apply({ op: 'setParam', name: 'walkTo', value: name });
+        const res = apply({ op: 'setParam', name: 'walkTo', value: buildingNumber });
         if (res && res.ok) walkBtn.textContent = '✅ Walking!';
         else { walkBtn.textContent = '❌ Cannot walk'; walkBtn.disabled = false; }
       };
@@ -161,8 +160,8 @@ export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
       kidJob: 'help the child explore and be proud of the AI city they designed',
       params: [
         { name: 'walkSpeed', label: 'Walk speed', min: 1, max: 8, step: 0.5 },
-        { name: 'walkTo', label: 'Walk to a building (use its name)', min: 1, max: 99, step: 1 },
-        { name: 'flyTo', label: 'Fly by taxi to a building (use its name)', min: 1, max: 99, step: 1 },
+        { name: 'walkTo', label: 'Walk to building number', min: 1, max: Math.max(2, buildings.length), step: 1 },
+        { name: 'flyTo', label: 'Fly by taxi to building number', min: 1, max: Math.max(2, buildings.length), step: 1 },
       ],
       readouts: [
         { name: 'location', label: 'Location' },
@@ -176,6 +175,13 @@ export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
     },
     getState,
     apply,
+    actionLabel: (action, defaultLabel) => {
+      if (action.op === 'setParam' && (action.name === 'walkTo' || action.name === 'flyTo')) {
+        const target = Number.isInteger(action.value) ? buildings[action.value - 1] : null;
+        if (target) return `${action.name === 'flyTo' ? '✈️ Fly by taxi' : '🚶 Walk'} to ${buildingName(target)} (building ${action.value})`;
+      }
+      return defaultLabel;
+    },
     onReply,
     commands: [enterCommand],
     buddyName: 'Coding Buddy',
@@ -189,11 +195,13 @@ export function mountCityBuddy(city, champion, sim, layout, lifecycle = null) {
       + 'Every building, road and park is THEIRS — celebrate what they built and talk about it with '
       + 'pride. You can see where they are and which of their buildings is nearby. Help them explore: suggest flying or '
       + 'walking to one of their buildings. Let the child choose a destination; there is no compulsory first stop. '
-      + 'Each landmark has a purpose panel, opened nearby with /enter. My Work displays their plan, exhibits and imported evidence. '
+      + 'Only AI Workshop and Fit Studio have nearby Enter actions. /enter works at those gateways. My Work displays their plan, exhibits and imported evidence. '
       + 'Stage 1 is narrative/display-only: no live inference, city control or newly verified evidence. '
       + 'Historical games and Workshop are optional links in a secondary panel; Done only records activity, never skill or lesson completion. '
-      + 'You have a flying taxi: for buildings far away, offer to FLY there by taxi (set the flyTo param to the '
-      + 'building\'s name); for buildings close by, offer to WALK (walkTo param). '
+      + 'The building numbers in this city are: ' + buildings.map((b, index) => `${index + 1} = ${buildingName(b)}`).join('; ') + '. '
+      + 'When the child names a destination, find its number in that list. You have a flying taxi: for buildings '
+      + 'far away, offer to FLY there by taxi (set flyTo to its building number); for buildings close by, '
+      + 'offer to WALK (set walkTo to its building number). Use a whole number, starting at 1. '
       + 'Be honest about yourself: if asked, say you are the Coding Buddy, a computer helper program in this app. '
       + 'You are separate from the child\'s Champion and do not claim to know which exact AI brain you run on. '
       + 'Keep replies to 2-3 short sentences. Use simple words a 10-year-old understands. End by inviting one small next '

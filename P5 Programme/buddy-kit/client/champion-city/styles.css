@@ -596,6 +596,8 @@ html, body {
 .gateway-label-workshop .bl-zh { color: #ffcb91; }
 .gateway-label-studio { border-color: #73e6d5; margin-left: 80px; box-shadow: 0 0 14px rgba(95, 226, 208, .32), 0 2px 8px rgba(0,0,0,.5); }
 .gateway-label-studio .bl-zh { color: #a0f4e6; }
+.learning-label-recycling { border: 2px solid #6ee7a3; background: rgba(17, 37, 30, .94); box-shadow: 0 0 12px rgba(110, 231, 163, .3), 0 2px 8px rgba(0,0,0,.5); }
+.learning-label-recycling .bl-zh { color: #aaf5bf; }
 
 /* ---------- District selector (HK real map) ---------- */
 #district-bar {

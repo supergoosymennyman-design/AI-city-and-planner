@@ -468,6 +468,8 @@ export function mountPropLibrary(opts) {
       transition: opacity 0.3s ease, transform 0.3s ease;
     }
     .prop-lib-toast.show { opacity: 1; transform: translateX(0); }
+    .prop-lib-toast.has-action { pointer-events: auto; display:flex; align-items:center; gap:12px; }
+    .prop-lib-toast button { min-width:44px; min-height:44px; padding:0 12px; border:1px solid #00f2fe; border-radius:8px; background:#173746; color:#f8fafc; font:700 14px system-ui,sans-serif; cursor:pointer; }
     .prop-inspector {
       position:fixed; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(88px + env(safe-area-inset-bottom, 0px)); z-index:106;
       width:min(310px, calc(100vw - 32px)); padding:12px; border-radius:14px;
@@ -499,7 +501,7 @@ export function mountPropLibrary(opts) {
     .skill-socket span { display:grid; place-items:center; width:19px; height:19px; border-radius:50%; background:var(--socket-color); color:#11252d; font-weight:900; }
     .skill-host-dialog { width:min(460px,calc(100vw - 30px)); color:#edf7f4; background:#13252b; border:2px solid #35b7a8; border-radius:16px; padding:20px; }
     .skill-host-dialog::backdrop { background:#061216b8; }.skill-host-dialog h2 { margin:0 0 8px; }.skill-host-dialog label { display:grid; gap:6px; margin:13px 0; font-weight:800; }.skill-host-dialog select,.skill-host-dialog button { min-height:44px; border-radius:8px; padding:8px; font:inherit; }.skill-host-dialog select { background:#fffdf7; color:#17262a; border:0; }.skill-host-dialog menu { display:flex; gap:8px; justify-content:flex-end; padding:8px 0 0; margin:0; }.skill-host-dialog .primary { background:#42c7ad; color:#09242a; border:0; font-weight:800; }.skill-host-dialog .secondary { background:#274e55; color:#fff; border:1px solid #7dc8c1; }.skill-host-state { color:#cceae5; font-weight:800; }
-    @media (max-width:640px) { .prop-inspector { bottom:76px; right:16px; } }
+    @media (max-width:640px) { .prop-inspector { bottom:174px; right:16px; max-height:calc(100dvh - 250px); overflow-y:auto; } }
   `;
   document.head.appendChild(style);
 
@@ -559,7 +561,7 @@ export function mountPropLibrary(opts) {
       <button type="button" data-inspect="rotate-right" aria-label="Rotate right 15 degrees">↷ 15°</button>
       <button type="button" data-inspect="rotate-90" aria-label="Rotate 90 degrees">↻ 90°</button>
       <button type="button" data-inspect="duplicate">Duplicate</button>
-      <button type="button" class="danger" data-inspect="delete">Delete</button>
+      <button type="button" class="danger" data-inspect="delete"></button>
       <button type="button" data-inspect="undo">Undo</button>
       <button type="button" data-inspect="redo">Redo</button>
     </div>
@@ -583,15 +585,25 @@ export function mountPropLibrary(opts) {
 
   let toastTimer = null;
   let toastEl = null;
-  function toast(msg, persistent = false) {
+  let undoToastVersion = null;
+  function toast(msg, persistent = false, action = null) {
     if (destroyed) return;
-    if (storageError) { msg = t('props.storageFailed'); persistent = true; }
+    if (storageError) { msg = t('props.storageFailed'); persistent = true; action = null; }
+    if (!action) undoToastVersion = null;
     let el = toastEl;
     if (!el) { el = document.createElement('div'); el.className = 'prop-lib-toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); toastEl = el; }
-    el.textContent = msg;
+    el.replaceChildren(document.createTextNode(msg));
+    el.classList.toggle('has-action', !!action);
+    if (action) {
+      const undoButton = document.createElement('button');
+      undoButton.type = 'button';
+      undoButton.textContent = t('common.undo');
+      undoButton.addEventListener('click', () => { action(); el.classList.remove('show', 'has-action'); }, { once: true });
+      el.appendChild(undoButton);
+    }
     el.classList.add('show');
     clearTimeout(toastTimer);
-    if (!persistent) toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+    if (!persistent) toastTimer = setTimeout(() => el.classList.remove('show', 'has-action'), action ? 6000 : 2400);
   }
 
   // History is intentionally session-only. The durable props payload is saved
@@ -647,7 +659,15 @@ export function mountPropLibrary(opts) {
     notifyChanged();
   }
   let history = null;
-  history = createCommandHistory({ limit: 50, onChange: () => renderInspector() });
+  let historyVersion = 0;
+  history = createCommandHistory({ limit: 50, onChange: () => {
+    historyVersion++;
+    if (undoToastVersion !== null && undoToastVersion !== historyVersion) {
+      toastEl?.classList.remove('show', 'has-action');
+      undoToastVersion = null;
+    }
+    renderInspector();
+  } });
   function commitRecords(before) {
     const after = cloneRecords();
     if (sameRecords(before, after)) return true;
@@ -668,6 +688,7 @@ export function mountPropLibrary(opts) {
   function renderInspector() {
     const p = selectedProp();
     inspector.hidden = !p;
+    opts.onSelectedChange?.(p ? { locked: !!p.record.locked } : null);
     if (!p) return;
     const locked = !!p.record.locked;
     const item = itemFor(p.record.id);
@@ -678,6 +699,7 @@ export function mountPropLibrary(opts) {
     scaleInput.value = String(Math.max(.2, Math.min(5, scale)));
     inspector.querySelector('.prop-inspector-scale span').textContent = `${Math.round(scale * 100)}%`;
     inspector.querySelector('.prop-inspector-lock input').checked = locked;
+    inspector.querySelector('[data-inspect="delete"]').textContent = t('props.remove');
     const customize=inspector.querySelector('[data-inspect="customize"]');
     customize.hidden=!(item?.landmark||item?.host);customize.disabled=locked;customize.textContent=item?.host?(currentLang()==='zh-Hant'?'連接技能／外觀':'Connect skill / appearance'):item?.unknown?(currentLang()==='zh-Hant'?'修復地標':'Repair landmark'):'Customize landmark / 自訂地標';
     const fit=inspector.querySelector('[data-inspect="fit-studio"]');
@@ -702,6 +724,26 @@ export function mountPropLibrary(opts) {
     if (!validRecord(p.record)) { restoreRecords(before, false); return false; }
     return commitRecords(before);
   }
+  function removeSelected() {
+    const p = selectedProp();
+    if (!p || p.record.locked || destroyed || restoreActive) return false;
+    const before = cloneRecords();
+    removeMesh(p);
+    state.placed = state.placed.filter((entry) => entry !== p);
+    selectedUid = null;
+    onInspectorClearSelection?.();
+    const saved = commitRecords(before);
+    renderCount(); renderInspector();
+    if (saved) {
+      const removalVersion = historyVersion;
+      undoToastVersion = removalVersion;
+      toast(t('props.removed'), true, () => {
+        undoToastVersion = null;
+        if (historyVersion === removalVersion && history.undo().ok) renderCount();
+      });
+    }
+    return saved;
+  }
   inspector.addEventListener('click', (event) => {
     const action = event.target?.closest?.('[data-inspect]')?.dataset.inspect;
     if (!action) return;
@@ -723,14 +765,7 @@ export function mountPropLibrary(opts) {
       }catch{toast('This model is not available on this device yet.',true);}})();return;
     }
     if (action === 'delete') {
-      const p = selectedProp(); if (!p || p.record.locked) return;
-      const before = cloneRecords();
-      removeMesh(p);
-      state.placed = state.placed.filter((entry) => entry !== p);
-      selectedUid = null;
-      commitRecords(before);
-      onInspectorClearSelection?.();
-      renderCount(); renderInspector();
+      removeSelected();
       return;
     }
     if (action === 'duplicate') {
@@ -1098,6 +1133,7 @@ export function mountPropLibrary(opts) {
   // Re-localize open UI when the student flips the language.
   const relocalize = () => {
     hint.textContent = t('props.tapGroundHint');
+    renderInspector();
     if (!state.panelOpen) return;
     panel.querySelector('.prop-lib-title').textContent = t('props.title');
     clearBtn.textContent = t('props.clearAll');
@@ -1242,6 +1278,7 @@ export function mountPropLibrary(opts) {
       selectedUid = mesh?.userData?.uid ?? null;
       renderInspector();
     },
+    removeSelected,
     undo() { const result = history.undo(); if (result.ok) renderCount(); return result; },
     redo() { const result = history.redo(); if (result.ok) renderCount(); return result; },
     refresh() {

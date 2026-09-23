@@ -680,7 +680,7 @@ let layout = null;
 let _bootGen = 0;         // bumped on every boot; stale loops cancel themselves
 let _bootOwner = null;     // owns this boot's RAFs, listeners, timers and deferred work
 let _bootWatchdog = 0;    // boot-hang guard (see bootInner)
-const BOOT_TIMEOUT_MS = 120000; // required boot deadline; optional assets never hold this screen
+const BOOT_TIMEOUT_MS = 300000; // let assigned models settle before showing the City
 const BOOT_SLOW_COPY_MS = 20000;
 const CHAMPION_TIMEOUT_MS = 12000;
 let _contextPaused = false;
@@ -2043,7 +2043,10 @@ function buildQuestLandmarks() {
     if (!isSpecial(b.type)) continue;
     const spec = catalogType(b.type);
     const purpose = PURPOSES[b.type];
-    const q = purpose && { type: b.type, labelZh: purpose.zh, labelEn: purpose.en, pos: b.pos };
+    const q = purpose && { type: b.type,
+      labelZh: b.type === 'recycling' ? '資源回收實驗室' : purpose.zh,
+      labelEn: b.type === 'recycling' ? 'Recycling Lab' : purpose.en,
+      pos: b.pos };
     if (!q) continue;
     // Student intent is exact — place at the layout position.
     const cx = b.pos[0];
@@ -2063,7 +2066,7 @@ function buildQuestLandmarks() {
       const questRef = { q, cx, cz, top: h };
       beaconPositions.push(beacon);
       questRefs.push(questRef);
-      const label = addBuildingLabel(q.labelZh, q.labelEn, cx, 3, cz);
+      const label = addBuildingLabel(q.labelZh, q.labelEn, cx, 3, cz, b.type === 'recycling' ? 'recycling' : '');
       st.spots.push({ x: cx, z: cz, fp, h, glbType: b.type, label, beacon, questRef });
       continue;
     }
@@ -2122,28 +2125,12 @@ function buildQuestLandmarks() {
     specialSystem = { beacon, beaconPositions, questRefs };
   }
 
-  // Register special buildings for tap interaction — an invisible hit-sphere
-  // (colorWrite off so it never renders) centred on the building.
-  for (const ref of questRefs) {
-    const q = ref.q;
-    if (q.type) {
-      const hit = new THREE.Mesh(
-        new THREE.SphereGeometry(12, 6, 5),
-        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, colorWrite: false, depthWrite: false })
-      );
-      hit.position.set(ref.cx, Math.max(12, ref.top / 2), ref.cz);
-      hit.userData = { kind: 'quest', type: q.type };
-      scene.add(hit);
-      interactMeshes.push(hit);
-      ref.hit = hit;
-    }
-  }
 }
 
 function addBuildingLabel(zh, en, x, y, z, kind = '') {
   if (!labelRenderer) return;
   const el = document.createElement('div');
-  el.className = `building-label quest-label${kind ? ` gateway-label gateway-label-${kind}` : ''}`;
+  el.className = `building-label quest-label${kind === 'recycling' ? ' learning-label learning-label-recycling' : kind ? ` gateway-label gateway-label-${kind}` : ''}`;
   el.innerHTML = `<div class="bl-zh">${zh}</div><div class="bl-en">${en}</div>`;
   const label = new CSS2DObject(el);
   label.position.set(x, y, z);
@@ -2224,7 +2211,7 @@ function loadGatewayAppearance(spec, mount, fallback, state, gen, queue) {
   const run = () => createGLTFLoader().loadAsync(spec.model.file);
   state.status = 'loading';
   const request = queue ? queue.add(run, { onStale: disposeDetachedModel }) : run();
-  request.then((gltf) => {
+  return request.then((gltf) => {
     if (!gltf) return;
     if (gen !== _bootGen || !mount.parent) { disposeDetachedModel(gltf); return; }
     const model = normalizeGatewayAppearance(gltf.scene, spec.model.footprint);
@@ -2241,7 +2228,6 @@ function loadGatewayAppearance(spec, mount, fallback, state, gen, queue) {
     state.reason = error?.message || String(error);
     console.warn(`[gateway:${spec.id}] flagship GLB unavailable — keeping procedural fallback`, error);
   });
-  return request;
 }
 
 function gatewayMarker(kind) {
@@ -2269,7 +2255,7 @@ function buildCityGateways(gen = _bootGen, queue = null) {
   ];
   city.gateways = {};
   const positions = gatewayPositions(layout);
-  specs.forEach((spec,i)=>{
+  return specs.map((spec,i)=>{
     const p=positions[i], mount=new THREE.Group(), fallback=gatewayFallback(spec.id);
     mount.name=`passiona-${spec.id}-gateway`;mount.position.set(p.x,0,p.z);mount.userData={kind:'gateway-mount',gateway:spec.id,protected:true};
     mount.add(fallback);mount.add(gatewayMarker(spec.id));cityGatewayGroup.add(mount);
@@ -2280,7 +2266,7 @@ function buildCityGateways(gen = _bootGen, queue = null) {
     hit.position.set(p.x,9,p.z);hit.userData={kind:'gateway', quest:q};scene.add(hit);interactMeshes.push(hit);
     const state={id:spec.id,status:'placeholder',mount,fallback,model:null,hit,quest:q,position:{x:p.x,z:p.z},footprint:[...spec.model.footprint]};
     city.gateways[spec.id]=state;
-    loadGatewayAppearance(spec,mount,fallback,state,gen,queue);
+    return loadGatewayAppearance(spec,mount,fallback,state,gen,queue);
   });
 }
 
@@ -2345,7 +2331,7 @@ const glbState = {};   // type → { model, size, spots:[], fallbacks:[], loadin
 function ensureGlbState(type) {
   return glbState[type] || (glbState[type] = {
     model: null, size: null, spots: [], fallbacks: [], applied: [], loading: false,
-    status: 'idle', reason: null,
+    status: 'idle', reason: null, sourceKey: null,
   });
 }
 
@@ -2414,6 +2400,26 @@ function addBuildingPlot(type, cx, cz, fp, requestedHeight) {
   scene.add(root);
   state.fallbacks.push(root);
   return root;
+}
+
+function clearBuildingPlots(state) {
+  for (const root of state.fallbacks) {
+    root.removeFromParent();
+    root.traverse(node => {
+      if (node.geometry !== FALLBACK_BOX_GEOMETRY) node.geometry?.dispose?.();
+      node.material?.dispose?.();
+    });
+  }
+  state.fallbacks.length = 0;
+}
+
+function showUnavailableBuilding(type) {
+  const state = ensureGlbState(type);
+  for (const spot of state.spots) {
+    if (!spot.label?.element) continue;
+    if (!spot.label.element.textContent.includes('Model unavailable')) spot.label.element.textContent += ' · Model unavailable';
+    spot.label.element.classList.add('model-unavailable');
+  }
 }
 
 // Housing variants loader: every residential model shares the same base unit
@@ -2492,6 +2498,7 @@ function mountEmeraldRainTree(gen, queue) {
 
 function loadBuildingModel(type, url, gen = _bootGen, queue = null) {
   const st = ensureGlbState(type);
+  if (st.sourceKey && st.sourceKey !== url) { st.model = null; st.size = null; }
   if(st.model){st.status='loaded';st.reason=null;if(gen===_bootGen)applyBuildingModel(type);recordBuildingDiagnostic(type,st);return Promise.resolve(st.model);}
   if (st.loading) return Promise.resolve(st.loading).then((value) => {
     if (value && gen === _bootGen) applyBuildingModel(type);
@@ -2521,17 +2528,18 @@ function loadBuildingModel(type, url, gen = _bootGen, queue = null) {
         }
       });
       if(GLB_BUILDING_TYPES[type] || SPECIAL_BUILDING_MODELS[type] || libraryItem(type)?.category==='buildings')prepareBuildingMaterials(m, !(_exampleSession && IS_WEBKIT));
-      st.model = m; st.size = size; st.status = 'loaded'; st.reason = null;
+      st.model = m; st.size = size; st.sourceKey = url; st.status = 'loaded'; st.reason = null;
       st.loading = false;
       if(gen===_bootGen)applyBuildingModel(type);
       recordBuildingDiagnostic(type, st);
       return m;
     })
     .catch((e) => {
-      console.warn(`[${type}] GLB load failed — keeping labelled plot`, e);
+      console.warn(`[${type}] GLB load failed`, e);
       st.model = null;
       st.status = 'failed'; st.reason = (e?.name || 'load-error').slice(0, 48);
       recordBuildingDiagnostic(type, st);
+      if (gen === _bootGen) showUnavailableBuilding(type);
       st.loading = false;   // allow a later retry (e.g. re-boot)
       return null;
     });
@@ -2540,11 +2548,12 @@ function loadBuildingModel(type, url, gen = _bootGen, queue = null) {
 }
 
 // Student files stay in IndexedDB; only their chosen role is in localStorage.
-// This intentionally falls back to the normal building if a Champion File is
-// opened on another device without its corresponding GLB.
+// Missing IndexedDB models remain visible as an unavailable state on this device.
 function loadCustomBuildingModel(type, customId, gen = _bootGen, queue = null) {
   const st = ensureGlbState(type);
-  if (st.model || st.loading) return Promise.resolve(st.model);
+  const sourceKey = `custom:${customId}`;
+  if (st.sourceKey && st.sourceKey !== sourceKey) { st.model = null; st.size = null; }
+  if (st.model || st.loading) return Promise.resolve(st.model || st.loading);
   const run = async () => {
     const saved = await customModelStore.get(customId);
     if (!saved?.bytes) throw new Error('model is not on this device');
@@ -2559,9 +2568,9 @@ function loadCustomBuildingModel(type, customId, gen = _bootGen, queue = null) {
     const box=new THREE.Box3().setFromObject(m), size=box.getSize(new THREE.Vector3()), center=box.getCenter(new THREE.Vector3());
     m.position.x-=center.x; m.position.z-=center.z;
     m.traverse(o=>{ if(o.isMesh&&o.geometry)o.geometry.translate(0,-box.min.y,0); });
-    prepareBuildingMaterials(m, !(_exampleSession && IS_WEBKIT)); st.model=m; st.size=size; st.loading=false;st.status='loaded';st.reason=null;
+    prepareBuildingMaterials(m, !(_exampleSession && IS_WEBKIT)); st.model=m; st.size=size; st.sourceKey=sourceKey; st.loading=false;st.status='loaded';st.reason=null;
     if(gen===_bootGen)applyBuildingModel(type);recordBuildingDiagnostic(type,st); return m;
-  }).catch((e) => { console.warn(`[${type}] custom GLB unavailable`,e); st.loading=false;st.status='failed';st.reason=(e?.name||'custom-load-error').slice(0,48);recordBuildingDiagnostic(type,st); if(gen===_bootGen)showToast('Re-add this building GLB to use its custom look.'); return null; });
+  }).catch((e) => { console.warn(`[${type}] custom GLB unavailable`,e); st.loading=false;st.status='failed';st.reason=(e?.name||'custom-load-error').slice(0,48);recordBuildingDiagnostic(type,st); if(gen===_bootGen){showUnavailableBuilding(type);showToast('Re-add this building GLB to use its custom look.');} return null; });
   return st.loading;
 }
 
@@ -2606,14 +2615,7 @@ function applyBuildingModel(type) {
   if (!st || !st.model) return;
   if (city?.buildingScaleDiagnostics) city.buildingScaleDiagnostics[type] = [];
   // Remove the procedural fallback meshes…
-  for (const mesh of st.fallbacks) {
-    scene.remove(mesh);
-    mesh.traverse(node => {
-      if (node.geometry !== FALLBACK_BOX_GEOMETRY) node.geometry?.dispose?.();
-      node.material?.dispose?.();
-    });
-  }
-  st.fallbacks.length = 0;
+  clearBuildingPlots(st);
   // …and any GLB clones applied by an earlier pass (variants load async, so
   // re-applying must not stack duplicates). Clones share geometry/material with
   // the cached source model (clone(true)) — do NOT dispose them here, or the
@@ -3178,7 +3180,7 @@ async function spawnChampion(isCurrent = () => true) {
     scene.add(championShadow);
   }
 
-  // Orientation ring — marks the nearest landmark. Colour scaled above the 0.68 bloom
+  // Orientation ring — marks the nearest enterable gateway. Colour scaled above the 0.68 bloom
   // gate so the ring keeps its glow (it must read as a target, not a decal).
   goalRing = new THREE.Mesh(
     new THREE.RingGeometry(1.7, 2.1, 28),
@@ -3190,7 +3192,7 @@ async function spawnChampion(isCurrent = () => true) {
   sim = {
     walkSpeed: 5,   // m/s — the champion walks ~5 m/s (was 2: too slow to cross a 2000m city)
     nearQuest: null,
-    // Retain the existing Buddy API name; entry now means an ungated purpose panel.
+    // Retain the existing Buddy API name for the nearby gateway command.
     questHasGame(type) { return questHasGameForType(type); },
     walkTo(building) {
       if (!champion || !building || (taxi && taxi.isActive())) return;
@@ -3216,14 +3218,12 @@ async function spawnChampion(isCurrent = () => true) {
       showToast(tf('toast.flying', { name: buildingName(building) }));
       return true;
     },
-    // Enter the quest building the champion is standing near (used by the
-    // buddy chat's /enter command + Enter buttons — same path as the floating
-    // 🎮 Enter prompt).
+    // Buddy's /enter follows the same gateway-only path as the floating prompt.
     enterNearQuest() {
       const quest = this.nearQuest;
-      if (!quest) return { ok: false, note: 'Walk up to a landmark first, then I can open its purpose panel!' };
-      openPurpose(quest.type);
-      return { ok: true, note: `Opening ${quest.labelEn}` };
+      if (!quest?.directUrl) return { ok: false, note: 'Walk up to AI Workshop or Fit Studio to enter.' };
+      location.assign(quest.directUrl);
+      return { ok: true, note: `Entering ${quest.labelEn}` };
     },
   };
 }
@@ -4060,7 +4060,7 @@ function tapAt(clientX, clientY) {
     if (grab.mode !== 'idle') { grab.placeAt(ndcX, ndcY); return; }
     if (selectMode) { grab.select(grab.pick(ndcX, ndcY)); return; }
   }
-  // Normal building-entry raycast.
+  // Only gateway hit targets open a destination.
   pointer.x = ndcX; pointer.y = ndcY;
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects(interactMeshes, false);
@@ -4068,14 +4068,8 @@ function tapAt(clientX, clientY) {
     location.assign(hits[0].object.userData.quest.directUrl);
     return;
   }
-  if (hits.length && hits[0].object.userData.kind === 'quest') {
-    const data = hits[0].object.userData;
-    openPurpose(data.type);
-    return;
-  }
   // AI machine nodes (ai-nodes.js): tap a pulsing machine node → open THAT
-  // machine's "Try it" panel. Runs after the quest check so mission buildings
-  // stay the priority tap target.
+  // machine's "Try it" panel. Gateway entry takes priority.
   if (_aiNodes && typeof _aiNodes.tapMeshes === 'function') {
     const nMeshes = _aiNodes.tapMeshes();
     if (nMeshes.length) {
@@ -4275,7 +4269,7 @@ function startLoop(owner) {
   updateQuestPrompt();
   updateCamera(dt, taxiActive, driveActive);
   if (grab) grab.update(dt, tNow);
-  // Goal ring marks the nearest landmark, independent of achievement history.
+  // Goal ring marks the nearest enterable gateway.
   if ((now - _lastGoalTs) > 400) {
     _lastGoalTs = now;
     _goalTarget = findNextQuest();
@@ -4404,18 +4398,18 @@ function nearestQuest() {
   const p = champion.state.pos;
   let best = null, bestD = 80;
   for (const ref of specialSystem.questRefs) {
+    if (!ref.q.directUrl) continue;
     const d = Math.hypot(ref.cx - p.x, ref.cz - p.z);
     if (d < bestD) { bestD = d; best = ref; }
   }
   return best ? best.q : null;
 }
 
-// Nearest landmark supplies orientation only.
-// Orientation only: nearest landmark, independent of historical completions.
+// Nearby gateway supplies the entry prompt and orientation ring.
 function findNextQuest() { return nearestQuest(); }
 
 // ─── Quest enter prompt ──────────────────────────────────────────────────
-// Every nearby landmark opens a purpose panel, regardless of legacy history.
+// Workshop and Fit Studio are the only nearby entry destinations.
 const _questPromptEl = document.getElementById('quest-prompt');
 const _questPromptLabel = document.getElementById('quest-prompt-label');
 const _questPromptBtn = document.getElementById('quest-prompt-btn');
@@ -4423,10 +4417,9 @@ const _questPromptBtn = document.getElementById('quest-prompt-btn');
 function updateQuestPrompt() {
   if (!_questPromptEl) return;
   const quest = sim && sim.nearQuest;
-  if (!quest) { _questPromptEl.classList.add('hidden'); return; }
-  const isGateway = !!quest.directUrl;
-  _questPromptLabel.textContent = `${isGateway ? (quest.gateway === 'studio' ? '✦' : '⚙️') : '🏛️'} ${currentLang() === 'zh-Hant' ? quest.labelZh : quest.labelEn}`;
-  _questPromptBtn.textContent = isGateway ? (currentLang() === 'zh-Hant' ? quest.enterZh : quest.enterEn) : t('quest.enter');
+  if (!quest?.directUrl) { _questPromptEl.classList.add('hidden'); return; }
+  _questPromptLabel.textContent = `${quest.gateway === 'studio' ? '✦' : '⚙️'} ${currentLang() === 'zh-Hant' ? quest.labelZh : quest.labelEn}`;
+  _questPromptBtn.textContent = currentLang() === 'zh-Hant' ? quest.enterZh : quest.enterEn;
   _questPromptBtn.classList.remove('hidden');
   _questPromptEl.classList.remove('hidden');
 }
@@ -4436,9 +4429,7 @@ function wireQuestPrompt() {
   wireQuestPrompt.bound = true;
   _questPromptBtn.addEventListener('click', () => {
     const quest = sim && sim.nearQuest;
-    if (!quest) return;
-    if (quest.directUrl) location.assign(quest.directUrl);
-    else openPurpose(quest.type);
+    if (quest?.directUrl) location.assign(quest.directUrl);
   });
 }
 
@@ -4543,7 +4534,7 @@ function wireInput() {
   });
   // Tap-away to clear selection.
   document.addEventListener('pointerdown', (e) => {
-    if (selectMode && grab && !e.target.closest('#btn-next') && grab.getSelected() && grab.mode === 'idle') {
+    if (selectMode && grab && !e.target.closest('#btn-next, #prop-inspector, .resize-panel') && grab.getSelected() && grab.mode === 'idle') {
       grab.clearSelection();
     }
   });
@@ -5272,7 +5263,7 @@ function failBoot(gen, stage, error) {
   _bootOwner?.cancel();
   cleanupBootSystems();
   disposeBootRenderer();
-  showBootError(t('ui.bootError'));
+  showBootError(stage === 'building-model' ? diagnostic.reason : t('ui.bootError'));
 }
 
 async function boot() {
@@ -5288,6 +5279,9 @@ async function boot() {
 async function bootInner() {
   // Invalidate any previous boot's loop and tear down its scene/renderer.
   const gen = ++_bootGen;
+  document.getElementById('loading')?.classList.remove('done');
+  const entryError = document.getElementById('entry-error');
+  if (entryError) entryError.hidden = true;
   _bootOwner?.cancel();
   const owner = createBootOwner(gen, window);
   _bootOwner = owner;
@@ -5322,16 +5316,21 @@ async function bootInner() {
     }
   }, window.__CITY_BOOT_DEADLINE_MS__ ?? BOOT_TIMEOUT_MS);
   const loadingSub = document.querySelector('#loading .loading-sub');
-  if (loadingSub) loadingSub.textContent = currentLang() === 'zh-Hant' ? '正在準備道路和冠軍；建築模型會隨後出現。' : 'Preparing roads and your Champion. Building details will appear after you enter.';
+  if (loadingSub) loadingSub.textContent = currentLang() === 'zh-Hant' ? '正在準備道路、冠軍和建築模型。' : 'Preparing roads, your Champion, and building models.';
+  let buildingProgressText = null;
+  let slowCopyShown = false;
   owner.timeout(() => {
-    if (loadingDiagnostics.phase === 'booting' && loadingSub) loadingSub.textContent = t('ui.bootStillBuilding');
+    if (loadingDiagnostics.phase === 'booting' && loadingSub) {
+      slowCopyShown = true;
+      loadingSub.textContent = t('ui.bootStillBuilding');
+    }
   }, window.__CITY_BOOT_SLOW_COPY_MS__ ?? BOOT_SLOW_COPY_MS);
 
   // Resilience: one bad model or build step must never take down the whole
   // city. Every step is wrapped — failures log + continue (the city degrades
   // gracefully: missing trees/models rather than a blank boot error).
   const warn = (name, e) => console.warn(`[city-builder] ${name} failed (continuing):`, e);
-  const safe = (name, fn) => { try { fn(); } catch (e) { warn(name, e); } };
+  const safe = (name, fn) => { try { return fn(); } catch (e) { warn(name, e); return null; } };
   const safeAwait = async (name, p) => { try { const value=await p; return owner.active ? value : null; } catch (e) { warn(name, e); return null; } };
   const assertActive = () => { if (!owner.active || gen !== _bootGen) { const e=new Error('boot replaced');e.name='StaleBootError';throw e; } };
 
@@ -5383,37 +5382,55 @@ async function bootInner() {
   city.spawnWorld = new THREE.Vector3(initialSpawn.x, 0, initialSpawn.z);
   safe('road-traffic', setupRoadTraffic);
   fill.style.width = '80%';
-  // Active-layout models enter one bounded queue first. Procedural buildings
-  // remain useful while a model is delayed or rejected.
+  // Start the permanent destinations first. Their readable fallbacks remain
+  // available if either appearance file cannot be decoded.
+  const gatewayLoads = safe('learning-gateways', () => buildCityGateways(gen, loadQueue)) || [];
+  // Queue by distinct model id; repeats at many lots share one loaded GLB.
   const customRoleManifest = readCustomManifest();
-  const deferredBuildingJobs = [];
+  const requiredBuildingLoads = [];
   const loadRoleVisual = (type, url) => {
-    const customId = resolveCustomOverride(type, customRoleManifest);
+    const customId = _exampleSession ? null : resolveCustomOverride(type, customRoleManifest);
     return customId ? loadCustomBuildingModel(type, customId, gen, loadQueue) : loadBuildingModel(type, url, gen, loadQueue);
   };
-  safe('active-building-glbs', () => {
-    const jobs = [];
-    for (const [type, url] of [...Object.entries(GLB_BUILDING_TYPES), ...Object.entries(SPECIAL_BUILDING_MODELS)]) {
-      if (glbState[type]?.spots.length && (!_exampleSession || SPECIAL_BUILDING_MODELS[type])) {
-        jobs.push({ type, url, role: true, priority: buildingLoadPriority(glbState[type].spots) });
-      }
-    }
-    for (const id of _exampleSession ? [] : activeLibraryIds) {
-      const item = libraryItem(id);
-      if (item) jobs.push({ type: id, url: item.glb, role: false, priority: buildingLoadPriority(glbState[id]?.spots) });
-    }
-    jobs.sort((a, b) => b.priority - a.priority || a.type.localeCompare(b.type));
-    const selectedJobs = _exampleSession ? jobs.slice(0, 10) : jobs;
-    const openingLimit = _exampleSession ? (IS_MOBILE ? 4 : 5) : (IS_MOBILE ? 6 : 8);
-    const activeJobs = selectedJobs.slice(0, openingLimit);
-    deferredBuildingJobs.push(...selectedJobs.slice(openingLimit));
-    for (const job of activeJobs) primaryAssetPromises.push(job.role
-      ? loadRoleVisual(job.type, job.url)
-      : loadBuildingModel(job.type, job.url, gen, loadQueue));
-  });
-  // Let nearby active buildings claim the opening download slots first. The
-  // gateways have readable procedural bodies while their GLBs stream in.
-  safe('learning-gateways', () => buildCityGateways(gen, loadQueue));
+  const jobs = [];
+  for (const [type, url] of [...Object.entries(GLB_BUILDING_TYPES), ...Object.entries(SPECIAL_BUILDING_MODELS)]) {
+    if (glbState[type]?.spots.length) jobs.push({ type, url, role: true, custom: !_exampleSession && !!resolveCustomOverride(type, customRoleManifest), priority: buildingLoadPriority(glbState[type].spots) });
+  }
+  for (const id of activeLibraryIds) {
+    const item = libraryItem(id);
+    if (item) jobs.push({ type: id, url: item.glb, role: false, custom: false, priority: buildingLoadPriority(glbState[id]?.spots) });
+  }
+  const selectedVariantIds = new Set(Object.values(hunyuanSelection.assignments));
+  for (const id of selectedVariantIds) {
+    const item = libraryItem(id);
+    if (item && !jobs.some(job => job.type === id)) jobs.push({ type: id, url: item.glb, variant: true, custom: false, priority: 0 });
+  }
+  jobs.sort((a, b) => Number(b.type === 'recycling') - Number(a.type === 'recycling') || b.priority - a.priority || a.type.localeCompare(b.type));
+  const openingJobs = jobs;
+  let settledBuildings = 0;
+  const reportBuildingProgress = () => {
+    if (!owner.active || gen !== _bootGen) return;
+    fill.style.width = `${80 + Math.round(19 * settledBuildings / Math.max(1, openingJobs.length))}%`;
+    buildingProgressText = currentLang() === 'zh-Hant'
+      ? `正在載入建築模型 ${settledBuildings}/${openingJobs.length}`
+      : `Loading building models ${settledBuildings}/${openingJobs.length}`;
+    if (loadingSub && !slowCopyShown) loadingSub.textContent = buildingProgressText;
+  };
+  reportBuildingProgress();
+  for (const job of openingJobs) {
+    const promise = (job.role ? loadRoleVisual(job.type, job.url) : loadBuildingModel(job.type, job.url, gen, loadQueue))
+      .then(model => {
+        if (model && selectedVariantIds.has(job.type)) {
+          hunyuanVariantModels[job.type] = { model, size: glbState[job.type].size };
+          for (const type of ['housing', 'shop', 'office', 'school', 'library']) {
+            if (glbState[type]?.model && glbState[type].spots.some(spot => spot.variant === job.type)) applyBuildingModel(type);
+          }
+        }
+        return model;
+      }).finally(() => { settledBuildings++; reportBuildingProgress(); });
+    requiredBuildingLoads.push({ job, promise });
+    primaryAssetPromises.push(promise);
+  }
 
   // Cosmetic variants, accessories and street decoration wait until after the
   // usable city is mounted. Their starts are owned by this boot.
@@ -5428,29 +5445,16 @@ async function bootInner() {
       loadTreePacks(current, _exampleSession ? 1 : Infinity),
     ]).then(() => { if (current()) { buildTreeVariants(); flushTrees(); } })
       .catch(e => console.warn('[city-builder] optional landscape unavailable', e)));
-    // The showcase keeps its bounded textured tree batches, but avoids the
-    // larger second wave of furniture, vehicle and variant requests.
-    if (_exampleSession) {
-      for (const job of deferredBuildingJobs) {
-        if (job.role) loadRoleVisual(job.type, job.url);
-        else loadBuildingModel(job.type, job.url, gen, loadQueue);
-      }
-      return Promise.allSettled(optional);
-    }
+    // Keep the example's smaller optional landscape wave.
+    if (_exampleSession) return Promise.allSettled(optional);
     optional.push(createStreetProps(scene, layout).then(props => {
       if (!current()) { props?.destroy?.(); return; }
       streetProps = props;
       city.streetProps = props;
     }).catch(e => console.warn('[city-builder] optional street props unavailable', e)));
-    for (const job of deferredBuildingJobs) {
-      if (job.role) loadRoleVisual(job.type, job.url);
-      else loadBuildingModel(job.type, job.url, gen, loadQueue);
-    }
-    // Example sessions deliberately request fewer cosmetic variants. The base
-    // model plus the 3D fallbacks already provide a complete readable city.
+    // Optional scenery starts only after the required building set is ready.
     if(glbState.housing?.spots.length && !_exampleSession)loadHousingVariants(gen,loadQueue);
     if(glbState.office?.spots.length && !_exampleSession)loadOfficeVariants(gen,loadQueue);
-    if (!_exampleSession && ['housing', 'shop', 'office', 'school', 'library'].some((type) => glbState[type]?.spots.length)) loadHunyuanBuildingVariants(gen,loadQueue);
     if (layout.autoScenery !== false && !_exampleSession) {
       rareLandmark = mountEmeraldRainTree(gen, loadQueue);
     }
@@ -5496,10 +5500,13 @@ async function bootInner() {
     panel.innerHTML = `
       <label for="resize-slider">Size</label>
       <input type="range" id="resize-slider" min="0.2" max="5" step="0.05" value="1" aria-label="Resize selected object">
-      <span id="resize-value">100%</span>`;
+      <span id="resize-value">100%</span>
+      <button type="button" class="resize-remove" hidden></button>`;
     document.body.appendChild(panel);
     const slider = panel.querySelector('#resize-slider');
     const valueEl = panel.querySelector('#resize-value');
+    const removeButton = panel.querySelector('.resize-remove');
+    removeButton.addEventListener('click', () => propLibrary?.removeSelected());
     slider.addEventListener('pointerdown', () => {
       propLibrary?.beginTransform(grab?.getSelected() || grab?.holding);
     });
@@ -5536,6 +5543,10 @@ async function bootInner() {
         background:#00f2fe; border:2px solid #06233a; cursor:pointer;
       }
       .resize-panel span{ min-width:42px; text-align:right; color:#9fd8ff; font-weight:600; }
+      .resize-panel .resize-remove{ min-width:74px; min-height:44px; padding:0 12px; border:1px solid #df7084; border-radius:8px; background:#3a1e2a; color:#ffd3db; font:700 14px system-ui,sans-serif; cursor:pointer; }
+      .resize-panel .resize-remove:disabled{ opacity:.45; cursor:not-allowed; }
+      .resize-panel .resize-remove:focus-visible{ outline:3px solid #ffb84c; outline-offset:2px; }
+      @media(max-width:480px){ .resize-panel{ width:calc(100vw - 24px); box-sizing:border-box; padding:8px 10px; gap:7px; } .resize-panel input[type=range]{ width:auto; min-width:60px; flex:1; } }
     `;
     document.head.appendChild(style);
     panel.hidden = true;
@@ -5543,6 +5554,14 @@ async function bootInner() {
     _resizePanel = {
       panel,
       setVisible(v) { panel.hidden = !v; },
+      setModelState(state) {
+        panel.hidden = !state;
+        removeButton.hidden = !state;
+        removeButton.disabled = !!state?.locked;
+        slider.disabled = !!state?.locked;
+        removeButton.textContent = t('props.remove');
+        removeButton.setAttribute('aria-label', t('props.remove'));
+      },
       reset() { slider.value = 1; valueEl.textContent = '100%'; },
     };
     return _resizePanel;
@@ -5566,9 +5585,9 @@ async function bootInner() {
       onToast: showToast,
       onSelection: (sel) => {
         const rs = mountResizeSlider();
-        rs.setVisible(!!sel);
         if (sel) rs.reset();
         propLibrary?.selectMesh(sel);
+        if (!propLibrary) rs.setVisible(false);
       },
       onDrop: (item) => {
         propLibrary?.updateTransform(item);
@@ -5624,6 +5643,7 @@ async function bootInner() {
       onPlacementDone: (mesh) => { if (grab && mesh) grab.select(mesh); },
       onPlacementEnd: () => { if (grab) grab.clearSelection(); },
       onInspectorClearSelection: () => { if (grab) grab.clearSelection(); },
+      onSelectedChange: state => mountResizeSlider().setModelState(state),
       getCapabilities: readPlantedCaps,
     });
     rareLandmark?.refresh(propLibrary.getRecords?.() || []);
@@ -5638,6 +5658,13 @@ async function bootInner() {
     window.__focusedCityUI = focusedUI;
   });
 
+  // Reveal the City after assigned models settle. A failed file keeps its
+  // labelled plot, so an asset error never prevents the child from entering.
+  await Promise.all([
+    Promise.all(requiredBuildingLoads.map(({ promise }) => promise)),
+    Promise.allSettled(gatewayLoads),
+  ]);
+  assertActive();
   document.getElementById('loading').classList.add('done');
   fill.style.width = '100%';
   // The child's first usable frame is the overview. Asset loading can outlast
@@ -5671,6 +5698,9 @@ async function bootInner() {
     get flying() { return !!taxiNav; },
     get waypoint() { return walkNav?.points?.[walkNav.index] || null; },
   };
+  city.openPurpose = openPurpose; // diagnostics for saved purpose content; no building interaction calls this
+  city.sim = sim;
+  city.questRefs = specialSystem?.questRefs;
   window.__city = city;     // debug hook (champion/taxi/pedestrians handles)
   startLoop(owner);
   const streamingStatus = document.getElementById('streaming-status');

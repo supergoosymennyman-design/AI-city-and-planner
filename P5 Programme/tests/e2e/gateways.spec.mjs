@@ -7,7 +7,7 @@ async function bootCity(page) {
   await page.goto('/city-builder/?example=1', { waitUntil: 'load' });
   await page.waitForTimeout(800);
   await page.evaluate(() => document.getElementById('entry-local')?.click());
-  await expect(page.locator('canvas')).toBeVisible({ timeout: 60000 });
+  await expect(page.locator('#stage canvas')).toBeVisible({ timeout: 60000 });
   await page.waitForFunction(() => document.getElementById('loading')?.classList.contains('done') === true, null, { timeout: 60000 });
   await page.waitForFunction(() => {
     const gateways = window.__city?.gateways;
@@ -84,15 +84,39 @@ test('one protected Workshop and Fit Studio flagship load with stable routes and
   await page.evaluate(() => document.getElementById('entry-local')?.click());
   await page.waitForFunction(() => window.__scene?.getObjectByName('permanent-learning-gateways')?.children.length === 2, null, { timeout:60000 });
   expect((await page.evaluate(gatewaySnapshot)).mountNames.sort()).toEqual(['passiona-studio-gateway', 'passiona-workshop-gateway']);
+
+  await page.route('https://workshop.ai-education.workers.dev/**', route => route.fulfill({
+    status: 200, contentType: 'text/html', body: '<!doctype html><title>AI Workshop</title>',
+  }));
+  await page.evaluate(() => {
+    const gateway = window.__city.gateways.workshop;
+    window.__city.champion.landAt(gateway.position.x, gateway.position.z + 16);
+  });
+  await expect(page.locator('#quest-prompt-btn')).toContainText('AI 工坊', { timeout: 10000 });
+  await page.locator('#quest-prompt-btn').click();
+  await expect(page).toHaveURL(/^https:\/\/workshop\.ai-education\.workers\.dev\/\?returnTo=/);
+  const workshopReturn = new URL(page.url()).searchParams.get('returnTo');
+  expect(workshopReturn).toBeTruthy();
+  await page.goto(workshopReturn, { waitUntil:'load' });
+  await page.waitForFunction(() => window.__scene?.getObjectByName('permanent-learning-gateways')?.children.length === 2, null, { timeout:60000 });
 });
 
 test('tablet opening view keeps both destination badges and markers in day, sunset and night', async ({ page }) => {
+  test.setTimeout(240000);
   await page.setViewportSize({ width: 1024, height: 768 });
   await bootCity(page);
+  await page.waitForFunction(() => ['complete', 'failed'].includes(window.__city?.loading?.phase), null, { timeout: 120000 });
+  await page.evaluate(() => {
+    window.__city.orbit.theta = 0.6;
+    window.__city.orbit.phi = 1.1;
+    window.__city.orbit.dist = window.__city.orbit.distOverview;
+    window.__city.orbit.introUntil = performance.now() + 60000;
+  });
+  await page.waitForTimeout(2000);
   for (const time of ['day', 'sunset', 'night']) {
     await page.evaluate(id => {
       // Hold the City's own opening camera while checking each lighting preset.
-      window.__city.orbit.introUntil = performance.now() + 30000;
+      window.__city.orbit.introUntil = performance.now() + 60000;
       window.__city.setTimeOfDay(id);
     }, time);
     await page.waitForFunction(() => window.__city.timeOfDay.settled);
@@ -140,6 +164,15 @@ test('saved/restored and newly created layouts each mount exactly one protected 
   currentLayout = await page.evaluate(() => window.__layout);
   spots = [snapshot.states.workshop.position, snapshot.states.studio.position];
   spots.forEach((p, i) => expect(gatewayLotClear(currentLayout, p.x, p.z, spots.slice(0, i))).toBe(true));
+
+  await page.goto('/city-builder/', { waitUntil:'load' });
+  await page.locator('#entry-paste').click();
+  await page.locator('#paste-box').fill(JSON.stringify(currentLayout));
+  await page.locator('#paste-go').click();
+  await page.waitForFunction(() => window.__scene?.getObjectByName('permanent-learning-gateways')?.children.length === 2, null, { timeout:60000 });
+  snapshot = await page.evaluate(gatewaySnapshot);
+  expect(snapshot.mountNames.sort()).toEqual(['passiona-studio-gateway', 'passiona-workshop-gateway']);
+  expect(snapshot.hits.sort()).toEqual(['studio', 'workshop']);
 });
 
 test('missing and corrupt flagship files preserve both procedural gateways and sockets', async ({ page }) => {

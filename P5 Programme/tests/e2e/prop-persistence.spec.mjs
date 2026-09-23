@@ -228,6 +228,55 @@ test('City slider and grab drop persist transforms; Champion download includes c
  expect(await page.evaluate(()=>!!window.__propLibrary || !!window.__grab)).toBe(false);
 });
 
+test('Remove beside Size deletes only the selected building, offers Undo, and respects locks on desktop and touch widths',async({page})=>{
+ test.setTimeout(180000);
+ await page.addInitScript(({key})=>{
+  localStorage.setItem('p5_city_planner_layout_v1',JSON.stringify({version:2,scaleMeters:2000,roads:[],parks:[],buildings:[{type:'city_central',pos:[500,500]}]}));
+  if (!localStorage.getItem(key)) localStorage.setItem(key,JSON.stringify({version:1,props:[
+   {id:'bld_kenney_a',instanceId:'building-one',x:20,z:20},
+   {id:'bld_kenney_a',instanceId:'building-two',x:60,z:60},
+  ]}));
+ },{key});
+ await page.goto('/city-builder/?from=planner');
+ await page.waitForFunction(()=>window.__grab?.interactables.length===2 && document.getElementById('loading')?.classList.contains('done'));
+ await page.click('button[data-city-mode="decorate"]');
+ await page.locator('.prop-lib-close').click();
+ await page.evaluate(()=>__grab.select(__grab.interactables.find(mesh=>mesh.position.x===60)));
+ const remove=page.locator('.resize-remove');
+ await expect(remove).toBeVisible();
+ await expect(remove).toBeEnabled();
+ const desktop=await page.evaluate(()=>({slider:document.querySelector('#resize-slider').getBoundingClientRect().toJSON(),button:document.querySelector('.resize-remove').getBoundingClientRect().toJSON()}));
+ expect(desktop.slider.right).toBeLessThanOrEqual(desktop.button.left);
+ await page.setViewportSize({width:390,height:844});
+ const touch=await page.evaluate(()=>({slider:document.querySelector('#resize-slider').getBoundingClientRect().toJSON(),button:document.querySelector('.resize-remove').getBoundingClientRect().toJSON()}));
+ expect(touch.slider.right).toBeLessThanOrEqual(touch.button.left);
+ expect(touch.button.right).toBeLessThanOrEqual(390);
+ await remove.click();
+ await expect(page.locator('.resize-panel')).toBeHidden();
+ await expect(page.locator('.prop-lib-toast').getByRole('button',{name:'Undo'})).toBeVisible();
+ expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)).props.map(p=>p.instanceId),key)).toEqual(['building-one']);
+ expect(await page.evaluate(()=>__grab.interactables.length)).toBe(1);
+ await page.locator('.prop-lib-toast').getByRole('button',{name:'Undo'}).click();
+ await expect.poll(()=>page.evaluate(()=>__grab.interactables.length)).toBe(2);
+ expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)).props.map(p=>p.instanceId),key)).toEqual(['building-one','building-two']);
+ await page.evaluate(()=>__grab.select(__grab.interactables.find(mesh=>mesh.position.x===60)));
+ await page.locator('[data-inspect="delete"]').click();
+ expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)).props.map(p=>p.instanceId),key)).toEqual(['building-one']);
+ await page.setViewportSize({width:1280,height:800});
+ await page.reload();
+ await page.getByRole('button',{name:'Continue my city'}).click();
+ await page.waitForFunction(()=>window.__grab?.interactables.length===1 && document.getElementById('loading')?.classList.contains('done'),null,{timeout:90000});
+ expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)).props.map(p=>p.instanceId),key)).toEqual(['building-one']);
+ await page.click('button[data-city-mode="decorate"]');
+ await page.locator('.prop-lib-close').click();
+ await page.evaluate(()=>__grab.select(__grab.interactables[0]));
+ await page.locator('#prop-inspector input[type="checkbox"]').check();
+ await expect(remove).toBeDisabled();
+ await expect(page.locator('[data-inspect="delete"]')).toBeDisabled();
+ expect(await page.evaluate(()=>__propLibrary.removeSelected())).toBe(false);
+ expect(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)).props,key)).toHaveLength(1);
+});
+
 test('same-model preview generations release owned materials and cannot revive after clear/destroy',async({page})=>{
  await harness(page,[]);
  const choose = async () => {

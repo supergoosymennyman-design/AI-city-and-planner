@@ -51,28 +51,39 @@ test('failed Audi requests leave empty roads without opening the crash guard', a
   expect(state).toEqual({ draws: 0, visible: 0, crash: false, phase: 'failed' });
 });
 
-test('buildings begin as solid fallbacks, settle independently, and missing models stay recoverable', async ({ page }) => {
+test('delayed and failed buildings keep recognizable plots while the city opens', async ({ page }) => {
+  test.setTimeout(150_000);
   let releaseSchool;
   const school = new Promise(resolve => { releaseSchool = resolve; });
   await page.route('**/city-builder/assets/models/school.glb', async route => { await school; await route.continue(); });
   await page.route('**/city-builder/assets/models/library.glb', route => route.fulfill({ status: 404, body: 'missing' }));
-  await boot(page);
-  await page.waitForFunction(() => __city.loading.assets.buildings.library?.state === 'failed');
-  const pending = await page.evaluate(() => ({
-    school: __city.loading.assets.buildings.school,
-    library: __city.loading.assets.buildings.library,
-    plots: __scene.children.filter(o => o.name.startsWith('building-fallback-')).map(o => o.name),
-    labels: document.querySelectorAll('.building-label').length,
-    crash: !!document.querySelector('#crash-guard'),
-  }));
-  expect(pending.school.state).toBe('loading');
-  expect(pending.library).toMatchObject({ state: 'failed', instances: 0 });
-  expect(pending.plots).toEqual(expect.arrayContaining(['building-fallback-school', 'building-fallback-library']));
-  expect(pending.labels).toBeGreaterThanOrEqual(2);
-  expect(pending.crash).toBe(false);
+  await page.addInitScript(value => localStorage.setItem('p5_city_planner_layout_v1', JSON.stringify(value)), layout);
+  const failedLibrary = page.waitForResponse(response => response.url().endsWith('/assets/models/library.glb') && response.status() === 404, { timeout: 60_000 });
+  await page.goto('/city-builder/');
+  await page.locator('#entry-local').click();
+  await failedLibrary;
+  expect(await page.locator('#loading').evaluate(node => node.classList.contains('done'))).toBe(false);
   releaseSchool();
-  await page.waitForFunction(() => __city.loading.assets.buildings.school?.state === 'loaded');
-  expect(await page.evaluate(() => __city.loading.assets.buildings.school.instances)).toBeGreaterThan(0);
+  await page.waitForFunction(() => document.querySelector('#loading.done'), null, { timeout: 60_000 });
+  expect(await page.evaluate(() => __city.loading.assets.buildings.library.state)).toBe('failed');
+  await expect(page.locator('.building-label.model-unavailable')).toContainText('Library');
+  expect(await page.evaluate(() => !!__scene.getObjectByName('building-fallback-library'))).toBe(true);
+  await page.waitForFunction(() => __city.loading.assets.buildings.school.state === 'loaded', null, { timeout: 60_000 });
+});
+
+test('missing device-local building model has an explicit unavailable state', async ({ page }) => {
+  await page.addInitScript(value => {
+    localStorage.setItem('p5_city_planner_layout_v1', JSON.stringify(value));
+    localStorage.setItem('hk_ai_city_custom_models_v1', JSON.stringify({
+      version: 2, models: [{ id: 'missing-school', name: 'My School' }], overrides: { school: 'missing-school' },
+    }));
+  }, layout);
+  await page.goto('/city-builder/');
+  await page.locator('#entry-local').click();
+  await page.waitForFunction(() => document.querySelector('#loading.done'), null, { timeout: 60_000 });
+  await expect(page.locator('.building-label.model-unavailable')).toContainText('Model unavailable');
+  expect(await page.evaluate(() => __city.loading.assets.buildings.school.state)).toBe('failed');
+  expect(await page.evaluate(() => !!__scene.getObjectByName('building-fallback-school'))).toBe(true);
 });
 
 test('slow required boot explains the delay then returns to retry with the selected city', async ({ page }) => {
@@ -91,6 +102,7 @@ test('slow required boot explains the delay then returns to retry with the selec
 });
 
 test('Natural is clean-storage default; saved styles and every ground remain selectable', async ({ page }) => {
+  await page.addInitScript(value => localStorage.setItem('p5_city_planner_layout_v1', JSON.stringify(value)), layout);
   await page.goto('/city-builder/');
   await page.locator('#entry-local').click();
   await page.waitForFunction(() => window.__city?.loading && document.querySelector('#loading.done'));

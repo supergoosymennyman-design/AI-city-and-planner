@@ -10,26 +10,18 @@ async function boot(page){
   localStorage.clear();localStorage.setItem('hk_ai_city_lang_v1','en');localStorage.setItem('hk_ai_city_quests_v1',history);
   localStorage.setItem('p5_city_planner_layout_v1',JSON.stringify({version:2,scaleMeters:2000,roads:[{points:[[100,1000],[1900,1000]],width:14,class:'primary'}],parks:[],buildings:types.map((type,i)=>({type,pos:[300+(i%6)*240,500+Math.floor(i/6)*300],height:30,footprint:[24,24]}))}));
  },{types:Object.keys(PURPOSES),history});
- await page.goto('/city-builder/');await page.locator('#entry-local').click();await page.waitForFunction(()=>document.getElementById('loading')?.classList.contains('done'));
+ await page.goto('/city-builder/');await page.locator('#entry-local').click();await page.waitForFunction(()=>document.getElementById('loading')?.classList.contains('done'),null,{timeout:120000});
  await expect(page.locator('#my-work-btn')).toBeVisible();
 }
-test('every stable type loads, opens ungated purpose, navigates and keeps opaque history',async({page})=>{
- test.setTimeout(900000); // 18 complete visits plus file restore, under 4× CPU throttling.
+test('My Work opens from the top bar and preserves opaque history',async({page})=>{
+ test.setTimeout(300000);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await boot(page);
- const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
- for(const [type,p] of Object.entries(PURPOSES)) {
-  await page.evaluate(type=>{const b=window.__layout.buildings.find(b=>b.type===type);window.__city.champion.state.pos.set(b.pos[0]+20,0,b.pos[1]);},type);
-  await expect(page.locator('#quest-prompt-label')).toContainText(p.en);
-  await page.click('#quest-prompt-btn');await expect(page.locator('#my-work-title')).toHaveText(p.en);
-  await expect(page.locator('#my-work-body')).toContainText(p.description);
-  await page.click('[data-work-action="destinations"]');await expect(page.locator('.work-destination')).toHaveCount(18);
-  await page.locator(`[data-walk="${Object.keys(PURPOSES).indexOf(type)}"]`).click();
-  await expect(page.locator('#my-work-modal')).toHaveClass(/hidden/);
-  console.log('Verified landmark:',type);
- }
- await cdp.send('Emulation.setCPUThrottlingRate',{rate:1});
+ await page.click('#my-work-btn');
+ await expect(page.locator('#my-work-title')).toHaveText('City Hall & My Work');
+ await page.locator('[data-work-action="destinations"]').evaluate(el=>el.click());
+ await expect(page.locator('.work-destination')).toHaveCount(18);
  expect(await page.evaluate(()=>localStorage.getItem('hk_ai_city_quests_v1'))).toBe(history);
- await page.click('#my-work-btn');await page.click('[data-work-action="plan"]');await expect(page.locator('#work-content')).toContainText('No saved plan receipt');
+ await page.click('[data-work-action="plan"]');await expect(page.locator('#work-content')).toContainText('No saved plan receipt');
  await page.click('[data-work-action="evidence"]');await expect(page.locator('#work-content')).toContainText('No imported evidence');
  await page.click('[data-work-action="exhibits"]');await expect(page.locator('#work-content')).toContainText('No saved outdoor props');
  await page.screenshot({path:'/tmp/purpose-session4/my-work.png'});
@@ -38,13 +30,36 @@ test('every stable type loads, opens ungated purpose, navigates and keeps opaque
  const file=JSON.parse(await readFile(await download.path(),'utf8'));expect(file.state.quests).toBe(history);
  await page.setInputFiles('#file-input',{name:'city.champion.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(file))});
  await page.locator('#entry-local').click();
- await page.waitForFunction(()=>document.getElementById('loading')?.classList.contains('done'));
+ await page.waitForFunction(()=>document.getElementById('loading')?.classList.contains('done'),null,{timeout:120000});
  expect(await page.evaluate(()=>localStorage.getItem('hk_ai_city_quests_v1'))).toBe(history);expect(errors).toEqual([]);
+});
+test('ordinary landmarks have no nearby entry, tap target, or Buddy entry',async({page})=>{
+ await boot(page);
+ const selected=await page.evaluate(async()=>{
+   const gateways=Object.values(window.__city.gateways);
+   const ordinary=window.__layout.buildings.reduce((best,b)=>{
+     const distance=Math.min(...gateways.map(g=>Math.hypot(b.pos[0]-g.position.x,b.pos[1]-g.position.z)));
+     return distance>best.distance?{building:b,distance}:best;
+   },{distance:-1});
+   window.__city.champion.landAt(ordinary.building.pos[0]+20,ordinary.building.pos[1]);
+   const {Vector3}=await import('three');
+   const point=new Vector3(ordinary.building.pos[0],25,ordinary.building.pos[1]).project(window.__city.camera);
+   const rect=window.__city.renderer.domElement.getBoundingClientRect();
+   return {distance:ordinary.distance,x:rect.left+(point.x+1)*rect.width/2,y:rect.top+(1-point.y)*rect.height/2,targets:(()=>{let count=0;window.__scene.traverse(o=>{if(o.userData?.kind==='quest')count++;});return count;})()};
+ });
+ expect(selected.distance).toBeGreaterThan(100);
+ expect(selected.targets).toBe(0);
+ await expect(page.locator('#quest-prompt')).toBeHidden();
+ await page.mouse.click(selected.x,selected.y);
+ await expect(page.locator('#my-work-modal')).toBeHidden();
+ expect(await page.evaluate(()=>window.__city.sim.enterNearQuest())).toMatchObject({ok:false});
+ await expect(page.locator('#my-work-modal')).toBeHidden();
+ await page.locator('#my-work-btn').click();
+ await expect(page.locator('#my-work-modal')).toBeVisible();
 });
 test('road inspection and optional game Done preserve completion history, Stage 1 has no live inputs',async({page})=>{
  await boot(page);
- await page.evaluate(()=>{const b=window.__layout.buildings.find(b=>b.type==='delivery');window.__city.champion.state.pos.set(b.pos[0]+20,0,b.pos[1]);});
- await expect(page.locator('#quest-prompt-label')).toContainText('Delivery Depot');await page.click('#quest-prompt-btn');
+ await page.evaluate(()=>window.__city.openPurpose('delivery'));
  await page.click('[data-work-action="routes"]');await expect(page.locator('#work-route svg')).toBeVisible();await expect(page.locator('#work-route')).toContainText('road distance');
  await page.selectOption('#work-to','0');await expect(page.locator('#work-from')).toHaveValue('9');
  await page.click('#work-optional > summary');
@@ -54,8 +69,7 @@ test('road inspection and optional game Done preserve completion history, Stage 
  expect(after.completed).toEqual(JSON.parse(history).completed);expect(after.unlocked).toEqual(JSON.parse(history).unlocked);expect(after.activity).toEqual([{questId:10,action:'done'}]);
  if (!(await page.locator('#city-more').evaluate(el=>el.open))) await page.click('#city-more > summary');await page.click('#cap-btn');await expect(page.locator('#cap-body')).toContainText('does not run inference');await expect(page.locator('#try-run')).toHaveCount(0);
  await page.locator('#cap-modal .modal-close').click();
- await page.evaluate(()=>{const b=window.__layout.buildings.find(b=>b.type==='water');window.__city.champion.state.pos.set(b.pos[0]+20,0,b.pos[1]);});
- await expect(page.locator('#quest-prompt-label')).toContainText('Water Utility');await page.click('#quest-prompt-btn');await page.click('#work-optional > summary');await page.click('#work-game');await expect(page.locator('#work-link-status')).toContainText('No historical game link');
+ await page.evaluate(()=>window.__city.openPurpose('water'));await page.click('#work-optional > summary');await page.click('#work-game');await expect(page.locator('#work-link-status')).toContainText('No historical game link');
 });
 
 test('imported evidence and historical decisions remain display-only through inspection and save',async({page})=>{
