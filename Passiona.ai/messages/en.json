@@ -1,0 +1,472 @@
+{
+  "Meta": {
+    "title": "Passiona — AI literacy for primary schools",
+    "description": "Two 20-lesson AI-literacy programmes for Primary 1 and Primary 5. Students build, test and explain AI through four connected creative tools.",
+    "ogType": "website"
+  },
+  "Announcement": {
+    "text": "Explore our support for schools adopting the EDB “AI for Empowering Learning and Teaching” funding and school-based AI literacy curricula.",
+    "details": "View details",
+    "grantHref": "/grant"
+  },
+  "Nav": {
+    "brand": "Passiona",
+    "primaryNavigation": "Primary navigation",
+    "programme": "Programme",
+    "tools": "Connected tools",
+    "outcomes": "Outcomes",
+    "demo": "Demo",
+    "useCasesSub": [
+      "Understand AI by building it",
+      "Six starter machines, six AI ideas",
+      "From the bench to the scene"
+    ],
+    "bookDemo": "Book a demo",
+    "workshop": "Try the Workshop",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "Hero": {
+    "eyebrow": "AI literacy for primary schools",
+    "title": "Build AI. Question it. Shape what comes next.",
+    "subtitle": "Two hands-on, 20-lesson journeys for Primary 1 and Primary 5. Students make AI visible, test ideas with evidence and build a connected world they can explain.",
+    "ctaPrimary": "Book a demo",
+    "ctaSecondary": "See the connected tools",
+    "proofLabel": "Programme commitments",
+    "proof": ["Built for classrooms", "Children stay in control", "No child accounts or personal data"],
+    "imageAlt": "A student-designed Passiona AI City"
+  },
+  "Goals": {
+    "goalsTitle": "School goals",
+    "helpTitle": "How Passiona helps",
+    "cta": "Book a demo",
+    "goals": [
+      "Want to teach AI literacy, but don't know where to start.",
+      "Want students to truly understand AI, not just use AI apps.",
+      "Want visible learning outcomes you can show.",
+      "Want to make the most of EDB funding."
+    ],
+    "help": [
+      "Two complete journeys for Primary 1 and Primary 5, each using the AI Workshop, Fit Studio, Coding Buddy and AI City.",
+      "Students build, test and discuss AI ideas through hands-on tools and their own city.",
+      "Outcomes students can show: a city, a Champion and a project they can explain with evidence.",
+      "Funding guidance. We help you navigate and apply for EDB support."
+    ]
+  },
+  "ScenarioSteps": {
+    "title": "How a challenge becomes a city",
+    "closing": "No two cities solve a challenge the same way.",
+    "steps": [
+      {
+        "heading": "A scenario sets a challenge",
+        "text": "A storm floods the city. The power grid strains. Traffic jams a district."
+      },
+      {
+        "heading": "You build a solution in the Workshop",
+        "text": "Wire a machine that watches, sorts, or reroutes. Your way, not a fixed answer."
+      },
+      {
+        "heading": "Bring your champion",
+        "text": "Save it and step into the scenario."
+      },
+      {
+        "heading": "See it run",
+        "text": "The system you built now operates a live district, in real time."
+      }
+    ]
+  },
+  "Pillars": {
+    "heading": "One loop: build, step in, solve.",
+    "workshop": {
+      "kicker": "The Workshop",
+      "title": "Build AI abilities",
+      "hoverVerb": "BUILD",
+      "hoverText": "Assemble real AI machines in the Workshop.",
+      "points": [
+        "Assemble, don't just use. Drag real pieces and wire them together to build working AI.",
+        "Real concepts, made visible. The machines learn, sort, and invent on their own.",
+        "See the machine think. Models train, test, and fail in real time. Watch why, not just what."
+      ]
+    },
+    "city": {
+      "kicker": "The Living 3D Scenarios",
+      "title": "Connect & run",
+      "hoverVerb": "CONNECT",
+      "hoverText": "Plug your machines into the world.",
+      "points": [
+        "Your abilities become the world. Every Workshop machine plugs in as a capability building.",
+        "Explore the AI City where students place their machines, plan streets and test their ideas.",
+        "A living world in motion. Weather, citizens, and crises test every system.",
+        "Run what you built. The sorter you wired actually sorts the city's waste."
+      ]
+    },
+    "champion": {
+      "kicker": "Your AI Champion — made in Fit Studio",
+      "title": "Make it yours",
+      "tagline": "Designed by you, carried everywhere.",
+      "hoverVerb": "RUN",
+      "hoverText": "Walk any scenario as the champion you built.",
+      "points": [
+        "Design your own champion. Skins, colours, and gear: crowns, visors, jetpacks.",
+        "Walk through any scenario as your champion, in third person.",
+        "One identity everywhere. Your champion carries your abilities into every world."
+      ]
+    }
+  },
+  "CityLog": {
+    "label": "City systems — demo preview",
+    "throughline": "Build it, connect it, run it. The machine your students wired in the Workshop is the machine now operating a live district, in real time.",
+    "entries": [
+      "Power Grid Load 78%",
+      "Waste Truck Route Optimized",
+      "Storm warning: Flood risk rising",
+      "Recycling sorter active. Sorting city waste",
+      "Traffic rerouted around heatwave zone",
+      "Water pressure stable",
+      "Citizens gathered near the new AI building"
+    ]
+  },
+  "UseCases": {
+    "heading": "Use cases",
+    "build": {
+      "kicker": "Use case A",
+      "title": "Understand AI by building it",
+      "steps": [
+        "Start from an example. Open a finished machine (recycle sorter, watchdog, bandit pet) and see a working model.",
+        "Wire it yourself. Connect the camera to the sorter, teach it what to look for, and watch the belt do the rest.",
+        "Make it yours. Rename the bins, add rules, invent a machine nobody has built before."
+      ]
+    },
+    "machines": {
+      "kicker": "Use case B",
+      "title": "Six starter machines, six AI ideas",
+      "lead": "Start from these six machines, then remix them. Rename the bins, add rules, and invent machines nobody has built before.",
+      "tableHeaders": [
+        "Machine",
+        "AI idea"
+      ],
+      "rows": [
+        {
+          "machine": "Recycle sorter",
+          "idea": "Image classification: a belt eye that guesses what you show it."
+        },
+        {
+          "machine": "Watchdog",
+          "idea": "Anomaly detection: barks at anything not taught as “normal”."
+        },
+        {
+          "machine": "Grouper sorter",
+          "idea": "Unsupervised learning: the machine invents its own piles."
+        },
+        {
+          "machine": "Bandit pet",
+          "idea": "Feedback learning: clap for the trick you like, it learns your favourite."
+        },
+        {
+          "machine": "Data lab",
+          "idea": "Train/test discipline: study some data, test the rest."
+        },
+        {
+          "machine": "Ice-cream stand",
+          "idea": "A readable rule drawn live: how many, not which one."
+        }
+      ]
+    },
+    "city": {
+      "kicker": "Use case C",
+      "title": "From the bench to the scene",
+      "steps": [
+        "Build the ability in the Workshop. Your way, not a fixed answer.",
+        "Bring in your champion. Save it, then step into the scenario.",
+        "See it govern. The ability you built operates a live district, solving the scenario’s challenge."
+      ]
+    }
+  },
+  "ProductVideos": {
+    "eyebrow": "Product demonstrations",
+    "heading": "See the real product, not a concept render.",
+    "intro": "Watch two authentic product moments: students prepare their AI Champion, then bring their ideas into a living city.",
+    "play": "Play video",
+    "watchOnYouTube": "Watch on YouTube",
+    "fit-studio": {
+      "label": "Fit Studio",
+      "title": "Prepare an AI Champion",
+      "description": "Choose and fit gear for a student-created AI Champion before taking it into the city."
+    },
+    "ai-smart-city": {
+      "label": "AI Smart City",
+      "title": "Explore the AI Smart City",
+      "description": "See the 3D city where students plant their machines, test ideas and explain what happens."
+    }
+  },
+  "Cta": {
+    "eyebrow": "Start a conversation",
+    "heading": "Bring AI learning to your school",
+    "body": "Arrange a free introductory lesson or demo.",
+    "delivery": {
+      "teacherConfidence": {
+        "title": "Build your staff’s confidence",
+        "body": "Passiona can train teachers to deliver the programme with clarity, practical support and confidence."
+      },
+      "passionaEducators": {
+        "title": "Passiona educators at your school",
+        "body": "We can provide experienced educators who travel to your school to deliver the programme, working alongside your staff where appropriate."
+      }
+    }
+  },
+  "Form": {
+    "enquiryType": "How can we help?",
+    "enquiryOptions": {
+      "freeLesson": "Arrange a free lesson",
+      "demo": "Arrange a demo",
+      "trainingDelivery": "Discuss teacher training or programme delivery"
+    },
+    "name": "Name",
+    "nameRequired": "Please enter your name.",
+    "school": "School / Organization",
+    "schoolRequired": "Please enter your school or organization.",
+    "email": "Email",
+    "emailOptional": "(optional)",
+    "whatsapp": "WhatsApp",
+    "whatsappOptional": "(optional)",
+    "needs": "Tell us about your school’s needs",
+    "needsOptional": "(optional)",
+    "submit": "Send enquiry",
+    "chatOnWhatsApp": "Chat with Passiona on WhatsApp",
+    "success": "Thanks! We’ve received your enquiry and will be in touch shortly.",
+    "error": "Something went wrong. Please try again.",
+    "requiredHint": "Fields marked * are required to send an enquiry.",
+    "privacyNotice": "By submitting this form, you confirm that Passiona may use your details to respond to your enquiry as described in our",
+    "privacyLink": "Privacy Policy"
+  },
+  "Pricing": {
+    "meta:title": "Pricing & Partnerships — Passiona",
+    "meta:description": "Flexible class and school licensing for Passiona, the primary AI-literacy platform for Hong Kong schools.",
+    "heading": "Pricing & Partnerships",
+    "intro": "Flexible options for classes, whole schools, and strategic partners. Contact us for detailed pricing.",
+    "tiers": [
+      {
+        "name": "Class licence",
+        "highlight": false,
+        "recurrence": "Per class, per year",
+        "points": [
+          "The P5 toolset: AI Workshop, Fit Studio, AI agents and AI City.",
+          "One teacher + one class of students.",
+          "Standard support."
+        ]
+      },
+      {
+        "name": "School licence",
+        "highlight": true,
+        "recurrence": "Whole school, per year",
+        "points": [
+          "The P5 toolset: AI Workshop, Fit Studio, AI agents and AI City.",
+          "All teachers + all students, A1–A6.",
+          "Priority support and onboarding."
+        ]
+      },
+      {
+        "name": "Partnership",
+        "highlight": false,
+        "recurrence": "Let’s talk",
+        "points": [
+          "Co-design curriculum with our team.",
+          "Early access to new machines and city systems.",
+          "Dedicated account manager."
+        ]
+      }
+    ],
+    "cta": "Contact us for pricing",
+    "partnershipHeading": "Partner with Passiona",
+    "partnershipBody": "We work with schools, districts, and organisations to bring hands-on AI literacy to Hong Kong classrooms.",
+    "enquire": "Make an enquiry"
+  },
+  "Grant": {
+    "meta:title": "Funding Support — Passiona",
+    "meta:description": "Explore EDB “AI for Empowering Learning and Teaching” funding and school-based AI literacy curricula support.",
+    "heading": "Funding Support",
+    "intro": "Explore our support for schools adopting the EDB “AI for Empowering Learning and Teaching” funding and school-based AI literacy curricula.",
+    "body": "We help schools plan, budget and apply for funded Primary 5 AI-literacy programmes. Our team can guide you through eligible programmes and school-based curriculum design.",
+    "pointsTitle": "How we help",
+    "points": [
+      "Guidance on eligible EDB funding programmes.",
+      "School-based AI literacy curriculum planning.",
+      "Budgeting and procurement of the three product pillars."
+    ],
+    "cta": "Talk to us about funding"
+  },
+  "Demo": {
+    "meta:title": "Demo Videos — Passiona",
+    "meta:description": "Watch Passiona’s Fit Studio and AI Smart City demonstrations, then explore the connected tools students use.",
+    "heading": "Demo videos",
+    "intro": "Watch Fit Studio and AI Smart City demonstrations, then explore the connected product tools."
+  },
+  "Footer": {
+    "copyright": "© 2026 Passiona",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "madeIn": "Built for Hong Kong schools."
+  },
+  "Privacy": {
+    "meta:title": "Privacy — Passiona",
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: 16 September 2026.",
+    "sections": [
+      {
+        "heading": "Scope and our approach",
+        "paragraphs": ["This policy explains how Passiona handles personal data collected through passiona.ai. Passiona is an AI-literacy programme for schools in Hong Kong.", "We design the public site to minimise personal-data collection. It has no visitor accounts, student profiles or behavioural advertising."]
+      },
+      {
+        "heading": "Enquiries and purpose of collection",
+        "paragraphs": ["When an adult submits an enquiry, we collect the name, school or organisation, and chosen enquiry type supplied in the form. Email address, WhatsApp number and enquiry details are optional.", "We use these details only to respond to the requested free introductory lesson, demo, programme, partnership or funding enquiry, maintain an accurate record of that conversation, and arrange requested follow-up. Supplying the required fields is necessary for us to respond; optional fields are not required."],
+        "bullets": ["Please do not submit children’s personal data, sensitive information or unnecessary personal details in the enquiry form.", "We do not use enquiry details for direct marketing unless we first obtain the consent required by applicable law."]
+      },
+      {
+        "heading": "Children and learning tools",
+        "paragraphs": ["The public website does not ask children to create accounts or provide names, contact details or other personal identifiers.", "Where a learning activity uses live camera or microphone input, that input is intended to be processed on the device in memory for the activity. It is not used to create a child profile or retained by passiona.ai."]
+      },
+      {
+        "heading": "Cookies, logs and embedded media",
+        "paragraphs": ["We set the essential NEXT_LOCALE cookie to remember the language you choose. It expires after one year, is limited to this site, and does not contain your name or contact details.", "Our hosting provider may process technical request information such as IP address, browser, device and server log data to deliver, secure and diagnose the site. Product demonstration videos load from YouTube only after you press Play; YouTube may then process data under its own policies."]
+      },
+      {
+        "heading": "Service providers and sharing",
+        "paragraphs": ["Passiona uses Cloudflare to host and deliver the website. If a lead-forwarding destination is configured, the adult enquiry details are sent securely to that service only so our team can respond. We require service providers to handle data for these purposes and with appropriate safeguards.", "We do not sell personal data or disclose it for unrelated advertising. We may disclose information where required by law, to protect rights or safety, or as part of a lawful business transfer."]
+      },
+      {
+        "heading": "Retention and security",
+        "paragraphs": ["We keep enquiry data only for as long as needed to respond, manage the relationship, meet legal obligations or resolve a dispute. We then delete or anonymise it where practicable.", "We use reasonable technical and organisational safeguards appropriate to the data and service, but no internet transmission or storage system can be guaranteed completely secure."]
+      },
+      {
+        "heading": "Your choices and requests",
+        "paragraphs": ["You may ask whether we hold your personal data and request access or correction. You may also ask us to delete enquiry data where applicable. Send the request through the site enquiry form and include enough information for us to identify the relevant record.", "We handle requests in accordance with applicable law, including the Hong Kong Personal Data (Privacy) Ordinance. This policy may change when our practices or the service changes; the date above shows the latest version."]
+      }
+    ]
+  },
+  "Terms": {
+    "meta:title": "Terms — Passiona",
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: 16 September 2026.",
+    "sections": [
+      {
+        "heading": "About these terms",
+        "paragraphs": ["These terms govern use of passiona.ai and the Passiona materials made available through it. By using the site, you agree to them on your own behalf or, if you act for a school or organisation, on its behalf."]
+      },
+      {
+        "heading": "Educational use and supervision",
+        "paragraphs": ["Passiona is designed to support AI literacy. It is not a substitute for teacher judgement, safeguarding procedures, professional advice or independent assessment of an AI output.", "Schools and educators are responsible for appropriate supervision, permissions, accessibility support and classroom use. Do not ask children to submit personal or sensitive information through the public site."],
+        "bullets": ["Use the site lawfully and do not interfere with its security, availability or operation.", "Do not copy, reverse engineer, scrape, distribute or commercially exploit site materials except where law permits or Passiona agrees in writing.", "Do not submit unlawful, harmful, infringing, deceptive or privacy-invasive material through the enquiry form."]
+      },
+      {
+        "heading": "AI, content and third parties",
+        "paragraphs": ["AI-related examples and learning materials are illustrative and may be incomplete, inaccurate or unsuitable for a particular context. Users should test, question and independently evaluate outputs.", "The site may link to or embed third-party services, including YouTube. Those services are governed by their own terms and privacy policies; Passiona is not responsible for their content or availability."]
+      },
+      {
+        "heading": "Intellectual property",
+        "paragraphs": ["Passiona and its site content, designs, text, software, branding, images and media are protected by applicable intellectual-property laws. All rights not expressly granted are reserved.", "You retain rights in information you submit, and grant Passiona a limited right to use it only to answer and administer your enquiry."]
+      },
+      {
+        "heading": "Availability, liability and changes",
+        "paragraphs": ["We may change, suspend or remove site content or functionality at any time. The site is provided on an ‘as is’ and ‘as available’ basis to the extent permitted by law.", "To the extent permitted by law, Passiona excludes warranties and is not liable for indirect, incidental, special or consequential loss arising from use of the site. Nothing excludes liability that cannot lawfully be excluded.", "We may update these terms by posting a new version. Continued use after the effective date means you accept the updated terms."]
+      },
+      {
+        "heading": "Governing law",
+        "paragraphs": ["These terms are governed by the laws of Hong Kong. The courts of Hong Kong have exclusive jurisdiction, except where applicable law requires otherwise. Questions about these terms may be sent through the site enquiry form."]
+      }
+    ]
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "text": "We couldn’t find that page.",
+    "home": "Back to home"
+  },
+  "Lang": {
+    "switchToZh": "繁體中文",
+    "switchToEn": "English"
+  },
+  "Journey": {
+    "eyebrow": "The learning journey",
+    "title": "A year-long journey from curiosity to confident judgement.",
+    "intro": "Passiona gives each child a world they can keep building. The detail belongs in the classroom; the promise is simple: students learn to make, inspect and question AI.",
+    "stages": [
+      {"title":"Build Your World", "body":"Set up the city, Champion and Workshop before any AI concept."},
+      {"title":"What AI Is, and How It Senses", "body":"Rules, perception, outputs and the agent children direct."},
+      {"title":"Learning from Data", "body":"Models, evidence, uncertainty, numbers and unlabeled groups."},
+      {"title":"Error, Agents & Systems", "body":"Error costs, ensembles, bounded agents, environments and drift."},
+      {"title":"Search, Design & Showcase", "body":"Optimisation, real users and a proof-based final presentation."}
+    ]
+  },
+  "Tools": {
+    "eyebrow": "One journey, four connected tools",
+    "title": "Students build one idea, then carry it forward.",
+    "intro": "Each tool has a clear job. Together they turn an abstract subject into a visible, creative learning journey.",
+    "explore3d": "Explore in 3D",
+    "unavailable3d": "The 3D view is unavailable. The product image remains visible.",
+    "items": [
+      {"name":"workshop", "label":"AI Workshop", "title":"Build, test and inspect an AI machine.", "body":"Students trace visible inputs, models, conditions and outputs, then test what a machine does and when its uncertainty should matter.", "image":"/product/ai-workshop-demo.v1.avif", "alt":"The Workshop Champion demo, showing a Data reader model, training and held-out panels, and a bottom tray of machine parts", "accent":"teal", "imageFit":"contain"},
+      {"name":"champion", "label":"Fit Studio", "title":"Create a Champion that makes the journey personal.", "body":"Students shape a distinctive 3D character and learn how a digital skeleton turns design into movement.", "image":"/product/champion-turntable-poster.png", "alt":"A Champion being viewed in Passiona 3D Fit Studio", "media":"champion-turntable"},
+      {"name":"buddy", "label":"Coding Buddy", "title":"Direct a bounded agent—not an answer machine.", "body":"Students set a goal, control the permitted tools and approve a proposal before anything changes.", "media":"coding-buddy"},
+      {"name":"city", "label":"AI City", "title":"Turn learning into a world worth returning to.", "body":"Students make design choices for a 3D city that carries their evidence forward. The city is a lasting place to revisit, test and explain their work.", "image":"/product/ai-city.v1.avif", "alt":"A view across a student-designed Passiona AI City", "accent":"green"}
+    ]
+  },
+  "Outcomes": {
+    "eyebrow": "What students leave able to do",
+    "title": "Learning that students can demonstrate.",
+    "intro": "At the end of the programme, students can show not only what they made, but how they tested and judged it.",
+    "items": [
+      {"number":"01", "title":"Trace a system", "body":"Explain what each part carries from input to output."},
+      {"number":"02", "title":"Test a claim fairly", "body":"Use new cases and evidence to check what an AI claim really shows."},
+      {"number":"03", "title":"Judge uncertainty", "body":"Consider error costs and when a human should decide."},
+      {"number":"04", "title":"Design for a real user", "body":"Weigh constraints and trade-offs while solving a genuine need."},
+      {"number":"05", "title":"Present with proof", "body":"Explain a project clearly, show evidence and name one limitation."}
+    ]
+  },
+  "Agent": {
+    "eyebrow": "The deeper idea",
+    "title": "AI agents, with children in charge.",
+    "intro": "The programme makes an agent’s boundaries visible: a goal, permitted tools, a proposal, human approval and a checked result.",
+    "genericAlt": "A tactile miniature diorama showing an AI agent inside a visible task boundary with a human approval gate",
+    "previewDescription": "A static Coding Buddy chat preview. A child explains that the school gate is busy after lessons and asks to make crossing safer. The Buddy may use the city map and traffic data, proposes a safe crossing while keeping the bus stop clear, and asks the child to approve or change it. The result is verified against the city plan.",
+    "previewName": "Coding Buddy",
+    "previewCityPlan": "AI City plan",
+    "previewStatus": "Ready for your decision",
+    "previewGoalLabel": "Goal",
+    "previewGoal": "Help children cross safely",
+    "previewToolsLabel": "Permitted tools",
+    "previewTools": "City map · traffic data",
+    "previewChildLabel": "Your city idea",
+    "previewChildMessage": "The school gate gets busy after lessons. Can we make crossing safer?",
+    "previewBuddyLabel": "Coding Buddy",
+    "previewBuddyMessage": "I found a busy crossing near the school gate. I can plan a safer route with the map and traffic data.",
+    "previewProposalLabel": "Proposal",
+    "previewProposal": "Add a safe crossing by the school and keep the bus stop clear.",
+    "previewDecisionQuestion": "Would you like to add this?",
+    "previewApprove": "Approve",
+    "previewChange": "Change it",
+    "previewCheckedLabel": "Checked result",
+    "previewChecked": "Verified against city plan",
+    "genericKicker": "What makes an AI agent?",
+    "genericTitle": "Goal → tools → proposal → approval → checked result",
+    "genericBody": "A model can generate an answer. An agent also chooses an action in an environment. Children learn to ask what the agent is allowed to touch, what it proposed and how they can check or undo the result.",
+    "principles": [{"title":"Bounded verbs","body":""},{"title":"Human approval","body":""},{"title":"Undo and checks","body":""},{"title":"Consent to memory","body":""}]
+  },
+  "CityPanorama": {
+    "alt": "Aerial view of a student-designed Passiona AI City"
+  },
+  "ProgrammePrinciples": {
+    "label": "How Passiona builds judgement and trust",
+    "progressionEyebrow": "Judgement progression",
+    "progressionTitle": "From Builder to Architect",
+    "progressionIntro": "The year moves from making a system work to composing systems for a user—and defending the result with evidence.",
+    "progression": [{"title":"Builder","body":"Make a system run and trace its parts."},{"title":"Skeptic","body":"Test the claim on cases the machine has not seen."},{"title":"Auditor","body":"Find error costs, uncertainty, drift and honest limits."},{"title":"Architect","body":"Compose tools for a real user and defend the evidence."}],
+    "evidenceEyebrow": "A habit, not a finale",
+    "evidenceTitle": "Evidence is part of every lesson",
+    "evidenceIntro": "Children practise held-out testing, correct, wrong and unsure outcomes, explainability, thresholds, error costs, approval logs and honest limitations long before the showcase.",
+    "evidence": [{"title":"Held-out testing","body":"Training examples are not proof. New cases show whether a model has learned or memorised."},{"title":"Correct, wrong and not sure","body":"Students compare outcomes instead of treating every confident label as truth."},{"title":"Explainability","body":"Nearest examples, routes, receipts and visible mappings make decisions inspectable."},{"title":"Thresholds and error costs","body":"A safer system may abstain; children decide what a false alarm or missed case costs."},{"title":"Approval logs and limitations","body":"A project is not finished until its authorised changes and one honest limitation are named."}],
+    "privacyEyebrow": "Trust by design",
+    "trustTitle": "Children stay in control of the work.",
+    "trustIntro": "Clear boundaries, visible evidence and privacy-minded tools help schools teach AI with confidence.",
+    "privacyTitle": "Privacy and ownership",
+    "privacy": [{"title":"Camera and microphone stay in memory","body":"Live input is processed on the device for the activity and is not kept as a child profile."},{"title":"No child PII","body":"The programme does not require child names, accounts or personal identifiers to learn."},{"title":"Students control saving","body":"Work is saved by the student through a Champion File; restore is one tap, and cloud codes contain no account or PII."}]
+  }
+}

@@ -1,0 +1,431 @@
+{
+  "Meta": {
+    "title": "Passiona — 小學 AI 素養課程",
+    "description": "為小一及小五而設的兩套 AI 素養課程，每套 20 節。學生透過四個互相連繫的創作工具，建立、測試並解釋 AI。",
+    "ogType": "website"
+  },
+  "Announcement": {
+    "text": "了解我們對學校採用教育局「AI 賦能學與教」資助及校本 AI 素養課程的支援。",
+    "details": "查看詳情",
+    "grantHref": "/grant"
+  },
+  "Nav": {
+    "brand": "Passiona",
+    "primaryNavigation": "主要導覽",
+    "programme": "課程",
+    "tools": "互聯工具",
+    "outcomes": "學習成果",
+    "demo": "示範",
+    "useCasesSub": [
+      "透過打造 AI 來理解 AI",
+      "六部示範機器、六個 AI 概念",
+      "由工作坊到場景"
+    ],
+    "bookDemo": "預約示範",
+    "workshop": "試用工作坊",
+    "openMenu": "開啟選單",
+    "closeMenu": "關閉選單"
+  },
+  "Hero": {
+    "eyebrow": "專為小學而設的 AI 素養課程",
+    "title": "動手建構 AI。學會質疑。創造下一步。",
+    "subtitle": "小一及小五各有一套 20 節動手實踐課程，讓學生看得見 AI 如何運作、用證據測試想法，並建立一個自己能清楚解釋的互聯世界。",
+    "ctaPrimary": "預約示範",
+    "ctaSecondary": "查看互聯工具",
+    "proofLabel": "課程承諾",
+    "proof": ["為真實課堂而設", "孩子掌握決定權", "毋須兒童帳戶或個人資料"],
+    "imageAlt": "一座由學生設計的 Passiona AI 城市"
+  },
+  "Goals": {
+    "goalsTitle": "學校目標",
+    "helpTitle": "Passiona 點樣幫你",
+    "cta": "預約示範",
+    "goals": [
+      "想教 AI 素養，但唔知點起手。",
+      "想學生真正理解 AI，唔係淨係用 AI app。",
+      "想有可見嘅學習成果可以展示。",
+      "想用盡 EDB 資助。"
+    ],
+    "help": [
+      "小一及小五各有完整學習旅程，連繫 AI 工作坊、Fit Studio、Coding Buddy 和 AI 城市。",
+      "學生透過動手工具和自己的城市，建立、測試和討論 AI 想法。",
+      "看得見的成果：一座城市、一個 AI 冠軍和一個能用證據解釋的作品。",
+      "資助指引。我哋幫你了解同申請 EDB 資助。"
+    ]
+  },
+  "ScenarioSteps": {
+    "title": "一個挑戰點樣變成一座城市",
+    "closing": "冇兩座城市會用同一種方式解決挑戰。",
+    "steps": [
+      {
+        "heading": "場景設下挑戰",
+        "text": "暴風雨淹沒城市。電網受壓。交通癱瘓咗一個區域。"
+      },
+      {
+        "heading": "你喺工作坊打造解決方案",
+        "text": "接線砌一部會睇、會分類、會改道嘅機器。用你嘅方式，冇固定答案。"
+      },
+      {
+        "heading": "帶入你嘅 AI 冠軍",
+        "text": "儲存佢，再踏入場景。"
+      },
+      {
+        "heading": "睇住佢運行",
+        "text": "你打造嘅系統而家即時營運緊一個活區域。"
+      }
+    ]
+  },
+  "Pillars": {
+    "heading": "一個循環：打造、踏入、解決。",
+    "workshop": {
+      "kicker": "AI 工作坊",
+      "title": "打造 AI 能力",
+      "hoverVerb": "打造",
+      "hoverText": "在工作坊中組裝真正的 AI 機器。",
+      "points": [
+        "動手打造，而非僅止於使用，將真實部件拖入畫布並接線，組裝出可運作的 AI。",
+        "真實概念，清晰可見，機器會自行學習、分類同發明。",
+        "觀看機器思考，模型即時訓練、測試並出錯。學生睇到嘅係「點解」，唔止「結果」。"
+      ]
+    },
+    "city": {
+      "kicker": "活 3D 場景",
+      "title": "連接 & 運行",
+      "hoverVerb": "連接",
+      "hoverText": "將你的機器接入世界。",
+      "points": [
+        "你的能力成為世界，工作坊嘅每部機器都會以「AI 能力建築」形式接入。",
+        "探索 AI 城市：放置自己打造的機器、規劃街道，再測試想法。",
+        "一座不停運作嘅活世界，天氣、市民同危機考驗每個系統。",
+        "運行你打造嘅嘢，你接線嘅分揀機而家真係分類緊城市垃圾。"
+      ]
+    },
+    "champion": {
+      "kicker": "你的 AI 冠軍——喺 Fit Studio 打造",
+      "title": "屬於你的 AI",
+      "tagline": "由你設計，隨處攜帶。",
+      "hoverVerb": "運行",
+      "hoverText": "以你打造的冠軍走進任何場景。",
+      "points": [
+        "設計屬於你的冠軍，揀選造型、顏色同配件：皇冠、護目鏡、噴射背包。",
+        "以你打造嘅冠軍走進任何場景，第三人稱。",
+        "一個身份隨處通行，你嘅冠軍帶住你嘅能力進入每個世界。"
+      ]
+    }
+  },
+  "CityLog": {
+    "label": "城市系統 — 示範預覽",
+    "throughline": "打造、連接、運行。學生喺工作坊接線完成嘅機器，就係而家即時營運緊一個活區域，即時運作。",
+    "entries": [
+      "電網負載 78%",
+      "垃圾車路線已優化",
+      "風暴預警：洪水風險上升",
+      "回收分類機運作中，正在分類城市垃圾",
+      "交通已繞過熱浪區域",
+      "水壓穩定",
+      "市民聚集在新 AI 建築附近"
+    ]
+  },
+  "UseCases": {
+    "heading": "案例",
+    "build": {
+      "kicker": "案例 A",
+      "title": "透過打造 AI 來理解 AI",
+      "steps": [
+        "從範例開始，打開一部完成咗嘅機器（回收分類機、守衛犬、強盜寵物），查看可運作嘅模型。",
+        "自行接線，將鏡頭連接至分揀機，教導佢識別目標，接著睇住輸送帶完成其餘工作。",
+        "令佢屬於你，重新命名收集箱、加入規則，發明一部前所未有嘅機器。"
+      ]
+    },
+    "machines": {
+      "kicker": "案例 B",
+      "title": "六部示範機器、六個 AI 概念",
+      "lead": "由呢六部機器開始，然後重新混搭。重新命名收集箱、加入規則，發明一部前所未有嘅機器。",
+      "tableHeaders": [
+        "機器",
+        "AI 概念"
+      ],
+      "rows": [
+        {
+          "machine": "回收分類機",
+          "idea": "影像分類：輸送帶上的「眼睛」猜測你給它看的物品。"
+        },
+        {
+          "machine": "守衛犬",
+          "idea": "異常偵測：一旦看到未被教導為「正常」的事物便會吠叫。"
+        },
+        {
+          "machine": "分組分類機",
+          "idea": "非監督式學習：機器自行發明分類類別。"
+        },
+        {
+          "machine": "強盜寵物",
+          "idea": "回饋學習：為喜愛的表演鼓掌，它會學會你的喜好。"
+        },
+        {
+          "machine": "資料實驗室",
+          "idea": "訓練／測試紀律：以一部分資料進行學習，剩餘的用於測試。"
+        },
+        {
+          "machine": "雪糕攤",
+          "idea": "即時繪製可讀規則：看「多少」，而不是「哪一款」。"
+        }
+      ]
+    },
+    "city": {
+      "kicker": "案例 C",
+      "title": "由工作台到場景",
+      "steps": [
+        "喺工作坊打造能力。用你嘅方式，冇固定答案。",
+        "帶入你嘅冠軍。儲存佢，再踏入場景。",
+        "睇住佢管治。你打造嘅能力會營運一個活區域，解決場景嘅挑戰。"
+      ]
+    }
+  },
+  "ProductVideos": {
+    "eyebrow": "產品示範",
+    "heading": "觀看真實產品，而不是概念圖。",
+    "intro": "觀看兩個真實產品片段：學生先準備 AI 冠軍，然後把想法帶進一座會運作的城市。",
+    "play": "播放影片",
+    "watchOnYouTube": "在 YouTube 觀看",
+    "fit-studio": {
+      "label": "Fit Studio",
+      "title": "準備 AI 冠軍",
+      "description": "為學生創作的 AI 冠軍挑選並裝上配件，然後帶它走進城市。"
+    },
+    "ai-smart-city": {
+      "label": "AI Smart City",
+      "title": "探索 AI Smart City",
+      "description": "看看學生如何在 3D 城市中放置 AI 機器、測試想法並解釋結果。"
+    }
+  },
+  "Cta": {
+    "eyebrow": "展開對話",
+    "heading": "把 AI 學習帶到您的學校",
+    "body": "安排免費介紹課或示範。",
+    "delivery": {
+      "teacherConfidence": {
+        "title": "提升教職員信心",
+        "body": "Passiona 可培訓老師，讓他們清晰、有實務支援及有信心地推行課程。"
+      },
+      "passionaEducators": {
+        "title": "Passiona 教育工作者到校",
+        "body": "我們可安排有經驗的教育工作者到您的學校授課，並在合適時與教職員協作。"
+      }
+    }
+  },
+  "Form": {
+    "enquiryType": "我們可以怎樣協助您？",
+    "enquiryOptions": {
+      "freeLesson": "安排免費介紹課",
+      "demo": "安排示範",
+      "trainingDelivery": "討論教師培訓或課程推行"
+    },
+    "name": "姓名",
+    "nameRequired": "請輸入姓名。",
+    "school": "學校／機構",
+    "schoolRequired": "請輸入學校或機構。",
+    "email": "電郵",
+    "emailOptional": "（可選）",
+    "whatsapp": "WhatsApp",
+    "whatsappOptional": "（可選）",
+    "needs": "告訴我們您學校的需要",
+    "needsOptional": "（可選）",
+    "submit": "提交查詢",
+    "chatOnWhatsApp": "在 WhatsApp 聯絡 Passiona",
+    "success": "謝謝！我們已收到您的查詢，將盡快與您聯絡。",
+    "error": "發生問題，請再試一次。",
+    "requiredHint": "標有 * 的欄目為提交查詢所必填。",
+    "privacyNotice": "提交此表格即表示您確認 Passiona 可按我們的",
+    "privacyLink": "私隱政策"
+  },
+  "Pricing": {
+    "meta:title": "定價與合作夥伴 — Passiona",
+    "meta:description": "適合香港小學的 AI 素養平台 Passiona，提供靈活的班級及全校授權方案。",
+    "heading": "定價與合作夥伴",
+    "intro": "為班級、全校及策略合作夥伴提供靈活方案。請聯絡我們查詢詳細定價。",
+    "tiers": [
+      {
+        "name": "班級授權",
+        "highlight": false,
+        "recurrence": "每班、每年",
+        "points": [
+          "小五工具組合：AI 工作坊、Fit Studio、AI 代理和 AI 城市。",
+          "一位老師 + 一班學生。",
+          "標準支援。"
+        ]
+      },
+      {
+        "name": "學校授權",
+        "highlight": true,
+        "recurrence": "全校、每年",
+        "points": [
+          "小五工具組合：AI 工作坊、Fit Studio、AI 代理和 AI 城市。",
+          "全校老師 + 全校學生。",
+          "優先支援及啟用培訓。"
+        ]
+      },
+      {
+        "name": "合作伙伴",
+        "highlight": false,
+        "recurrence": "敬請洽談",
+        "points": [
+          "與我們團隊共同規劃課程。",
+          "優先試用新機器與城市系統。",
+          "專屬客戶主任。"
+        ]
+      }
+    ],
+    "cta": "聯絡我們查詢定價",
+    "partnershipHeading": "與 Passiona 合作",
+    "partnershipBody": "我們與學校、學區及機構合作，將動手學 AI 素養帶入香港課室。",
+    "enquire": "查詢合作"
+  },
+  "Grant": {
+    "meta:title": "資助支援 — Passiona",
+    "meta:description": "了解教育局「AI 賦能學與教」資助及校本 AI 素養課程支援。",
+    "heading": "資助支援",
+    "intro": "了解我們對學校採用教育局「AI 賦能學與教」資助及校本 AI 素養課程的支援。",
+    "body": "我們協助學校規劃、編製預算並申請受資助的小五 AI 素養課程。我們的團隊可指導您了解合資格計劃與校本課程設計。",
+    "pointsTitle": "我們如何協助您",
+    "points": [
+      "指導申請合資格的教育局資助計劃。",
+      "校本 AI 素養課程規劃。",
+          "小五工具組合的預算與採購：AI 工作坊、Fit Studio、AI 代理和 AI 城市。"
+    ],
+    "cta": "與我們洽談資助事宜"
+  },
+  "Demo": {
+    "meta:title": "示範影片 — Passiona",
+    "meta:description": "觀看 Passiona 的 Fit Studio 和 AI Smart City 示範，並探索學生使用的互連工具。",
+    "heading": "示範影片",
+    "intro": "觀看 Fit Studio 和 AI Smart City 示範，然後探索互相連結的產品工具。"
+  },
+  "Footer": {
+    "copyright": "© 2026 Passiona",
+    "privacy": "私隱政策",
+    "terms": "服務條款",
+    "madeIn": "專為香港學校而建。"
+  },
+  "Privacy": {
+    "meta:title": "私隱政策 — Passiona",
+    "title": "私隱政策",
+    "lastUpdated": "更新日期：2026 年 9 月 16 日。",
+    "sections": [
+      {"heading":"範圍與我們的做法","paragraphs":["本政策說明 Passiona 如何處理經 passiona.ai 收集的個人資料。Passiona 是為香港學校而設的 AI 素養課程。","我們以盡量減少收集個人資料為設計原則。網站沒有訪客帳戶、學生檔案或行為廣告。"]},
+      {"heading":"查詢與收集目的","paragraphs":["成年人提交查詢時，我們會收集表格中提供的姓名、學校或機構名稱，以及所選查詢類型。電郵、WhatsApp 號碼及查詢內容均屬可選。","我們只會使用資料回覆所要求的免費介紹課、示範、課程、合作或資助查詢，保存準確對話紀錄，以及安排要求的跟進。"],"bullets":["請勿提交兒童、敏感或不必要的個人資料。","除非先取得適用法律要求的同意，否則不會作直接促銷用途。"]},
+      {"heading":"兒童與學習工具","paragraphs":["公開網站不會要求兒童建立帳戶或提供個人識別資料。","學習活動的即時鏡頭或咪高風輸入旨在只於裝置記憶體中處理，不會用於建立兒童檔案或由網站保留。"]},
+      {"heading":"Cookie、技術紀錄及嵌入媒體","paragraphs":["必要的 NEXT_LOCALE cookie 用於記住語言，一年後失效，不包含姓名或聯絡資料。","Cloudflare 等寄存服務供應商可能處理 IP、瀏覽器、裝置及伺服器紀錄，以提供、保護及診斷網站。產品示範影片只會在你按「播放」後才從 YouTube 載入；YouTube 其後會按其本身政策處理資料。"]},
+      {"heading":"服務供應商與資料披露","paragraphs":["如已設定查詢轉送服務，查詢資料只會安全傳送至該服務，以便團隊回覆。我們不出售個人資料，亦不會為不相關廣告披露資料；法律要求或保障權利及安全時除外。"]},
+      {"heading":"保留與保安","paragraphs":["我們只會在回覆查詢、履行法律責任或處理爭議所需期間保留資料，其後在可行情況下刪除或匿名化。","我們採取合理技術及組織保安措施，但沒有任何網絡系統可保證絕對安全。"]},
+      {"heading":"您的選擇與要求","paragraphs":["您可查詢我們是否持有您的資料，並要求查閱、更正或在適用情況下刪除。請透過網站查詢表格提交要求。","我們會按適用法律，包括香港《個人資料（私隱）條例》處理要求；政策會隨服務改變而更新。"]}
+    ]
+  },
+  "Terms": {
+    "meta:title": "服務條款 — Passiona",
+    "title": "服務條款",
+    "lastUpdated": "更新日期：2026 年 9 月 16 日。",
+    "sections": [
+      {"heading":"條款內容","paragraphs":["本條款規管您對 passiona.ai 及網站所提供 Passiona 資料的使用。使用網站即表示您同意本條款。"]},
+      {"heading":"教學使用與監督","paragraphs":["Passiona 支援 AI 素養，不取代教師判斷、保障程序、專業意見或對 AI 輸出的獨立評估。學校及教育工作者須負責監督、許可、無障礙支援及課堂使用。"],"bullets":["合法使用網站，不得干擾其保安、可用性或運作。","除法律容許或 Passiona 書面同意外，不得複製、逆向工程、擷取、發佈或商業利用網站資料。","不得提交非法、有害、侵權、誤導或侵犯私隱的資料。"]},
+      {"heading":"AI、內容及第三方服務","paragraphs":["AI 例子及學習資料只作說明，可能不完整或不準確；使用者應測試、質疑及獨立評估輸出。","網站可連結或嵌入 YouTube 等第三方服務，該等服務受其本身條款及私隱政策規管。"]},
+      {"heading":"知識產權","paragraphs":["Passiona 的網站內容、設計、文字、軟件、品牌、圖片及媒體受知識產權法保護。除明文授予外，一切權利均予保留。您保留提交資料的權利，並授予 Passiona 有限權利用以回覆及處理查詢。"]},
+      {"heading":"可用性、責任及變更","paragraphs":["我們可隨時更改、暫停或移除網站內容或功能；網站按「現況」及「現有」基礎提供。","在法律容許範圍內，Passiona 不就使用網站所引起的間接、附帶、特別或相應損失承擔責任；不可合法排除的責任不受影響。","我們可透過發布新版本更新條款；繼續使用即表示接受。"]},
+      {"heading":"管轄法律","paragraphs":["本條款受香港法律管轄，香港法院享有專屬管轄權，但適用法律另有要求者除外。如有疑問，可透過網站查詢表格聯絡我們。"]}
+    ]
+  },
+  "NotFound": {
+    "title": "找不到頁面",
+    "text": "我們找不到該頁面。",
+    "home": "返回首頁"
+  },
+  "Lang": {
+    "switchToZh": "繁體中文",
+    "switchToEn": "English"
+  },
+  "Journey": {
+    "eyebrow": "學習旅程",
+    "title": "由好奇開始，走向有根據的判斷。",
+    "intro": "Passiona 讓每位學生建立一個可持續發展的世界。課堂會深入細節；網站的承諾很簡單：學生學會創造、檢視和追問 AI。",
+    "stages": [
+      {"title":"建立你的世界", "body":"在接觸 AI 概念前，先建立城市、Champion 和工作坊。"},
+      {"title":"AI 是甚麼，以及它如何感知", "body":"認識規則、感知、輸出和由學生指導的代理。"},
+      {"title":"從資料中學習", "body":"認識模型、證據、不確定性、數字和沒有標籤的群組。"},
+      {"title":"錯誤、代理與系統", "body":"理解錯誤代價、集成、有界線的代理、環境和漂移。"},
+      {"title":"搜尋、設計與展示", "body":"學習最佳化、為真實使用者設計，並以證據展示。"}
+    ]
+  },
+  "Tools": {
+    "eyebrow": "一段旅程，四個互聯工具",
+    "title": "學生建立一個想法，再把它一步步帶到下一站。",
+    "intro": "每個工具各有清晰角色，合起來把抽象的 AI 變成看得見、富創意的學習旅程。",
+    "explore3d": "以 3D 探索",
+    "unavailable3d": "3D 畫面暫時無法使用，產品圖片仍會保留。",
+    "items": [
+      {"name":"workshop", "label":"AI 工作坊", "title":"打造、測試與檢視 AI 機器。", "body":"學生追蹤看得見的輸入、模型、條件和輸出，再測試機器的表現，以及它的不確定性何時重要。", "image":"/product/ai-workshop-demo.v1.avif", "alt":"Workshop Champion 示範畫面，顯示 Data reader 模型、訓練和保留測試面板，以及底部的機器零件列", "accent":"teal", "imageFit":"contain"},
+      {"name":"champion", "label":"Fit Studio", "title":"創作專屬 AI 冠軍，讓學習旅程更有個性。", "body":"學生塑造獨特的 3D 角色，並了解數碼骨架如何把設計變成動作。", "image":"/product/champion-turntable-poster.png", "alt":"在 Passiona 3D Fit Studio 中檢視 AI 冠軍", "media":"champion-turntable"},
+      {"name":"buddy", "label":"Coding Buddy", "title":"指導有清晰界線的代理，而不是索取答案。", "body":"學生設定目標、控制可用工具，並在任何改動前批准建議。", "media":"coding-buddy"},
+      {"name":"city", "label":"AI 城市", "title":"將學習變成值得回來探索的世界。", "body":"學生為 3D 城市作出設計選擇，讓證據可以一直累積。城市是一個可以重訪、測試和解釋作品的長久地方。", "image":"/product/ai-city.v1.avif", "alt":"一座由學生設計的 Passiona AI 城市", "accent":"green"}
+    ]
+  },
+  "Outcomes": {
+    "eyebrow": "學生完成課程後能做到甚麼",
+    "title": "學生能親身展示的學習成果。",
+    "intro": "課程結束時，學生不只可以展示他們做了甚麼，也能說明如何測試和判斷。",
+    "items": [
+      {"number":"01", "title":"追蹤一個系統", "body":"解釋每個部分如何由輸入帶到輸出。"},
+      {"number":"02", "title":"公平測試主張", "body":"以新的例子和證據，檢驗 AI 主張真正顯示甚麼。"},
+      {"number":"03", "title":"判斷不確定性", "body":"考慮錯誤的代價，以及何時應由人作決定。"},
+      {"number":"04", "title":"為真實使用者設計", "body":"在解決真正需要時，權衡限制和取捨。"},
+      {"number":"05", "title":"以證據展示", "body":"清楚解釋作品、展示證據，並說出一項限制。"}
+    ]
+  },
+  "Agent": {
+    "eyebrow": "深入理解",
+    "title": "由學生作主的 AI 代理。",
+    "intro": "課程把代理的界線變得看得見：目標、可用工具、建議、人的批准，以及經過檢查的結果。",
+    "genericAlt": "一個觸感豐富的微型立體模型，展示 AI 代理在清晰可見的任務界線內工作，並設有人類批准關卡",
+    "previewDescription": "Coding Buddy 對話的靜態預覽：學生說放學後校門很繁忙，希望讓過馬路更安全。Buddy 只可使用城市地圖和交通數據，建議在學校旁增設安全過路處並保持巴士站暢通，請學生批准或修改；結果已按城市規劃核實。",
+    "previewName": "Coding Buddy",
+    "previewCityPlan": "AI 城市規劃",
+    "previewStatus": "等候你的決定",
+    "previewGoalLabel": "目標",
+    "previewGoal": "幫助兒童安全過馬路",
+    "previewToolsLabel": "可用工具",
+    "previewTools": "城市地圖 · 交通數據",
+    "previewChildLabel": "你的城市想法",
+    "previewChildMessage": "放學後校門很繁忙。我們可以令過馬路更安全嗎？",
+    "previewBuddyLabel": "Coding Buddy",
+    "previewBuddyMessage": "我找到校門附近一個繁忙的過路處。我可以用地圖和交通數據規劃更安全的路線。",
+    "previewProposalLabel": "建議",
+    "previewProposal": "在學校旁增設安全過路處，同時保持巴士站暢通。",
+    "previewDecisionQuestion": "你想加入這項建議嗎？",
+    "previewApprove": "批准",
+    "previewChange": "修改建議",
+    "previewCheckedLabel": "已檢查結果",
+    "previewChecked": "已按城市規劃核實",
+    "genericKicker": "甚麼是 AI 代理？",
+    "genericTitle": "目標 → 工具 → 建議 → 批准 → 檢查結果",
+    "genericBody": "模型可以生成答案；代理還會在環境中選擇行動。學生會問：代理可以碰甚麼？它建議了甚麼？我們怎樣檢查或撤銷結果？",
+    "principles": [{"title":"有界線的動詞","body":""},{"title":"人類批准","body":""},{"title":"撤銷與檢查","body":""},{"title":"同意記憶","body":""}]
+  },
+  "CityPanorama": {
+    "alt": "由學生設計的 Passiona AI 城市鳥瞰圖"
+  },
+  "ProgrammePrinciples": {
+    "label": "Passiona 如何培養判斷力與信任",
+    "progressionEyebrow": "判斷力的進階",
+    "progressionTitle": "由建造者成為架構師",
+    "progressionIntro": "學生由讓系統運作開始，逐步學會為使用者組合系統，並用證據為結果辯護。",
+    "progression": [{"title":"建造者","body":"讓系統運作，並追蹤每個部件。"},{"title":"懷疑者","body":"用機器未見過的案例測試說法。"},{"title":"審核者","body":"找出錯誤代價、不確定性、漂移和誠實限制。"},{"title":"架構師","body":"為真實使用者組合工具，並用證據作答。"}],
+    "evidenceEyebrow": "不是只在最後一課",
+    "evidenceTitle": "每一課都包含證據",
+    "evidenceIntro": "學生會練習保留測試、正確、錯誤與不確定結果、可解釋性、門檻、錯誤代價、批准紀錄和誠實限制，然後才進入展示。",
+    "evidence": [{"title":"保留測試","body":"訓練例子不是證明；新的案例才能看出模型是在學習，還是在記憶。"},{"title":"正確、錯誤與「不確定」","body":"學生比較結果，不把每一個有信心的標籤都當成真相。"},{"title":"可解釋性","body":"鄰近例子、路線、計算收據和可見映射，令決定可以被檢查。"},{"title":"門檻與錯誤代價","body":"較安全的系統可以拒絕猜測；學生決定誤報和漏報的代價。"},{"title":"批准紀錄與限制","body":"作品完成前，要展示獲批准的改動，並說出一項誠實限制。"}],
+    "privacyEyebrow": "以設計建立信任",
+    "trustTitle": "孩子掌握作品的決定權。",
+    "trustIntro": "清晰界線、可見證據和重視私隱的工具，讓學校更有信心教授 AI。",
+    "privacyTitle": "私隱與作品主導權",
+    "privacy": [{"title":"鏡頭和咪高風只在記憶體中運作","body":"即時輸入只在裝置上處理，完成活動後不會變成學生檔案。"},{"title":"不收集兒童個人資料","body":"課程不需要兒童姓名、帳戶或個人識別資料。"},{"title":"由學生控制儲存","body":"學生透過 Champion File 儲存作品；一按即可還原，雲端代碼不含帳戶或個人資料。"}]
+  }
+}
