@@ -43,5 +43,12 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 30000,
   },
-  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    // Run the sustained example budget in the engine implicated by EDVDUVR
+    // without doubling every interaction-heavy Chromium spec.
+    { name: 'webkit-reliability', testMatch: '**/example-reliability.spec.mjs', use: {
+      browserName: 'webkit', launchOptions: { args: [] },
+    } },
+  ],
 });

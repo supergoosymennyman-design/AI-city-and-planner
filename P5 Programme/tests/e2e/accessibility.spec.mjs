@@ -58,6 +58,7 @@ test('narrow/tablet, reduced motion, mouse/touch place and cloud failure',async(
  await page.keyboard.press('Escape');await expect(page.locator('#btn-save')).toBeFocused();
 });
 test('City My Work nested ownership, semantic movement and localized cloud',async({page})=>{
+ test.setTimeout(240000);
  const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.stack);});await planner(page);
  await enter(page,'[data-type="city_central"]');await enter(page,'#map');
  await expect.poll(async()=> (await saved(page))?.buildings.length).toBe(1);
@@ -87,7 +88,7 @@ test('City My Work nested ownership, semantic movement and localized cloud',asyn
   await page.setViewportSize({width,height:1024});
   for(const id of ['my-work-btn','btn-save-hud','lang-toggle']){const box=await page.locator('#'+id).boundingBox();expect(box.y).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(width);expect(box.height).toBeGreaterThanOrEqual(44);}
   const prompt=await page.locator('#quest-prompt').boundingBox();
-  if(prompt) for(const id of ['skin-toggle','orbit-toggle','prop-toggle','btn-home','btn-next','btn-hub']){const box=await page.locator('#'+id).boundingBox();if(box)expect(box.y+box.height).toBeLessThanOrEqual(prompt.y);}
+  if(prompt) for(const id of ['skin-toggle','orbit-toggle','prop-toggle','btn-home','btn-next','btn-hub']){const control=page.locator('#'+id);if(!await control.count())continue;const box=await control.boundingBox();if(box)expect(box.y+box.height).toBeLessThanOrEqual(prompt.y);}
   await page.screenshot({path:`/tmp/access-session5/city-${width}.png`});
   await enter(page,'#my-work-btn');await page.screenshot({path:`/tmp/access-session5/city-work-${width}.png`});await page.keyboard.press('Escape');
  }

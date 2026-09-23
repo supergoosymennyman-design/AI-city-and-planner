@@ -31,6 +31,7 @@ import { MAX_IMPORT_BYTES, withinImportLimit } from '../city-common/champion-fil
 import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { createGLTFLoader } from '../shared/gltf.js';
+import { championMetadataFromGLTF, collectRigInfo, validateStudioChampion } from '../city-common/champion-contract.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -57,7 +58,9 @@ import { mountAppearancePanel } from './appearance-panel.js';
 import { applyExampleAppearance } from './example-appearance.js';
 import { CITY_PALETTE as DUSK } from './city-palette.js';
 import { createNeighbourhood, createStreetLife } from '../city-common/neighbourhood.js';
-import { buildTrafficNetwork, isRoadsideSceneryClear, resolveRoadCarriageway } from '../city-common/traffic-network.js';
+import { buildTrafficNetwork, isRoadsideSceneryClear } from '../city-common/traffic-network.js';
+import { boxBody, resolveBoxCollisions } from '../city-common/collision.js';
+import { advanceGroundRoute, planGroundRoute } from '../city-common/navigation.js';
 import { junctionMouthMaskHalf, junctionPadOutline, ribbonNormals, resolveRoadSafePlacement } from '../city-common/road-geometry.js';
 import { PARK_VEGETATION_ASSETS, createParkVegetation } from '../city-common/park-vegetation.js';
 import { createPublicSpaces } from './public-spaces.js';
@@ -77,20 +80,23 @@ import { attachContextLossGuard } from '../champion-city/context-guard.js';
 import { ParticlePool } from '../champion-city/particles.js';
 import { catalogType, isSpecial } from '../city-common/catalog.js';
 import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout, occupiedBounds, typeSpec } from '../city-common/layout.js';
+import { gatewayPositions } from '../city-common/gateway-placement.js';
 import { LIBRARY, libraryUrl, libraryItem } from '../city-common/library.js';
 import { HUNYUAN_IDS, EMERALD_RAIN_TREE_CANOPY_METRES, coordinateKey, selectHunyuanBuildingVariants, emeraldRainTreePlacement } from '../city-common/hunyuan-wave.js';
+import { CITY_CHAMPION_HEIGHT, uniformScaleForBounds, scaledBounds } from '../city-common/model-scale.js';
 import { buildSampleCity } from '../city-common/sample-city.js';
-import { isRoadVehicle, vehicleTargetLength } from '../city-common/vehicle-scale.js';
+import { readExampleDraft, writeExampleDraft } from '../city-common/example-draft.js';
+import { isRoadVehicle, vehicleTargetLength, vehicleTargetWidth } from '../city-common/vehicle-scale.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, rememberSavedAt, lastSavedAt, CF_KEYS } from '../city-common/champion-file.js';
 import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
 import { readMilestones, milestoneSectionHTML } from '../city-common/milestones.js';
-import { parseCapability, capabilityDescriptor, installCapability } from '../city-common/cap-runtime.js';
+import { parseCapability, capabilityDescriptor, installCapability, stage1Note } from '../city-common/cap-runtime.js';
 import { mountPropLibrary } from './prop-library.js';
 import { customModelStore, readCustomManifest, resolveCustomOverride } from '../city-common/custom-models.js';
 import { createGrabSystem } from '../shared/grab.js';
 import { createDrivableCar } from './drive.js';
 import { currentLang, initI18n, applyStatic, mountLangToggle, t, tf } from './i18n.js';
-import { HOME_URL, WORKSHOP_URL } from '../shared/links.js';
+import { WORKSHOP_URL } from '../shared/links.js';
 import { createBootOwner, createLoadQueue, withDeadline } from './loading-lifecycle.js';
 import { createLearningVisuals } from './learning-visuals.js';
 import { environmentQuality, loadEnvironmentHDRI } from './environment-assets.js';
@@ -109,10 +115,23 @@ let _customSkinMetadata = null;
 async function importCustomChampion(file) {
   if (!await looksLikeGlb(file)) return { ok: false, message: t('ui.skinFile') };
   try {
-    await saveCustomSkin(file);
+    const bytes = await file.arrayBuffer();
+    const gltf = await new Promise((resolve, reject) => {
+      try { createGLTFLoader().parse(bytes, '', resolve, reject); } catch (error) { reject(error); }
+    });
+    if (!gltf.scene) throw new Error('This Champion has no model.');
+    const metadata = championMetadataFromGLTF(gltf);
+    if (metadata) {
+      const rig = collectRigInfo(gltf.scene);
+      const check = validateStudioChampion({ metadata, animations: gltf.animations, boneNames: rig.boneNames, nodeNames: rig.nodeNames, rootName: gltf.scene.name });
+      if (!check.ok) return { ok: false, message: check.error };
+    }
+    const nextUrl = blobToObjectUrl(file);
+    if (!nextUrl) throw new Error('Could not create Champion URL');
+    try { await saveCustomSkin(file); }
+    catch (error) { revokeObjectUrl(nextUrl); throw error; }
     if (_customSkinUrl) revokeObjectUrl(_customSkinUrl);
-    _customSkinUrl = blobToObjectUrl(file);
-    if (!_customSkinUrl) throw new Error('Could not create Champion URL');
+    _customSkinUrl = nextUrl;
     equipCustomDefault();
     return { ok: true, skin: { url: _customSkinUrl, name: file.name } };
   } catch (e) {
@@ -135,6 +154,7 @@ function isAllowedMinigameUrl(rawUrl) {
 }
 
 const IS_MOBILE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || window.innerWidth <= 768;
+const IS_WEBKIT = /AppleWebKit/i.test(navigator.userAgent) && !/(Chrome|Chromium|CriOS|Edg|OPR|FxiOS)/i.test(navigator.userAgent);
 
 // Low-end devices (school tablets with limited RAM/cores) drop the expensive
 // post passes so the city stays smooth instead of sputtering.
@@ -148,14 +168,14 @@ const ENV_QUALITY = environmentQuality({ mobile: IS_MOBILE, lowEnd: LOW_END });
 // Cap the absolute backing-store size (bigger than devicePixelRatio alone, a
 // 2048×1536@1.25 framebuffer is huge on tablets) and adaptively step resolution
 // down if sustained FPS drops, back up with hysteresis when it recovers.
-const MAX_PIXELS = LOW_END ? 1.6e6 : (IS_MOBILE ? 2.6e6 : 5e6);   // backing-store px
+const MAX_PIXELS = IS_WEBKIT ? (IS_MOBILE ? 1.5e6 : 3.2e6) : (LOW_END ? 1.6e6 : (IS_MOBILE ? 2.6e6 : 5e6));
 let resScale = 1;                    // 0.5..1 adaptive multiplier
 let govAcc = 0, govFrames = 0, govFps = 60;
 
 function applyResolution() {
   if (!renderer) return;
   const w = window.innerWidth, h = window.innerHeight;
-  const basePr = Math.min(window.devicePixelRatio, LOW_END ? 1 : (IS_MOBILE ? 1.25 : 2));
+  const basePr = Math.min(window.devicePixelRatio, IS_WEBKIT ? (IS_MOBILE ? 1 : 1.5) : (LOW_END ? 1 : (IS_MOBILE ? 1.25 : 2)));
   const scale = Math.min(1, Math.sqrt(MAX_PIXELS / Math.max(1, w * h * basePr * basePr)));
   const pr = Math.max(0.5, basePr * resScale * scale);
   renderer.setPixelRatio(pr);
@@ -627,14 +647,18 @@ function hashString(s) {
 // Generation lives in city-common/sample-city.js (pure, node-testable) so the 3D
 // builder and the unit tests share one source of truth. The example city is the
 // Radial Ring template + cross avenue with shared-library model variety baked in.
-function sampleLayout() {
+function sampleLayout(resetDraft = true) {
+  _exampleSession = true;
   applyExampleAppearance();
+  showExampleSessionBanner();
   // These values were read before the entry choice. Synchronise them so this
   // boot uses the example preset immediately, not only after a reload.
   _cityLook = readCityLook();
   _daySky = readDaySky();
   _groundTexture = readGroundTexture();
-  return buildSampleCity();
+  const sample = buildSampleCity();
+  if (resetDraft) writeExampleDraft(sample);
+  return sample;
 }
 
 // ─── Boot ────────────────────────────────────────────────────────────────
@@ -662,6 +686,7 @@ const CHAMPION_TIMEOUT_MS = 12000;
 let _contextPaused = false;
 
 let specialSystem = null; // { beacon, beaconPositions, meshes }
+let cityGatewayGroup = null; // permanent Workshop + Fit Studio destinations (not planner buildings)
 let championShadow = null;   // low-tier blob shadow under the champion
 let goalRing = null;         // green ring marking the next quest building
 let _goalTarget = null;      // cached next-quest QUESTS entry
@@ -708,7 +733,9 @@ function cleanupBootSystems() {
   labelRenderer?.domElement?.remove(); labelRenderer = null;
   for (const label of buildingLabels.splice(0)) { label.removeFromParent?.(); label.element?.remove?.(); }
   interactMeshes.length = 0;
+  cityGatewayGroup?.removeFromParent(); cityGatewayGroup = null;
   buildingColliders = [];
+  buildingPlacementColliders = [];
   specialSystem = null;
   _parkedVehicleState.applied.length = 0;
   environmentProps.clear(); propObstacleSignature = ''; publicRoads = []; publicCrossings = []; roadBarrierNetwork = null;
@@ -718,6 +745,8 @@ function cleanupBootSystems() {
   traffic?.destroy?.();
   taxi = decoTaxis = skySentinels = drones = traffic = null;
   drivingCar = null; driveCars = [];
+  walkNav = taxiNav = null;
+  navObstacleRevision++;
   champion = sim = null;
   for (const key of ['__city','__scene','__layout','__taxi','__drive','__learningVisuals']) {
     try { delete window[key]; } catch { /* diagnostics only */ }
@@ -756,14 +785,37 @@ let drivingCar = null;    // active createDrivableCar instance (null = walking/f
 let driveCars = [];       // parked drivable car instances (bounded: fresh spawn replaces)
 let driveGLBLoader = null; // shared GLTFLoader for spawning cars
 
-// Navigation targets (from the buddy's walk/fly actions)
-let walkNav = null;       // {x, z} — champion auto-walks here
+// Navigation targets (from Destinations, Home, or the Buddy).
+let walkNav = null;       // waypoint route; manual movement always cancels it
 let taxiNav = null;       // {x, z, y} — taxi auto-flies here
+let navObstacleRevision = 0;
 
 // Densify state (from loadLayout)
 let growScale = 1;        // champion scale multiplier (buildings grow too)
 let cityBounds = null;    // tightened bounds for minimap + sky traffic
 let cityFocusBounds = null; // occupied content only: spawn + first overview
+let _exampleSession = false;
+
+function validSavedLayout() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return !!raw && validateLayout(JSON.parse(raw)).ok;
+  } catch { return false; }
+}
+
+function showExampleSessionBanner() {
+  const banner = document.getElementById('example-session-banner');
+  const back = document.getElementById('example-return');
+  if (!banner || !back) return;
+  const hasSavedCity = validSavedLayout();
+  const key = hasSavedCity ? 'example.backCity' : 'example.backPlanner';
+  back.href = hasSavedCity ? '/city-builder/?resume=1' : '/planner/';
+  back.dataset.i18n = key;
+  back.textContent = t(key);
+  banner.hidden = false;
+  const editPlan = document.querySelector('#city-mode-switch a.city-mode');
+  if (editPlan) editPlan.href = '/planner/?example=1';
+}
 
 // Orbit / input state
 // Distances are context-aware: overview (no champion) / walk / taxi ride.
@@ -824,18 +876,19 @@ function setupScene(owner) {
   const focus = cityFocusBounds || { minX: 0, minZ: 0, maxX: 2000, maxZ: 2000 };
   const focusX = (focus.minX + focus.maxX) / 2, focusZ = (focus.minZ + focus.maxZ) / 2;
   const focusSpan = Math.max(120, focus.maxX - focus.minX, focus.maxZ - focus.minZ);
-  orbit.distOverview = Math.max(62, Math.min(2200, focusSpan * 1.15));
+  const overviewCap = _exampleSession ? 1450 : 2200;
+  orbit.distOverview = Math.max(62, Math.min(overviewCap, focusSpan * 1.15));
   orbit.dist = orbit.distOverview;
   orbit.target.set(focusX, 0, focusZ);
   camera.position.set(focusX + focusSpan * 0.32, Math.max(120, focusSpan * 0.48), focusZ + focusSpan * 0.42);
   camera.lookAt(focusX, 10, focusZ);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer = new THREE.WebGLRenderer({ antialias: !IS_WEBKIT });
   applyResolution();
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;  // deep-night blacks, predictable bloom budget (was 1.25)
-  renderer.shadowMap.enabled = !LOW_END;      // no realtime shadows on low tier
+  renderer.shadowMap.enabled = !LOW_END && !IS_WEBKIT;
   renderer.shadowMap.type = IS_MOBILE ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   stage.appendChild(renderer.domElement);
 
@@ -989,6 +1042,7 @@ function setupScene(owner) {
 
   city.scene = scene;
   city.camera = camera;
+  city.orbit = orbit;
   city.renderer = renderer;
   city.resize = () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -1590,7 +1644,7 @@ function loadTreeModels(isCurrent = () => true) {
     return Object.keys(_treeModels).length ? _treeModels : null;
   });
 }
-function loadTreePacks(isCurrent = () => true) {
+function loadTreePacks(isCurrent = () => true, limit = Infinity) {
   // City canopy trees: the same CC0 Quaternius "Common Tree" models the child
   // sees in the Decorate library (nat_common_tree / nat_common_tree_2), so the
   // auto-grown city matches what they can place by hand. Two variants keep the
@@ -1600,7 +1654,7 @@ function loadTreePacks(isCurrent = () => true) {
     common1: '../library/nature/quaternius-CommonTree_1.glb',
     common2: '../library/nature/quaternius-CommonTree_2.glb',
   };
-  const keys = Object.keys(urls);
+  const keys = Object.keys(urls).slice(0, Math.max(1, limit));
   return Promise.all(keys.map((key) =>
     _treeLoader.loadAsync(urls[key]).catch((e) => {
       console.warn('[city-builder] detailed tree pack failed', key, e);
@@ -1717,7 +1771,7 @@ function buildTreeVariants() {
   }
 }
 
-function addTree(x, z, scale) {
+function addTree(x, z, scale, park = false) {
   if(layout.autoScenery===false)return;
   const network=roadBarrierNetwork || buildTrafficNetwork(layout.roads||[]);
   // Model canopy extends beyond the trunk: reserve a conservative 2.2m body
@@ -1727,14 +1781,26 @@ function addTree(x, z, scale) {
   // Queue the placement now; the variant is resolved at flush time, AFTER the
   // (deferred) tree GLBs have loaded. addPark()/scatterStreetTrees() run during
   // the synchronous boot, so they cannot know _treeVariants yet.
-  _treePlacements.push({ x, z, scale, v: -1 });
+  _treePlacements.push({ x, z, scale, v: -1, park });
 }
 
 // Write queued tree placements into per-variant InstancedMeshes. Call after
 // ALL addTree() calls (park trees + street trees) so capacities are exact.
 function flushTrees() {
   if (!_treePlacements.length) return;
-  const queued = _treePlacements; _treePlacements = [];
+  const allQueued = _treePlacements; _treePlacements = [];
+  // The showcase needs a visible canopy, not hundreds of copies of the same
+  // textured geometry. Evenly sample the authored placements so all districts
+  // remain represented while Safari stays below the triangle ceiling.
+  const cap = _exampleSession ? 108 : Infinity;
+  const parkQueued = _exampleSession ? allQueued.filter(p => p.park) : [];
+  const otherQueued = _exampleSession ? allQueued.filter(p => !p.park) : allQueued;
+  const remaining = Math.max(0, cap - parkQueued.length);
+  const sampledOther = otherQueued.length > remaining
+    ? Array.from({ length:remaining }, (_, i) => otherQueued[Math.floor(i * otherQueued.length / remaining)])
+    : otherQueued;
+  const queued = [...parkQueued, ...sampledOther];
+  if (_exampleSession) city.exampleParkTrees = parkQueued.length;
   if (!_treeVariants.length) {
     // The tree GLBs failed to load — keep the city green with the procedural
     // trunk+canopy fallback rather than leaving it bare.
@@ -1829,11 +1895,11 @@ function applyGrassVertexPalette(variant) {
   variant.grassVertexPalette=true;
 }
 
-function loadNatureFiller(gen = _bootGen) {
+function loadNatureFiller(gen = _bootGen, assets = PARK_VEGETATION_ASSETS) {
   if (_natureLoaded) return;
   _natureLoaded = true;
   const loader = createGLTFLoader();
-  Promise.all(PARK_VEGETATION_ASSETS.map((asset) =>
+  Promise.all(assets.map((asset) =>
     loader.loadAsync(asset.file).catch((e) => { console.warn('[nature-filler] failed', asset.file, e); return null; })
   )).then((gltfs) => {
     if(gen!==_bootGen){for(const gltf of gltfs)disposeDetachedModel(gltf);return;}
@@ -1841,7 +1907,7 @@ function loadNatureFiller(gen = _bootGen) {
       const gltf=gltfs[i];
       if (!gltf) continue;
       const n = normalizeTreeToGeometry(gltf.scene);
-      const asset=PARK_VEGETATION_ASSETS[i];
+      const asset=assets[i];
       if (n) {
         if (asset.kind.includes('grass')) applyGrassVertexPalette(n);
         _natureVariants.push({...n,...asset});
@@ -1930,11 +1996,39 @@ function addPark(cx, cz, radius) {
   // A loose outer tree ring frames the park without choosing a universal
   // centrepiece. The deterministic vegetation pass below fills the middle
   // band while preserving the central lawn, loop path, and entrances.
-  const count = Math.max(6, Math.round(radius / 8));
+  const count = _exampleSession ? Math.max(22, Math.round(radius / 3.5)) : Math.max(6, Math.round(radius / 8));
   for (let i = 0; i < count; i++) {
     const ang = (i / count) * Math.PI * 2 + hashString(i + '') * 0.3;
     const r = radius * (0.69 + 0.16 * ((hashString(i * 7) % 10) / 10));
-    addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.8 + ((hashString(i * 13) % 10) / 10) * 0.6);
+    addTree(cx + Math.cos(ang) * r, cz + Math.sin(ang) * r, 0.8 + ((hashString(i * 13) % 10) / 10) * 0.6, true);
+  }
+  if (_exampleSession) {
+    const parts = [
+      new THREE.BoxGeometry(2.8, 0.16, 0.72).translate(0, 0.72, 0),
+      new THREE.BoxGeometry(2.8, 0.8, 0.14).translate(0, 1.12, 0.36),
+      new THREE.BoxGeometry(0.16, 0.68, 0.16).translate(-1.08, 0.34, 0),
+      new THREE.BoxGeometry(0.16, 0.68, 0.16).translate(1.08, 0.34, 0),
+    ];
+    const geometry = BufferGeometryUtils.mergeGeometries(parts, false);
+    parts.forEach(part => part.dispose());
+    if (geometry) {
+      const benchCount = 18;
+      const benches = new THREE.InstancedMesh(geometry,
+        new THREE.MeshStandardMaterial({ color:0x9a633c, roughness:0.85 }), benchCount);
+      benches.name = 'Example park benches';
+      benches.userData.kind = 'example-park-benches';
+      const matrix = new THREE.Matrix4(), quaternion = new THREE.Quaternion();
+      const up = new THREE.Vector3(0, 1, 0);
+      for (let i = 0; i < benchCount; i++) {
+        const angle = (i + 0.5) * Math.PI * 2 / benchCount;
+        quaternion.setFromAxisAngle(up, -angle - Math.PI / 2);
+        matrix.compose(new THREE.Vector3(cx + Math.cos(angle) * radius * 0.61, 0,
+          cz + Math.sin(angle) * radius * 0.61), quaternion, new THREE.Vector3(1, 1, 1));
+        benches.setMatrixAt(i, matrix);
+      }
+      benches.instanceMatrix.needsUpdate = true;
+      scene.add(benches);
+    }
   }
 }
 
@@ -1964,11 +2058,13 @@ function buildQuestLandmarks() {
     const missionUrl = SPECIAL_BUILDING_MODELS[b.type];
     if (missionUrl) {
       const st = ensureGlbState(b.type);
-      addBuildingPlot(b.type, cx, cz, fp);
-      beaconPositions.push({ x: cx, y: h + 6, z: cz, anchor: h });
-      questRefs.push({ q, cx, cz, top: h });
+      addBuildingPlot(b.type, cx, cz, fp, h);
+      const beacon = { x: cx, y: h + 6, z: cz, anchor: h };
+      const questRef = { q, cx, cz, top: h };
+      beaconPositions.push(beacon);
+      questRefs.push(questRef);
       const label = addBuildingLabel(q.labelZh, q.labelEn, cx, 3, cz);
-      st.spots.push({ x: cx, z: cz, fp, h, glbType: b.type, label });
+      st.spots.push({ x: cx, z: cz, fp, h, glbType: b.type, label, beacon, questRef });
       continue;
     }
 
@@ -2039,20 +2135,153 @@ function buildQuestLandmarks() {
       hit.userData = { kind: 'quest', type: q.type };
       scene.add(hit);
       interactMeshes.push(hit);
+      ref.hit = hit;
     }
   }
 }
 
-function addBuildingLabel(zh, en, x, y, z) {
+function addBuildingLabel(zh, en, x, y, z, kind = '') {
   if (!labelRenderer) return;
   const el = document.createElement('div');
-  el.className = 'building-label quest-label';
+  el.className = `building-label quest-label${kind ? ` gateway-label gateway-label-${kind}` : ''}`;
   el.innerHTML = `<div class="bl-zh">${zh}</div><div class="bl-en">${en}</div>`;
   const label = new CSS2DObject(el);
   label.position.set(x, y, z);
   scene.add(label);
   buildingLabels.push(label);
   return label;
+}
+
+// ─── Permanent learning gateways ──────────────────────────────────────────
+// These are deliberately outside `layout.buildings`: every city gets exactly
+// one of each, students cannot accidentally delete them in the planner, and a
+// Hunyuan GLB replaces only this visual root without changing the destination,
+// fixed footprint, socket, label or proximity interaction.
+const GATEWAY_MODELS = Object.freeze({
+  workshop: Object.freeze({
+    file: 'assets/models/gateways/passiona-ai-workshop-gateway.glb',
+    footprint: Object.freeze([28, 28]),
+  }),
+  studio: Object.freeze({
+    file: 'assets/models/gateways/passiona-fit-studio-gateway.glb',
+    footprint: Object.freeze([28, 28]),
+  }),
+});
+
+function gatewayFallback(kind) {
+  const root = new THREE.Group();
+  const pale = new THREE.MeshStandardMaterial({ color: kind === 'workshop' ? 0xe7e2d6 : 0xf1e5e0, roughness: .72, metalness: .08 });
+  const graphite = new THREE.MeshStandardMaterial({ color: 0x26323a, roughness: .4, metalness: .58 });
+  const jade = new THREE.MeshStandardMaterial({ color: 0x00bda8, emissive: 0x007c70, emissiveIntensity: .65, roughness: .3 });
+  const warm = new THREE.MeshStandardMaterial({ color: kind === 'workshop' ? 0xf08a4b : 0xe77879, emissive: kind === 'workshop' ? 0x8a3517 : 0x8e293d, emissiveIntensity: .45, roughness: .35 });
+  const add = (geo, mat, x, y, z, sy=1) => { const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.scale.y=sy;m.castShadow=true;m.receiveShadow=true;root.add(m);return m; };
+  add(new THREE.CylinderGeometry(13, 14, 1.2, 8), graphite, 0,.6,0);
+  if (kind === 'workshop') {
+    // A public maker hall: three readable bays = input → core → output.
+    [-7,0,7].forEach((x,i) => { add(new THREE.BoxGeometry(5.7, 8 + i*1.3, 8), pale, x, 4 + i*.65, 0); add(new THREE.BoxGeometry(4.8,.22,7.1), i===1?jade:warm,x,8.2+i*1.3,0); });
+    for (let i=-2;i<=2;i++) { const rib=add(new THREE.BoxGeometry(.45,12,10),graphite,i*4.8,7,0); rib.rotation.z=(i===0?0:i*.08); }
+    add(new THREE.BoxGeometry(20,.35,1.1), jade, 0,3.1,4.55); // welcoming entry line
+  } else {
+    // A fitting pavilion: circular working plinth, part bays and a ribbon roof.
+    add(new THREE.CylinderGeometry(6.2,6.2,.8,32), pale, 0,1.3,0);
+    add(new THREE.CylinderGeometry(4.4,4.4,.18,32), jade, 0,1.8,0);
+    for (let i=0;i<5;i++) { const a=i*Math.PI*2/5; add(new THREE.BoxGeometry(3.1,5.5,1.4), pale, Math.cos(a)*9,3.3,Math.sin(a)*9); }
+    for (let i=0;i<3;i++) { const arc=add(new THREE.TorusGeometry(9+i*.8,.28,8,32,Math.PI*1.35), i===1?warm:graphite,0,8+i*.55,0);arc.rotation.x=Math.PI/2;arc.rotation.z=-.65; }
+  }
+  const socket = add(new THREE.BoxGeometry(3.4,2.4,.45), pale, 0,2.4,13.2);
+  socket.userData.gatewaySocket = true;
+  const lamp = add(new THREE.CylinderGeometry(.35,.35,.16,16), jade, 0,3.2,13.5); lamp.rotation.x=Math.PI/2;
+  lamp.userData.gatewaySocket = true;
+  root.name = `passiona-${kind}-gateway-fallback`;
+  return root;
+}
+
+/** Fit an appearance-only GLB to the protected civic lot. The supplied model
+ * stays uniform, centred and grounded; interaction remains on the fixed City
+ * hit target so it cannot shift while this asynchronous swap completes. */
+function normalizeGatewayAppearance(model, footprint) {
+  model.updateMatrixWorld(true);
+  const before = new THREE.Box3().setFromObject(model);
+  const size = before.getSize(new THREE.Vector3());
+  const scale = Math.min(footprint[0] / Math.max(.001, size.x), footprint[1] / Math.max(.001, size.z));
+  model.scale.multiplyScalar(scale);
+  model.updateMatrixWorld(true);
+  const fitted = new THREE.Box3().setFromObject(model);
+  const centre = fitted.getCenter(new THREE.Vector3());
+  model.position.x -= centre.x;
+  model.position.y -= fitted.min.y;
+  model.position.z -= centre.z;
+  model.updateMatrixWorld(true);
+  model.traverse((node) => {
+    if (!node.isMesh) return;
+    node.castShadow = !LOW_END;
+    node.receiveShadow = true;
+  });
+  return model;
+}
+
+function loadGatewayAppearance(spec, mount, fallback, state, gen, queue) {
+  const run = () => createGLTFLoader().loadAsync(spec.model.file);
+  state.status = 'loading';
+  const request = queue ? queue.add(run, { onStale: disposeDetachedModel }) : run();
+  request.then((gltf) => {
+    if (!gltf) return;
+    if (gen !== _bootGen || !mount.parent) { disposeDetachedModel(gltf); return; }
+    const model = normalizeGatewayAppearance(gltf.scene, spec.model.footprint);
+    model.name = `passiona-${spec.id}-gateway-model`;
+    model.userData.gatewayAppearance = spec.id;
+    mount.add(model);
+    // The socket is City-owned and stays visible; only the procedural building
+    // body gives way once the decoded model is safely mounted.
+    for (const child of fallback.children) child.visible = !!child.userData.gatewaySocket;
+    state.status = 'loaded';
+    state.model = model;
+  }).catch((error) => {
+    state.status = 'fallback';
+    state.reason = error?.message || String(error);
+    console.warn(`[gateway:${spec.id}] flagship GLB unavailable — keeping procedural fallback`, error);
+  });
+  return request;
+}
+
+function gatewayMarker(kind) {
+  const root = new THREE.Group();
+  root.name = `passiona-${kind}-gateway-marker`;
+  const color = kind === 'workshop' ? 0xffa559 : 0x5fe2d0;
+  const material = new THREE.MeshBasicMaterial({ color, transparent:true, opacity:.6, depthWrite:false });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.42,.42,45,8), material);
+  shaft.position.y = 35; root.add(shaft);
+  const crown = new THREE.Mesh(new THREE.TorusGeometry(4.8,.7,8,24), material);
+  crown.rotation.x = Math.PI / 2; crown.position.y = 57; root.add(crown);
+  const base = new THREE.Mesh(new THREE.TorusGeometry(15,.55,8,36), material);
+  base.rotation.x = Math.PI / 2; base.position.y = 1; root.add(base);
+  return root;
+}
+
+function buildCityGateways(gen = _bootGen, queue = null) {
+  cityGatewayGroup?.removeFromParent();
+  cityGatewayGroup = new THREE.Group(); cityGatewayGroup.name = 'permanent-learning-gateways'; scene.add(cityGatewayGroup);
+  specialSystem ||= { beacon:null, beaconPositions:[], questRefs:[] };
+  const returnTo = new URL(window.location.href); returnTo.searchParams.delete('studioTransfer');
+  const specs = [
+    { id:'workshop', emoji:'⚙️', en:'AI Workshop', zh:'AI 工坊', model:GATEWAY_MODELS.workshop, url: (()=>{ const u=new URL(WORKSHOP_URL);u.searchParams.set('returnTo',returnTo.href);return u.href; })() },
+    { id:'studio', emoji:'✦', en:'Fit Studio', zh:'造型工作室', model:GATEWAY_MODELS.studio, url: new URL(`../studio/?returnTo=${encodeURIComponent(returnTo.href)}`, window.location.href).href },
+  ];
+  city.gateways = {};
+  const positions = gatewayPositions(layout);
+  specs.forEach((spec,i)=>{
+    const p=positions[i], mount=new THREE.Group(), fallback=gatewayFallback(spec.id);
+    mount.name=`passiona-${spec.id}-gateway`;mount.position.set(p.x,0,p.z);mount.userData={kind:'gateway-mount',gateway:spec.id,protected:true};
+    mount.add(fallback);mount.add(gatewayMarker(spec.id));cityGatewayGroup.add(mount);
+    addBuildingLabel(spec.zh,spec.en,p.x,64,p.z,spec.id);
+    const q={ type:'gateway', gateway:spec.id, pos:[p.x,p.z], labelZh:spec.zh, labelEn:spec.en, enterZh:`進入${spec.zh}`, enterEn:`Enter ${spec.en}`, directUrl:spec.url };
+    specialSystem.questRefs.push({q,cx:p.x,cz:p.z,top:14});
+    const hit=new THREE.Mesh(new THREE.CylinderGeometry(14,14,18,10),new THREE.MeshBasicMaterial({transparent:true,opacity:0,colorWrite:false,depthWrite:false}));
+    hit.position.set(p.x,9,p.z);hit.userData={kind:'gateway', quest:q};scene.add(hit);interactMeshes.push(hit);
+    const state={id:spec.id,status:'placeholder',mount,fallback,model:null,hit,quest:q,position:{x:p.x,z:p.z},footprint:[...spec.model.footprint]};
+    city.gateways[spec.id]=state;
+    loadGatewayAppearance(spec,mount,fallback,state,gen,queue);
+  });
 }
 
 // ─── Generic facilities (realistic facades + label) ───────────────────────
@@ -2099,10 +2328,10 @@ const SPECIAL_BUILDING_MODELS = {
   swarm: 'assets/models/mission/swarm.glb',
   atc: 'assets/models/mission/atc.glb',
 };
-// Residential variations — each housing spot renders as a 2×2 block of units;
-// six compatible CC0 Kenney houses are selected by location, then batched.
+// Residential variations — each ordinary housing spot renders as a 2×2 block
+// of units; all ten compatible CC0 Kenney houses are selected by location.
 // The full catalogue remains available on demand in the student picker.
-const HOUSING_VARIANTS = ['a','b','c','e','g','i'].map(c=>`../library/buildings/kenney-suburban-${c}.glb`);
+const HOUSING_VARIANTS = ['a','b','c','d','e','f','g','h','i','j'].map(c=>`../library/buildings/kenney-suburban-${c}.glb`);
 // Facilities that share the generic model until they get their own GLB.
 // Plain facilities without a dedicated GLB — these fall back to the shared
 // generic model. Every generic facility has its own CC0 GLB now, so this list
@@ -2146,17 +2375,45 @@ function buildingLoadPriority(spots = []) {
   return Number.isFinite(distance) ? 100000 - distance : 0;
 }
 
-function addBuildingPlot(type, cx, cz, fp) {
+const FALLBACK_BOX_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
+
+function addBuildingPlot(type, cx, cz, fp, requestedHeight) {
+  const state = ensureGlbState(type);
+  const height = Math.max(8, Math.min(90, requestedHeight || Math.max(fp[0], fp[1]) * .8));
+  const palette = [0xc7775f, 0xd9b96d, 0x6e9fa1, 0x9a8bb2, 0x86a879, 0xb48a6a];
+  const tone = palette[hashString(`${type}|${cx}|${cz}`) % palette.length];
+  const width = Math.max(2, fp[0] - 1), depth = Math.max(2, fp[1] - 1);
+  const root = new THREE.Group();
+  root.name = `building-fallback-${type}`;
+  root.position.set(cx, 0, cz);
   const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(Math.max(2, fp[0] - 1), Math.max(2, fp[1] - 1)),
-    new THREE.MeshStandardMaterial({ color: 0x71806f, roughness: 1, transparent: true, opacity: .38, depthWrite: false })
+    FALLBACK_BOX_GEOMETRY,
+    new THREE.MeshStandardMaterial({ color: tone, roughness: .82, metalness: .04 })
   );
-  mesh.name = `building-plot-${type}`;
-  mesh.userData.kind = 'building-plot';
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(cx, .025, cz);
-  scene.add(mesh);
-  return mesh;
+  mesh.scale.set(width, height, depth);
+  mesh.position.y = height / 2;
+  const windowMaterial = new THREE.MeshStandardMaterial({ color: 0x344a56, roughness: .45 });
+  const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x464c4b, roughness: .9 });
+  const roof = new THREE.Mesh(FALLBACK_BOX_GEOMETRY, roofMaterial);
+  roof.scale.set(width + .4, .6, depth + .4);
+  roof.position.y = height + .3;
+  root.add(roof);
+  const rows = height > 28 ? 2 : 1;
+  for (let row = 0; row < rows; row++) {
+    const y = (row + 1) * height / (rows + 1);
+    const band = new THREE.Mesh(FALLBACK_BOX_GEOMETRY, windowMaterial);
+    band.scale.set(width * .72, 1.2, .12);
+    band.position.set(0, y, depth / 2 + .08);
+    root.add(band);
+  }
+  mesh.name = `building-fallback-${type}`;
+  mesh.userData.kind = 'building-fallback';
+  mesh.castShadow = !IS_WEBKIT;
+  mesh.receiveShadow = true;
+  root.add(mesh);
+  scene.add(root);
+  state.fallbacks.push(root);
+  return root;
 }
 
 // Housing variants loader: every residential model shares the same base unit
@@ -2173,41 +2430,40 @@ function loadHousingVariants(gen, queue) {
   Promise.all(HOUSING_VARIANTS.map(url=>queue.add(()=>loader.loadAsync(url), { onStale: disposeDetachedModel }).catch(e=>{console.warn('[housing variant]',url,e);return null;}))).then(gltfs=>{
     if(gen!==_bootGen){housingVariantsLoaded=false;for(const gltf of gltfs)disposeDetachedModel(gltf);return;}
     housingVariantModels.length=0;
-    for(const gltf of gltfs){if(!gltf)continue;const m=new THREE.Group();m.add(gltf.scene);const box=new THREE.Box3().setFromObject(m),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());gltf.scene.position.x-=center.x;gltf.scene.position.z-=center.z;gltf.scene.position.y-=box.min.y;prepareBuildingMaterials(m);housingVariantModels.push({model:m,size});}
+    for(const gltf of gltfs){if(!gltf)continue;const m=new THREE.Group();m.add(gltf.scene);const box=new THREE.Box3().setFromObject(m),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());gltf.scene.position.x-=center.x;gltf.scene.position.z-=center.z;gltf.scene.position.y-=box.min.y;prepareBuildingMaterials(m, !(_exampleSession && IS_WEBKIT));housingVariantModels.push({model:m,size});}
     applyBuildingModel('housing');
-  });
+  }).catch(e => console.warn('[city-builder] housing variants unavailable', e));
 }
 
 const officeVariantModels=[];
 let officeVariantsLoaded=false;
-const hunyuanVariantModels = { sunstack: null, beacon: null };
+const hunyuanVariantModels = Object.create(null);
 let hunyuanVariantsLoaded = false;
-let hunyuanSelection = { sunstackKey: null, beaconKey: null };
+let hunyuanSelection = selectHunyuanBuildingVariants(null);
 function loadOfficeVariants(gen,queue){if(officeVariantsLoaded)return;officeVariantsLoaded=true;
  Promise.all(['a','b','c'].map(c=>queue.add(()=>createGLTFLoader().loadAsync(`../library/buildings/kenney-skyscraper-${c}.glb`), { onStale: disposeDetachedModel }).catch(()=>null))).then(gltfs=>{
   if(gen!==_bootGen){officeVariantsLoaded=false;for(const gltf of gltfs)disposeDetachedModel(gltf);return;}
-  for(const g of gltfs){if(!g)continue;const m=new THREE.Group();m.add(g.scene);const box=new THREE.Box3().setFromObject(m),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());g.scene.position.x-=center.x;g.scene.position.z-=center.z;g.scene.position.y-=box.min.y;prepareBuildingMaterials(m);officeVariantModels.push({model:m,size});}applyBuildingModel('office');
- });
+  for(const g of gltfs){if(!g)continue;const m=new THREE.Group();m.add(g.scene);const box=new THREE.Box3().setFromObject(m),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());g.scene.position.x-=center.x;g.scene.position.z-=center.z;g.scene.position.y-=box.min.y;prepareBuildingMaterials(m, !(_exampleSession && IS_WEBKIT));officeVariantModels.push({model:m,size});}applyBuildingModel('office');
+ }).catch(e => console.warn('[city-builder] office variants unavailable', e));
 }
 
 function normalizedBuildingModel(gltf) {
   const model = new THREE.Group(); model.add(gltf.scene);
   const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
   gltf.scene.position.x -= center.x; gltf.scene.position.z -= center.z; gltf.scene.position.y -= box.min.y;
-  prepareBuildingMaterials(model); return { model, size };
+  prepareBuildingMaterials(model, !(_exampleSession && IS_WEBKIT)); return { model, size };
 }
 function loadHunyuanBuildingVariants(gen, queue) {
   if (hunyuanVariantsLoaded) return;
   hunyuanVariantsLoaded = true;
-  const entries = [['sunstack', HUNYUAN_IDS.sunstack], ['beacon', HUNYUAN_IDS.beacon]];
-  Promise.all(entries.map(([key, id]) => queue.add(() => createGLTFLoader().loadAsync(libraryItem(id).glb), { onStale: disposeDetachedModel })
-    .then((gltf) => [key, normalizedBuildingModel(gltf)]).catch((error) => { console.warn('[hunyuan variant]', key, error); return [key, null]; })))
+  const entries = Object.values(HUNYUAN_IDS).filter((id) => id !== HUNYUAN_IDS.emeraldRainTree);
+  Promise.all(entries.map((id) => queue.add(() => createGLTFLoader().loadAsync(libraryItem(id).glb), { onStale: disposeDetachedModel })
+    .then((gltf) => [id, normalizedBuildingModel(gltf)]).catch((error) => { console.warn('[hunyuan variant]', id, error); return [id, null]; })))
     .then((models) => {
       if (gen !== _bootGen) { hunyuanVariantsLoaded = false; return; }
-      for (const [key, value] of models) hunyuanVariantModels[key] = value;
-      if (glbState.shop?.spots.length) applyBuildingModel('shop');
-      if (glbState.office?.spots.length) applyBuildingModel('office');
-    });
+      for (const [id, value] of models) hunyuanVariantModels[id] = value;
+      for (const type of ['housing', 'shop', 'office', 'school', 'library']) if (glbState[type]?.spots.length) applyBuildingModel(type);
+    }).catch((error) => console.warn('[city-builder] optional building variants unavailable', error));
 }
 
 // A single rare landmark, deliberately separate from street-tree and ordinary
@@ -2264,7 +2520,7 @@ function loadBuildingModel(type, url, gen = _bootGen, queue = null) {
           o.geometry.translate(0, lift, 0);
         }
       });
-      if(GLB_BUILDING_TYPES[type] || SPECIAL_BUILDING_MODELS[type] || libraryItem(type)?.category==='buildings')prepareBuildingMaterials(m);
+      if(GLB_BUILDING_TYPES[type] || SPECIAL_BUILDING_MODELS[type] || libraryItem(type)?.category==='buildings')prepareBuildingMaterials(m, !(_exampleSession && IS_WEBKIT));
       st.model = m; st.size = size; st.status = 'loaded'; st.reason = null;
       st.loading = false;
       if(gen===_bootGen)applyBuildingModel(type);
@@ -2303,20 +2559,59 @@ function loadCustomBuildingModel(type, customId, gen = _bootGen, queue = null) {
     const box=new THREE.Box3().setFromObject(m), size=box.getSize(new THREE.Vector3()), center=box.getCenter(new THREE.Vector3());
     m.position.x-=center.x; m.position.z-=center.z;
     m.traverse(o=>{ if(o.isMesh&&o.geometry)o.geometry.translate(0,-box.min.y,0); });
-    prepareBuildingMaterials(m); st.model=m; st.size=size; st.loading=false;st.status='loaded';st.reason=null;
+    prepareBuildingMaterials(m, !(_exampleSession && IS_WEBKIT)); st.model=m; st.size=size; st.loading=false;st.status='loaded';st.reason=null;
     if(gen===_bootGen)applyBuildingModel(type);recordBuildingDiagnostic(type,st); return m;
   }).catch((e) => { console.warn(`[${type}] custom GLB unavailable`,e); st.loading=false;st.status='failed';st.reason=(e?.name||'custom-load-error').slice(0,48);recordBuildingDiagnostic(type,st); if(gen===_bootGen)showToast('Re-add this building GLB to use its custom look.'); return null; });
   return st.loading;
 }
 
+function refreshSpecialBeacons() {
+  if (!specialSystem?.beacon || !specialSystem.beaconPositions) return;
+  const matrix = new THREE.Matrix4();
+  const position = new THREE.Vector3();
+  const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 4, .6));
+  const scale = new THREE.Vector3(1, 1, 1);
+  specialSystem.beaconPositions.forEach((beacon, index) => {
+    matrix.compose(position.set(beacon.x, beacon.y, beacon.z), rotation, scale);
+    specialSystem.beacon.setMatrixAt(index, matrix);
+  });
+  specialSystem.beacon.instanceMatrix.needsUpdate = true;
+}
+
+function applyRenderedBuildingBounds(spot, bounds) {
+  const height = Number(bounds?.height);
+  if (!(height > 0)) return;
+  spot.renderedBounds = bounds;
+  if (spot.label) spot.label.position.y = height + 6;
+  if (spot.beacon) {
+    spot.beacon.anchor = height;
+    spot.beacon.y = height + 6;
+  }
+  if (spot.questRef) {
+    spot.questRef.top = height;
+    if (spot.questRef.hit) spot.questRef.hit.position.y = Math.max(12, height / 2);
+  }
+}
+
+function recordBuildingScale(type, spot, scale, bounds) {
+  if (!city) return;
+  city.buildingScaleDiagnostics ||= {};
+  (city.buildingScaleDiagnostics[type] ||= []).push({
+    x: spot.x, z: spot.z, scale, bounds: { ...bounds }, uniform: true,
+  });
+}
+
 function applyBuildingModel(type) {
   const st = glbState[type];
   if (!st || !st.model) return;
+  if (city?.buildingScaleDiagnostics) city.buildingScaleDiagnostics[type] = [];
   // Remove the procedural fallback meshes…
   for (const mesh of st.fallbacks) {
     scene.remove(mesh);
-    mesh.geometry && mesh.geometry.dispose();
-    mesh.material && mesh.material.dispose();
+    mesh.traverse(node => {
+      if (node.geometry !== FALLBACK_BOX_GEOMETRY) node.geometry?.dispose?.();
+      node.material?.dispose?.();
+    });
   }
   st.fallbacks.length = 0;
   // …and any GLB clones applied by an earlier pass (variants load async, so
@@ -2335,52 +2630,56 @@ function applyBuildingModel(type) {
     // unit picks a deterministic variant from the Kenney suburban pool when any have
     // loaded, so a neighbourhood looks varied; otherwise the base housing model.
     if (type === 'housing') {
+      const wave2 = spot.variant && hunyuanVariantModels[spot.variant];
+      if (wave2) {
+        const clone = wave2.model.clone(true);
+        const s = uniformScaleForBounds(wave2.size, { width: spot.fp[0], depth: spot.fp[1], height: spot.h || 24 });
+        clone.scale.setScalar(s); clone.position.set(spot.x, 0, spot.z);
+        const bounds = scaledBounds(wave2.size, s);
+        applyRenderedBuildingBounds(spot, bounds);
+        recordBuildingScale(type, spot, s, bounds);
+        clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+        scene.add(clone); st.applied.push(clone); continue;
+      }
       const unit = spot.fp[0] / 2 - 1;   // half the footprint minus a tiny gap
       const variants = housingVariantModels.length ? housingVariantModels : [{ model: st.model, size: st.size }];
+      let renderedHeight = 0;
       for (const [dx, dz] of [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]]) {
         const v = variants[hashString(`${spot.x}|${spot.z}|${dx}|${dz}`) % variants.length];
-        const s = Math.min(
-          unit / v.size.x,
-          (spot.fp[1]/2-1) / v.size.z,
-          (spot.h || 24) / v.size.y
-        );
+        const s = uniformScaleForBounds(v.size, {
+          width: unit, depth: spot.fp[1] / 2 - 1, height: spot.h || 24,
+        });
         const clone = v.model.clone(true);
         clone.scale.setScalar(s);
+        renderedHeight = Math.max(renderedHeight, v.size.y * s);
         clone.position.set(spot.x + dx * spot.fp[0], 0, spot.z + dz * spot.fp[1]);
         clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
         scene.add(clone);
         st.applied.push(clone);
       }
+      applyRenderedBuildingBounds(spot, { width: spot.fp[0], depth: spot.fp[1], height: renderedHeight });
+      recordBuildingScale(type, spot, null, { width: spot.fp[0], depth: spot.fp[1], height: renderedHeight });
       continue;
     }
-    const source = spot.variant === 'sunstack' && hunyuanVariantModels.sunstack ? hunyuanVariantModels.sunstack
-      : spot.variant === 'beacon' && hunyuanVariantModels.beacon ? hunyuanVariantModels.beacon
+    const source = spot.variant && hunyuanVariantModels[spot.variant] ? hunyuanVariantModels[spot.variant]
       : type==='office' && officeVariantModels.length ? officeVariantModels[hashString(`${spot.x}|${spot.z}`)%officeVariantModels.length] : st;
     const clone = source.model.clone(true);
-    // Facility + mission buildings stretch to fill their footprint AND catalog
-    // height (non-uniform) so e.g. an office tower or the Finance Tower actually
-    // reads as a tower. Shared library items (nature / props / vehicles via
-    // lib:) keep uniform scaling so they are never distorted.
-    const stretch = GLB_BUILDING_TYPES[spot.glbType] || SPECIAL_BUILDING_MODELS[spot.glbType];
-    if (stretch) {
-      clone.scale.set(
-        Math.min(spot.fp[0]/source.size.x,spot.fp[1]/source.size.z),
-        (spot.h || 24) / source.size.y,
-        Math.min(spot.fp[0]/source.size.x,spot.fp[1]/source.size.z)
-      );
-    } else {
-      const s = Math.min(
-        spot.fp[0] / source.size.x,
-        spot.fp[1] / source.size.z,
-        (spot.h || 24) / source.size.y
-      );
-      clone.scale.setScalar(s);
-    }
+    // A door, window, and storey must keep the same proportions in every role.
+    // The planner footprint is a containing plot, never a licence to stretch a
+    // GLB independently on X/Y/Z.
+    const s = uniformScaleForBounds(source.size, {
+      width: spot.fp[0], depth: spot.fp[1], height: spot.h || 24,
+    });
+    clone.scale.setScalar(s);
+    const bounds = scaledBounds(source.size, s);
+    applyRenderedBuildingBounds(spot, bounds);
+    recordBuildingScale(type, spot, s, bounds);
     clone.position.set(spot.x, 0, spot.z);
     clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     scene.add(clone);
     st.applied.push(clone);
   }
+  refreshSpecialBeacons();
   if(type==='housing' || type==='office'){const batch=batchBuildings(st.applied);scene.add(batch);st.applied=[batch];}
 }
 
@@ -2395,11 +2694,9 @@ function buildGenericFacilities() {
     const cx = b.pos[0];
     const cz = b.pos[1];
     const fp = b.footprint || spec.footprint || [20, 20];
-    // GLB-backed types can read too short if the source layout kept the small
-    // catalog height — office towers should look like towers next to specials.
-    // Declared up top: the stadium branch below also needs the building height.
-    const MIN_H = { office: 110 };
-    const h = Math.min(220, Math.max(8, MIN_H[b.type] ?? (b.height || spec.height || 20)));
+    // The planner's declared metres are authoritative. Model fitting below is
+    // uniform, so a role never becomes taller by stretching its windows.
+    const h = Math.min(220, Math.max(8, b.height || spec.height || 20));
 
     // Shared-library models (nature / props / vehicles / themed) render via
     // their library GLB scaled to the footprint; a plain box stands in while
@@ -2408,7 +2705,7 @@ function buildGenericFacilities() {
       const libId = b.type.slice(4);
       const state = ensureGlbState(libId);
       libIdsToLoad.add(libId);
-      addBuildingPlot(libId, cx, cz, fp);
+      addBuildingPlot(libId, cx, cz, fp, spec.height || h);
       let label = null;
       if (labelRenderer) {
         const el = document.createElement('div');
@@ -2490,7 +2787,7 @@ function buildGenericFacilities() {
     const glbType = GLB_BUILDING_TYPES[b.type] ? b.type : (GENERIC_FACILITY_TYPES.includes(b.type) ? 'generic' : null);
     if (glbType) {
       const state = ensureGlbState(glbType);
-      addBuildingPlot(glbType, cx, cz, fp);
+      addBuildingPlot(glbType, cx, cz, fp, h);
       let label = null;
       if (labelRenderer) {
         const el = document.createElement('div');
@@ -2502,9 +2799,7 @@ function buildGenericFacilities() {
         scene.add(label);
         buildingLabels.push(label);
       }
-      const key = coordinateKey([cx, cz]);
-      const variant = b.type === 'shop' && key === hunyuanSelection.sunstackKey ? 'sunstack'
-        : b.type === 'office' && key === hunyuanSelection.beaconKey ? 'beacon' : null;
+      const variant = hunyuanSelection.variantFor([cx, cz]);
       state.spots.push({ x: cx, z: cz, fp, h, glbType, label, variant });
       continue;
     }
@@ -2691,6 +2986,9 @@ function placeParkedVehicles() {
       const pz = b.pos[1] + perpZ * edge + dz * along;
       clone.position.set(px, sy * s / 2, pz);   // base on y=0
       clone.rotation.y = Math.atan2(dx, dz) + (cfg.rotY || 0);   // face along the road
+      // Keep a compact collider beside the rendered model. The dimensions are
+      // measured after the same normalisation scale used for the visible car.
+      clone.userData.groundVehicleCollider = { width: sx * s, length: sz * s };
       clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       scene.add(clone);
       _parkedVehicleState.applied.push(clone);
@@ -2826,6 +3124,7 @@ async function spawnChampion(isCurrent = () => true) {
   city.spawnWorld = new THREE.Vector3(spawn.x, 0, spawn.z);
   try {
     champion = await createChampion(ASSET_BASE, city, {
+      targetHeight: CITY_CHAMPION_HEIGHT,
       // Start with the uploaded fitted champion (if any) instead of the bunny.
       initialSkin: _customSkinUrl,
       initialSkinId: '__custom__',
@@ -2842,6 +3141,8 @@ async function spawnChampion(isCurrent = () => true) {
   // Never let that late result attach itself to the newer scene.
   if (!isCurrent()) { champion = null; return; }
   city.champion = champion;     // debug/consumption handle (minimap/buddy/tests)
+  updateChampionActionTray();
+  champion.addSkinListener?.(updateChampionActionTray);
   // Grow the champion with the densified buildings so proportions stay right.
   if (growScale && growScale !== 1) champion.group.scale.multiplyScalar(growScale);
   scene.add(champion.group);
@@ -2851,7 +3152,7 @@ async function spawnChampion(isCurrent = () => true) {
   const focus = cityFocusBounds || occupiedBounds(layout, { pad: 0 });
   orbit.target.set((focus.minX + focus.maxX) / 2, 0, (focus.minZ + focus.maxZ) / 2);
   orbit.dist = orbit.distOverview;
-  orbit.introUntil = performance.now() + 15000;
+  orbit.introUntil = performance.now() + (_exampleSession ? 3000 : 15000);
   // Start the idle-camera timer from spawn so the camera doesn't snap on boot.
   orbit.lastOrbitTs = performance.now();
 
@@ -2861,7 +3162,7 @@ async function spawnChampion(isCurrent = () => true) {
   // it doesn't double-darken with the real shadow.
   {
     championShadow = new THREE.Mesh(
-      new THREE.CircleGeometry(1.5, 24),
+      new THREE.CircleGeometry(.75, 24),
       new THREE.MeshBasicMaterial({
         map: getContactShadowTexture(),
         transparent: true,
@@ -2895,7 +3196,10 @@ async function spawnChampion(isCurrent = () => true) {
       if (!champion || !building || (taxi && taxi.isActive())) return;
       // Get out of the car before auto-walking.
       if (drivingCar && drivingCar.isActive()) { drivingCar.exit(); updateDriveButtons(); }
-      walkNav = { x: building.pos[0], z: building.pos[1] };
+      taxiNav = null;
+      const index = (layout.buildings || []).indexOf(building);
+      if (!beginWalkNavigation({ x: building.pos[0], z: building.pos[1] },
+        index >= 0 ? `building:${index}` : null, buildingName(building))) return false;
       showToast(tf('toast.walking', { name: buildingName(building) }));
       return true;
     },
@@ -2903,6 +3207,7 @@ async function spawnChampion(isCurrent = () => true) {
       if (!champion || !building || !taxi) return;
       // Get out of the car before flying.
       if (drivingCar && drivingCar.isActive()) { drivingCar.exit(); updateDriveButtons(); }
+      walkNav = null;
       if (!taxi.isActive()) taxi.board(champion);
       const h = building.height || 30;
       taxiNav = { x: building.pos[0], z: building.pos[1], y: h + 14 };
@@ -2921,6 +3226,71 @@ async function spawnChampion(isCurrent = () => true) {
       return { ok: true, note: `Opening ${quest.labelEn}` };
     },
   };
+}
+
+function updateChampionActionTray() {
+  const tray = document.querySelector('#actions-tray > div');
+  if (!tray) return;
+  tray.querySelectorAll('[data-champion-extra]').forEach(button => button.remove());
+  for (const name of champion?.extraActions?.() || []) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'action-btn';
+    button.dataset.championExtra = name; button.textContent = name;
+    button.addEventListener('click', () => champion?.playExtraAction?.(name));
+    tray.append(button);
+  }
+}
+
+function walkNavigationPlan(target, targetObstacleId = null) {
+  if (!champion) return { ok: false, reason: 'unavailable' };
+  const scale = Number(layout?.scaleMeters) || 2000;
+  return planGroundRoute({
+    start: { x: champion.state.pos.x, z: champion.state.pos.z },
+    target,
+    targetObstacleId,
+    obstacles: championStaticObstacles(),
+    clearance: CHAMPION_NAV_CLEARANCE,
+    bounds: { minX: CHAMPION_NAV_CLEARANCE, minZ: CHAMPION_NAV_CLEARANCE,
+      maxX: scale - CHAMPION_NAV_CLEARANCE, maxZ: scale - CHAMPION_NAV_CLEARANCE },
+  });
+}
+
+function beginWalkNavigation(target, targetObstacleId = null, label = '') {
+  const plan = walkNavigationPlan(target, targetObstacleId);
+  if (!plan.ok) {
+    walkNav = null;
+    showToast(t('toast.routeBlocked'));
+    return false;
+  }
+  walkNav = { points: plan.points, index: 0, target: { ...target }, targetObstacleId,
+    label, obstacleRevision: navObstacleRevision };
+  return true;
+}
+
+function replanWalkNavigation() {
+  if (!walkNav) return false;
+  const previous = walkNav;
+  const plan = walkNavigationPlan(previous.target, previous.targetObstacleId);
+  if (!plan.ok) {
+    walkNav = null;
+    showToast(t('toast.routeBlocked'));
+    return false;
+  }
+  walkNav = { ...previous, points: plan.points, index: 0, obstacleRevision: navObstacleRevision };
+  return true;
+}
+
+function cancelManualNavigation(kind) {
+  if (kind === 'taxi') {
+    if (!taxiNav) return false;
+    taxiNav = null;
+    taxi?.setAutoNav(false);
+  } else {
+    if (!walkNav) return false;
+    walkNav = null;
+  }
+  showToast(t('toast.navigationCancelled'));
+  return true;
 }
 
 function buildingName(b) {
@@ -3136,6 +3506,7 @@ function toggleTaxi() {
     taxi.setAutoNav(false);
     taxi.exit();
   } else {
+    walkNav = null;
     taxi.board(champion);
     showToast(t('toast.flyControls'));
   }
@@ -3182,6 +3553,7 @@ function toggleDrive() {
   if (drivingCar && drivingCar.isActive()) {
     // Driving → exit the current car (it stays parked where it stopped).
     drivingCar.exit();
+    navObstacleRevision++;
     showToast(t('toast.parked'));
     updateDriveButtons();
     return;
@@ -3189,6 +3561,7 @@ function toggleDrive() {
   // Not driving → if a parked car is nearby, board it; otherwise open the chooser.
   const near = parkedCarNearChampion();
   if (near) {
+    walkNav = null; taxiNav = null; navObstacleRevision++;
     near.board(champion);
     showToast(tf('toast.drivingAgain', { name: near.name || 'car' }));
     updateDriveButtons();
@@ -3388,6 +3761,8 @@ async function spawnDriveCar(item) {
   const car = createDrivableCar(scene, carGroup, {
     walkSpeed: 15, runSpeed: 30,
     radius: bodyRadius,
+    length: bodyRadius * 2,
+    width: Math.max(1.5, bodyRadius * 1.15),
     resolveParking: ({ position, footprint, rotation }) => resolveRoadSafePlacement({
       position, footprint, rotation, roads: layout,
       bounds: [0, 0, layout.scaleMeters || 2000, layout.scaleMeters || 2000],
@@ -3403,6 +3778,7 @@ async function spawnDriveCar(item) {
   driveCars.push(car);
 
   // Board: snap the car just in front of the champion.
+  walkNav = null; taxiNav = null; navObstacleRevision++;
   car.board(champion);
   showToast(tf('toast.drivingCar', { name: displayName('lib:'+item.id,currentLang()) }));
   updateDriveButtons();
@@ -3474,36 +3850,96 @@ function cameraRelativeMove(ix, iz, focus) {
   return { x: Fx * iz + Rx * ix, z: Fz * iz + Rz * ix };
 }
 
-// ─── Champion building collision ──────────────────────────────────────────
-// Building footprints become AABBs (built once from the layout). The champion
-// is a circle that slides out along the axis of least penetration, so it never
-// walks through buildings but still glides along their walls.
-let buildingColliders = [];   // [{minX, maxX, minZ, maxZ}]
+// ─── Ground collision ─────────────────────────────────────────────────────
+// Footprints are oriented boxes in X/Z. Keeping this renderer-free lets every
+// champion skin share one predictable body, while rotated buildings and cars
+// match the space they visibly occupy.
+const CHAMPION_COLLIDER_SIZE = 0.8;
+const CHAMPION_NAV_CLEARANCE = Math.hypot(CHAMPION_COLLIDER_SIZE / 2, CHAMPION_COLLIDER_SIZE / 2) + 0.25;
+let buildingColliders = [];   // boxBody[]
+let buildingPlacementColliders = []; // legacy AABBs for the prop grab UI
 
 function buildColliders() {
   buildingColliders = [];
+  buildingPlacementColliders = [];
   if (!city.layout || !city.layout.buildings) return;
-  for (const b of city.layout.buildings) {
+  city.layout.buildings.forEach((b, index) => {
     const spec = typeSpec(b.type);
     const fp = b.footprint || (spec && spec.footprint) || [20, 20];
-    const cx = b.pos[0], cz = b.pos[1];
-    const hw = (fp[0] || 20) / 2, hd = (fp[1] || 20) / 2;
-    buildingColliders.push({ minX: cx - hw, maxX: cx + hw, minZ: cz - hd, maxZ: cz + hd });
-  }
+    const width = fp[0] || 20, length = fp[1] || 20;
+    buildingColliders.push({ ...boxBody({ x: b.pos[0], z: b.pos[1], width,
+      length, yaw: b.rotation || 0 }), id: `building:${index}`, kind: 'building' });
+    // The grab library's anchor validator is deliberately axis-aligned. Keep
+    // its conservative envelope separate from gameplay's exact rotated box.
+    const radius = Math.hypot(width, length) / 2;
+    buildingPlacementColliders.push({ minX: b.pos[0] - radius, maxX: b.pos[0] + radius,
+      minZ: b.pos[1] - radius, maxZ: b.pos[1] + radius });
+  });
+  navObstacleRevision++;
 }
 
-function resolveCollision(x, z, r) {
-  for (const c of buildingColliders) {
-    const minX = c.minX - r, maxX = c.maxX + r, minZ = c.minZ - r, maxZ = c.maxZ + r;
-    if (x < minX || x > maxX || z < minZ || z > maxZ) continue;
-    const dxL = x - minX, dxR = maxX - x, dzL = z - minZ, dzR = maxZ - z;
-    const m = Math.min(dxL, dxR, dzL, dzR);
-    if (m === dxL) x = minX;
-    else if (m === dxR) x = maxX;
-    else if (m === dzL) z = minZ;
-    else z = maxZ;
+function championCollisionBody() {
+  if (!champion || !champion.group.visible) return null;
+  const p = champion.state.pos;
+  return boxBody({ x: p.x, z: p.z, width: CHAMPION_COLLIDER_SIZE,
+    length: CHAMPION_COLLIDER_SIZE, yaw: champion.state.facing });
+}
+
+function trafficCollisionBodies() {
+  return (traffic?.vehicles || []).filter(v => !v.done).map(v => boxBody({ x: v.x, z: v.z,
+    dx: v.vx, dz: v.vz, length: v.length, width: v.width || 2.05 }));
+}
+
+function meshVehicleBody(mesh) {
+  const spec = mesh?.userData?.groundVehicleCollider;
+  if (!spec || !mesh.visible) return null;
+  const scale = Math.max(Math.abs(mesh.scale.x || 1), Math.abs(mesh.scale.z || 1));
+  return boxBody({ x: mesh.position.x, z: mesh.position.z, yaw: mesh.rotation.y,
+    width: spec.width * scale, length: spec.length * scale });
+}
+
+function placedPropBody(mesh) {
+  const spec = mesh?.userData?.groundObstacle;
+  if (!spec || !mesh.visible || !mesh.parent) return null;
+  return { ...boxBody({ x: mesh.position.x, z: mesh.position.z, yaw: mesh.rotation.y,
+    width: spec.width * Math.max(0.01, Math.abs(mesh.scale.x || 1) / (spec.baseScale || 1)),
+    length: spec.length * Math.max(0.01, Math.abs(mesh.scale.z || 1) / (spec.baseScale || 1)) }),
+    id: `prop:${mesh.userData.uid || mesh.uuid}`, kind: spec.kind || 'prop' };
+}
+
+function staticGroundObstacleBodies() {
+  const bodies = [];
+  for (const mesh of _parkedVehicleState.applied) { const body = meshVehicleBody(mesh); if (body) bodies.push(body); }
+  for (const mesh of environmentProps) { const body = placedPropBody(mesh); if (body) bodies.push(body); }
+  for (const car of driveCars || []) {
+    if (!car.isActive?.() && car.isParked?.()) {
+      const body = car.getCollisionBody?.();
+      if (body) bodies.push({ ...body, id: `parked-car:${car.id || bodies.length}`, kind: 'parked-vehicle' });
+    }
   }
-  return { x, z };
+  return bodies;
+}
+
+function championStaticObstacles() { return [...buildingColliders, ...staticGroundObstacleBodies()]; }
+
+function resolveChampionCollision() {
+  const body = championCollisionBody();
+  if (!body) return false;
+  const result = resolveBoxCollisions(body, [...championStaticObstacles(), ...trafficCollisionBodies()]);
+  champion.state.pos.x = result.x;
+  champion.state.pos.z = result.z;
+  champion.group.position.x = result.x;
+  champion.group.position.z = result.z;
+  return result.collided;
+}
+
+function resolveCarCollision(car) {
+  const body = car?.getCollisionBody?.();
+  if (!body) return;
+  const result = resolveBoxCollisions(body, buildingColliders);
+  const pos = car.getPos();
+  pos.x = result.x; pos.z = result.z;
+  car.group.position.set(result.x, 0, result.z);
 }
 
 // ─── Building entry (tap to open minigame) ────────────────────────────────
@@ -3574,6 +4010,27 @@ function registerGrabbableProp(mesh, item) {  if (!grab || !mesh) return;
   // fall back to the library id so legacy records still match by id.
   mesh.userData.propId = item ? item.id : (mesh.userData.propId || null);
   mesh.userData.uid = mesh.userData.uid || (item ? item.id : (mesh.userData.uid || null));
+  // Every placed, ground-based model is solid for both manual collision and
+  // automatic walking. Aircraft and rail stock remain decorative because
+  // their library footprints do not describe a walkable ground obstruction.
+  const airborneOrRail = item?.category === 'vehicles' && !isRoadVehicle(item);
+  if (item && !airborneOrRail) {
+    mesh.userData.groundObstacle = {
+      width: Math.max(0.1, Number(fp[0]) || 1.5),
+      length: Math.max(0.1, Number(fp[1]) || 1.5),
+      baseScale: Math.max(0.0001, Math.abs(mesh.userData.libraryBaseScale || 1)),
+      kind: item.landmark ? 'landmark' : item.host ? 'skill-host' : 'prop',
+    };
+  }
+  // Only road-going library vehicles become solid to the Champion. Aircraft
+  // and rail models stay decorative/airborne as elsewhere in the city.
+  if (item?.category === 'vehicles' && isRoadVehicle(item)) {
+    mesh.userData.groundVehicleCollider = {
+      width: vehicleTargetWidth(item),
+      length: vehicleTargetLength(item),
+    };
+  }
+  navObstacleRevision++;
 }
 
 /** Desktop affordance: show a pointer cursor while hovering an AI machine node
@@ -3607,6 +4064,10 @@ function tapAt(clientX, clientY) {
   pointer.x = ndcX; pointer.y = ndcY;
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects(interactMeshes, false);
+  if (hits.length && hits[0].object.userData.kind === 'gateway') {
+    location.assign(hits[0].object.userData.quest.directUrl);
+    return;
+  }
   if (hits.length && hits[0].object.userData.kind === 'quest') {
     const data = hits[0].object.userData;
     openPurpose(data.type);
@@ -3668,7 +4129,10 @@ function mountSkins(owner) {
   if (!champion) return;   // champion failed to load — skip skin sidebar
   // Accessories are not needed for first paint. Warm them after the active
   // layout is usable, and cancel the deferred start when this boot is replaced.
-  owner.defer(() => preloadAccessories(ASSET_BASE), 1500);
+  if (!_exampleSession) owner.defer(() => {
+    try { Promise.resolve(preloadAccessories(ASSET_BASE)).catch((e) => console.warn('[city-builder] accessories unavailable', e)); }
+    catch (e) { console.warn('[city-builder] accessories unavailable', e); }
+  }, 1500);
   skinSidebar = mountSkinSidebar(ASSET_BASE, champion, (skin) => showToast(`👑 ${skinLabel(skin)} ${t('toast.skinEquipped')}`),
     _customSkinUrl ? { url: _customSkinUrl, metadata: _customSkinMetadata } : null, {
       onUploadCustom: async (file) => {
@@ -3714,7 +4178,11 @@ function startLoop(owner) {
     streetLife.update(reducedMotion.matches ? 0 : dt);
   }
   // Traffic and pedestrians share crossing occupancy, not separate timers.
-  if (traffic) traffic.update(reducedMotion.matches ? 0 : dt, streetLife);
+  // Traffic sees the Champion before its next walking step. Its own fixed-step
+  // guard then leaves a 3 m gap if the Champion enters a live lane.
+  const trafficBlocker = (!taxi?.isActive?.() && !drivingCar?.isActive?.()) ? championCollisionBody() : null;
+  if (traffic) traffic.update(reducedMotion.matches ? 0 : dt, streetLife,
+    trafficBlocker ? [trafficBlocker] : []);
   // Pedestrians (floating NPCs)
   if (citizens && ambientDelta(dt)) citizens.update(dt, tNow);
   // Clouds (drifting sky)
@@ -3734,16 +4202,12 @@ function startLoop(owner) {
     drivingCar.update(dt, { x: m.x, z: m.z, running: input.running || runToggled }, tNow);
     // Building collision — slide the car out of footprints so it never drives
     // through buildings (re-sync the group after pushing the car's pos).
-    if (buildingColliders.length) {
-      const c = resolveCollision(drivingCar.getPos().x, drivingCar.getPos().z, drivingCar.radius);
-      drivingCar.getPos().x = c.x;
-      drivingCar.getPos().z = c.z;
-      drivingCar.group.position.set(c.x, 0, c.z);
-    }
+    if (buildingColliders.length) resolveCarCollision(drivingCar);
     sim.nearQuest = null;   // driving — no building is "near" for entering
   } else if (taxiActive) {
-    // Auto-fly to a building (buddy "fly to X") overrides manual steering.
+    // A child's steering always wins over destination auto-flight.
     let tx = input.x, tz = input.z, ascend = input.ascend, descend = input.descend;
+    if (taxiNav && (input.x || input.z || input.ascend || input.descend)) cancelManualNavigation('taxi');
     if (taxiNav) {
       const tp = taxi.getPos();
       const dx = taxiNav.x - tp.x, dz = taxiNav.z - tp.z;
@@ -3766,19 +4230,25 @@ function startLoop(owner) {
     taxi.update(dt, { x: tx, z: tz, running: true, ascend, descend }, tNow);
     sim.nearQuest = null;   // flying — no building is "near" for entering
   } else if (champion) {
-    // Walk navigation (buddy "walk to X") steers toward the target.
+    // A child's directional input cancels destination walking in this frame.
     let mx = input.x, mz = input.z, mvRunning = input.running || runToggled, mvJump = input.jump;
+    if (walkNav && (input.x || input.z)) cancelManualNavigation('walk');
+    if (walkNav && walkNav.obstacleRevision !== navObstacleRevision) replanWalkNavigation();
     if (walkNav) {
       const p = champion.state.pos;
-      const dx = walkNav.x - p.x, dz = walkNav.z - p.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist < 4) {
+      const progress = advanceGroundRoute(walkNav, p);
+      walkNav.index = progress.index;
+      if (progress.done) {
         walkNav = null;
+        showToast(t('toast.walkArrived'));
       } else {
+        const dx = progress.waypoint.x - p.x, dz = progress.waypoint.z - p.z;
+        const dist = Math.hypot(dx, dz);
         const len = dist || 1;
         mx = dx / len; mz = dz / len; mvRunning = false;
       }
-    } else {
+    }
+    if (!walkNav) {
       // Camera-relative manual walking (no buddy walk-to override)
       const m = cameraRelativeMove(input.x, input.z, champion.state.pos);
       mx = m.x; mz = m.z;
@@ -3786,30 +4256,10 @@ function startLoop(owner) {
       x: mx, z: mz, running: mvRunning, jump: mvJump,
       speedScale: (sim.walkSpeed || 2) / WALK_SPEED,
     });
-     // Building collision — slide out of footprints so the champion never walks
-     // through buildings. Only x/z move here — the grounded Y set by
-     // champion.update() must be preserved (surface-aware, sole on the ground).
-     if (buildingColliders.length) {
-       const r = 0.5 * (champion.group.scale.x || 1);
-       const c = resolveCollision(champion.state.pos.x, champion.state.pos.z, r);
-       champion.state.pos.x = c.x;
-       champion.state.pos.z = c.z;
-       champion.group.position.x = c.x;
-       champion.group.position.z = c.z;
-     }
-     // The Champion is a ground walker: keep their body outside the asphalt
-     // ribbon even for buddy auto-walk. Air taxi movement follows a separate
-     // branch above and deliberately remains unrestricted.
-     if (roadBarrierNetwork) {
-       const r = 0.5 * (champion.group.scale.x || 1);
-       const c = resolveRoadCarriageway(roadBarrierNetwork, champion.state.pos.x, champion.state.pos.z, r);
-       const blockedByRoad = Math.hypot(c.x - champion.state.pos.x, c.z - champion.state.pos.z) > .01;
-       champion.state.pos.x = c.x;
-       champion.state.pos.z = c.z;
-       champion.group.position.x = c.x;
-       champion.group.position.z = c.z;
-       if (blockedByRoad && walkNav) walkNav = null;
-     }
+     // Solid buildings and every ground car share one collision pass. Roads
+     // are intentionally absent: the Champion may cross them, while traffic
+     // yields from its own predictive safety pass above.
+     resolveChampionCollision();
       // Blob shadow follows the champion, on the surface under it (all tiers).
       if (championShadow) {
         championShadow.position.x = champion.state.pos.x;
@@ -3974,7 +4424,9 @@ function updateQuestPrompt() {
   if (!_questPromptEl) return;
   const quest = sim && sim.nearQuest;
   if (!quest) { _questPromptEl.classList.add('hidden'); return; }
-  _questPromptLabel.textContent = `🏛️ ${currentLang() === 'zh-Hant' ? quest.labelZh : quest.labelEn}`;
+  const isGateway = !!quest.directUrl;
+  _questPromptLabel.textContent = `${isGateway ? (quest.gateway === 'studio' ? '✦' : '⚙️') : '🏛️'} ${currentLang() === 'zh-Hant' ? quest.labelZh : quest.labelEn}`;
+  _questPromptBtn.textContent = isGateway ? (currentLang() === 'zh-Hant' ? quest.enterZh : quest.enterEn) : t('quest.enter');
   _questPromptBtn.classList.remove('hidden');
   _questPromptEl.classList.remove('hidden');
 }
@@ -3985,7 +4437,8 @@ function wireQuestPrompt() {
   _questPromptBtn.addEventListener('click', () => {
     const quest = sim && sim.nearQuest;
     if (!quest) return;
-    openPurpose(quest.type);
+    if (quest.directUrl) location.assign(quest.directUrl);
+    else openPurpose(quest.type);
   });
 }
 
@@ -4020,9 +4473,14 @@ function wireInput() {
 
   window.addEventListener('keydown', (e) => {
     // Don't hijack typing in the buddy chat input (or any text field).
-    if (activeModal() || isTyping() || e.target.closest('button, a, select, summary')) return;
-    keys[e.key.toLowerCase()] = true;
     const k = e.key.toLowerCase();
+    const movementKey = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k);
+    // Modal controls and native select/summary navigation keep their keys. Once
+    // a destination panel closes, focus intentionally returns to its HUD
+    // opener; movement keys must still hand control straight back to the child.
+    if (activeModal() || isTyping() || e.target.closest('select, summary')
+      || (e.target.closest('button, a') && !movementKey)) return;
+    keys[k] = true;
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) || ['w', 'a', 's', 'd', 'r'].includes(k)) e.preventDefault();
     if (k === ' ') input.jump = true;
     if (k === 'r') runToggled = !runToggled;
@@ -4051,17 +4509,19 @@ function wireInput() {
     // Get out of the car first, then head home.
     if (drivingCar && drivingCar.isActive()) { drivingCar.exit(); updateDriveButtons(); }
     if (taxi && taxi.isActive()) {
+      walkNav = null;
       taxiNav = { x: city.spawnWorld.x, z: city.spawnWorld.z, y: 24 };
       taxi.setAutoNav(true);
       updateFlyButtons();
     } else if (champion) {
-      walkNav = { x: city.spawnWorld.x, z: city.spawnWorld.z };
-    }    showToast(t('toast.headingHome'));
+      taxiNav = null;
+      if (!beginWalkNavigation({ x: city.spawnWorld.x, z: city.spawnWorld.z })) return;
+    }
+    showToast(t('toast.headingHome'));
   });
 
-  // Small button back to the master site (hub / portal).
-  document.getElementById('btn-hub').addEventListener('click', () => {
-    window.location.href = HOME_URL;
+  document.getElementById('more-example')?.addEventListener('click', () => {
+    window.location.href = '/city-builder/?example=1';
   });
 
   // 🎯 button — select / pick-up / move placed library models (single-button
@@ -4519,11 +4979,12 @@ function renderCapPanel() {
       <div class="cap-meta">${esc(d.algorithm)} · ${d.labels.length} labels · threshold ${d.threshold}</div>
       <div class="cap-scores">${esc(scoreLine)}</div>
       ${ld ? `<div class="cap-last">${zh ? '歷史紀錄（未重新驗證）：' : 'Historical record (not reverified): '}<b>${esc(ld.label)}</b></div>` : ''}
-      <div class="cap-note">${d.connected ? (zh ? '自我測試通過 · 正在運行' : 'Self-tests passed · live-running') : (zh ? '只供展示 · 自我測試未通過' : 'Display-only · self-tests did not pass')}</div>
+      <div class="cap-note">${d.connected ? (zh ? '只供展示 · 自我測試通過；不執行推論' : 'Display-only · self-tests passed; no inference') : (zh ? '只供展示 · 自我測試未通過' : 'Display-only · self-tests did not pass')}</div>
       <button class="cap-try" data-try-cap="${esc(d.id)}">🧪 ${zh ? '查看證據' : 'Inspect evidence'}</button>
     </div>`;
   }).join('');
-  body.innerHTML = (caps.length ? '' : `<div class="cap-empty">${zh
+  body.innerHTML = `<div class="cap-note">${esc(stage1Note(zh))}</div>`
+    + (caps.length ? '' : `<div class="cap-empty">${zh
     ? '尚未匯入機器檔案。第一階段只展示資料與證據，不執行推論。'
     : 'No imported machine files yet. Stage 1 displays data and evidence only; it does not run inference.'}</div>`)
     + cards
@@ -4607,11 +5068,16 @@ function startEntryFlow() {
   entryBound = true;
   const overlay = document.getElementById('entry-overlay');
   const localBtn = document.getElementById('entry-local');
+  const exampleBtn = document.getElementById('entry-example');
   const pasteBtn = document.getElementById('entry-paste');
   const fileInput = document.getElementById('file-input');
   const pasteWrap = document.getElementById('paste-wrap');
   const pasteBox = document.getElementById('paste-box');
   const pasteGo = document.getElementById('paste-go');
+  const entryMode = new URLSearchParams(location.search);
+  const forceExample = entryMode.get('example') === '1';
+  const previewExampleDraft = forceExample && entryMode.get('draft') === '1';
+  const forceResume = entryMode.get('resume') === '1';
 
   let saved = null;
   try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* ignore */ }
@@ -4622,6 +5088,7 @@ function startEntryFlow() {
     // Resume surface: a returning student sees "Continue my city" + when it was
     // last backed up, instead of a cold "start".
     localBtn.textContent = t('entry.continue');
+    if (exampleBtn) exampleBtn.hidden = false;
     const savedAt = lastSavedAt();
     const resumeNote = document.getElementById('entry-resume');
     if (savedAt && resumeNote) {
@@ -4669,7 +5136,7 @@ function startEntryFlow() {
       catch (e) { console.warn('[city-builder] retry layout was unreadable', e); }
     }
     if (saved) {
-      try { begin(JSON.parse(saved)); }
+      try { _exampleSession = false; begin(JSON.parse(saved)); }
       catch (e) {
         // Saved city JSON is corrupt — fall back to the sample, but say so so
         // the child isn't silently staring at a city they didn't build.
@@ -4679,6 +5146,33 @@ function startEntryFlow() {
     }
     else begin(sampleLayout());
   });
+  exampleBtn?.addEventListener('click', () => begin(sampleLayout()));
+  // The Champion Hub exposes the example as a permanent, separate choice.
+  // Never overwrite the child's stored layout: start a sample session directly
+  // even when a saved city exists on this device.
+  if (forceExample) {
+    if (previewExampleDraft) {
+      const draft = readExampleDraft();
+      if (!draft) showEntryError('The example draft is missing or invalid. Return to Edit plan to open the example again.');
+      else {
+        sampleLayout(false); // apply the example presentation and session controls
+        begin(draft);
+      }
+    } else begin(sampleLayout());
+  } else if (forceResume) {
+    // Resume is intentionally strict: a missing or malformed saved layout stays
+    // on the entry screen and never turns into the bundled example silently.
+    if (!saved) showEntryError(t('ui.badSaved'));
+    else {
+      try {
+        _exampleSession = false;
+        const parsed = JSON.parse(saved);
+        if (validateLayout(parsed).ok) begin(parsed);
+        else showEntryError(t('ui.badSaved'));
+      } catch { showEntryError(t('ui.badSaved')); }
+    }
+    history.replaceState(null, '', '/city-builder/');
+  }
   // The native <label for="file-input"> opens the picker on every browser,
   // including iPad/iOS where a programmatic input.click() fallback would cancel
   // the label's reliable activation and then get silently ignored. So there is
@@ -4692,7 +5186,7 @@ function startEntryFlow() {
     reader.onload = () => {
       // Champion File (restore EVERYTHING) or a legacy layout JSON.
       if (!importChampionFile(reader.result)) {
-        try { begin(JSON.parse(reader.result)); } catch (e) { showEntryError(t('ui.invalid')); }
+        try { _exampleSession = false; begin(JSON.parse(reader.result)); } catch (e) { showEntryError(t('ui.invalid')); }
       }
     };
     reader.readAsText(f);
@@ -4700,7 +5194,7 @@ function startEntryFlow() {
   pasteBtn.addEventListener('click', () => { pasteWrap.style.display = pasteWrap.style.display === 'none' ? 'block' : 'none'; });
   pasteGo.addEventListener('click', () => {
     if (!importChampionFile(pasteBox.value)) {
-      try { begin(JSON.parse(pasteBox.value)); } catch (e) { showEntryError(t('ui.invalid')); }
+      try { _exampleSession = false; begin(JSON.parse(pasteBox.value)); } catch (e) { showEntryError(t('ui.invalid')); }
     }
   });
 
@@ -4727,9 +5221,10 @@ function startEntryFlow() {
   // Auto-load from the planner handoff (?from=planner) — "build it, then walk
   // into it" with zero extra taps. Same-origin localStorage carries the layout.
   // Fully guarded: corrupt/absent JSON falls through to the normal entry overlay.
-  const fromPlanner = new URLSearchParams(location.search).get('from') === 'planner';
+  const fromPlanner = entryMode.get('from') === 'planner';
   if (fromPlanner && saved) {
     try {
+      _exampleSession = false;
       begin(JSON.parse(saved));
       const mode = new URLSearchParams(location.search).get('mode');
       history.replaceState(null, '', mode === 'decorate' ? '/city-builder/?mode=decorate' : '/city-builder/'); // tidy the URL
@@ -4801,7 +5296,7 @@ async function bootInner() {
     queueStats: null, assets: { buildings: {}, traffic: {} }, failures: [],
   };
   const loadQueue = createLoadQueue({
-    concurrency: IS_MOBILE ? 3 : 4,
+    concurrency: _exampleSession ? 2 : (IS_WEBKIT ? 2 : (IS_MOBILE ? 3 : 4)),
     isActive: () => owner.active && gen === _bootGen,
     onChange: stats => { loadingDiagnostics.queueStats = stats; },
   });
@@ -4827,7 +5322,7 @@ async function bootInner() {
     }
   }, window.__CITY_BOOT_DEADLINE_MS__ ?? BOOT_TIMEOUT_MS);
   const loadingSub = document.querySelector('#loading .loading-sub');
-  if (loadingSub) loadingSub.textContent = currentLang() === 'zh-Hant' ? '正在建立你的城市…' : 'Building your city…';
+  if (loadingSub) loadingSub.textContent = currentLang() === 'zh-Hant' ? '正在準備道路和冠軍；建築模型會隨後出現。' : 'Preparing roads and your Champion. Building details will appear after you enter.';
   owner.timeout(() => {
     if (loadingDiagnostics.phase === 'booting' && loadingSub) loadingSub.textContent = t('ui.bootStillBuilding');
   }, window.__CITY_BOOT_SLOW_COPY_MS__ ?? BOOT_SLOW_COPY_MS);
@@ -4865,7 +5360,8 @@ async function bootInner() {
   const fill = document.getElementById('loading-fill');
   fill.style.width = '25%';
   safe('road-textures', () => loadRoadTextures(gen, renderer));   // async — roads upgrade from flat charcoal to textured asphalt
-  if(layout.autoScenery!==false)safe('nature-filler', () => loadNatureFiller(gen));   // async — bushes/flowers/rocks for parks
+  if(layout.autoScenery!==false)safe('nature-filler', () => loadNatureFiller(gen,
+    _exampleSession ? PARK_VEGETATION_ASSETS.slice(0, 1) : PARK_VEGETATION_ASSETS));
   fill.style.width = '60%';
 
   safe('tree-variants', buildTreeVariants);
@@ -4890,6 +5386,7 @@ async function bootInner() {
   // Active-layout models enter one bounded queue first. Procedural buildings
   // remain useful while a model is delayed or rejected.
   const customRoleManifest = readCustomManifest();
+  const deferredBuildingJobs = [];
   const loadRoleVisual = (type, url) => {
     const customId = resolveCustomOverride(type, customRoleManifest);
     return customId ? loadCustomBuildingModel(type, customId, gen, loadQueue) : loadBuildingModel(type, url, gen, loadQueue);
@@ -4897,17 +5394,26 @@ async function bootInner() {
   safe('active-building-glbs', () => {
     const jobs = [];
     for (const [type, url] of [...Object.entries(GLB_BUILDING_TYPES), ...Object.entries(SPECIAL_BUILDING_MODELS)]) {
-      if (glbState[type]?.spots.length) jobs.push({ type, url, role: true, priority: buildingLoadPriority(glbState[type].spots) });
+      if (glbState[type]?.spots.length && (!_exampleSession || SPECIAL_BUILDING_MODELS[type])) {
+        jobs.push({ type, url, role: true, priority: buildingLoadPriority(glbState[type].spots) });
+      }
     }
-    for (const id of activeLibraryIds) {
+    for (const id of _exampleSession ? [] : activeLibraryIds) {
       const item = libraryItem(id);
       if (item) jobs.push({ type: id, url: item.glb, role: false, priority: buildingLoadPriority(glbState[id]?.spots) });
     }
     jobs.sort((a, b) => b.priority - a.priority || a.type.localeCompare(b.type));
-    for (const job of jobs) primaryAssetPromises.push(job.role
+    const selectedJobs = _exampleSession ? jobs.slice(0, 10) : jobs;
+    const openingLimit = _exampleSession ? (IS_MOBILE ? 4 : 5) : (IS_MOBILE ? 6 : 8);
+    const activeJobs = selectedJobs.slice(0, openingLimit);
+    deferredBuildingJobs.push(...selectedJobs.slice(openingLimit));
+    for (const job of activeJobs) primaryAssetPromises.push(job.role
       ? loadRoleVisual(job.type, job.url)
       : loadBuildingModel(job.type, job.url, gen, loadQueue));
   });
+  // Let nearby active buildings claim the opening download slots first. The
+  // gateways have readable procedural bodies while their GLBs stream in.
+  safe('learning-gateways', () => buildCityGateways(gen, loadQueue));
 
   // Cosmetic variants, accessories and street decoration wait until after the
   // usable city is mounted. Their starts are owned by this boot.
@@ -4916,29 +5422,46 @@ async function bootInner() {
     // trees and road network were built above, so a slow model must never keep
     // the child on the loading screen.
     const current = () => owner.active && gen === _bootGen;
-    Promise.all([
-      loadTreeModels(current),
-      loadTreePacks(current),
+    const optional = [];
+    optional.push(Promise.all([
+      _exampleSession ? Promise.resolve(null) : loadTreeModels(current),
+      loadTreePacks(current, _exampleSession ? 1 : Infinity),
     ]).then(() => { if (current()) { buildTreeVariants(); flushTrees(); } })
-      .catch(e => console.warn('[city-builder] optional landscape unavailable', e));
-    createStreetProps(scene, layout).then(props => {
+      .catch(e => console.warn('[city-builder] optional landscape unavailable', e)));
+    // The showcase keeps its bounded textured tree batches, but avoids the
+    // larger second wave of furniture, vehicle and variant requests.
+    if (_exampleSession) {
+      for (const job of deferredBuildingJobs) {
+        if (job.role) loadRoleVisual(job.type, job.url);
+        else loadBuildingModel(job.type, job.url, gen, loadQueue);
+      }
+      return Promise.allSettled(optional);
+    }
+    optional.push(createStreetProps(scene, layout).then(props => {
       if (!current()) { props?.destroy?.(); return; }
       streetProps = props;
       city.streetProps = props;
-    }).catch(e => console.warn('[city-builder] optional street props unavailable', e));
-    if(glbState.housing?.spots.length)loadHousingVariants(gen,loadQueue);
-    if(glbState.office?.spots.length)loadOfficeVariants(gen,loadQueue);
-    if (glbState.shop?.spots.length || glbState.office?.spots.length) loadHunyuanBuildingVariants(gen,loadQueue);
-    if (layout.autoScenery !== false) {
+    }).catch(e => console.warn('[city-builder] optional street props unavailable', e)));
+    for (const job of deferredBuildingJobs) {
+      if (job.role) loadRoleVisual(job.type, job.url);
+      else loadBuildingModel(job.type, job.url, gen, loadQueue);
+    }
+    // Example sessions deliberately request fewer cosmetic variants. The base
+    // model plus the 3D fallbacks already provide a complete readable city.
+    if(glbState.housing?.spots.length && !_exampleSession)loadHousingVariants(gen,loadQueue);
+    if(glbState.office?.spots.length && !_exampleSession)loadOfficeVariants(gen,loadQueue);
+    if (!_exampleSession && ['housing', 'shop', 'office', 'school', 'library'].some((type) => glbState[type]?.spots.length)) loadHunyuanBuildingVariants(gen,loadQueue);
+    if (layout.autoScenery !== false && !_exampleSession) {
       rareLandmark = mountEmeraldRainTree(gen, loadQueue);
     }
-    if(layout.autoScenery!==false) {
+    if(layout.autoScenery!==false && !_exampleSession) {
       for (const key of Object.keys(PARKED_VEHICLES)) loadParkedVehicleModel(key,gen,loadQueue);
       scatterStreetDeco(scene, layout, {schedule:(task)=>loadQueue.add(task,{onStale:disposeDetachedModel})});
       const plannedSpaces = createNeighbourhood(layout, {mobile:IS_MOBILE, roads:publicRoads, crossings:publicCrossings}).spaces;
-      createStreetFurniture(scene, layout, {schedule:(task)=>loadQueue.add(task,{onStale:disposeDetachedModel}),exclude:(x,z)=>plannedSpaces.some(p=>Math.hypot(p.x-x,p.z-z)<p.radius+2)})
-        .catch((e) => console.warn('[city-builder] street furniture init failed', e));
+      optional.push(createStreetFurniture(scene, layout, {schedule:(task)=>loadQueue.add(task,{onStale:disposeDetachedModel}),exclude:(x,z)=>plannedSpaces.some(p=>Math.hypot(p.x-x,p.z-z)<p.radius+2)})
+        .catch((e) => console.warn('[city-builder] street furniture init failed', e)));
     }
+    return Promise.allSettled(optional);
   };
 
   // Load the child's uploaded "fitted champion" GLB (Fit Studio) so it becomes
@@ -4986,6 +5509,7 @@ async function bootInner() {
       if (grab) {
         grab.setSelectedScale(v);
         propLibrary?.updateTransform(grab.getSelected() || grab.holding, true);
+        navObstacleRevision++;
       }
     });
     slider.addEventListener('change', () => propLibrary?.endTransform());
@@ -5037,7 +5561,7 @@ async function bootInner() {
       getChampion: () => champion,
       getCamera: () => camera,
       getScene: () => scene,
-      colliders: buildingColliders,
+      colliders: buildingPlacementColliders,
       resolvePlacement: resolveCityPlacement,
       onToast: showToast,
       onSelection: (sel) => {
@@ -5048,6 +5572,7 @@ async function bootInner() {
       },
       onDrop: (item) => {
         propLibrary?.updateTransform(item);
+        navObstacleRevision++;
       },
     });
     window.__grab = grab;
@@ -5094,11 +5619,12 @@ async function bootInner() {
       }),
       onPlaced: (x, z) => placementDust.spawn({ x, y: 0, z }, 6, 0.8, 1.6),
       onPlacedMesh: (mesh, item) => { environmentProps.add(mesh); registerGrabbableProp(mesh, item); },
-      onRemovedMesh: mesh => { environmentProps.delete(mesh); grab?.unregister(mesh); },
+      onRemovedMesh: mesh => { environmentProps.delete(mesh); grab?.unregister(mesh); navObstacleRevision++; },
       onChanged: (records) => rareLandmark?.refresh(records),
       onPlacementDone: (mesh) => { if (grab && mesh) grab.select(mesh); },
       onPlacementEnd: () => { if (grab) grab.clearSelection(); },
       onInspectorClearSelection: () => { if (grab) grab.clearSelection(); },
+      getCapabilities: readPlantedCaps,
     });
     rareLandmark?.refresh(propLibrary.getRecords?.() || []);
   });
@@ -5119,7 +5645,7 @@ async function bootInner() {
   if (cityFocusBounds) {
     orbit.target.set((cityFocusBounds.minX + cityFocusBounds.maxX) / 2, 0, (cityFocusBounds.minZ + cityFocusBounds.maxZ) / 2);
     orbit.dist = orbit.distOverview;
-    orbit.introUntil = performance.now() + 15000;
+    orbit.introUntil = performance.now() + (_exampleSession ? 12000 : 15000);
   }
   loadingDiagnostics.phase = 'usable';
   clearTimeout(_bootWatchdog);   // boot completed — disarm the hang guard
@@ -5140,17 +5666,23 @@ async function bootInner() {
   }
   window.__scene = scene;   // debug hook (harmless)
   window.__layout = layout; // debug hook
+  city.navigation = {
+    get walking() { return !!walkNav; },
+    get flying() { return !!taxiNav; },
+    get waypoint() { return walkNav?.points?.[walkNav.index] || null; },
+  };
   window.__city = city;     // debug hook (champion/taxi/pedestrians handles)
   startLoop(owner);
-  owner.defer(startDeferredAssets, 1200);
   const streamingStatus = document.getElementById('streaming-status');
   const trafficReady = traffic?.realisticFleet?.ready;
   const primaryStreaming = [...primaryAssetPromises, ...(trafficReady ? [trafficReady] : [])];
-  if (primaryStreaming.length) {
-    loadingDiagnostics.phase = 'streaming';
-    if (streamingStatus) { streamingStatus.textContent = t('ui.cityStreaming'); streamingStatus.hidden = false; }
-    owner.timeout(() => { if (streamingStatus) streamingStatus.hidden = true; }, 30000);
-    Promise.allSettled(primaryStreaming).then(() => {
+  loadingDiagnostics.phase = 'streaming';
+  if (streamingStatus) { streamingStatus.textContent = t('ui.cityStreaming'); streamingStatus.hidden = false; }
+  owner.defer(async () => {
+    try {
+      const deferred = startDeferredAssets();
+      await Promise.allSettled([...primaryStreaming, deferred]);
+      await loadQueue.whenIdle();
       if (!owner.active || gen !== _bootGen) return;
       loadingDiagnostics.assets.buildings = Object.fromEntries(Object.entries(glbState).slice(0, 64).map(([id, state]) => [id, {
         state: state.status || (state.model ? 'loaded' : 'idle'), reason: state.reason || null, instances: state.applied?.length || 0,
@@ -5164,15 +5696,13 @@ async function bootInner() {
       loadingDiagnostics.phase = failures.length ? 'failed' : 'complete';
       loadingDiagnostics.completedAt = Date.now();
       if (streamingStatus) streamingStatus.hidden = true;
-    }).catch(error => {
+    } catch (error) {
       if (!owner.active || gen !== _bootGen) return;
       loadingDiagnostics.phase = 'failed';
       loadingDiagnostics.failures = [{ kind: 'streaming', id: 'settlement', reason: (error?.name || 'error').slice(0, 48) }];
       if (streamingStatus) streamingStatus.hidden = true;
-    });
-  } else {
-    loadingDiagnostics.phase = 'complete'; loadingDiagnostics.completedAt = Date.now();
-  }
+    }
+  }, 1200);
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────

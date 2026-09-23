@@ -124,7 +124,7 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin, opts =
         const skin = await opts.onUploadCustom(file);
         if (!skin?.url) return;
         state.custom = skin;
-        await champion.swapSkin(skin.url, CUSTOM_SKIN_ID);
+        if (!await champion.swapSkin(skin.url, CUSTOM_SKIN_ID)) return;
         state.current = CUSTOM_SKIN_ID;
         saveSkin(CUSTOM_SKIN_ID);
         onSwap?.({ id: CUSTOM_SKIN_ID, name: skin.name || t('skins.myChampion'), glb: skin.url });
@@ -181,7 +181,7 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin, opts =
           state.busy = true;
           btn2.textContent = t('skins.loading');
           try {
-            await champion.swapSkin(skin.glb, CUSTOM_SKIN_ID);
+            if (!await champion.swapSkin(skin.glb, CUSTOM_SKIN_ID)) return;
             state.current = CUSTOM_SKIN_ID;
             saveSkin(CUSTOM_SKIN_ID);
             onSwap && onSwap(skin);
@@ -249,7 +249,7 @@ export function mountSkinSidebar(assetBase, champion, onSwap, customSkin, opts =
           state.busy = true;
           btn2.textContent = t('skins.loading');
           try {
-            await champion.swapSkin(assetBase + skin.glb, skin.id);
+            if (!await champion.swapSkin(assetBase + skin.glb, skin.id)) return;
             state.current = skin.id;
             saveSkin(skin.id);
             onSwap && onSwap(skin);

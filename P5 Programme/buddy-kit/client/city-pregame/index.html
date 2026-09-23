@@ -7,9 +7,11 @@
   <meta name="description" content="Learn how the city planner works — weighted scores, coverage, shortest paths and hill-climbing.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="../city-common/project-bar.css">
   <script src="/crash-guard.js"></script>
 </head>
 <body>
+  <script type="module">import { mountProjectBar } from '../city-common/project-bar.js'; mountProjectBar({ workspace: 'academy' });</script>
   <div id="lang-slot"></div>
   <main id="app">
     <!-- ═══ INTRO ═══ -->
@@ -30,6 +32,7 @@
         <p class="nova-speech" data-i18n-html="pg.intro.speech">Hi! I'm <strong>Nova</strong>, your guide. Today you'll learn the <strong>four recipes</strong> the city planner uses to make great decisions. The planner isn't magic — it follows the same rules every time, just like you're about to learn!</p>
         <p class="sub" data-i18n-html="pg.intro.sub">Explore four recipes the planner uses, then try them in your own city.</p>
         <button id="btn-start" class="btn-primary" data-i18n="pg.start" autofocus>Start Training</button>
+        <a class="btn-secondary academy-skip" href="../planner/">Open Planner now</a>
       </div>
     </section>
 

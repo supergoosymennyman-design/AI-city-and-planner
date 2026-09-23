@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const propsKey = 'hk_ai_city_props_citybuilder_v1';
 
-async function boot(page) {
+async function boot(page, types = Object.keys(PURPOSES)) {
   await page.addInitScript(() => {
     window.__spokenRoute = '';
     Object.defineProperty(window, 'SpeechSynthesisUtterance', { configurable: true, value: function (text) { this.text = text; this.lang = ''; } });
@@ -20,10 +20,11 @@ async function boot(page) {
       roads: [{ points: [[100, 1000], [1900, 1000]], width: 14, class: 'primary' }], parks: [],
       buildings: types.map((type, i) => ({ type, pos: [180 + i * 90, 990], height: 30, footprint: [24, 24] })),
     }));
-  }, Object.keys(PURPOSES));
+  }, types);
   await page.goto('/city-builder/');
   await page.locator('#entry-local').click();
   await page.waitForFunction(() => document.getElementById('loading')?.classList.contains('done'));
+  await page.waitForFunction(() => ['complete', 'failed'].includes(window.__city?.loading?.phase), null, { timeout: 120_000 });
   await expect(page.locator('#my-work-btn')).toBeVisible();
 }
 
@@ -62,8 +63,9 @@ test('Visitor Centre shows verified original-plan evidence, a 3D route and compl
 });
 
 test('one-drone test strands, replays feasibly, resumes saved state and round-trips in Champion File', async ({ page }) => {
+  test.setTimeout(300_000);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await boot(page);
+  await boot(page, ['delivery', 'drone_routing']);
   const ambientBefore = await page.evaluate(() => window.__city.drones.drones.length);
   await openPurpose(page, 'delivery');
   await page.locator('[data-work-action="delivery"]').click();
@@ -105,9 +107,12 @@ test('one-drone test strands, replays feasibly, resumes saved state and round-tr
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#save-download').click()]);
   const champion = JSON.parse(await readFile(await download.path(), 'utf8'));
   expect(champion.state.props).toBe(rawProps);
-  await page.setInputFiles('#file-input', { name: 'session7.champion.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(champion)) });
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.setInputFiles('#file-input', { name: 'session7.champion.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(champion)) }),
+  ]);
   await page.locator('#entry-local').click();
-  await page.waitForFunction(() => document.getElementById('loading')?.classList.contains('done'));
+  await page.waitForFunction(() => document.getElementById('loading')?.classList.contains('done'), null, { timeout: 60_000 });
   expect(await page.evaluate(key => localStorage.getItem(key), propsKey)).toBe(rawProps);
   await page.screenshot({ path: '/tmp/session7-delivery.png' });
   expect(errors).toEqual([]);

@@ -14,6 +14,7 @@ import { createGrabSystem } from './grab.js';
 import { nearestAnchor } from './anchors.js';
 import { openLibraryPicker } from './library-picker.js';
 import { libraryUrl, libraryItem } from '../city-common/library.js';
+import { itemTargetBounds, uniformScaleForBounds } from '../city-common/model-scale.js';
 import { mountSkinSidebar } from '../champion-city/skins.js';
 import { preloadAccessories } from '../champion-city/accessories.js';
 import { mountScenarioBuddy } from './scenario-buddy.js';
@@ -21,7 +22,7 @@ import { attachContextLossGuard } from '../champion-city/context-guard.js';
 import { HOME_URL } from './links.js';
 
 const ASSET_BASE = '../champion-city/assets/';
-const CHAMPION_SCALE = 1.0;   // human-scale inside rooms (city keeps 2.0)
+const CHAMPION_SCALE = 1.0;   // legacy multiplier; city requests an exact 1.8 m height
 
 const IS_MOBILE = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || window.innerWidth <= 768;
 const LOW_END = IS_MOBILE && (
@@ -433,6 +434,10 @@ function loadGrouped(config) {
 function scaleToFootprint(g, item, extra) {
   const box = new THREE.Box3().setFromObject(g);
   const size = box.getSize(new THREE.Vector3());
+  if (item.category === 'buildings') {
+    g.scale.setScalar(uniformScaleForBounds(size, itemTargetBounds(item), extra || 1));
+    return;
+  }
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
   const target = Math.max(item.footprint[0], item.footprint[1], item.height || 1) * (extra || 1);
   g.scale.setScalar(target / maxDim);

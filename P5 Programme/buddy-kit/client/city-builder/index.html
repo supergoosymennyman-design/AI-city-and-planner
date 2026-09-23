@@ -50,6 +50,13 @@
       box-shadow: 0 18px 50px rgba(0,0,0,0.28);
     }
     .entry-card h1 { display:flex; justify-content:center; align-items:center; gap:8px; margin: 0 0 8px; font-size: 27px; color: #00e8f4; }
+    .entry-hub-link {
+      display:table; margin:0 0 18px; padding:10px 12px; min-height:44px; box-sizing:border-box;
+      border:1px solid rgba(255,184,76,.7); border-radius:10px;
+      color:#ffe0a8; text-decoration:none; font-size:14px; font-weight:800;
+    }
+    .entry-hub-link:hover { background:#2b253b; }
+    .entry-hub-link:focus-visible { outline:3px solid #ffb84c; outline-offset:3px; }
     .entry-card p { margin: 0 auto 18px; max-width: 430px; font-size: 15px; color: #b8c6dc; text-align:center; line-height:1.4; }
     .entry-btn {
       display: flex; align-items:center; justify-content:center; box-sizing:border-box; width: 100%;
@@ -61,6 +68,8 @@
     .entry-btn:hover { border-color: #00ddec; }
     .entry-btn.primary { background: #00e695; color: #06283a; box-shadow: 0 4px 0 #00ab71; }
     .entry-btn.cloud-btn { border-color: rgba(0, 183, 255, 0.55); background: #0f2c4a; color: #bfe9ff; }
+    .entry-btn.example-btn { border-color: rgba(255, 184, 76, 0.65); background:#2b253b; color:#ffe0a8; }
+    .entry-btn[hidden] { display:none; }
     .entry-save-divider { margin: 18px 0 7px; font-size: 11px; font-weight: 800; color: #8191ad; letter-spacing: 0.75px; text-align:center; }
     .entry-hint { max-width:400px; font-size: 12px; color: #8d9bb4; margin: 18px auto 0; text-align:center; line-height:1.4; }
     #entry-skin { margin-top:0; border-color:rgba(0,221,236,0.5); background:#172b50; color:#effcff; }
@@ -135,6 +144,18 @@
     @media (max-width: 640px), (max-height: 640px) {
       .move-btn { width: 68px; height: 68px; font-size: 22px; }
     }
+    #example-session-banner {
+      position:fixed; z-index:140; top:72px; left:50%; transform:translateX(-50%);
+      display:flex; align-items:center; gap:12px; width:max-content; max-width:calc(100vw - 24px);
+      padding:8px 10px 8px 14px; border:1px solid rgba(255,184,76,.7); border-radius:14px;
+      background:#211d31; color:#ffe0a8; box-shadow:0 8px 24px rgba(0,0,0,.35);
+      font:800 14px/1.25 var(--font-ui, sans-serif);
+    }
+    #example-session-banner[hidden] { display:none; }
+    #example-return {
+      min-height:40px; display:flex; align-items:center; padding:7px 12px; border-radius:10px;
+      background:#ffb84c; color:#152033; text-decoration:none; white-space:nowrap;
+    }
     /* "Take me home" — sits in the camera/skin toggle row (top-left). */
     #btn-home {
       position: fixed; top: 64px; left: 128px; z-index: 95;
@@ -168,25 +189,6 @@
       transition: transform 0.15s ease, background 0.15s ease;
     }
     #btn-next:active { transform: scale(0.92); background: rgba(0, 242, 254, 0.18); }
-    /* "Back to My AI City (hub)" — sits at the end of the top-left tool row,
-       after 🏠 Take me home and 🎯 Select. A distinct 🚪 exit glyph + warm
-       border so "leave to the hub" never reads as the same action as the
-       in-city 🏠 home button. */
-    #btn-hub {
-      position: fixed; top: 64px; left: 240px; z-index: 95;
-      width: 48px; height: 48px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 184, 76, 0.6);
-      background: var(--bg, rgba(10,15,29,0.85));
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      font-size: 22px;
-      cursor: pointer;
-      box-shadow: var(--shadow, 0 4px 16px rgba(0,0,0,0.35));
-      transition: transform 0.15s ease, background 0.15s ease;
-    }
-    #btn-hub:hover { border-color: #ffb84c; }
-    #btn-hub:active { transform: scale(0.92); background: rgba(255, 184, 76, 0.18); }
     /* 🌆 Plan chip is a <button> so it can open the score breakdown. The base
        pill style lives here; the old city-builder/styles.css was unlinked dead
        code and has been removed. */
@@ -218,7 +220,7 @@
     /* Solid panels: kill glass blur on the chrome this app actually uses.
        Cheaper compositing on tablets and reads as solid paper/plastic,
        matching the "toy diorama" direction instead of AI-slop glass. */
-    #orbit-toggle, #skin-toggle, #btn-home, #btn-next, #btn-hub,
+    #orbit-toggle, #skin-toggle, #btn-home, #btn-next,
     #skin-panel, #quest-prompt, .action-btn, .move-btn, .toast {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
@@ -250,11 +252,14 @@
 <!-- Entry: load a student layout -->
 <div id="entry-overlay">
   <div class="entry-card">
+    <a class="entry-hub-link" href="/hub/" data-i18n="ui.backHub">← Back to Hub</a>
+    <details class="entry-workspaces"><summary>Workspaces</summary><nav aria-label="Entry workspaces"><a href="/hub/">Hub</a><a href="/pregame/">Academy</a><a href="/planner/">Planner</a><a href="/studio/">Studio</a><a href="/workshop/">Workshop</a></nav></details>
     <h1 data-i18n="hud.title">🏙️ My AI City</h1>
     <p data-i18n="entry.intro">Your city from the planner is ready to explore in 3D!</p>
     <p class="entry-plan" id="entry-plan" hidden></p>
     <p id="entry-error" class="entry-error" role="alert" hidden></p>
     <button class="entry-btn primary" id="entry-local">▶ Start my saved city</button>
+    <button class="entry-btn example-btn" id="entry-example" data-i18n="entry.example" data-i18n-title="entry.exampleTitle" title="Explore the example city without replacing your saved city" hidden>🏙️ Explore the example city</button>
     <div class="resume-note" id="entry-resume" hidden></div>
 
     <div class="entry-save-divider" role="separator" data-i18n="entry.divDevice">— take your city to another device —</div>
@@ -278,6 +283,11 @@
 
     <div class="entry-hint">Your city stays on this device. Use Save in the city to make a Champion File or cloud code for another lesson.</div>
   </div>
+</div>
+
+<div id="example-session-banner" role="status" hidden>
+  <span data-i18n="example.viewing">🏙️ Viewing the example city</span>
+  <a id="example-return" href="/planner/" data-i18n="example.backPlanner">Back to Planner</a>
 </div>
 
 <!-- Save modal: name + Download / Save-to-cloud (shows the code) -->
@@ -356,6 +366,8 @@
 
 <header id="hud-top">
   <div class="hud-left"><span class="hud-title" data-i18n="hud.title">🏙️ My AI City</span></div>
+  <a id="btn-hub" class="hud-hub-link" href="/hub/" data-i18n="ui.backHub">← Back to Hub</a>
+  <details id="city-workspaces" class="city-workspaces"><summary>Workspaces</summary><nav aria-label="City workspaces"><a href="/hub/">Hub</a><a href="/pregame/">Academy</a><a href="/planner/">Planner</a><a href="/studio/">Studio</a><a href="/workshop/">Workshop</a></nav></details>
   <nav id="city-mode-switch" aria-label="City mode">
     <a class="city-mode" href="/planner/" data-i18n="ui.editPlan">Edit plan</a>
     <button type="button" class="city-mode active" data-city-mode="explore" aria-pressed="true" data-i18n="ui.explore">Explore city</button>
@@ -368,7 +380,7 @@
     <details id="city-more"><summary data-i18n="ui.optional">More / history</summary><div class="city-secondary">
     <button id="more-home" class="hud-chip" type="button" data-i18n="ui.homeShort">Home</button>
     <button id="more-camera" class="hud-chip" type="button" data-i18n="ui.camera">Camera</button>
-    <button id="more-hub" class="hud-chip" type="button" data-i18n="ui.exitHub">Exit to hub</button>
+    <button id="more-example" class="hud-chip" type="button" data-i18n="ui.exampleCity" data-i18n-title="ui.exampleCityTitle" title="Explore the example city without replacing your saved city">Example city</button>
     <button id="more-drive" class="hud-chip" type="button" data-i18n="ui.carTitle">Choose a car</button>
     <button id="cap-btn" data-i18n-aria="ui.inspect" class="hud-chip" aria-label="Your planted AI machines" data-i18n-title="ui.inspect" title="Your planted AI machines"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v2M12 3v2M15 3v2M9 19v2M12 19v2M15 19v2M3 9h2M3 12h2M3 15h2M19 9h2M19 12h2M19 15h2"/></g></svg></button>
     <button id="badge-emblem" data-i18n-aria="ui.badge" class="badge-emblem" aria-label="Your inspector badge" data-i18n-title="ui.badge" title="Inspector badge"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 2 2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 16.9 6.2 19.8l1.1-6.4L2.6 8.8l6.5-.9Z"/></g></svg></button>
@@ -380,7 +392,6 @@
 <button id="skin-toggle" data-i18n-aria="ui.skin" aria-label="Choose skin" aria-expanded="false"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c.6-3.4 3.5-5 7.5-5s6.9 1.6 7.5 5"/></g></svg></button>
   <button id="btn-home" data-i18n-aria="ui.home" aria-label="Take me home" data-i18n-title="ui.home" title="Take me home"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/></g></svg></button>
   <button id="btn-next" data-i18n-aria="ui.move" aria-label="Select and move things" data-i18n-title="ui.move" title="Select and move things"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></g></svg></button>
-  <button id="btn-hub" data-i18n-aria="ui.hub" aria-label="Back to My AI City home page" data-i18n-title="ui.hub" title="Back to My AI City home page"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h4a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-4"/><path d="M10 9l-3 3 3 3"/><path d="M7 12h10"/></g></svg></button>
   <div id="skin-panel" aria-hidden="true">
   <div class="skin-panel-title">Choose your champion</div>
   <div id="skin-list"></div>

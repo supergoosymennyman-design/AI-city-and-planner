@@ -309,7 +309,9 @@ export async function runEngineTurn({ model, system, messages, screen, write, fi
     writeToolFrame(action, 'tool-call');
   }, enabledOps, manifest, projectState, (action) => writeToolFrame(action, 'read'));
 
-  const result = streamText({ model, system, messages, tools, stopWhen: stepCountIs(MAX_STEPS) });
+  // The SDK's default onError prints the complete provider error, including
+  // requestBodyValues. Our gateway logs only bounded, scrubbed fields below.
+  const result = streamText({ model, system, messages, tools, stopWhen: stepCountIs(MAX_STEPS), onError: () => {} });
 
   // Cross-step usage total, captured off the one-time `finish` chunk while relaying `fullStream`
   // through untouched (see file header — `result.usage` alone would under-count a tool-calling
@@ -333,7 +335,7 @@ export async function runEngineTurn({ model, system, messages, screen, write, fi
         // properties is what keeps that path alive on a REAL upstream failure, not just in a test
         // that hands the engine a pre-shaped statusCode.
         const info = chunk.error ?? chunk;
-        throw Object.assign(new Error(`model stream error: ${JSON.stringify(info).slice(0, 300)}`), {
+        throw Object.assign(new Error(`model stream error: ${String(info?.name || 'provider failure')}`), {
           statusCode: info?.statusCode,
           url: info?.url,
         });

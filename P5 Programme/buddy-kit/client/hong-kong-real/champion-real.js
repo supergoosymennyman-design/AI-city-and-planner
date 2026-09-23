@@ -6,9 +6,9 @@ import { createGLTFLoader } from '../shared/gltf.js';
 import { buildAccessoryMesh } from '../champion-city/accessories.js';
 import { championMetadataFromGLTF, collectRigInfo, validateStudioChampion } from '../city-common/champion-contract.js';
 
-// Champion is scaled up on the real-HK map (buildings are real meters tall) so
-// students can actually see the robot. Speed is proportional to the scale.
-export const CHAMPION_SCALE = 1.8;    // ~3.6m tall — slightly smaller against traffic
+// Legacy world multiplier for callers that do not request an exact target
+// height. The city now supplies targetHeight so mixed skins remain consistent.
+export const CHAMPION_SCALE = 1.8;
 export const WALK_SPEED = 4.0;        // m/s
 export const RUN_SPEED = 8.0;
 // The flying taxi is always available on the unified HK page. The champion
@@ -37,12 +37,11 @@ export async function createChampion(assetBase, city, opts = {}) {
   // compressed exports — e.g. a Fit Studio "fitted champion" — load too.
   const loader = createGLTFLoader();
   const group = new THREE.Group();
-  // World scale for the champion. The city spawns it at CHAMPION_SCALE (~3.6 m,
-  // still larger than a human, but proportionate to the road traffic). Interior scenarios (lab,
-  // spaceship, station) pass a smaller scale (~1.0) so the robot fits human
-  // rooms with human-scale furniture. The ground drops below scale proportionally
-  // because they are absolute-meter values calibrated for CHAMPION_SCALE.
+  // Legacy callers choose a source multiplier. The city instead supplies an
+  // exact world-space targetHeight so every bundled, procedural, or Studio skin
+  // is the same human-scale height after its real bounds are measured.
   const SCALE = (city && city.scale) || CHAMPION_SCALE;
+  const TARGET_HEIGHT = Number(opts.targetHeight) > 0 ? Number(opts.targetHeight) : null;
   const _dirV = new THREE.Vector3();   // scratch — avoid per-frame allocations
   const _footV = new THREE.Vector3();  // scratch — animated foot position for auto-grounding
   const _footR = new THREE.Vector3();  // scratch — right-foot measurement (dual-foot grounding)
@@ -60,6 +59,9 @@ export async function createChampion(assetBase, city, opts = {}) {
   let clipScale = 1;
   let locomotionNames = { idle: CLIP_NAMES.idle, walk: CLIP_NAMES.walk, run: CLIP_NAMES.run };
   let studioAnimation = null;
+  let legacyStudioAnimations = false;
+  let extraActions = [];
+  let oneShotFinishListener = null;
   // Grounding is per-skin now: the idle/walk/run clips hold the feet above the
   // bind-pose ground by an amount proportional to the SKIN's height. The
   // fractions below were measured from the bunny (~2 m tall): idle ~1.25 m,
@@ -71,6 +73,11 @@ export async function createChampion(assetBase, city, opts = {}) {
   // float (DROP_FRAC only applies when no foot bone is found).
   const DROP_FRAC = { idle: 0.625, walk: 0.74, run: 0.735 };
   let skinHeight = 2.0;   // unscaled normalized height; measured per skin on load
+  let worldScale = SCALE;
+  function applyWorldScale() {
+    worldScale = TARGET_HEIGHT ? TARGET_HEIGHT / Math.max(.001, skinHeight) : SCALE;
+    group.scale.setScalar(worldScale);
+  }
   // Grounding bones of the current skin: { left, right } Mixamo foot bones, or
   // null when the skin has no skeleton (procedural robot → DROP_FRAC fallback).
   // Dual-foot grounding uses min(soleL, soleR) so the PLANTED foot defines the
@@ -219,7 +226,7 @@ export async function createChampion(assetBase, city, opts = {}) {
     // (ankle) sits above it by the ankle→sole distance. World units already
     // include group scale. Trust only a sane positive gap.
     const gap = _footV.y - box.min.y;
-    _soleOffWorld = Number.isFinite(gap) && gap > 0 && gap < skinHeight * SCALE * 2
+    _soleOffWorld = Number.isFinite(gap) && gap > 0 && gap < skinHeight * worldScale * 2
       ? gap
       : 0;
   }
@@ -245,11 +252,17 @@ export async function createChampion(assetBase, city, opts = {}) {
     mixer = new THREE.AnimationMixer(m);
     actions = {};
     for (const key of Object.keys(CLIP_NAMES)) {
+      if (studioAnimation?.ready && !legacyStudioAnimations && !locomotionNames[key]) continue;
       const clipName = locomotionNames[key] || CLIP_NAMES[key];
       const clip = clipPool[clipName];
       if (clip) actions[key] = mixer.clipAction(clip);
     }
-    for (const d of DANCE_NAMES) if (clipPool[d]) actions[d] = mixer.clipAction(clipPool[d]);
+    if (studioAnimation?.ready && !legacyStudioAnimations) {
+      if (locomotionNames.dance) actions.dance = mixer.clipAction(clipPool[locomotionNames.dance]);
+      for (const extra of extraActions) actions[extra.name] = mixer.clipAction(clipPool[extra.clip]);
+    } else {
+      for (const d of DANCE_NAMES) if (clipPool[d]) actions[d] = mixer.clipAction(clipPool[d]);
+    }
   }
 
   // Procedural champion — a friendly robot built from primitives. Used when the
@@ -288,10 +301,12 @@ export async function createChampion(assetBase, city, opts = {}) {
     armL.position.set(-0.5, 1.2, 0); armL.rotation.z = 0.15; robot.add(armL);
     const armR = armL.clone(); armR.position.x = 0.5; armR.rotation.z = -0.15; robot.add(armR);
     robot.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    normalizeModel(robot);
     model = robot;
     _footBones = null;   // procedural robot has no skeleton — DROP_FRAC fallback
     _soleOffWorld = 0;
     group.add(robot);
+    applyWorldScale();
     buildMixer(robot);
     currentName = 'idle';
     state.oneShot = null;
@@ -312,7 +327,7 @@ export async function createChampion(assetBase, city, opts = {}) {
     const newModel = gltf.scene;
     const rig = collectRigInfo(newModel);
     const declared = championMetadataFromGLTF(gltf);
-    const studioCheck = validateStudioChampion({ metadata: declared, animations: gltf.animations || [], boneNames: rig.boneNames });
+    const studioCheck = validateStudioChampion({ metadata: declared, animations: gltf.animations || [], boneNames: rig.boneNames, nodeNames: rig.nodeNames, rootName: newModel.name });
     if (declared && !studioCheck.ok) {
       console.warn('[champion] Studio Champion rejected:', studioCheck.error);
       opts.onChampionWarning?.(studioCheck.error);
@@ -329,20 +344,26 @@ export async function createChampion(assetBase, city, opts = {}) {
       // Studio owns deformation. City only selects these embedded actions and
       // continues to own translation, facing, speed, jumping and ground height.
       clipScale = 1;
-      clipPool = { ...clips };
+      legacyStudioAnimations = studioCheck.metadata.extraActions === undefined;
+      clipPool = legacyStudioAnimations ? { ...clips } : {};
       for (const clip of gltf.animations || []) clipPool[clip.name] = clip;
       locomotionNames = { ...studioCheck.metadata.actions };
+      extraActions = studioCheck.extraActions;
       studioAnimation = { source: 'Studio', ready: true, ...studioCheck.metadata };
     } else {
       // Explicit legacy path: compatible older uploads keep the bundled Mixamo
       // library. It is never used for a valid Studio Champion.
       locomotionNames = { idle: CLIP_NAMES.idle, walk: CLIP_NAMES.walk, run: CLIP_NAMES.run };
+      extraActions = [];
+      legacyStudioAnimations = false;
       studioAnimation = { source: 'Legacy upload', ready: false, warning: studioCheck.error };
       const s = skinClipScaleFor(newModel);
       if (s !== 1) { clipScale = s; clipPool = scaledClipMap(s); }
       else { clipScale = 1; clipPool = clips; }
     }
     if (model) {
+      if (oneShotFinishListener) { mixer.removeEventListener('finished', oneShotFinishListener); oneShotFinishListener = null; }
+      mixer.stopAllAction();
       group.remove(model);
       model.traverse((n) => {
         if (n.isMesh) {
@@ -353,6 +374,7 @@ export async function createChampion(assetBase, city, opts = {}) {
     }
     model = newModel;
     group.add(model);
+    applyWorldScale();
     buildMixer(model);
     currentName = 'idle';
     state.oneShot = null;
@@ -397,6 +419,7 @@ export async function createChampion(assetBase, city, opts = {}) {
     if (state.oneShot) return;
     const a = actions[name];
     if (!a) {
+      if (studioAnimation?.ready && !legacyStudioAnimations) return;
       // Lazy clip not loaded yet — kick off the load and retry when ready.
       const file = CLIP_FILES[Object.keys(CLIP_NAMES).find((k) => CLIP_NAMES[k] === name) || name] || lazyFileFor(name);
       if (file) { ensureClip(file).then(() => { if (currentName === 'idle' && !state.oneShot) triggerOneShot(name); }); }
@@ -414,6 +437,7 @@ export async function createChampion(assetBase, city, opts = {}) {
       mixer.removeEventListener('finished', onFinished);
       finishOneShot();
     };
+    oneShotFinishListener = onFinished;
     mixer.addEventListener('finished', onFinished);
   }
   // Map dance/sit names to their clip file for lazy loading.
@@ -426,11 +450,13 @@ export async function createChampion(assetBase, city, opts = {}) {
     return byName[name] || null;
   }
   function finishOneShot() {
+    if (oneShotFinishListener) { mixer.removeEventListener('finished', oneShotFinishListener); oneShotFinishListener = null; }
     const back = actions[loopingName()];
     if (state.oneShot && back) {
       // Cross-fade OUT the one-shot action (dance) and IN the looping action.
       // crossFadeTo(fadeInAction) fades OUT `this` and fades IN the argument —
       // so it must be called ON the one-shot action.
+      back.reset().setLoop(THREE.LoopRepeat, Infinity).play(); back.paused = false;
       state.oneShot.action.crossFadeTo(back, 0.3, true);
     } else if (back) {
       back.reset().play(); back.paused = false; back.setLoop(THREE.LoopRepeat, Infinity);
@@ -461,7 +487,7 @@ export async function createChampion(assetBase, city, opts = {}) {
   }
   if (!model) buildProceduralChampion();
   // Scale the GROUP (not the model) so the skeleton/skinning stays intact.
-  group.scale.setScalar(SCALE);
+  applyWorldScale();
 
   // Skin-swap subscribers (fired AFTER a successful loadSkin swaps the model).
   // The taxi subscribes so it can re-capture its boarding-fade material list —
@@ -473,10 +499,13 @@ export async function createChampion(assetBase, city, opts = {}) {
     name: () => currentName,
     skinId: initialLoaded ? initialSkinId : 'bunny',
     animationInfo: () => studioAnimation ? { ...studioAnimation } : { source: 'Bundled Champion', ready: false },
+    extraActions: () => extraActions.map(item => item.name),
+    playExtraAction(name) { if (extraActions.some(item => item.name === name)) triggerOneShot(name); },
+    worldHeight: () => skinHeight * worldScale,
     async swapSkin(glbUrl, skinId) {
       const ok = await loadSkin(glbUrl);
-      api.skinId = skinId || api.skinId;
       if (ok) {
+        api.skinId = skinId || api.skinId;
         api.reapplyAccessories();
         // Notify anything that depends on the champion's MATERIALS (the taxi's
         // boarding-fade capture goes stale when a swap replaces the model).
@@ -486,6 +515,7 @@ export async function createChampion(assetBase, city, opts = {}) {
       // skin never hovers for even one frame — ground position is re-measured
       // from THIS model's rest pose/foot bones.
       api.settleGrounding();
+      return ok;
     },
     // Skin-swap hooks (used by the flying taxi so it can re-capture the fade
     // list after a swap mid-ride). Returns an unsubscribe function.
@@ -544,7 +574,14 @@ export async function createChampion(assetBase, city, opts = {}) {
       const hasMove = Math.abs(input.x || 0) > 0.01 || Math.abs(input.z || 0) > 0.01;
       if (state.oneShot) {
         mixer.update(dt);
-        group.position.copy(state.pos);
+        if (!state.isGrounded) {
+          state.yVel -= 12 * dt;
+          state.y = Math.max(0, state.y + state.yVel * dt);
+          if (state.y === 0) { state.yVel = 0; state.isGrounded = true; }
+        }
+        const surface = city && typeof city.groundHeightAt === 'function'
+          ? city.groundHeightAt(state.pos.x, state.pos.z) : 0;
+        group.position.set(state.pos.x, surface + state.y - 0.01, state.pos.z);
         return;
       }
       if (hasMove) {
@@ -677,6 +714,7 @@ export async function createChampion(assetBase, city, opts = {}) {
     isBusy() { return !!state.oneShot; },
     _danceIdx: 0,
     dance() {
+      if (studioAnimation?.ready && !legacyStudioAnimations) { triggerOneShot('dance'); return; }
       const name = DANCE_NAMES[this._danceIdx % DANCE_NAMES.length];
       this._danceIdx = (this._danceIdx + 1) % DANCE_NAMES.length;
       triggerOneShot(name);

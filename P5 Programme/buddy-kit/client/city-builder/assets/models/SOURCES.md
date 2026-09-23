@@ -108,3 +108,13 @@ These are the building blocks for the walkable interior scenarios (Tech Lab / Sp
 The 18 special/mission buildings (`city-builder/assets/models/mission/*.glb`) are
 Kenney City Kit (Commercial + Industrial) GLBs, CC0 — same packs documented above.
 Kept the quest beacon + label; only the building body is a real model now.
+
+### Permanent learning gateways (2026-09-23) — Passiona originals, CC0
+
+`gateways/passiona-ai-workshop-gateway.glb` and
+`gateways/passiona-fit-studio-gateway.glb` are cleaned derivatives of the
+Passiona-original Hunyuan outputs `Workshop.glb` and `Fit studio.glb` supplied
+by Kai. The final derivatives are explicitly released under CC0. Both are
+Y-up, X/Z-centred, ground-anchored, under 35k triangles and 8 MiB, with
+embedded 1K PBR textures and Meshopt compression. They are protected City
+gateway appearances, not student-picker objects.

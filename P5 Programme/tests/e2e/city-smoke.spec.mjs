@@ -45,7 +45,7 @@ test('city-builder boots: loading done, scene, champion ring, zero critical warn
     const peds = (window.__city && window.__city.citizens) ? window.__city.citizens.getCount() : -1;
     const loadingDone = document.getElementById('loading')?.classList.contains('done') ?? false;
     return loadingDone && rings > 0 && peds >= 0;
-  }, { timeout: 60000 });
+  }, null, { timeout: 60000 });
 
   const state = await page.evaluate(() => {
     const scene = window.__scene;

@@ -133,7 +133,7 @@ export function mountMyWork(api) {
   function destinations() {
     const buildings = api.layout.buildings || [];
     body.querySelector('#work-content').innerHTML = buildings.map((b,i)=>`<div class="work-destination"><span>${escape(name(b))} #${i+1}</span><button data-walk="${i}">${tr('Walk','步行')}</button><button data-fly="${i}">${tr('Taxi','飛行的士')}</button></div>`).join('');
-    body.querySelectorAll('[data-walk], [data-fly]').forEach(el => el.onclick=()=>{ const moved = api.navigate(buildings[Number(el.dataset.walk ?? el.dataset.fly)],el.hasAttribute('data-fly')); if (moved) close(); else { let status = body.querySelector('#work-nav-status'); if (!status) { status = document.createElement('p'); status.id = 'work-nav-status'; status.setAttribute('role','status'); body.querySelector('#work-content').prepend(status); } status.textContent = tr('Navigation is unavailable right now. Leave the taxi to walk, or try again once your Champion is ready.','暫時無法導航。請先離開的士再步行，或待 Champion 準備好後再試。'); } });
+    body.querySelectorAll('[data-walk], [data-fly]').forEach(el => el.onclick=()=>{ const moved = api.navigate(buildings[Number(el.dataset.walk ?? el.dataset.fly)],el.hasAttribute('data-fly')); if (moved) { close(); el.blur(); } else { let status = body.querySelector('#work-nav-status'); if (!status) { status = document.createElement('p'); status.id = 'work-nav-status'; status.setAttribute('role','status'); body.querySelector('#work-content').prepend(status); } status.textContent = tr('Navigation is unavailable right now. Leave the taxi to walk, or try again once your Champion is ready.','暫時無法導航。請先離開的士再步行，或待 Champion 準備好後再試。'); } });
   }
   function action(id,type) {
     if (id==='evidence') evidence();

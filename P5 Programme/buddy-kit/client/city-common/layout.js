@@ -224,7 +224,7 @@ export function sanitizeLayout(raw) {
           .map((p) => [clamp(+p[0]), clamp(+p[1])]);
         return {
           points,
-          width: ROAD_WIDTH[r.class] || (Number.isFinite(+r.width) && +r.width > 0 ? +r.width : ROAD_WIDTH.residential),
+          width: Number.isFinite(+r.width) && +r.width > 0 ? +r.width : (ROAD_WIDTH[r.class] || ROAD_WIDTH.residential),
           class: ROAD_WIDTH[r.class] ? r.class : 'residential',
         };
       })

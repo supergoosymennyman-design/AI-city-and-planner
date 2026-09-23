@@ -60,8 +60,13 @@ export function createProjectStateCoordinator({
   function storeRecovery(state, reason) {
     const record = { version: 1, savedAt: now(), reason, state };
     memoryRecovery = record;
-    try { storage?.setItem(RECOVERY_SNAPSHOT_KEY, JSON.stringify(record)); } catch { /* memory copy remains */ }
-    return record;
+    let durable = false;
+    try {
+      const raw = JSON.stringify(record);
+      storage?.setItem(RECOVERY_SNAPSHOT_KEY, raw);
+      durable = storage?.getItem(RECOVERY_SNAPSHOT_KEY) === raw;
+    } catch { /* memory copy remains for ordinary restores */ }
+    return { ...record, durable };
   }
 
   function readRecovery() {
@@ -72,12 +77,17 @@ export function createProjectStateCoordinator({
     return memoryRecovery;
   }
 
-  function commit(nextState, { source = 'unknown', recovery = true } = {}) {
+  function commit(nextState, { source = 'unknown', recovery = true, requireRecovery = false } = {}) {
     const valid = validateProjectState(nextState);
     if (!valid.ok) return { ...valid, wrote: 0, failed: [] };
     const entries = knownEntries(nextState);
     const before = collectState(storage);
-    if (recovery) storeRecovery(before, `before:${source}`);
+    if (recovery) {
+      const snapshot = storeRecovery(before, `before:${source}`);
+      if (requireRecovery && !snapshot.durable) {
+        return { ok: false, wrote: 0, failed: [], error: 'Could not save a recovery snapshot. Your previous city was kept.' };
+      }
+    }
     const touched = [];
     try {
       for (const [key, raw] of entries) {

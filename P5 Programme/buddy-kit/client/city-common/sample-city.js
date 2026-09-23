@@ -370,7 +370,10 @@ export function sampleCityInfill(anchors, roads, parks) {
   };
   const seed = (x, z) => hash01(x, z, 11);
 
-  const MAX_TOTAL = 205;   // anchors + infill (tablet draw-call budget)
+  // Keep the showcase comfortably inside Safari's memory/request budgets. The
+  // anchors above retain every mission and named district; only anonymous
+  // background infill is capped.
+  const MAX_TOTAL = 120;
   // Spread neighbourhoods around the avenues rather than exhausting the cap
   // in the first northern rows. Seeded district order keeps a clear centre.
   const candidates=[];

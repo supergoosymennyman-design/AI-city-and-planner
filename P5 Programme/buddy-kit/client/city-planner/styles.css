@@ -1208,3 +1208,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .planner-scenery{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:4px 8px;font:600 12px system-ui;cursor:pointer}.planner-scenery input{width:20px;height:20px;accent-color:#38856a}
 .secondary-tools { max-height:70dvh; overflow:auto; }
 .secondary-tools .import-wrap, .secondary-tools .template-wrap { width:100%; }
+
+#example-plan-banner[hidden] { display:none; }
+#example-plan-banner {
+  display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
+  padding:8px 14px; background:#253b34; color:#f5efdb; border-bottom:2px solid #d5ad63;
+  font:600 14px/1.3 system-ui; flex-shrink:0;
+}
+#example-plan-banner strong { font-weight:800; }
+#example-plan-banner button {
+  min-height:42px; padding:6px 12px; border:0; border-radius:8px;
+  background:#f2be67; color:#1e281e; font:800 13px system-ui; cursor:pointer;
+}

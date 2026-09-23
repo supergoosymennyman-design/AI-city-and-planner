@@ -26,7 +26,7 @@ test('every library vehicle has a positive real-world default length', () => {
   }
 });
 
-test('car classes target ~5 m (comfortably larger than the 4 m champion)', () => {
+test('car classes target ~5 m (comfortably longer than the 1.8 m Champion is tall)', () => {
   for (const id of ['veh_sedan', 'veh_suv', 'veh_taxi', 'veh_police', 'veh_car', 'veh_hatchback', 'veh_sports_car', 'veh_race', 'veh_van']) {
     assert.equal(vehicleTargetLength(libraryItem(id)), 5.0, id);
   }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultLayout } from '../P5 Programme/buddy-kit/client/city-common/layout.js';
 import { CF_KEYS } from '../P5 Programme/buddy-kit/client/city-common/champion-file.js';
-import { createProjectStateCoordinator, PROJECT_CHANGE_EVENT } from '../P5 Programme/buddy-kit/client/city-common/project-state-coordinator.js';
+import { createProjectStateCoordinator, PROJECT_CHANGE_EVENT, RECOVERY_SNAPSHOT_KEY } from '../P5 Programme/buddy-kit/client/city-common/project-state-coordinator.js';
 
 function fakeStorage(initial = {}, failOn = null) {
   const values = new Map(Object.entries(initial));
@@ -49,4 +49,14 @@ test('successful commit emits one project change after all writes', () => {
   assert.equal(events[0].type, PROJECT_CHANGE_EVENT);
   assert.deepEqual(events[0].detail.keys, ['layout', 'props']);
   assert.equal(storage.getItem(CF_KEYS.props), '[]');
+});
+
+test('required recovery prevents replacing a saved city when storage rejects the snapshot', () => {
+  const old = JSON.stringify(defaultLayout());
+  const storage = fakeStorage({ [CF_KEYS.layout]: old }, RECOVERY_SNAPSHOT_KEY);
+  const coordinator = createProjectStateCoordinator({ storage, eventTarget: null });
+  const next = { ...defaultLayout(), name: 'Example' };
+  const result = coordinator.commit({ layout: JSON.stringify(next) }, { source: 'example-copy', requireRecovery: true });
+  assert.equal(result.ok, false);
+  assert.equal(storage.getItem(CF_KEYS.layout), old);
 });

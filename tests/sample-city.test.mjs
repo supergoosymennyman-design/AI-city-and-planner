@@ -124,7 +124,8 @@ test('sample city: all 18 mission buildings present exactly once, lib ids resolv
   for (const key of specialKeys()) {
     assert.equal(counts[key], 1, `mission ${key} present exactly once`);
   }
-  assert.ok(c.buildings.length >= 150, `sample should read as a full city (got ${c.buildings.length})`);
+  assert.ok(c.buildings.length >= 100 && c.buildings.length <= 130,
+    `sample should stay within the reliable showcase budget (got ${c.buildings.length})`);
 });
 
 test('sample city: the central roundabout is really joined to every approach', () => {

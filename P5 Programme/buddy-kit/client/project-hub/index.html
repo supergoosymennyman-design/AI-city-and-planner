@@ -1,1 +1,114 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>My Passiona Project</title><link rel="stylesheet" href="../city-common/project-bar.css"><style>body{margin:0;background:#edf5f5;color:#153042;font:16px/1.45 system-ui,sans-serif}.hub{max-width:900px;margin:auto;padding:32px 20px}.hero,.card{background:#fff;border:1px solid #b8d5d8;border-radius:14px;padding:24px;box-shadow:0 3px 0 #c7dcdd}.hero{display:flex;justify-content:space-between;gap:20px;align-items:center}.hero h1{margin:0;font-size:clamp(28px,5vw,46px)}.hero p{color:#526d75}.continue,a{display:inline-block;background:#087b75;color:#fff;padding:12px 16px;border-radius:7px;text-decoration:none;font-weight:800}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:18px}.card h2{margin:0 0 8px}.card a{background:#1d5870;padding:8px 10px}.health{margin:18px 0;padding:12px;background:#dff3e8;border-left:4px solid #17825e}@media(max-width:600px){.hero{display:block}.continue{margin-top:10px}}</style><body><main class="hub"><section class="hero"><div><p>MY PASSIONA PROJECT</p><h1 id="name">My AI City</h1><p id="summary">Open a workspace and keep creating.</p></div><a class="continue" id="continue" href="./city-builder/">Continue my project</a></section><p class="health" id="health" role="status">Saved on this device</p><section class="grid"><article class="card"><h2>Plan</h2><p id="city-count">Your city is ready to grow.</p><a href="./planner/">Open Planner</a></article><article class="card"><h2>Explore</h2><p>Walk, decorate, and select City objects.</p><a href="./city-builder/">Open City</a></article><article class="card"><h2>3D Studio</h2><p>Shape your Champion and City models.</p><a href="./studio/">Open Studio</a></article><article class="card"><h2>AI Workshop</h2><p id="machine-count">Build AI skills for your City.</p><a href="./workshop/">Open Workshop</a></article></section></main><script type="module" src="hub.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>My AI City — Champion Hub</title>
+  <meta name="description" content="Continue your Passiona project and move between the City, Planner, Studio, and AI Workshop.">
+  <script type="importmap">
+    { "imports": { "three": "/vendor/three/three.module.js", "three/addons/": "/vendor/three/addons/" } }
+  </script>
+  <link rel="stylesheet" href="../home/fonts.css">
+  <link rel="stylesheet" href="hub.css">
+  <script src="/crash-guard.js"></script>
+</head>
+<body>
+  <div class="hub-shell">
+    <header class="hub-header">
+      <div class="champion-stage" id="champion-host" role="img" aria-label="Your rotating AI Champion">
+        <svg class="champion-fallback" viewBox="0 0 96 96" aria-hidden="true">
+          <path d="M34 14h28l5 10v9l9 8v30L65 82H31L20 71V41l9-8v-9z" fill="#17243a" stroke="#00e5ff" stroke-width="3"/>
+          <path d="M35 40h26l5 6-5 15H35l-5-15z" fill="#0f172a" stroke="#94a3b8" stroke-width="2"/>
+          <circle cx="41" cy="49" r="3" fill="#00e5ff"/><circle cx="55" cy="49" r="3" fill="#00e5ff"/>
+          <path d="M40 68h16M48 14V7" stroke="#00ff9d" stroke-width="3" stroke-linecap="round"/><circle cx="48" cy="6" r="3" fill="#00ff9d"/>
+        </svg>
+      </div>
+      <div class="brand-copy">
+        <p class="eyebrow">CHAMPION HUB</p><h1>My AI City</h1>
+        <p>Plan, build, and bring your AI Champion to life.</p>
+      </div>
+      <span class="hub-status"><i aria-hidden="true"></i> HUB · ONLINE</span>
+    </header>
+
+    <main>
+      <section class="project-console" aria-labelledby="project-name">
+        <div class="project-copy">
+          <p class="console-label">ACTIVE PASSIONA PROJECT</p>
+          <h2 id="project-name">My AI City</h2>
+          <p id="summary">Opening your latest checkpoint…</p>
+          <div class="project-metrics" aria-label="Project status">
+            <span id="project-revision">Project revision 0</span>
+            <span id="checkpoint-count">Checking recovery points…</span>
+            <span id="studio-transfer">No Studio transfer yet</span>
+          </div>
+        </div>
+        <a class="continue-button" id="continue" href="/planner/">
+          <span>Continue my project</span><b id="continue-label">Open Planner</b><small id="continue-cue" hidden>Opens in new tab ↗</small>
+        </a>
+      </section>
+
+      <div class="health-line" id="health" role="status" aria-live="polite"><span aria-hidden="true">✓</span> Saved on this device</div>
+
+      <section class="workspace-section" aria-labelledby="workspace-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">YOUR WORKSPACES</p><h2 id="workspace-title">Choose where to create</h2></div>
+          <p>City and Planner save here. The live Studio and Workshop save separately.</p>
+        </div>
+
+        <div class="card-grid">
+          <article class="workspace-card planner-card" style="--accent:#00e5ff">
+            <div class="card-top"><span class="icon-zone" aria-hidden="true">⌑</span><span class="revision" id="planner-revision">REV 0</span></div>
+            <div><h3>City Planner</h3><p>Design the map and let the planner improve it.</p></div>
+            <a class="card-action" href="/planner/">Open Planner <span aria-hidden="true">→</span></a>
+          </article>
+
+          <article class="workspace-card academy-card" style="--accent:#facc15">
+            <div class="card-top"><span class="icon-zone" aria-hidden="true">✦</span><span class="revision">START HERE</span></div>
+            <div><h3>City Planning Academy</h3><p>Try the planning activity before designing your city.</p></div>
+            <a class="card-action" href="/pregame/">Open Academy <span aria-hidden="true">→</span></a>
+          </article>
+
+          <article class="workspace-card city-card" style="--accent:#00ff9d">
+            <div class="card-top"><span class="icon-zone" aria-hidden="true">▥</span><span class="revision" id="city-revision">REV 0</span></div>
+            <div><h3>3D AI City</h3><p id="city-count">Checking your saved city…</p></div>
+            <div class="city-actions">
+              <a class="card-action" id="city-action" href="/planner/">Start in Planner <span aria-hidden="true">→</span></a>
+              <a class="secondary-action" href="/city-builder/?example=1">Explore the example city</a>
+            </div>
+          </article>
+
+          <article class="workspace-card studio-card" style="--accent:#fb7185">
+            <div class="card-top"><span class="icon-zone" aria-hidden="true">◇</span><span class="revision external-tag" id="studio-revision">LIVE TOOL</span></div>
+            <div><h3>Fit Studio</h3><p id="studio-count">Shape and dress your Champion. Work there saves separately.</p></div>
+            <a class="card-action external-action" id="studio-action" href="#" target="_blank" rel="noopener noreferrer">Open Fit Studio <small>New tab ↗</small></a>
+          </article>
+
+          <article class="workspace-card workshop-card" style="--accent:#ff9100">
+            <div class="card-top"><span class="icon-zone" aria-hidden="true">⚙</span><span class="revision external-tag" id="workshop-revision">LIVE TOOL</span></div>
+            <div><h3>AI Workshop</h3><p id="machine-count">Build AI skills online. Internet is required; work saves separately.</p></div>
+            <a class="card-action external-action" id="workshop-action" href="#" target="_blank" rel="noopener noreferrer">Open AI Workshop <small>New tab ↗</small></a>
+          </article>
+        </div>
+      </section>
+
+      <section class="demo-check" id="demo-check" aria-labelledby="demo-check-title" hidden>
+        <div><p class="eyebrow">PRESENTER MODE</p><h2 id="demo-check-title">Check this computer before the demo</h2><p id="demo-check-result" role="status" aria-live="polite">Checks City pages, storage, WebGL, gateway, one live Buddy reply, and browser permissions when clicked. Open each live tool in a new tab to check it separately.</p></div>
+        <button type="button" id="run-demo-check">Run demo check</button>
+      </section>
+
+      <section class="project-tools" aria-labelledby="project-tools-title">
+        <div><p class="eyebrow">CHAMPION FILE</p><h2 id="project-tools-title">Take your City project with you</h2><p>Downloads City data and any Champion transferred into this local project. Work saved on the live Studio and Workshop sites stays there.</p></div>
+        <div class="tool-actions">
+          <a class="demo-city-link" href="/city-builder/?example=1">Load example demo city</a>
+          <button type="button" id="download-project">Download project</button>
+          <label for="open-project">Open project<input id="open-project" type="file" accept=".passiona,application/json" hidden></label>
+        </div>
+      </section>
+    </main>
+
+    <footer>City project data stays on this device; live tools use their own sites · Passiona</footer>
+  </div>
+  <script type="module" src="hub.js"></script>
+  <script type="module" src="champion.js"></script>
+</body>
+</html>

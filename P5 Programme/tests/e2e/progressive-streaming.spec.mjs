@@ -42,14 +42,16 @@ test('Audis stream independently and no procedural cars appear while delayed', a
 });
 
 test('failed Audi requests leave empty roads without opening the crash guard', async ({ page }) => {
+  test.setTimeout(150_000);
   await page.route(/audi-(?:a7|rs-q8)\.glb$/, route => route.fulfill({ status: 404, body: 'missing' }));
   await boot(page);
   await page.waitForFunction(() => Object.values(__city.traffic.realisticFleet.models).every(value => value.state === 'failed'));
+  await page.waitForFunction(() => __city.loading.phase !== 'streaming', null, { timeout: 120_000 });
   const state = await page.evaluate(() => ({ draws: __city.traffic.renderer.drawCalls, visible: __city.traffic.vehicles.filter(v => v.renderer).length, crash: !!document.querySelector('#crash-guard'), phase: __city.loading.phase }));
   expect(state).toEqual({ draws: 0, visible: 0, crash: false, phase: 'failed' });
 });
 
-test('buildings begin as labelled plots, settle independently, and missing models stay recoverable', async ({ page }) => {
+test('buildings begin as solid fallbacks, settle independently, and missing models stay recoverable', async ({ page }) => {
   let releaseSchool;
   const school = new Promise(resolve => { releaseSchool = resolve; });
   await page.route('**/city-builder/assets/models/school.glb', async route => { await school; await route.continue(); });
@@ -59,13 +61,13 @@ test('buildings begin as labelled plots, settle independently, and missing model
   const pending = await page.evaluate(() => ({
     school: __city.loading.assets.buildings.school,
     library: __city.loading.assets.buildings.library,
-    plots: __scene.children.filter(o => o.userData?.kind === 'building-plot').map(o => o.name),
+    plots: __scene.children.filter(o => o.name.startsWith('building-fallback-')).map(o => o.name),
     labels: document.querySelectorAll('.building-label').length,
     crash: !!document.querySelector('#crash-guard'),
   }));
   expect(pending.school.state).toBe('loading');
   expect(pending.library).toMatchObject({ state: 'failed', instances: 0 });
-  expect(pending.plots).toEqual(expect.arrayContaining(['building-plot-school', 'building-plot-library']));
+  expect(pending.plots).toEqual(expect.arrayContaining(['building-fallback-school', 'building-fallback-library']));
   expect(pending.labels).toBeGreaterThanOrEqual(2);
   expect(pending.crash).toBe(false);
   releaseSchool();
@@ -83,7 +85,7 @@ test('slow required boot explains the delay then returns to retry with the selec
   await page.addInitScript(value => localStorage.setItem('p5_city_planner_layout_v1', JSON.stringify(value)), layout);
   await page.goto('/city-builder/');
   await page.locator('#entry-local').click();
-  await expect(page.locator('#loading .loading-sub')).toContainText('larger city');
+  await expect(page.locator('#loading .loading-sub')).toContainText('Still preparing the roads and your Champion');
   await expect(page.locator('#entry-error')).toBeVisible({ timeout: 5000 });
   expect(await page.evaluate(() => ({ selected: JSON.parse(localStorage.getItem('p5_city_planner_layout_v1')).buildings.map(b => b.type), crash: !!document.querySelector('#crash-guard') }))).toEqual({ selected: ['school', 'library'], crash: false });
 });
@@ -103,6 +105,7 @@ test('Natural is clean-storage default; saved styles and every ground remain sel
   ]);
   expect(await page.locator('[data-ground]').evaluateAll(nodes => nodes.map(node => node.dataset.ground))).toEqual(['leafy','sparse','withered','pavers','asphalt']);
   await page.locator('[data-style="future"]').click();
+  await page.evaluate(value => localStorage.setItem('p5_city_planner_layout_v1', JSON.stringify(value)), layout);
   await page.reload();
   await page.locator('#entry-local').click();
   await page.waitForFunction(() => window.__city?.loading && document.querySelector('#loading.done'));

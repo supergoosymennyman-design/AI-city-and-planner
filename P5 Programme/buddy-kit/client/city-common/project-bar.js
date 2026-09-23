@@ -4,8 +4,16 @@ import { loadCustomSkinBlob, loadCustomSkinMetadata, saveCustomSkin } from '../c
 export async function mountProjectBar({ workspace = 'city' } = {}) {
   const store = createProjectStore(); const project = await store.openActiveProject();
   const bar = document.createElement('nav'); bar.className = 'passiona-project-bar'; bar.setAttribute('aria-label', 'My Passiona project');
-  const routes = { planner: '../planner/', city: '../city-builder/', studio: '../studio/', workshop: '../workshop/' };
-  bar.innerHTML = `<strong class="project-name">${escapeHtml(project.name)}</strong><span class="project-context">${workspace[0].toUpperCase() + workspace.slice(1)}</span><span class="project-save" aria-live="polite">Saved on this device</span><span class="project-links">${Object.entries(routes).map(([key, href]) => `<a${key === workspace ? ' aria-current="page"' : ''} href="${href}">${key[0].toUpperCase() + key.slice(1)}</a>`).join('')}</span><button type="button" class="project-download">Download project</button><label class="project-upload">Open project<input type="file" accept=".passiona,application/json" hidden></label>`;
+  const routes = [
+    ['hub', '../hub/', 'Hub'],
+    ['academy', '../pregame/', 'Academy'],
+    ['planner', '../planner/', 'Planner'],
+    ['city', '../city-builder/', 'City'],
+    ['studio', '../studio/', 'Studio'],
+    ['workshop', '../workshop/', 'Workshop'],
+  ];
+  const context = routes.find(([key]) => key === workspace)?.[2] || workspace;
+  bar.innerHTML = `<strong class="project-name">${escapeHtml(project.name)}</strong><span class="project-context">${escapeHtml(context)}</span><span class="project-save" aria-live="polite">Saved on this device</span><span class="project-links">${routes.map(([key, href, label]) => `<a${key === workspace ? ' aria-current="page"' : ''} href="${href}">${label}</a>`).join('')}</span><button type="button" class="project-download">Download project</button><label class="project-upload">Open project<input type="file" accept=".passiona,application/json" hidden></label>`;
   bar.querySelector('.project-download').addEventListener('click', async () => {
     const result = await store.exportProject(); if (!result.ok) return;
     const [champion, metadata] = await Promise.all([loadCustomSkinBlob(), loadCustomSkinMetadata()]);

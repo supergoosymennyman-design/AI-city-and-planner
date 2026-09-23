@@ -18,6 +18,7 @@
 
   var shown = false;      // show the overlay exactly once
   var lastCode = '';
+  var diagnostics = [];
 
   /** Short stable error code from the stack/message — readable in a bug report. */
   function codeOf(e, fallback) {
@@ -60,8 +61,7 @@
       '<h1 style="margin:0 0 6px;font-size:22px;color:#00f2fe">Oops! The city hit a glitch.</h1>' +
       '<p style="margin:0 0 18px;font-size:15px;color:#9fb0c7;line-height:1.5">No worries \u2014 your city is safe. Tap Restart and keep building!</p>' +
       '<button type="button" style="display:block;width:100%;min-height:54px;border-radius:14px;border:2px solid transparent;' +
-      'background:#00ff9d;color:#06283a;font-size:17px;font-weight:800;cursor:pointer">\u21BB Restart City</button>' +
-      '<div style="margin-top:12px;font-size:11px;color:#5c6b84;font-family:ui-monospace,monospace">' + code + '</div>';
+      'background:#00ff9d;color:#06283a;font-size:17px;font-weight:800;cursor:pointer">\u21BB Restart City</button>';
     card.querySelector('button').addEventListener('click', function () { window.location.reload(); });
     wrap.appendChild(card);
     return wrap;
@@ -71,6 +71,17 @@
     if (shown) return;
     shown = true;
     lastCode = codeOf(fallback, e);
+    var detail = fallback || (e && typeof e === 'object' ? e : null);
+    var stack = detail && typeof detail.stack === 'string' ? detail.stack.split('\n')[1] || detail.stack.split('\n')[0] : '';
+    diagnostics.push({
+      code: lastCode,
+      phase: window.__city && window.__city.loading ? String(window.__city.loading.phase || 'unknown').slice(0, 48) : 'unknown',
+      message: String((detail && detail.message) || e || 'Runtime error').slice(0, 240),
+      stack: String(stack).trim().slice(0, 320),
+      at: Date.now()
+    });
+    diagnostics = diagnostics.slice(-8);
+    try { sessionStorage.setItem('passiona_crash_diagnostics_v1', JSON.stringify(diagnostics)); } catch (_) {}
     var overlay = buildOverlay(lastCode);
     // Mount IMMEDIATELY (not in requestAnimationFrame): under heavy WebGL load
     // rAF can be throttled for seconds, and a crash overlay must never wait on a
@@ -98,4 +109,9 @@
 
   /** Diagnostics hook — the code of the last crash, for tests/support. */
   window.__crashGuardLastCode = function () { return lastCode; };
+  window.__crashGuardDiagnostics = function () { return diagnostics.slice(); };
+  try {
+    var prior = JSON.parse(sessionStorage.getItem('passiona_crash_diagnostics_v1') || '[]');
+    if (Array.isArray(prior)) diagnostics = prior.slice(-8);
+  } catch (_) {}
 })();

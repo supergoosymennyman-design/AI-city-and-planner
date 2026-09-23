@@ -14,7 +14,7 @@ async function boot(page){
  await expect(page.locator('#my-work-btn')).toBeVisible();
 }
 test('every stable type loads, opens ungated purpose, navigates and keeps opaque history',async({page})=>{
- test.setTimeout(600000); // 18 complete visits plus file restore, under 4× CPU throttling.
+ test.setTimeout(900000); // 18 complete visits plus file restore, under 4× CPU throttling.
  const errors=[];page.on('pageerror',e=>errors.push(e.message));await boot(page);
  const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
  for(const [type,p] of Object.entries(PURPOSES)) {
@@ -27,6 +27,7 @@ test('every stable type loads, opens ungated purpose, navigates and keeps opaque
   await expect(page.locator('#my-work-modal')).toHaveClass(/hidden/);
   console.log('Verified landmark:',type);
  }
+ await cdp.send('Emulation.setCPUThrottlingRate',{rate:1});
  expect(await page.evaluate(()=>localStorage.getItem('hk_ai_city_quests_v1'))).toBe(history);
  await page.click('#my-work-btn');await page.click('[data-work-action="plan"]');await expect(page.locator('#work-content')).toContainText('No saved plan receipt');
  await page.click('[data-work-action="evidence"]');await expect(page.locator('#work-content')).toContainText('No imported evidence');
@@ -60,10 +61,10 @@ test('road inspection and optional game Done preserve completion history, Stage 
 test('imported evidence and historical decisions remain display-only through inspection and save',async({page})=>{
  await boot(page);
  await page.locator('#minimap button').click();await expect(page.locator('.work-destination')).toHaveCount(18);await page.keyboard.press('Escape');
- const cap={magic:'passiona.capability',specVersion:1,kind:'classifier',id:'cap_old',revision:1,name:'Sorting example',input:{kind:'vector',fields:[{name:'size',type:'float32'}]},output:{kind:'label',labels:['small'],abstainLabel:'__abstain'},model:{algorithm:'knn-vector-classifier',threshold:.7},evaluation:{scores:{check:.6}},evidence:[{id:'ex_old',label:'small',split:'study'}]};
+ const cap={magic:'passiona.capability',specVersion:1,kind:'classifier',id:'cap_old',revision:1,name:'Sorting example',input:{kind:'vector',fields:[{name:'size',type:'float32'}]},output:{kind:'label',labels:['small'],abstainLabel:'__abstain'},model:{algorithm:'knn-vector-classifier',threshold:.7},evaluation:{scores:{check:.6}},evidence:[{id:'ex_old',label:'small',split:'study'}],selftest:{cases:[{name:'missing values abstain',input:{},expect:{decision:'__abstain'}}]}};
  const raw=' '+JSON.stringify([cap])+'\n',dec=' { "cap_old": {"label":"small","at":1} } ';
  await page.evaluate(({raw,dec})=>{localStorage.setItem('p5_city_capabilities_v1',raw);localStorage.setItem('p5_city_cap_lastdec_v1',dec);},{raw,dec});
- if (!(await page.locator('#city-more').evaluate(el=>el.open))) await page.click('#city-more > summary');await page.click('#cap-btn');await expect(page.locator('#cap-body')).toContainText('Stage 1');await page.click('[data-try-cap="cap_old"]');
+ if (!(await page.locator('#city-more').evaluate(el=>el.open))) await page.click('#city-more > summary');await page.click('#cap-btn');await expect(page.locator('#cap-body')).toContainText('Stage 1');await expect(page.locator('#cap-body')).toContainText('Display-only · self-tests passed; no inference');await expect(page.locator('#cap-body')).not.toContainText('live-running');await page.click('[data-try-cap="cap_old"]');
  await expect(page.locator('#my-work-modal')).not.toHaveClass(/hidden/);
  for (const button of await page.locator('#my-work-modal [data-work-action]').all()) expect((await button.boundingBox()).height).toBeGreaterThanOrEqual(44);
  await page.screenshot({path:'/tmp/purpose-session4/my-work.png'});

@@ -43,6 +43,26 @@
 
 /* Primary work stays visible; historical records remain available in More. */
 #hud-top { height:auto; min-height:56px; align-items:center; column-gap:16px; }
+.hud-hub-link {
+  display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box;
+  flex-shrink:0; min-height:44px; padding:0 14px;
+  border:1px solid #ffb84c; border-radius:9px; background:#30283a;
+  color:#ffe0a8; font:800 14px/1 "Nunito",sans-serif; text-decoration:none; white-space:nowrap;
+}
+.hud-hub-link:hover { background:#493349; }
+.hud-hub-link:focus-visible { outline:3px solid #ffb84c; outline-offset:3px; }
+.city-workspaces { position:relative; flex-shrink:0; z-index:80; }
+/* The fixed Appearance control sits above the normal HUD. Lift the HUD while
+   this menu is open so its links remain tappable on narrow screens. */
+#hud-top:has(#city-workspaces[open]) { z-index:2147483150; }
+.city-workspaces summary { display:flex; align-items:center; min-height:44px; padding:0 12px; border:1px solid #75d8e4; border-radius:9px; background:#153448; color:#e9fcff; font:800 14px/1 "Nunito",sans-serif; cursor:pointer; }
+.city-workspaces nav { position:absolute; top:calc(100% + 6px); left:0; display:grid; min-width:170px; padding:7px; border:1px solid #75d8e4; border-radius:9px; background:#102638; box-shadow:0 12px 28px #0008; }
+.city-workspaces nav a { padding:10px; border-radius:6px; color:#fff; text-decoration:none; font:800 14px/1.2 "Nunito",sans-serif; }
+.city-workspaces nav a:hover,.city-workspaces nav a:focus-visible { background:#24516a; }
+.entry-workspaces { margin:10px 0 14px; color:#e9fcff; }
+.entry-workspaces summary { width:max-content; cursor:pointer; padding:8px 12px; border:1px solid #75d8e4; border-radius:8px; background:#153448; font-weight:800; }
+.entry-workspaces nav { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+.entry-workspaces nav a { padding:8px 10px; border:1px solid #527c93; border-radius:6px; background:#102638; color:#fff; text-decoration:none; font-weight:800; }
 #hud-top .hud-right { display:flex; align-items:center; gap:8px; margin-left:auto; }
 #hud-top .hud-chip { flex-shrink:0; }
 #hud-top .hud-mission-count, #hud-top .hud-center { display:none; }
@@ -64,13 +84,12 @@ body #quest-prompt { top:124px; max-width:calc(100vw - 24px); font-size:14px; }
   .entry-card { max-height:92dvh; overflow:auto; }
   /* Body specificity overrides the older embedded toolbar positions. */
   body #orbit-toggle, body #skin-toggle, body #prop-toggle,
-  body #btn-home, body #btn-next, body #btn-hub { top:116px; }
+  body #btn-home, body #btn-next { top:116px; }
   body #skin-toggle { left:16px; }
   body #orbit-toggle { left:72px; }
   body #prop-toggle { left:128px; }
   body #btn-home { left:184px; }
   body #btn-next { left:240px; }
-  body #btn-hub { left:296px; }
   body #quest-prompt { top:174px; width:calc(100vw - 24px); }
   body #time-of-day { top:244px; }
   #minimap { top:auto; bottom:280px; }
@@ -89,7 +108,7 @@ body #quest-prompt { top:124px; max-width:calc(100vw - 24px); font-size:14px; }
 .city-mode.active { background:#d8fbfb; color:#09212a; }
 
 /* Old icon controls retain their event/data owners but are no longer a toolbar. */
-body #orbit-toggle, body #skin-toggle, body #btn-home, body #btn-hub {
+body #orbit-toggle, body #skin-toggle, body #btn-home {
   position:fixed !important; left:-200vw !important; top:0 !important;
 }
 #city-more > summary { min-height:44px; display:flex; align-items:center; }
@@ -131,14 +150,21 @@ body[data-city-mode="decorate"] #btn-next::after { content:' Select / Move'; mar
 #actions-tray > summary::-webkit-details-marker { display:none; }
 #actions-tray > div { position:absolute; left:0; bottom:calc(100% + 8px); display:flex; gap:8px; padding:8px; border:1px solid #526273; border-radius:12px; background:#111d2a; }
 
-@media(max-width:720px) {
-  #hud-top .hud-right { width:auto; flex-wrap:nowrap; margin-left:0; }
-  #hud-top { justify-content:space-between; }
+@media(max-width:800px) {
+  #hud-top {
+    display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto auto;
+    justify-content:stretch; gap:4px 8px; padding:6px 8px;
+  }
+  #hud-top .hud-right { grid-column:2; grid-row:1; width:auto; flex-wrap:nowrap; margin-left:0; justify-content:flex-end; }
+  #hud-top .hud-hub-link { display:none; }
+  #city-workspaces { grid-column:1; grid-row:1; }
+  #city-mode-switch { grid-column:1 / -1; grid-row:2; justify-self:center; }
   #btn-save-hud span, #my-work-btn { font-size:12px; }
   #btn-save-hud { width:44px; padding:0; justify-content:center; }
   #btn-save-hud span { display:none; }
   .city-mode { min-width:78px; padding-inline:8px; }
-  #minimap { top:66px; right:8px; bottom:auto; }
+  #minimap { top:126px; right:8px; bottom:auto; }
+  #example-session-banner { top:126px; }
 }
 
 @media(max-width:520px) {

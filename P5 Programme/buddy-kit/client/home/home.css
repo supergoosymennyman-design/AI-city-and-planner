@@ -147,6 +147,19 @@ body {
   margin-top: 3px;
   line-height: 1.3;
 }
+.new-tab-cue {
+  position: absolute;
+  top: 19px;
+  right: 18px;
+  color: #d2dce9;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+a.card:focus-visible, .scen-head:focus-visible, .scen-link:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 3px;
+}
 
 /* States — rigid mechanical switch (translateY == shadow offset, linear) */
 a.card:hover {
@@ -285,4 +298,5 @@ a.card:active {
     padding: 14px;
   }
   .card-name { font-size: 18px; }
+  .new-tab-cue { top: 15px; right: 14px; }
 }

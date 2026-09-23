@@ -591,6 +591,11 @@ html, body {
 .quest-label { border-color: rgba(255, 184, 76, 0.6); background: rgba(20, 16, 8, 0.85); }
 .quest-label .bl-zh { color: #FFD166; font-size: 14px; }
 .quest-label .bl-en { color: #F0E6D2; }
+.gateway-label { padding: 5px 11px; border-width: 2px; background: rgba(23, 28, 29, .94); box-shadow: 0 0 14px rgba(255, 170, 91, .34), 0 2px 8px rgba(0,0,0,.5); }
+.gateway-label-workshop { border-color: #ffad64; margin-left: -80px; }
+.gateway-label-workshop .bl-zh { color: #ffcb91; }
+.gateway-label-studio { border-color: #73e6d5; margin-left: 80px; box-shadow: 0 0 14px rgba(95, 226, 208, .32), 0 2px 8px rgba(0,0,0,.5); }
+.gateway-label-studio .bl-zh { color: #a0f4e6; }
 
 /* ---------- District selector (HK real map) ---------- */
 #district-bar {

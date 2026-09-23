@@ -1,10 +1,16 @@
 // Deterministic, renderer-free road graph used by ambient traffic and scenery.
 // Keeping this geometry here makes junction behaviour testable without three.js.
+import { boxBody, forwardBodyGap } from './collision.js';
+
 const EPS = 0.01;
 const LANE_OFFSET_FACTOR = 0.22;
 const MAX_LANE_OFFSET = 1.8;
 const STOP_DECELERATION = 18;
 const STOP_BUFFER = 0.75;
+// The Champion is a child-controlled walker, so traffic leaves a generous,
+// legible space instead of stopping with its bumper at their feet.
+const CHAMPION_STOP_CLEARANCE = 3;
+const CHAMPION_BRAKE = 8;
 const SEAMLESS_DOT = .94;
 const SEAM_BLEND_DISTANCE = 8;
 
@@ -785,7 +791,7 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
       .flatMap(road => road.links.sort((a, b) => a.id - b.id)
         .map(link => ({ link, dist: Math.min(Math.max(4, link.length - 4), 4), length })));
   }
-  function updateStep(step) {
+  function updateStep(step, blockers = []) {
     // A layout rebuild or short terminating link must never leave a junction
     // owned by a vehicle that has already gone away.
     for (const junction of network.junctions) {
@@ -809,11 +815,26 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
       const approachJunction = !isTransition && v.link.to && network.junctionByNode.has(v.link.to.id);
       if (approachJunction && v.nextLink === undefined) v.nextLink = chooseNext(v);
       const exitBlocked = approachJunction && v.nextLink && !exitHasRoom(v, v.nextLink);
-      const desiredSpeed = exitBlocked ? Math.sqrt(Math.max(0, 2 * STOP_DECELERATION * Math.max(0, v.link.length - v.dist - STOP_BUFFER))) : v.speed;
-      const acceleration = exitBlocked ? STOP_DECELERATION : 6;
-      v.currentSpeed += Math.max(-STOP_DECELERATION, Math.min(acceleration, desiredSpeed - v.currentSpeed)) * step;
+      const vehicleBody = bodyAt(v);
+      const championGap = (blockers || []).reduce((nearest, blocker) => Math.min(nearest,
+        forwardBodyGap(boxBody(vehicleBody), blocker)), Infinity);
+      const championBlocked = Number.isFinite(championGap);
+      const junctionSpeed = exitBlocked
+        ? Math.sqrt(Math.max(0, 2 * STOP_DECELERATION * Math.max(0, v.link.length - v.dist - STOP_BUFFER)))
+        : v.speed;
+      // Brake from the actual stopping distance and settle at a 3 m safety
+      // gap. This is directional, so cars on a neighbouring lane do not stop.
+      const championSpeed = championBlocked
+        ? Math.sqrt(Math.max(0, 2 * CHAMPION_BRAKE * Math.max(0, championGap - CHAMPION_STOP_CLEARANCE)))
+        : v.speed;
+      const desiredSpeed = Math.min(junctionSpeed, championSpeed);
+      const braking = championBlocked ? CHAMPION_BRAKE : (exitBlocked ? STOP_DECELERATION : 6);
+      v.currentSpeed += Math.max(-braking, Math.min(braking, desiredSpeed - v.currentSpeed)) * step;
       let advance = v.currentSpeed * step;
       if (leader) advance = Math.min(advance, Math.max(0, leader.dist - v.dist - spacing(v, leader)));
+      // Hard guard for a sudden entry/teleport: no fixed simulation slice may
+      // consume the reserved pedestrian clearance, even before braking settles.
+      if (championBlocked) advance = Math.min(advance, Math.max(0, championGap - CHAMPION_STOP_CLEARANCE));
       advance = safeAdvanceOnLink(v, advance);
       const remaining = v.link.length - v.dist;
       let reservationAdvance = v.reservation ? advance : 0;
@@ -886,9 +907,9 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
   // place cars between the last two simulated poses (fixed-step interpolation)
   // rather than snapping them forward at the display refresh rate.
   const alpha = () => accumulator / .05;
-  function update(dt) {
+  function update(dt, blockers = []) {
     accumulator = Math.min(.5, accumulator + Math.max(0, Number.isFinite(dt) ? dt : 0));
-    while (accumulator >= .05) { updateStep(.05); accumulator -= .05; }
+    while (accumulator >= .05) { updateStep(.05, blockers); accumulator -= .05; }
   }
   return { network, routePlan, vehicles, addVehicle, spawnCandidates, update, alpha,
     vehiclesOverlap: (a, b) => bodiesOverlap(bodyAt(a), bodyAt(b)) };

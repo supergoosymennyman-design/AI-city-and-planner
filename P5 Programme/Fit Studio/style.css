@@ -53,6 +53,11 @@ html, body {
   z-index: 20;
 }
 
+/* In the unified localhost/City bundle the project bar stays reachable even
+   while the first-run tutorial is open, and the Studio HUD starts below it. */
+.studio-page > .passiona-project-bar { position: fixed; inset: 0 0 auto; z-index: 150; }
+.studio-page > .passiona-project-bar ~ .hud { top: 52px; max-height: calc(100vh - 64px); }
+
 .hud__row {
   display: flex;
   align-items: center;
@@ -65,6 +70,16 @@ html, body {
 }
 
 .hud__row--wrap { flex-wrap: wrap; }
+
+#cityAnimationSection > summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+#cityAnimationSection .hud__row { margin-top: 6px; }
+#cityAnimationSection select, #cityAnimationSection input {
+  min-width: 0; max-width: 100%; padding: 6px;
+  border: 1px solid var(--panel-border); border-radius: 6px;
+  background: #202a31; color: var(--text);
+}
+#cityAnimationSection label select { margin-left: auto; width: 145px; }
+#cityExtraName { flex: 1 1 100%; }
 
 .hud__title {
   font-weight: 600;

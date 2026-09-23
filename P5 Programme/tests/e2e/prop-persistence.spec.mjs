@@ -114,6 +114,50 @@ test('restored custom metadata without a device-local GLB shows a clear re-add s
  expect(await page.evaluate(()=>api.snapshot())).toContain('props');
 });
 
+test('Landmark Workshop inserts, configures and restores all four additive prop records',async({page})=>{
+ await harness(page,[]);
+ const ids=await page.evaluate(async()=>{
+  const out=[];
+  for(const [i,id] of ['champion-plaza','pixel-mural','festival-plaza','smart-gate'].entries())out.push(await api.insertLandmark(id,{x:i*10,z:i}));
+  return out;
+ });
+ expect(ids.every(Boolean)).toBe(true);
+ await expect.poll(()=>page.evaluate(()=>mounted.length)).toBe(4);
+ expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props.map(p=>p.landmark.templateId))).toEqual(['champion-plaza','pixel-mural','festival-plaza','smart-gate']);
+ await page.evaluate(async id=>api.updateLandmark(id,{statueSource:'generic',pose:'run'}),ids[0]);
+ const champion=await page.evaluate(()=>JSON.parse(api.snapshot()).props[0]);
+ expect(champion.landmark.config).toEqual({statueSource:'generic',pose:'run'});
+ await page.evaluate(()=>{const m=mounted.find(m=>m.position.x===30);m.position.set(31,0,7);m.scale.setScalar(1.5);api.updateTransform(m);api.undo();api.redo();});
+ expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props[3])).toMatchObject({x:31,z:7,scale:[1.5,1.5,1.5]});
+ await page.evaluate(()=>{api.destroy();api=mount();});
+ await expect.poll(()=>page.evaluate(()=>mounted.length-removed.length)).toBe(4);
+ expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props.every(p=>p.landmark?.version===1))).toBe(true);
+});
+
+test('a child who never opens the landmark shelf makes no landmark module or asset request',async({page})=>{
+ const requests=[];page.on('request',request=>requests.push(request.url()));
+ await harness(page,[]);
+ await page.click('#prop-toggle');
+ await page.locator('.prop-lib-tabs').selectOption('nature');
+ await page.waitForTimeout(100);
+ expect(requests.some(url=>url.includes('landmark-workshop')||url.includes('landmark-templates'))).toBe(false);
+ await page.locator('.prop-lib-tabs').selectOption('landmarks');
+ await expect(page.locator('.landmark-card')).toHaveCount(4);
+ expect(requests.some(url=>url.includes('landmark-workshop'))).toBe(true);
+});
+
+test('unknown landmark restores as a selectable repair object and can be repaired or deleted',async({page})=>{
+ await harness(page,[{id:'landmark:future-template',instanceId:'future-1',x:2,z:3,landmark:{version:1,templateId:'future-template',config:{keep:'me'}}}]);
+ await expect.poll(()=>page.evaluate(()=>mounted.length)).toBe(1);
+ expect(await page.evaluate(()=>mounted[0].userData.repair)).toBe(true);
+ await page.evaluate(()=>api.selectMesh(mounted[0]));
+ await expect(page.locator('[data-inspect="customize"]')).toContainText('Repair landmark');
+ await page.locator('[data-inspect="customize"]').click();
+ await expect.poll(()=>page.evaluate(()=>JSON.parse(api.snapshot()).props[0].landmark.templateId)).toBe('champion-plaza');
+ await page.locator('[data-inspect="delete"]').click();
+ expect(await page.evaluate(()=>JSON.parse(api.snapshot()).props)).toEqual([]);
+});
+
 test('a valid device-local GLB can be named, role-assigned, placed and restored',async({page})=>{
  await harness(page,[]);
  await page.click('#prop-toggle');

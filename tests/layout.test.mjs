@@ -26,6 +26,13 @@ test('sanitizeLayout recovers a safe default from garbage', () => {
   assert.equal(r.ok, true);
 });
 
+test('sanitizeLayout preserves explicit road widths across the 2D to 3D handoff', () => {
+  const city = sanitizeLayout({ version: 2, scaleMeters: 2000, buildings: [], parks: [], roads: [
+    { class: 'primary', width: 20, points: [[100, 100], [300, 100]] },
+  ] });
+  assert.equal(city.roads[0].width, 20);
+});
+
 test('default layout scale is the documented default', () => {
   assert.equal(DEFAULT_SCALE, 2000);
 });

@@ -9,11 +9,14 @@
 // mapping (Walk/Run buttons + WASD produce input.x/z) and the collision pass
 // (resolveCollision on the car's footprint).
 import * as THREE from 'three';
+import { boxBody } from '../city-common/collision.js';
 
 export function createDrivableCar(scene, group, opts = {}) {
   const walkSpeed = opts.walkSpeed ?? 15;   // m/s — city is 2000 m across
   const runSpeed = opts.runSpeed ?? 30;
   const radius = opts.radius ?? 1.1;        // collision radius (half-width-ish)
+  const length = opts.length ?? radius * 2;
+  const width = opts.width ?? radius * 1.2;
 
   const state = {
     active: false, exiting: false, parked: false,
@@ -29,6 +32,8 @@ export function createDrivableCar(scene, group, opts = {}) {
     isActive: () => state.active,
     isParked: () => state.parked,
     getPos: () => state.pos,
+    /** Ground footprint used by the host for buildings and parked-car contact. */
+    getCollisionBody: () => boxBody({ x: state.pos.x, z: state.pos.z, yaw: state.facing, length, width }),
     /** Board the champion at the car's current spot. */
     board(champion) {
       if (state.active) return;

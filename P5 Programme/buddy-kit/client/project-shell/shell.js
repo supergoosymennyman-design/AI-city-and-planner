@@ -1,19 +1,23 @@
 import { mountProjectBar } from '../city-common/project-bar.js';
-import { WORKSHOP_URL, FIT_STUDIO_URL } from '../shared/links.js';
-const type = location.pathname.includes('studio') ? 'studio' : 'workshop';
-const url = type === 'studio' ? FIT_STUDIO_URL : WORKSHOP_URL;
-document.title = type === 'studio' ? 'Passiona — 3D Studio' : 'Passiona — AI Workshop';
-document.querySelector('#title').textContent = type === 'studio' ? '3D Studio' : 'AI Workshop';
-document.querySelector('#message').textContent = type === 'studio' ? 'The live Studio opens in its established editor. A selected City object is retained in this project when that editor is adopted here.' : 'The live Workshop opens in its established editor. Its Champion File remains compatible while its source is moved into this project.';
-const open = document.querySelector('#open'); open.href = url; open.textContent = type === 'studio' ? 'Open 3D Studio' : 'Open AI Workshop';
-(async () => {
-  const store = await mountProjectBar({ workspace: type });
-  if (type !== 'workshop') return;
-  const project = await store.openActiveProject();
-  const target = new URL(url);
-  target.searchParams.set('passionaProject', project.id);
-  target.searchParams.set('publishTarget', 'city');
-  target.searchParams.set('returnTo', new URL('../city-builder/?workshop=published', location.href).href);
-  open.href = target.href;
-  document.querySelector('#message').textContent = 'Build and publish a machine revision. City installs that exact revision and marks it live only after its self-tests pass.';
-})().catch(() => { /* the established Workshop link remains usable */ });
+import { WORKSHOP_URL } from '../shared/links.js';
+
+const frame = document.querySelector('#workshop-frame');
+const status = document.querySelector('#workshop-status');
+const external = document.querySelector('#open-workshop');
+const target = new URL(WORKSHOP_URL);
+target.searchParams.set('returnTo', new URL('../workshop/', location.href).href);
+external.href = target.href;
+frame.src = target.href;
+
+let loaded = false;
+frame.addEventListener('load', () => {
+  loaded = true;
+  status.textContent = 'Workshop connected. Camera and microphone prompts only appear when an activity needs them.';
+});
+setTimeout(() => {
+  if (!loaded) status.innerHTML = `The Workshop is taking longer than expected. <a href="${external.href}" target="_blank" rel="noopener">Open it in a new tab</a>, or return to the Hub.`;
+}, 12000);
+
+mountProjectBar({ workspace: 'workshop' }).catch(() => {
+  status.textContent = 'Workshop is available, but project navigation could not be loaded. Use Return to Hub above.';
+});

@@ -11,7 +11,7 @@
  */
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { extname, resolve, join, dirname } from 'node:path';
+import { extname, resolve, join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -53,10 +53,23 @@ const server = createServer(async (req, res) => {
       res.end();
       return;
     }
-    if (!process.env.E2E_DOCROOT) pathname = pathname.replace(/^\/planner(?=\/|$)/, '/city-planner').replace(/^\/pregame(?=\/|$)/, '/city-pregame');
+    let routeRoot = ROOT;
+    if (!process.env.E2E_DOCROOT) {
+      pathname = pathname
+        .replace(/^\/planner(?=\/|$)/, '/city-planner')
+        .replace(/^\/pregame(?=\/|$)/, '/city-pregame')
+        .replace(/^\/hub(?=\/|$)/, '/project-hub')
+        .replace(/^\/workshop(?=\/|$)/, '/project-shell');
+      // The deployed bundle includes Fit Studio at /studio/. Mirror that one
+      // route in source previews without widening the normal client docroot.
+      if (/^\/studio(?=\/|$)/.test(pathname)) {
+        routeRoot = join(P5_ROOT, 'Fit Studio');
+        pathname = pathname.slice('/studio'.length) || '/';
+      }
+    }
     if (pathname.endsWith('/')) pathname += 'index.html';
-    const file = resolve(join(ROOT, pathname));
-    if (!file.startsWith(ROOT)) {
+    const file = resolve(routeRoot, `.${pathname}`);
+    if (file !== routeRoot && !file.startsWith(routeRoot + sep)) {
       res.writeHead(403);
       res.end('forbidden');
       return;

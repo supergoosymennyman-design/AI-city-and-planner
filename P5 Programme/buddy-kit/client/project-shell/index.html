@@ -1,5 +1,29 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Passiona workspace</title>
-<link rel="stylesheet" href="../city-common/project-bar.css">
-<style>body{margin:0;background:#edf4f5;color:#143042;font:16px/1.5 system-ui,sans-serif}.bridge{max-width:620px;margin:12vh auto;padding:28px}h1{margin:0 0 8px}.card{background:#fff;border:1px solid #b8d6d9;border-radius:12px;padding:22px;box-shadow:0 3px 0 #b8d6d9}a{display:inline-block;margin-top:14px;padding:10px 14px;background:#146b75;color:white;border-radius:6px;text-decoration:none;font-weight:700}</style>
-<body><main class="bridge"><div class="card"><h1 id="title">Opening workspace…</h1><p id="message">Your project stays saved on this device. This workspace is currently delivered by the existing Passiona tool.</p><a id="open" href="#">Open workspace</a></div></main><script type="module" src="shell.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Passiona — AI Workshop</title>
+  <link rel="stylesheet" href="../city-common/project-bar.css">
+  <style>
+    :root{color-scheme:light;--ink:#143042;--line:#b8d6d9;--accent:#146b75}
+    *{box-sizing:border-box}html,body{height:100%;margin:0}body{display:flex;flex-direction:column;background:#edf4f5;color:var(--ink);font:14px/1.4 system-ui,sans-serif;overflow:hidden}
+    .workshop-head{display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid var(--line);background:#fff}.workshop-head h1{margin:0;font-size:17px}.online{padding:4px 7px;border-radius:4px;background:#fff1c7;color:#684b00;font-size:11px;font-weight:800}.workshop-note{margin:0;color:#526d75}.workshop-actions{display:flex;gap:8px;margin-left:auto}.workshop-actions a{padding:7px 10px;border:1px solid #397c83;border-radius:5px;color:#0c5b63;text-decoration:none;font-weight:750}.workshop-actions a.primary{background:var(--accent);color:#fff}
+    #workshop-status{padding:6px 14px;background:#e0f2f1;color:#285a60;font-size:12px}#workshop-frame{width:100%;min-height:0;flex:1;border:0;background:#fff}
+    @media(max-width:760px){.workshop-head{flex-wrap:wrap}.workshop-note{display:none}.workshop-actions{width:100%;margin-left:0;flex-wrap:wrap}.workshop-actions a{flex:1;text-align:center;white-space:nowrap}.workshop-head h1{font-size:14px}}
+  </style>
+</head>
+<body>
+  <header class="workshop-head">
+    <h1>AI Workshop</h1><span class="online">INTERNET REQUIRED</span>
+    <p class="workshop-note">Workshop work is saved separately and is not yet published into the City.</p>
+    <nav class="workshop-actions" aria-label="Workshop exits">
+      <a href="../city-builder/">Return to City</a><a href="../hub/">Return to Hub</a>
+      <a class="primary" id="open-workshop" href="#" target="_blank" rel="noopener">Open in new tab</a>
+    </nav>
+  </header>
+  <div id="workshop-status" role="status" aria-live="polite">Connecting to the online Workshop…</div>
+  <iframe id="workshop-frame" title="Passiona AI Workshop" allow="camera; microphone" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  <script type="module" src="shell.js"></script>
+</body>
+</html>

@@ -52,6 +52,10 @@ test('crash-guard shows the friendly restart screen on a real uncaught error', a
   // The error code hook should be set (non-empty).
   const code = await page.evaluate(() => window.__crashGuardLastCode());
   expect(code).toBeTruthy();
+  const diagnostics = await page.evaluate(() => window.__crashGuardDiagnostics());
+  expect(diagnostics.at(-1)).toMatchObject({ code, phase:expect.any(String), message:expect.any(String), stack:expect.any(String) });
+  expect(text).not.toContain('__crash_guard_test__');
+  expect(text).not.toContain(code);
 });
 
 test('corrupt saved city falls back to the sample with an explanation', async ({ page }) => {

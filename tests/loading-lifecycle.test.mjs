@@ -33,6 +33,23 @@ test('bounded load queue starts pending jobs by stable priority', async () => {
   assert.deepEqual(order, ['running', 'near-a', 'near-b', 'low']);
 });
 
+test('queue idle waits for every running and pending optional job', async () => {
+  const releases = [];
+  const queue = createLoadQueue({ concurrency: 1 });
+  queue.add(() => new Promise(resolve => releases.push(resolve)));
+  queue.add(() => new Promise(resolve => releases.push(resolve)));
+  let drained = false;
+  const idle = queue.whenIdle().then(() => { drained = true; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(drained, false);
+  releases.shift()();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(drained, false);
+  releases.shift()();
+  await idle;
+  assert.equal(drained, true);
+});
+
 test('bounded load queue disposes a running result that becomes stale', async () => {
   let active = true, release;
   const disposed = [];

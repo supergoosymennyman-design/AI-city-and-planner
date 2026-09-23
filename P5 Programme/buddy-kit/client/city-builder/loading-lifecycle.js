@@ -73,6 +73,13 @@ export function createLoadQueue({ concurrency = 4, isActive = () => true, onChan
   let running = 0;
   let cancelled = false;
   let sequence = 0;
+  const idleWaiters = new Set();
+
+  function settleIdle() {
+    if (running || pending.length) return;
+    for (const resolve of idleWaiters) resolve();
+    idleWaiters.clear();
+  }
 
   function pump() {
     while (!cancelled && isActive() && running < limit && pending.length) {
@@ -85,11 +92,12 @@ export function createLoadQueue({ concurrency = 4, isActive = () => true, onChan
           else { try { job.onStale?.(value); } finally { job.resolve(undefined); } }
         },
         (error) => job.reject(error),
-      ).finally(() => { running--; onChange({ running, pending: pending.length, concurrency: limit, cancelled }); pump(); });
+      ).finally(() => { running--; onChange({ running, pending: pending.length, concurrency: limit, cancelled }); pump(); settleIdle(); });
     }
     if ((cancelled || !isActive()) && pending.length) {
       for (const job of pending.splice(0)) job.resolve(undefined);
     }
+    settleIdle();
   }
 
   return {
@@ -104,6 +112,10 @@ export function createLoadQueue({ concurrency = 4, isActive = () => true, onChan
       });
     },
     cancel() { cancelled = true; onChange({ running, pending: pending.length, concurrency: limit, cancelled }); pump(); },
+    whenIdle() {
+      if (!running && !pending.length) return Promise.resolve();
+      return new Promise(resolve => idleWaiters.add(resolve));
+    },
     stats() { return { running, pending: pending.length, concurrency: limit, cancelled }; },
   };
 }

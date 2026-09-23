@@ -41,6 +41,23 @@ size review, and thumbnail are recorded. All non-vehicle assets remain CC0 / pub
 
 The original Hunyuan downloads are archival masters outside this repository. Only the cleaned, centred, ground-anchored and compressed CC0-dedicated derivatives above ship.
 
+## Hunyuan Wave 2 — Passiona originals (2026-09-22)
+
+| Source | License | Files admitted (library/) |
+|---|---|---|
+| Passiona-original concept image and Kai Hunyuan reconstruction; cleaned derivative explicitly dedicated to CC0 | CC0 dedication | `library/buildings/passiona-jade-court-apartments.glb` (Meshopt; 40,452 triangles; 1K embedded textures), `library/buildings/passiona-harbour-steps-residences.glb` (Meshopt; 33,592 triangles; 1K embedded textures), `library/buildings/passiona-lantern-walk-up.glb` (Meshopt; 30,132 triangles; 1K embedded textures), `library/buildings/passiona-bamboo-market-hall.glb` (Meshopt; 24,914 triangles; 1K embedded textures), `library/buildings/passiona-skygarden-learning-centre.glb` (Meshopt; 38,268 triangles; 1K embedded textures) |
+
+The raw Hunyuan downloads remain outside the repository. Shipping derivatives are Y-up, centred on X/Z, ground-anchored, single-material PBR, 1K-textured and Meshopt-compressed. The three dense residential reconstructions retain the least-destructive decimation available from their disconnected Hunyuan topology; all are below 6 MiB.
+
+## Hunyuan Wave 3 — Skill Homes (2026-09-22)
+
+| Source | License | Files admitted |
+|---|---|---|
+| Passiona-original Hunyuan output supplied and explicitly CC0-dedicated by Kai; tablet-cleaned derivative | CC0 dedication | `city-builder/assets/models/skill-hosts/passiona-smart-mobility-stop.glb` (Meshopt; 34,940 triangles; 3.8 MiB; 1K embedded textures), `city-builder/assets/models/skill-hosts/passiona-champion-skill-pavilion.glb` (Meshopt; 34,912 triangles; 5.4 MiB; 1K embedded textures), `city-builder/assets/models/skill-hosts/passiona-ai-skill-workshop-pod.glb` (Meshopt; 34,904 triangles; 4.1 MiB; 1K embedded textures) |
+| Passiona-original Hunyuan gateway outputs supplied by Kai; cleaned derivatives explicitly released under CC0 | CC0 dedication | `city-builder/assets/models/gateways/passiona-ai-workshop-gateway.glb` (Meshopt; 34,508 triangles; 5,359,332 bytes; 1K embedded textures), `city-builder/assets/models/gateways/passiona-fit-studio-gateway.glb` (Meshopt; 34,704 triangles; 4,752,616 bytes; 1K embedded textures) |
+
+The City normalizes host appearances and gateways to their protected footprints at load time. Skill Sockets, bilingual labels, routes and installed Workshop capabilities are City-owned and independent from each GLB. The gateway binaries are Y-up, X/Z-centred and ground-anchored; the Workshop carries a baked +90° Y correction and both visible entrances face the +Z socket side.
+
 ## Summary
 - Total GLBs audited: 186 (baseline) + 140 (batch 1) + 10 (batch 2) + 21 (batch 3) + 16 (batch 4) = 373
 - **KEEP (CC0 / documented / custom): 373**

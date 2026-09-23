@@ -29,8 +29,11 @@ import { CITY_ESSENTIALS, essentialName, essentialSearch } from '../city-common/
 import { LIBRARY, LIBRARY_CATEGORIES, libraryUrl } from '../city-common/library.js';
 import { LIBRARY_PACKS, libraryByPack, packForLibraryItem, packAssetState } from '../city-common/asset-packs.js';
 import { vehicleTargetLength } from '../city-common/vehicle-scale.js';
+import { itemTargetBounds, uniformScaleForBounds } from '../city-common/model-scale.js';
 import { CUSTOM_MODEL_PREFIX, customModelStore, readCustomManifest, writeCustomManifest, validateGLB } from '../city-common/custom-models.js';
+import { newModelTransferId, saveModelTransfer, consumeModelTransfer } from '../city-common/model-transfer.js';
 import { createCommandHistory } from '../city-common/command-history.js';
+import { SKILL_HOST_PREFIX, SKILL_HOSTS, skillHostItem, newSkillHostRecord, createSkillHostRoot, editSkillHostDialog, workshopUrl } from './skill-hosts.js';
 
 // ─── Curated model library (shared catalog) ────────────────────────────────
 // The city-builder's 🧰 reads the SAME catalog the scenarios use
@@ -48,6 +51,20 @@ const PROP_MAP = Object.fromEntries(PROPS.map((p) => [p.id, p]));
 // gentle "keep it tidy" toast. Informational only — no behaviour change below.
 const PLACED_PROP_WARN = 200;
 
+// One release gate for the optional workshop. Landmark code and Champion data
+// are still lazy: enabling this only adds the shelf label until it is opened.
+export const LANDMARK_WORKSHOP_ENABLED = true;
+const LANDMARK_PREFIX = 'landmark:';
+const LANDMARK_STUBS = Object.freeze({
+  'champion-plaza': { emoji:'🏆', en:'Champion Plaza', zh:'冠軍廣場', footprint:[8,8] },
+  'pixel-mural': { emoji:'🎨', en:'Pixel Mural', zh:'像素壁畫', footprint:[7,2] },
+  'festival-plaza': { emoji:'🏮', en:'Festival Plaza', zh:'節慶廣場', footprint:[9,9] },
+  'smart-gate': { emoji:'💡', en:'Smart Lamp / Gate', zh:'智能燈／閘門', footprint:[7,3] },
+});
+let _landmarkModulePromise = null;
+const landmarkModule = () => _landmarkModulePromise ||= import('./landmark-workshop.js');
+function landmarkStub(id) { const key=id?.startsWith(LANDMARK_PREFIX)?id.slice(LANDMARK_PREFIX.length):'';if(!key)return null;const s=LANDMARK_STUBS[key];return {id,name:s?(currentLang()==='zh-Hant'?s.zh:s.en):(currentLang()==='zh-Hant'?'未知地標':'Unknown landmark'),emoji:s?.emoji||'⚠️',category:'landmarks',footprint:s?.footprint||[4,4],height:6,landmark:true,unknown:!s,templateId:key}; }
+
 // Per-instance id counter: placed props are matched by a unique uid so moving
 // one of several identical props updates THAT instance, not the first match.
 let _uidSeq = 1;
@@ -61,12 +78,23 @@ const _cache = new Map();          // propId -> THREE.Group (normalized)
 function scaleToFootprint(model, item, extra) {
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  // Vehicles use their real-world default length (matched to the 3D city's
-  // traffic cars / champion), not the small source-unit library footprint.
-  const target = (item.category === 'vehicles' ? vehicleTargetLength(item) : Math.max(item.footprint[0], item.footprint[1], item.height || 1)) * (extra || 1);
-  const s = target / maxDim;
+  let s;
+  if (item.category === 'buildings') {
+    // Buildings are a physical-scale promise: contain the authored model in
+    // its width/depth/height box without stretching doors or window rows.
+    s = uniformScaleForBounds(size, itemTargetBounds(item), extra || 1);
+  } else {
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    // Vehicles use their real-world default length (matched to traffic), while
+    // the established prop behaviour keeps its largest declared dimension.
+    const target = (item.category === 'vehicles' ? vehicleTargetLength(item) : Math.max(item.footprint[0], item.footprint[1], item.height || 1)) * (extra || 1);
+    s = target / maxDim;
+  }
   model.scale.setScalar(s);
+  // Preserve the catalog-normalized scale so gameplay footprints can apply a
+  // later student resize as a multiplier instead of scaling the footprint a
+  // second time by the GLB's source-unit conversion.
+  model.userData.libraryBaseScale = s;
   box.setFromObject(model);
   const cx = (box.min.x + box.max.x) / 2;
   const cz = (box.min.z + box.max.z) / 2;
@@ -141,6 +169,7 @@ function withInstanceId(record) {
   // Older Champion Files did not have a stable object identity. Assign one on
   // first write so a later Studio handoff can target this exact chair/tree,
   // rather than every copy of the same catalog model.
+  if (!validRecord(record)) return record;
   return record?.instanceId ? record : { ...record, instanceId: instanceId() };
 }
 
@@ -158,6 +187,7 @@ export function mountPropLibrary(opts) {
   const onPlacementDone = opts.onPlacementDone || null;   // (lastMesh) fired once, when the child presses ✓ Done
   const resolvePlacement = typeof opts.resolvePlacement === 'function' ? opts.resolvePlacement : null;
   const onInspectorClearSelection = opts.onInspectorClearSelection || null;
+  const getCapabilities = typeof opts.getCapabilities === 'function' ? opts.getCapabilities : (() => []);
 
   // State
   const state = {
@@ -182,7 +212,7 @@ export function mountPropLibrary(opts) {
   const customModels = new Map();
   let myModelsRenderGeneration = 0;
   const customItem = (id) => customModels.get(id) || (() => { const m=customManifest.models.find(m => m.id === id); return m && { id: `${CUSTOM_MODEL_PREFIX}${id}`, name: m.name, emoji: '◆', category: 'prop', footprint: [4,4], height: 4, custom: true }; })();
-  function itemFor(id) { return id.startsWith(CUSTOM_MODEL_PREFIX) ? customItem(id.slice(CUSTOM_MODEL_PREFIX.length)) : PROP_MAP[id]; }
+  function itemFor(id) { return id?.startsWith(SKILL_HOST_PREFIX) ? skillHostItem(id,currentLang()) : id?.startsWith(LANDMARK_PREFIX) ? landmarkStub(id) : id?.startsWith(CUSTOM_MODEL_PREFIX) ? customItem(id.slice(CUSTOM_MODEL_PREFIX.length)) : PROP_MAP[id]; }
   async function loadCustom(item) {
     const hit = _cache.get(item.id); if (hit) return hit;
     const saved = await customModelStore.get(item.id.slice(CUSTOM_MODEL_PREFIX.length));
@@ -193,7 +223,21 @@ export function mountPropLibrary(opts) {
     g.traverse(o => { if (o.isMesh) { o.castShadow=false; o.receiveShadow=false; } });
     scaleToFootprint(g, item, 1); _cache.set(item.id, g); return g;
   }
-  function loadAny(item) { return item?.custom ? loadCustom(item) : loadModel(item); }
+  async function loadAny(item) {
+    if (item?.host) return null;
+    if (item?.landmark) {
+      const mod=await landmarkModule(),record=mod.makeLandmarkRecord(item.templateId);
+      const root=mod.createLandmarkRoot(record);root.userData.defaultLandmarkRecord=record;return root;
+    }
+    return item?.custom ? loadCustom(item) : loadModel(item);
+  }
+  async function bytesFor(p, item) {
+    const customId = p.record.visualSource?.kind === 'custom' ? p.record.visualSource.modelId : (item?.custom ? item.id.slice(CUSTOM_MODEL_PREFIX.length) : null);
+    if (customId) return (await customModelStore.get(customId))?.bytes || null;
+    const response = await fetch(libraryUrl(item));
+    if (!response.ok) return null;
+    return await response.arrayBuffer();
+  }
   function snapshot() {
     if (!dirty) return raw;
     const props = state.placed.map(p => p.record);
@@ -219,7 +263,8 @@ export function mountPropLibrary(opts) {
   function removeMesh(p) {
     if (!p.mesh) return;
     try { opts.onRemovedMesh?.(p.mesh); } catch (e) { console.warn('[prop-library] unregister failed', e); }
-    p.mesh.removeFromParent(); // geometry/materials belong to the shared cache
+    try { p.mesh.userData?.dispose?.(); } catch (e) { console.warn('[prop-library] landmark cleanup failed', e); }
+    p.mesh.removeFromParent(); // ordinary geometry/materials belong to shared cache
     p.mesh = null;
   }
   function clearGhost() {
@@ -240,6 +285,36 @@ export function mountPropLibrary(opts) {
     scene.add(mesh);
     try { onPlacedMesh?.(mesh, itemFor(r.id)); } catch (e) { console.warn('[prop-library] registration failed', e); }
   }
+  async function projectSkillHost(p, gen=generation) {
+    if(destroyed||gen!==generation||!state.placed.includes(p))return;
+    const customId=p.record.visualSource?.kind==='custom' ? p.record.visualSource.modelId : null;
+    let customMissing=false;
+    if(customId){ try { customMissing=!(await customModelStore.get(customId))?.bytes; } catch { customMissing=true; } }
+    const mesh=createSkillHostRoot(p.record,{capabilities:getCapabilities(),statusOverride:customMissing?'attention':null});
+    mesh.position.set(p.record.x??0,p.record.y??0,p.record.z??0);mesh.rotation.y=p.record.yaw??0;
+    if(p.record.scale)mesh.scale.fromArray(p.record.scale);
+    mesh.userData.uid=p.uid;mesh.userData.locked=!!p.record.locked;p.mesh=mesh;scene.add(mesh);
+    if(customId){
+      try { const custom=await loadCustom(customItem(customId)); if(destroyed||gen!==generation||p.mesh!==mesh||!custom)throw new Error('missing'); const old=mesh.getObjectByName('skill-host-visual'); if(old){const replacement=clonePlaced(custom);replacement.name='skill-host-visual';old.removeFromParent();mesh.add(replacement);} }
+      catch { mesh.userData.customModelMissing=true; } // flagship visual remains as a recoverable fallback
+    } else if (['mobility','showcase','universal'].includes(p.record.hostType)) {
+      // Reviewed Wave-3 models are optional flagship appearances;
+      // the socket and capability record remain outside the GLB.
+      const path={mobility:'./assets/models/skill-hosts/passiona-smart-mobility-stop.glb',showcase:'./assets/models/skill-hosts/passiona-champion-skill-pavilion.glb',universal:'./assets/models/skill-hosts/passiona-ai-skill-workshop-pod.glb'}[p.record.hostType];
+      try { const gltf=await _loader.loadAsync(path); const model=gltf.scene||gltf.scenes?.[0]; if(!model||destroyed||gen!==generation||p.mesh!==mesh)throw new Error('unavailable'); scaleToFootprint(model,itemFor(p.record.id),1); const old=mesh.getObjectByName('skill-host-visual'); if(old){model.name='skill-host-visual';old.removeFromParent();mesh.add(model);} }
+      catch { mesh.userData.flagshipFallback=true; }
+    }
+    try{onPlacedMesh?.(mesh,itemFor(p.record.id));}catch(e){console.warn('[prop-library] registration failed',e);}
+  }
+  async function projectLandmark(p, gen=generation) {
+    const mod=await landmarkModule();
+    if(destroyed||gen!==generation||!state.placed.includes(p))return;
+    const mesh=mod.createLandmarkRoot(p.record,{onRepair:message=>toast(message,true)});
+    mesh.position.set(p.record.x??0,p.record.y??0,p.record.z??0);mesh.rotation.y=p.record.yaw??0;
+    if(p.record.scale)mesh.scale.fromArray(p.record.scale);
+    mesh.userData.uid=p.uid;mesh.userData.locked=!!p.record.locked;p.mesh=mesh;scene.add(mesh);
+    try{onPlacedMesh?.(mesh,itemFor(p.record.id));}catch(e){console.warn('[prop-library] registration failed',e);}
+  }
   function renderRecords() {
     const gen = ++generation;
     for (const p of state.placed) {
@@ -256,7 +331,10 @@ export function mountPropLibrary(opts) {
         toast(t('props.unsupportedSaved'), true);
         continue;
       }
-      Promise.resolve().then(() => loadAny(item)).then(model => {
+      if(item.host){projectSkillHost(p,gen).catch(()=>toast(t('props.unsupportedSaved'),true));continue;}
+      if(item.landmark){projectLandmark(p,gen).catch(()=>toast(t('props.unsupportedSaved'),true));continue;}
+      const override=p.record.visualSource?.kind==='custom' ? customItem(p.record.visualSource.modelId) : null;
+      Promise.resolve().then(() => override ? loadCustom(override) : loadAny(item)).then(model => {
         if (destroyed || gen !== generation || !state.placed.includes(p)) return;
         if (!model) { toast(t('props.unsupportedSaved'), true); return; }
         project(p, model);
@@ -408,6 +486,19 @@ export function mountPropLibrary(opts) {
     .prop-inspector-lock { display:flex; gap:8px; align-items:center; margin-top:10px; color:#cfe9ff; }
     .prop-inspector-lock input { width:22px; height:22px; }
     .prop-inspector :focus-visible { outline:3px solid #ffb84c; outline-offset:2px; }
+    .prop-inspector-customize { width:100%; margin-top:10px; border-color:#00bfc9 !important; }
+    .landmark-dialog { width:min(520px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; color:#f8fafc; background:#101b29; border:2px solid #00bfc9; border-radius:16px; padding:20px; }
+    .landmark-dialog::backdrop { background:rgba(3,10,20,.72); }
+    .landmark-dialog h2 { margin:0 0 16px; font:800 20px system-ui; }
+    .landmark-dialog label { display:grid; gap:6px; margin:12px 0; font:700 14px system-ui; }
+    .landmark-dialog select,.landmark-dialog input,.landmark-dialog button { min-height:44px; border:1px solid #52647b; border-radius:9px; background:#182638; color:#f8fafc; font:700 14px system-ui; padding:8px; }
+    .landmark-dialog menu { display:flex; justify-content:flex-end; gap:10px; padding:12px 0 0; margin:0; }
+    .landmark-dialog .primary { background:#00d89a; color:#06283a; border-color:transparent; }
+    .landmark-dialog canvas { width:min(256px,100%); aspect-ratio:1; image-rendering:pixelated; border:2px solid #8797aa; touch-action:none; }
+    .skill-socket { display:flex; align-items:center; gap:6px; max-width:190px; padding:7px 9px; border:2px solid var(--socket-color); border-radius:8px; background:#10232a; color:#fff; font:700 12px system-ui; box-shadow:0 3px 10px #0008; cursor:pointer; }
+    .skill-socket span { display:grid; place-items:center; width:19px; height:19px; border-radius:50%; background:var(--socket-color); color:#11252d; font-weight:900; }
+    .skill-host-dialog { width:min(460px,calc(100vw - 30px)); color:#edf7f4; background:#13252b; border:2px solid #35b7a8; border-radius:16px; padding:20px; }
+    .skill-host-dialog::backdrop { background:#061216b8; }.skill-host-dialog h2 { margin:0 0 8px; }.skill-host-dialog label { display:grid; gap:6px; margin:13px 0; font-weight:800; }.skill-host-dialog select,.skill-host-dialog button { min-height:44px; border-radius:8px; padding:8px; font:inherit; }.skill-host-dialog select { background:#fffdf7; color:#17262a; border:0; }.skill-host-dialog menu { display:flex; gap:8px; justify-content:flex-end; padding:8px 0 0; margin:0; }.skill-host-dialog .primary { background:#42c7ad; color:#09242a; border:0; font-weight:800; }.skill-host-dialog .secondary { background:#274e55; color:#fff; border:1px solid #7dc8c1; }.skill-host-state { color:#cceae5; font-weight:800; }
     @media (max-width:640px) { .prop-inspector { bottom:76px; right:16px; } }
   `;
   document.head.appendChild(style);
@@ -472,6 +563,8 @@ export function mountPropLibrary(opts) {
       <button type="button" data-inspect="undo">Undo</button>
       <button type="button" data-inspect="redo">Redo</button>
     </div>
+    <button type="button" class="prop-inspector-customize" data-inspect="customize" hidden>Customize landmark / 自訂地標</button>
+    <button type="button" class="prop-inspector-customize" data-inspect="fit-studio">Edit model in Fit Studio / 在造型工作室編輯</button>
     <label class="prop-inspector-scale">Size <input type="range" min="0.2" max="5" step="0.05" value="1" aria-label="Decoration size"><span>100%</span></label>
     <label class="prop-inspector-lock"><input type="checkbox"> Lock this decoration</label>
   `;
@@ -542,6 +635,8 @@ export function mountPropLibrary(opts) {
     for (const p of introduced) {
       if (!validRecord(p.record)) continue;
       const item = itemFor(p.record.id); if (!item) continue;
+      if(item.host){projectSkillHost(p,gen).catch(()=>{});continue;}
+      if(item.landmark){projectLandmark(p,gen).catch(()=>{});continue;}
       Promise.resolve().then(() => loadAny(item)).then((model) => {
         if (destroyed || gen !== generation || !state.placed.includes(p) || !model) return;
         project(p, model);
@@ -583,6 +678,10 @@ export function mountPropLibrary(opts) {
     scaleInput.value = String(Math.max(.2, Math.min(5, scale)));
     inspector.querySelector('.prop-inspector-scale span').textContent = `${Math.round(scale * 100)}%`;
     inspector.querySelector('.prop-inspector-lock input').checked = locked;
+    const customize=inspector.querySelector('[data-inspect="customize"]');
+    customize.hidden=!(item?.landmark||item?.host);customize.disabled=locked;customize.textContent=item?.host?(currentLang()==='zh-Hant'?'連接技能／外觀':'Connect skill / appearance'):item?.unknown?(currentLang()==='zh-Hant'?'修復地標':'Repair landmark'):'Customize landmark / 自訂地標';
+    const fit=inspector.querySelector('[data-inspect="fit-studio"]');
+    fit.disabled=locked || !!item?.landmark; fit.hidden=!!item?.landmark;
     for (const button of inspector.querySelectorAll('[data-inspect]')) {
       const action = button.dataset.inspect;
       button.disabled = (locked && !['undo', 'redo'].includes(action)) || (action === 'undo' && !history?.canUndo) || (action === 'redo' && !history?.canRedo);
@@ -608,6 +707,21 @@ export function mountPropLibrary(opts) {
     if (!action) return;
     if (action === 'undo') { history.undo(); return; }
     if (action === 'redo') { history.redo(); return; }
+    if (action === 'customize') {
+      const p=selectedProp();if(!p||p.record.locked)return;
+      if(itemFor(p.record.id)?.host){ editSkillHostDialog(p.record,getCapabilities(),currentLang(),customManifest.models).then(async result=>{if(!result)return;if(result.openWorkshop){location.href=workshopUrl(p.record);return;}if(!result.value||destroyed||!state.placed.includes(p))return;const before=cloneRecords();p.record=result.value;removeMesh(p);await projectSkillHost(p);commitRecords(before);renderInspector();}).catch(()=>toast('Could not open the Skill Socket.',true));return; }
+      if(!itemFor(p.record.id)?.landmark)return;
+      landmarkModule().then(async mod=>{const before=cloneRecords();if(itemFor(p.record.id)?.unknown){const repaired=mod.makeLandmarkRecord('champion-plaza',p.record);p.record={...repaired,instanceId:p.record.instanceId,scale:p.record.scale,locked:p.record.locked};}else{const next=await mod.customizeLandmarkDialog(p.record,currentLang());if(!next||destroyed||!state.placed.includes(p))return;p.record={...p.record,landmark:{...p.record.landmark,config:next}};}removeMesh(p);await projectLandmark(p);commitRecords(before);renderInspector();}).catch(()=>toast(t('props.unsupportedSaved'),true));
+      return;
+    }
+    if (action === 'fit-studio') {
+      const p=selectedProp(), item=itemFor(p?.record.id); if(!p||!item||p.record.locked||item.landmark)return;
+      (async()=>{try{
+        const bytes=await bytesFor(p,item);if(!bytes)throw new Error('missing');
+        const transfer=await saveModelTransfer({id:newModelTransferId(),instanceId:p.record.instanceId,baseId:p.record.id,baseVisualSource:p.record.visualSource||null,sourceBytes:bytes,name:item.name||p.record.id,returnTo:location.href});
+        const u=new URL('../studio/model.html',location.href);u.searchParams.set('transfer',transfer.id);location.assign(u.href);
+      }catch{toast('This model is not available on this device yet.',true);}})();return;
+    }
     if (action === 'delete') {
       const p = selectedProp(); if (!p || p.record.locked) return;
       const before = cloneRecords();
@@ -622,10 +736,12 @@ export function mountPropLibrary(opts) {
     if (action === 'duplicate') {
       const p = selectedProp(); if (!p || p.record.locked) return;
       const before = cloneRecords();
-      const copy = { uid: _uidSeq++, record: { ...p.record, x: (p.record.x || 0) + .8, z: (p.record.z || 0) + .8, locked: false }, mesh: null };
+      const copy = { uid: _uidSeq++, record: withInstanceId({ ...JSON.parse(JSON.stringify(p.record)), instanceId:null, x: (p.record.x || 0) + .8, z: (p.record.z || 0) + .8, locked: false }), mesh: null };
       state.placed.push(copy);
       const item = itemFor(copy.record.id);
-      if (item) Promise.resolve(loadAny(item)).then((model) => { if (model && state.placed.includes(copy)) project(copy, model); });
+      if(item?.host)projectSkillHost(copy).catch(()=>{});
+      else if(item?.landmark)projectLandmark(copy).catch(()=>{});
+      else if (item) Promise.resolve(loadAny(item)).then((model) => { if (model && state.placed.includes(copy)) project(copy, model); });
       selectedUid = copy.uid;
       if (commitRecords(before)) renderCount();
       renderInspector();
@@ -682,6 +798,8 @@ export function mountPropLibrary(opts) {
   function renderTabs() {
     tabsEl.replaceChildren();
     const mine=document.createElement('option');mine.value='mine';mine.textContent=currentLang()==='zh-Hant'?'我的模型':'My Models';tabsEl.appendChild(mine);
+    const hosts=document.createElement('option');hosts.value='skill-hosts';hosts.textContent=currentLang()==='zh-Hant'?'技能之家':'Skill Homes';tabsEl.appendChild(hosts);
+    if(LANDMARK_WORKSHOP_ENABLED){const landmarks=document.createElement('option');landmarks.value='landmarks';landmarks.textContent=currentLang()==='zh-Hant'?'地標工作坊':'Landmark Workshop';tabsEl.appendChild(landmarks);}
     const essentials=document.createElement('option');essentials.value='essentials';essentials.textContent=currentLang()==='zh-Hant'?'城市精選':'City Essentials';tabsEl.appendChild(essentials);
     const all = document.createElement('option');
     all.value = 'all';
@@ -734,6 +852,19 @@ export function mountPropLibrary(opts) {
     const terms = query.split(/\s+/).filter(Boolean);
     // Search crosses categories so a child can find a tree from Buildings.
     if (!query && activeCat === 'mine') return renderMyModels();
+    if (!query && activeCat === 'landmarks' && LANDMARK_WORKSHOP_ENABLED) {
+      resultsEl.textContent=currentLang()==='zh-Hant'?'4 個可自訂地標':'4 customizable landmarks';
+      landmarkModule().then(mod=>{
+        if(destroyed||activeCat!=='landmarks'||searchEl.value.trim())return;
+        listEl.replaceChildren();
+        for(const item of mod.landmarkItems(currentLang())){const card=document.createElement('button');card.type='button';card.className='prop-lib-card landmark-card';card.setAttribute('aria-label',`${t('props.place')} ${item.name}`);card.innerHTML='<span class="prop-lib-thumb" aria-hidden="true" style="display:grid;place-items:center;font-size:52px"></span><span class="prop-lib-name"></span><span class="prop-lib-place"></span>';card.querySelector('.prop-lib-thumb').textContent=item.emoji;card.querySelector('.prop-lib-name').textContent=item.name;card.querySelector('.prop-lib-place').textContent=`${t('props.place')} · ${item.complexity}★`;card.addEventListener('click',()=>startPlacement(item));listEl.append(card);}
+      }).catch(()=>{resultsEl.textContent=t('props.unsupportedSaved');});
+      return;
+    }
+    if (!query && activeCat === 'skill-hosts') {
+      resultsEl.textContent=currentLang()==='zh-Hant'?'5 個永久技能位置':'5 permanent skill homes';
+      for(const [type,host] of Object.entries(SKILL_HOSTS)){const item=skillHostItem(`${SKILL_HOST_PREFIX}${type}`,currentLang());const card=document.createElement('button');card.type='button';card.className='prop-lib-card landmark-card';card.innerHTML='<span class="prop-lib-thumb" aria-hidden="true" style="display:grid;place-items:center;font-size:52px"></span><span class="prop-lib-name"></span><span class="prop-lib-place"></span>';card.querySelector('.prop-lib-thumb').textContent=host.emoji;card.querySelector('.prop-lib-name').textContent=item.name;card.querySelector('.prop-lib-place').textContent=currentLang()==='zh-Hant'?'放置永久技能位置':'Place permanent skill home';card.addEventListener('click',()=>startPlacement(item));listEl.append(card);}return;
+    }
     // City Essentials remains the welcoming starter shelf until a child picks
     // a themed pack.  A pack must always begin with the full shared library:
     // applying it to Essentials hides most themed models, and doing it only
@@ -800,6 +931,12 @@ export function mountPropLibrary(opts) {
     }
   }
   const fileInput=document.createElement('input'); fileInput.type='file'; fileInput.accept='.glb,model/gltf-binary'; fileInput.hidden=true; document.body.append(fileInput);
+  const onSkillSocket = (event) => {
+    const button=event.target?.closest?.('[data-skill-host]'); if(!button)return;
+    const p=state.placed.find(entry=>entry.record?.instanceId===button.dataset.skillHost); if(!p)return;
+    editSkillHostDialog(p.record,getCapabilities(),currentLang(),customManifest.models).then(async result=>{if(!result)return;if(result.openWorkshop){location.href=workshopUrl(p.record);return;}if(!result.value||p.record.locked)return;const before=cloneRecords();p.record=result.value;removeMesh(p);await projectSkillHost(p);commitRecords(before);renderInspector();}).catch(()=>toast('Could not open this skill.',true));
+  };
+  document.addEventListener('click',onSkillSocket);
   fileInput.addEventListener('change', async () => {
     const file=fileInput.files?.[0]; const replaceId=fileInput.dataset.replace || ''; delete fileInput.dataset.replace; fileInput.value=''; if(!file)return;
     let all=[]; try{all=await customModelStore.all();}catch{toast('My Models needs browser storage.',true);return;}
@@ -854,9 +991,10 @@ export function mountPropLibrary(opts) {
     if (onPlacementStart) { try { onPlacementStart(); } catch (e) { /* ignore */ } }
     // Load the model for the ghost (lazy). While loading, taps are ignored.
     const current = state.current;
-    Promise.resolve().then(() => loadAny(item)).catch(() => null).then((model) => {
+    Promise.resolve().then(() => item.host ? createSkillHostRoot(newSkillHostRecord(item.hostType),{capabilities:getCapabilities()}) : loadAny(item)).catch(() => null).then((model) => {
       if (destroyed || state.current !== current) return;
       state.current.ghostModel = model;
+      if(item.landmark)current.landmarkRecord=model?.userData?.defaultLandmarkRecord;
       if (model) {
         clearGhost();
         ghost.add(cloneGhost(model));
@@ -884,7 +1022,10 @@ export function mountPropLibrary(opts) {
   function dropAt(x, z) {
     if (!state.current || !state.current.ghostModel) return;
     if (destroyed || restoreActive) return;
-    const proposed = { id: state.current.item.id, x, y: 0, z, yaw: state.current.yaw };
+    let proposed = state.current.item.host ? newSkillHostRecord(state.current.item.hostType)
+      : state.current.item.landmark && state.current.landmarkRecord
+      ? { ...JSON.parse(JSON.stringify(state.current.landmarkRecord)), x, y:0, z, yaw:state.current.yaw }
+      : { id: state.current.item.id, x, y: 0, z, yaw: state.current.yaw };
     const resolved = resolvePlacement ? resolvePlacement({ position: [x, z], footprint: state.current.item.footprint || [2, 2],
       rotation: state.current.yaw, item: state.current.item, record: proposed, context: 'new' }) : { ok: true, position: [x, z] };
     if (resolved === false || (resolved && resolved.ok === false)) { toast('🚧 That spot blocks a road — try the verge or another clear space.', true); return; }
@@ -893,7 +1034,9 @@ export function mountPropLibrary(opts) {
     const before = cloneRecords();
     const p = { uid: _uidSeq++, record: withInstanceId(proposed), mesh: null };
     state.placed.push(p);
-    project(p, state.current.ghostModel);
+    if(state.current.item.host)projectSkillHost(p).catch(()=>toast(t('props.unsupportedSaved'),true));
+    else if(state.current.item.landmark)projectLandmark(p).catch(()=>toast(t('props.unsupportedSaved'),true));
+    else project(p, state.current.ghostModel);
     // Soft performance warning once a city gets crowded (no behaviour change —
     // the cap is informational only; kids can keep placing if they want).
     if (state.placed.length === PLACED_PROP_WARN) toast(t('props.manyProps'));
@@ -992,6 +1135,28 @@ export function mountPropLibrary(opts) {
   }
   if (unreadable) toast(t('props.unreadableSaved'), true);
   renderRecords();
+  // Returning from Model Studio is an explicit one-instance commit. A stale,
+  // cancelled, or mismatched draft is ignored and leaves the city untouched.
+  (async () => {
+    const transferId=new URLSearchParams(location.search).get('studioTransfer'); if(!transferId)return;
+    try {
+      const transfer=await consumeModelTransfer(transferId);
+      const p=transfer && state.placed.find(entry=>entry.record?.instanceId===transfer.instanceId);
+      if(!p || p.record.id!==transfer.baseId) return;
+      const all=await customModelStore.all(); const used=all.reduce((n,m)=>n+(m.bytes?.byteLength||0),0);
+      const checked=validateGLB(transfer.result.bytes,{totalBytes:used}); if(!checked.ok){toast(checked.error,true);return;}
+      const modelId=`studio-${transfer.id}`;
+      await customModelStore.put({id:modelId,bytes:transfer.result.bytes,name:`${transfer.name||'My model'} — revision`,createdAt:new Date().toISOString()});
+      if(!customManifest.models.some(m=>m.id===modelId))customManifest.models.push({id:modelId,name:`${transfer.name||'My model'} — revision`,createdAt:new Date().toISOString()});
+      writeCustomManifest(customManifest);
+      const before=cloneRecords();
+      p.record={...p.record,visualSource:{kind:'custom',modelId},studioHistory:[...(p.record.studioHistory||[]),p.record.visualSource||null].slice(-5)};
+      removeMesh(p); const item=itemFor(p.record.id);
+      if(item?.host)await projectSkillHost(p);else { const model=await loadCustom(customItem(modelId));if(model)project(p,model); }
+      commitRecords(before);renderInspector();toast('Saved to this city object. Undo is ready here.');
+      const clean=new URL(location.href);clean.searchParams.delete('studioTransfer');history.replaceState({},'',clean.href);
+    } catch { toast('Your Model Studio draft could not be restored. The original is safe.',true); }
+  })();
 
   const api = {
     open: openPanel,
@@ -1015,6 +1180,16 @@ export function mountPropLibrary(opts) {
      * replacing newer metadata with the envelope captured at boot.
      */
     readEnvelope: () => envelope,
+    async insertLandmark(templateId, transform={}) {
+      if(destroyed||restoreActive||!LANDMARK_WORKSHOP_ENABLED)return null;
+      const mod=await landmarkModule(),record=mod.makeLandmarkRecord(templateId,transform);if(!record)return null;
+      const before=cloneRecords(),p={uid:_uidSeq++,record:withInstanceId(record),mesh:null};state.placed.push(p);await projectLandmark(p);if(!commitRecords(before)){removeMesh(p);state.placed=state.placed.filter(x=>x!==p);return null;}renderCount();return p.record.instanceId;
+    },
+    async updateLandmark(instanceIdValue, config) {
+      const p=state.placed.find(e=>e.record?.instanceId===instanceIdValue);if(!p||p.record.locked||!itemFor(p.record.id)?.landmark)return false;
+      const mod=await landmarkModule(),checked=mod.validateLandmarkRecord({...p.record,landmark:{...p.record.landmark,config}});if(!checked.ok)return false;
+      const before=cloneRecords();p.record={...p.record,landmark:{...p.record.landmark,config:checked.config}};removeMesh(p);await projectLandmark(p);return commitRecords(before);
+    },
     replaceEnvelope(next) {
       if (destroyed || restoreActive || unreadable || !next || typeof next !== 'object' || Array.isArray(next)) return false;
       envelope = next;
@@ -1083,6 +1258,7 @@ export function mountPropLibrary(opts) {
       state.placed.forEach(removeMesh);
       clearTimeout(toastTimer);
       window.removeEventListener('i18n:change', relocalize);
+      document.removeEventListener('click', onSkillSocket);
       [style, button, panel, toolbar, inspector, hint, overlay, toastEl, fileInput].forEach(el => el?.remove());
       ghost.removeFromParent();
       if (window.__propLibrary === api) delete window.__propLibrary;

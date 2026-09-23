@@ -16,6 +16,7 @@ coverage/
 playwright-report/
 test-results/
 .playwright-mcp/
+.tmp/
 
 # one-time browser/verification screenshots at repo root (never commit; clean up after use)
 /*.png
@@ -45,6 +46,7 @@ packages/toolbox/models/**/*.wasm
 
 # never commit student/playtest data (R13/§5c)
 /playtest-data/
+P5 Programme/.demo-data/
 
 # skill-creator eval workspaces (transient benchmark artifacts)
 .ai/skills/*-workspace/

@@ -148,6 +148,7 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     if (expectedRevision !== active.revision) return { ok: false, conflict: true, project: clone(active) };
     if (!section || typeof section !== 'string' || !patch || typeof patch !== 'object') return { ok: false, error: 'Invalid project section.' };
     const before = clone(active); const next = clone(active); next.projects[section] = { ...(next.projects[section] || {}), ...clone(patch) }; next.revision++; next.updatedAt = now();
+    next.progress ||= {}; next.progress.lastWorkspace = section; next.progress.lastWorkspaceAt = next.updatedAt;
     if (!await write(next, `edit:${section}`)) return { ok: false, storageFull: true, project: before };
     active = next; emit({ type: 'changed', projectId: active.id, section, revision: active.revision }); return { ok: true, project: clone(active) };
   }

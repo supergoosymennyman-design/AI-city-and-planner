@@ -204,11 +204,11 @@ export function createTraffic(group, roads, opts = {}) {
     });
   }
 
-  function update(dt, streetLife = null) {
+  function update(dt, streetLife = null, collisionBodies = []) {
     if (destroyed) return;
     // Street-life occupancy is intentionally separate: pedestrians no longer
     // cross carriageways, so it cannot stall the graph halfway through a turn.
-    flow.update(streetLife ? (streetLife.shouldYield ? dt : dt) : dt);
+    flow.update(streetLife ? (streetLife.shouldYield ? dt : dt) : dt, collisionBodies);
     // Fixed-step interpolation: draw cars between the last two simulated poses
     // so motion stays smooth even when the display frame is shorter than the
     // 0.05s simulation slice.
@@ -287,6 +287,6 @@ export function createTraffic(group, roads, opts = {}) {
     fleet: { ...fleet, target: carCount + busCount, cars: carCount, buses: busCount, total: carCount + busCount, vehicleIds: trafficItems.map((item) => item.id) }, roadOccupancy,
     realisticFleet };
   const originalUpdate = update;
-  trafficDebug.update = (dt, streetLife) => { originalUpdate(dt, streetLife); refreshRoadOccupancy(); };
+  trafficDebug.update = (dt, streetLife, collisionBodies) => { originalUpdate(dt, streetLife, collisionBodies); refreshRoadOccupancy(); };
   return trafficDebug;
 }

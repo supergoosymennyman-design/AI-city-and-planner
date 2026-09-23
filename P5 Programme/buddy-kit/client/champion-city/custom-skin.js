@@ -12,6 +12,10 @@ const STORE = 'skins';
 const KEY = 'custom';
 const META_KEY = 'custom-meta';
 const REVISIONS_KEY = 'custom-revisions';
+function announceCustomSkin(available) {
+  if (typeof globalThis.dispatchEvent !== 'function' || typeof globalThis.CustomEvent !== 'function') return;
+  globalThis.dispatchEvent(new CustomEvent('champion-skin:changed', { detail: { available } }));
+}
 
 // Safety cap — a dressed "fitted champion" (base + all accessories) from Fit
 // Studio can exceed 30 MB (the base alone is ~24 MB; the full-fit sample is
@@ -46,7 +50,7 @@ export async function saveCustomSkin(file, metadata = null) {
       const store = tx.objectStore(STORE);
       store.put(buf, KEY);
       if (metadata) store.put(metadata, META_KEY);
-      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.oncomplete = () => { db.close(); announceCustomSkin(true); resolve(); };
       tx.onerror = () => { db.close(); reject(tx.error); };
     } catch (e) { db.close(); reject(e); }
   });
@@ -113,7 +117,7 @@ export async function clearCustomSkin() {
       const tx = db.transaction(STORE, 'readwrite');
       tx.objectStore(STORE).delete(KEY);
       tx.objectStore(STORE).delete(META_KEY);
-      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.oncomplete = () => { db.close(); announceCustomSkin(false); resolve(); };
       tx.onerror = () => { db.close(); resolve(); };
     } catch (e) { db.close(); resolve(); }
   });

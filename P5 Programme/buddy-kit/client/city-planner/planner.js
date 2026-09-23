@@ -33,6 +33,8 @@ import { analyzeRoadTopology } from '../city-common/road-topology.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, rememberSavedAt, lastSavedAt } from '../city-common/champion-file.js';
 import { createSnapshotHistory } from '../city-common/command-history.js';
 import { createProjectStateCoordinator } from '../city-common/project-state-coordinator.js';
+import { buildSampleCity } from '../city-common/sample-city.js';
+import { readExampleDraft, writeExampleDraft } from '../city-common/example-draft.js';
 import { initI18n, currentLang, t, mountLangToggle, applyStatic } from './i18n.js';
 
 // Language must be resolved BEFORE the first module-scope render: renderTemplates()
@@ -81,6 +83,7 @@ function buddyMsg(nameKey, msgKey) {
 
 const SCALE = 2000;                  // plan meters per side
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
+const exampleMode = new URLSearchParams(location.search).get('example') === '1';
 const MAX_UNDO = 50;
 
 // prefers-reduced-motion must be honoured in JS animation loops, not just CSS
@@ -2474,6 +2477,11 @@ function exportCity(mode = 'explore') {
     return;
   }
   const json = JSON.stringify(layout, null, 2);
+  if (exampleMode) {
+    if (!writeExampleDraft(layout)) { toast(t('planner.autosave.error')); return; }
+    window.location.href = `/city-builder/?example=1&draft=1&mode=${mode === 'decorate' ? 'decorate' : 'explore'}`;
+    return;
+  }
   // Save to localStorage — the SAME origin now serves the 3D city, so this IS
   // the handoff (no file download/upload round-trip). Then walk into it.
   const savedToStorage = projectState.saveSection('layout', json, { source: 'planner-handoff' }).ok;
@@ -2536,6 +2544,7 @@ function saveLayoutToStorage() {
     const layout = serializeLayout();
     const v = validateLayout(layout);
     if (!v.ok) return false;   // never persist an invalid city
+    if (exampleMode) return writeExampleDraft(layout);
     return projectState.saveSection('layout', currentLayoutString(), { source: 'planner-autosave' }).ok;
   } catch (e) {
     return false;              // quota / blocked storage — keep the in-memory city
@@ -3031,8 +3040,31 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('btn-ai').addEventListener('click', askOptimise);
 document.getElementById('btn-step').addEventListener('click', runMyMove);
 document.getElementById('btn-academy').addEventListener('click', () => { window.location.href = '/pregame/'; });
+document.getElementById('btn-example').addEventListener('click', () => {
+  // Preserve even the most recent in-memory edit before leaving for the
+  // isolated showcase. The example route never writes over this saved plan.
+  if (!exampleMode) flushAutosave();
+  window.location.href = '/city-builder/?example=1';
+});
 document.getElementById('btn-export').addEventListener('click', () => exportCity('explore'));
 document.getElementById('btn-decorate').addEventListener('click', () => exportCity('decorate'));
+document.getElementById('use-example-plan').addEventListener('click', () => {
+  if (!exampleMode) return;
+  // Capture the visible plan now, even if a debounced autosave has not fired.
+  // A blocked session store must never cause an older draft to be copied.
+  let draft;
+  try { draft = serializeLayout(); }
+  catch { toast('Could not read the example plan. Your city was kept.'); return; }
+  if (!writeExampleDraft(draft)) { toast('Could not save the example draft. Your city was kept.'); return; }
+  const existing = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch { return null; } })();
+  const question = existing
+    ? 'Replace your saved city with this example plan? A recovery snapshot will be made first.'
+    : 'Use this example plan as your city? A recovery snapshot will be made first.';
+  if (!window.confirm(question)) return;
+  const result = projectState.commit({ layout: JSON.stringify(draft) }, { source: 'example-copy', recovery: true, requireRecovery: true });
+  if (!result.ok) { toast(result.error || 'Could not save your city.'); return; }
+  window.location.href = '/planner/';
+});
 document.querySelectorAll('.tool-btn').forEach((btn) => {
   btn.addEventListener('click', () => setTool(btn.dataset.tool));
 });
@@ -3197,8 +3229,19 @@ function toast(msg) {
   wireCloudModal();
   mountLangToggle('.actions');
   applyStatic();
+  if (exampleMode) {
+    document.body.classList.add('example-plan');
+    const banner = document.getElementById('example-plan-banner');
+    if (banner) banner.hidden = false;
+  }
   let saved = null;
-  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+  if (exampleMode) {
+    const draft = readExampleDraft() || buildSampleCity();
+    saved = JSON.stringify(draft);
+    writeExampleDraft(draft);
+  } else {
+    try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+  }
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
@@ -3219,11 +3262,11 @@ function toast(msg) {
   setTool('place');
   updateMetrics();
   resize();
-  maybeShowCoach();
+  if (!exampleMode) maybeShowCoach();
   _booted = true;   // from here on, auto-save changes announce themselves
   // Offer to join a restored city's loose roads once, non-blockingly. The child
   // can always say "Not now" and the roads stay exactly as drawn.
-  if (refreshConnect() > 0 && !state.connectAsked) {
+  if (!exampleMode && refreshConnect() > 0 && !state.connectAsked) {
     state.connectAsked = true;
     setTimeout(() => { if (state.connectCount > 0) offerConnect(); }, 700);
   }

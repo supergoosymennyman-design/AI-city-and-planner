@@ -25,6 +25,18 @@
 </head>
 <!-- studio-page: the champion-load fallback panel hides once the champion autoloads (style.css) -->
 <body class="studio-page">
+  <script type="module">
+    // The Studio is also deployed alone. Only mount unified-project chrome when
+    // it is being served at /studio/ by the City/demo bundle.
+    if (location.pathname.startsWith('/studio/')) {
+      const css = document.createElement('link');
+      css.rel = 'stylesheet'; css.href = '../city-common/project-bar.css';
+      document.head.append(css);
+      import('../city-common/project-bar.js')
+        .then(({ mountProjectBar }) => mountProjectBar({ workspace: 'studio' }))
+        .catch(() => { /* standalone Studio keeps its established chrome */ });
+    }
+  </script>
   <canvas id="viewport" aria-label="3D champion fit-studio canvas"></canvas>
 
   <!-- Champion fallback only — gear loading lives in the HUD now. -->
@@ -180,6 +192,18 @@
       <div class="hud__row hud__row--wrap" id="clipButtons"></div>
     </div>
 
+    <details class="hud__section" id="cityAnimationSection">
+      <summary>AI City movements</summary>
+      <p class="hud__hint">Choose clips from this Champion. Idle, walk and run use the usual movements when left on Auto.</p>
+      <div id="cityActionSelectors"></div>
+      <div class="hud__row hud__row--wrap">
+        <input id="cityExtraName" maxlength="24" placeholder="New action name (e.g. Roar)" aria-label="New action name" />
+        <select id="cityExtraClip" aria-label="New action clip"></select>
+        <button type="button" id="cityAddAction" class="hud__btn">Add action</button>
+      </div>
+      <div id="cityExtraActions"></div>
+    </details>
+
     <!-- 5 · ASSETS + DEBUG -->
     <div class="hud__section" id="assetsSection">
       <span class="hud__label">Assets</span>
@@ -191,12 +215,12 @@
            24 MB base re-encodes its textures on export. Distinct from "Download fitted GLB",
            which bakes ONE accessory for the shared shelf. -->
       <div class="hud__row" style="margin-top:6px;">
-        <button type="button" id="btnDressedDownload" class="hud__btn hud__btn--wide hud__btn--primary">Download dressed champion (base + worn gear)</button>
+        <button type="button" id="btnDressedDownload" class="hud__btn hud__btn--wide hud__btn--primary">Download Champion GLB (gear + animations)</button>
       </div>
       <div class="hud__row" style="margin-top:6px;">
-        <button type="button" id="btnUseInCity" class="hud__btn hud__btn--wide hud__btn--primary">Use in AI City</button>
+        <button type="button" id="btnUseInCity" class="hud__btn hud__btn--wide hud__btn--primary" disabled>Champion loading…</button>
       </div>
-      <p class="hud__hint">Checks the skeleton and fitted gear, packages idle, walk and run in one Champion, then returns to this project’s City.</p>
+      <p class="hud__hint">Packages this Champion and its chosen movements in one GLB, then returns to AI City.</p>
       <div class="hud__row" style="margin-top:6px;">
         <button type="button" id="btnBones" class="hud__btn hud__btn--wide">Show bone list</button>
       </div>

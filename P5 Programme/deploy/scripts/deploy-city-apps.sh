@@ -86,7 +86,7 @@ build_city_sim() {
          city-sim/hong-kong-real city-sim/vendor city-sim/logic city-sim/buddy \
          city-sim/library city-sim/shared city-sim/planner city-sim/pregame \
          city-sim/studio city-sim/workshop \
-         city-sim/hub \
+         city-sim/hub city-sim/home \
          city-sim/project \
          city-sim/buddy-boot.js city-sim/buddy-core.css city-sim/buddy-theme.css \
          city-sim/buddy-widget.css city-sim/buddy-widget.js city-sim/buddy.js \
@@ -99,6 +99,11 @@ build_city_sim() {
   cp -r "$KIT/client/library"           city-sim/library
   cp -r "$KIT/client/shared"            city-sim/shared
   cp -r "$KIT/client/project-hub"        city-sim/hub
+  # The project-aware Hub reuses the standalone Champion Hub's local typeface
+  # files without changing that independently deployed app.
+  mkdir -p city-sim/home
+  cp "$KIT/client/home/fonts.css"         city-sim/home/fonts.css
+  cp -r "$KIT/client/home/fonts"          city-sim/home/fonts
   # Studio is same-origin with City so its validated GLB + document revision can
   # be handed over atomically through IndexedDB. Workshop remains bridged while
   # its separately deployed editor is adopted.

@@ -59,7 +59,6 @@ export function mountFocusedCityUI({ propLibrary, myWork, onModeChange = () => {
 
   document.getElementById('more-home')?.addEventListener('click',()=>document.getElementById('btn-home')?.click());
   document.getElementById('more-camera')?.addEventListener('click',()=>document.getElementById('orbit-toggle')?.click());
-  document.getElementById('more-hub')?.addEventListener('click',()=>document.getElementById('btn-hub')?.click());
   document.getElementById('more-drive')?.addEventListener('click',()=>document.getElementById('btn-drive')?.click());
   // Time is a scene control rather than secondary navigation. Keep its
   // established one-tap button on the canvas so the four moods stay

@@ -23,6 +23,7 @@
     <button id="btn-save" class="action-btn" data-i18n="planner.save" data-i18n-title="planner.saveTitle" title="Save a copy of your city to keep (download)">💾 Save</button>
     <button id="btn-decorate" class="action-btn primary" data-i18n="planner.decorateCity" data-i18n-title="planner.decorateCityTitle" title="Save your plan and decorate it in 3D">🎨 Decorate city</button>
     <button id="btn-export" class="action-btn primary" data-i18n="planner.viewCity" data-i18n-title="planner.viewCityTitle" title="Save your city and explore it in 3D">🌆 Explore city</button>
+    <a class="action-btn" href="/city-builder/?example=1" title="Open the example without replacing your saved plan">🏙️ Example city</a>
     <details id="planner-more"><summary data-i18n="planner.moreTools">Revise / open / learn</summary><div class="secondary-tools">
     <button id="btn-clear" class="action-btn" data-i18n="planner.clear" data-i18n-title="planner.clearTitle" title="Clear the city">🗑️ Clear</button>
     <div class="template-wrap">
@@ -36,6 +37,7 @@
     <button id="btn-step" class="action-btn step" data-i18n="planner.mymove" data-i18n-title="planner.mymoveTitle" title="Be the planner — predict the best change, then see the maths">🧠 My move</button>
     <button id="btn-ai" class="action-btn opt" data-i18n="planner.optimise" data-i18n-title="planner.optimiseTitle" title="Let the city optimiser improve your city in one pass">🧮 Optimise</button>
     <button id="btn-academy" class="action-btn" data-i18n="planner.academy" data-i18n-title="planner.academyTitle" title="Learn how the planner works">🎓 Learn</button>
+    <button id="btn-example" class="action-btn" data-i18n="planner.example" data-i18n-title="planner.exampleTitle" title="Explore the example city in 3D without replacing your plan">🏙️ Example city</button>
     <div class="import-wrap">
       <button id="btn-import" class="action-btn" data-i18n="planner.open" data-i18n-title="planner.openTitle" title="Open a saved city from a JSON file">📂 Open</button>
       <div id="import-menu" class="import-menu hidden">
@@ -55,6 +57,11 @@
     </div></details>
   </div>
 </header>
+<div id="example-plan-banner" hidden role="status">
+  <strong>🏙️ Example copy — your city is safe</strong>
+  <span>Change this plan, then preview it in 3D.</span>
+  <button type="button" id="use-example-plan">Use this plan as my city</button>
+</div>
 
 <div id="hint-bar" aria-live="polite">Tap the map to place a building.</div>
 
