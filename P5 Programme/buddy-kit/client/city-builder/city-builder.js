@@ -124,7 +124,7 @@ async function importCustomChampion(file) {
     const metadata = championMetadataFromGLTF(gltf);
     if (metadata) {
       const rig = collectRigInfo(gltf.scene);
-      const check = validateStudioChampion({ metadata, animations: gltf.animations, boneNames: rig.boneNames, nodeNames: rig.nodeNames, rootName: gltf.scene.name });
+      const check = validateStudioChampion({ metadata, animations: gltf.animations, boneNames: rig.boneNames, nodeNames: rig.nodeNames, rootName: gltf.scene.name, hasGeometry: !new THREE.Box3().setFromObject(gltf.scene).isEmpty() });
       if (!check.ok) return { ok: false, message: check.error };
     }
     const nextUrl = blobToObjectUrl(file);

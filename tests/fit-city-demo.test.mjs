@@ -16,8 +16,10 @@ test('Studio demo GLB reloads with a skinned biped and four City actions', async
   const check = validateStudioChampion({ metadata, animations: gltf.animations, boneNames: rig.boneNames, nodeNames: rig.nodeNames, rootName: gltf.scene.name });
   assert.equal(check.ok, true, check.error);
   assert.ok(rig.skeletonCount > 0);
+  assert.equal(metadata.formatVersion, 2);
+  assert.equal(metadata.animationMode, 'studio');
   assert.deepEqual(Object.keys(check.clips), ['idle', 'walk', 'run', 'jump']);
-  assert.ok(metadata.footBones.every(name => rig.boneNames.includes(name)));
+  assert.ok(metadata.groundContacts.every(contact => rig.nodeNames.includes(contact.node) && contact.point.every(Number.isFinite)));
   const mixer = new THREE.AnimationMixer(gltf.scene);
   const hip = gltf.scene.getObjectByName('j1');
   const rest = hip.position.y;

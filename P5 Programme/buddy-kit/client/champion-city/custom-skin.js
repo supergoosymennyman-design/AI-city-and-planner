@@ -48,8 +48,8 @@ export async function saveCustomSkin(file, metadata = null) {
     try {
       const tx = db.transaction(STORE, 'readwrite');
       const store = tx.objectStore(STORE);
-      store.put(buf, KEY);
-      if (metadata) store.put(metadata, META_KEY);
+      store.put({ buffer: buf, metadata }, KEY);
+      if (metadata) store.put(metadata, META_KEY); // readable by older builds
       tx.oncomplete = () => { db.close(); announceCustomSkin(true); resolve(); };
       tx.onerror = () => { db.close(); reject(tx.error); };
     } catch (e) { db.close(); reject(e); }
@@ -63,8 +63,13 @@ export async function loadCustomSkinMetadata() {
   try { db = await openDb(); } catch { return null; }
   return new Promise(resolve => {
     const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).get(META_KEY);
-    req.onsuccess = () => { db.close(); resolve(req.result || null); };
+    const req = tx.objectStore(STORE).get(KEY);
+    req.onsuccess = () => {
+      if (req.result?.buffer) { db.close(); resolve(req.result.metadata || null); return; }
+      const legacy = tx.objectStore(STORE).get(META_KEY);
+      legacy.onsuccess = () => { db.close(); resolve(legacy.result || null); };
+      legacy.onerror = () => { db.close(); resolve(null); };
+    };
     req.onerror = () => { db.close(); resolve(null); };
   });
 }
@@ -100,7 +105,8 @@ export async function loadCustomSkinBlob() {
         const v = req.result;
         db.close();
         if (v instanceof Blob) { resolve(v); return; }                // legacy blob entry
-        if (v instanceof ArrayBuffer) { resolve(new Blob([v])); return; }   // current path
+        if (v instanceof ArrayBuffer) { resolve(new Blob([v])); return; }   // legacy buffer
+        if (v?.buffer instanceof ArrayBuffer) { resolve(new Blob([v.buffer])); return; }
         resolve(null);
       };
       req.onerror = () => { db.close(); resolve(null); };

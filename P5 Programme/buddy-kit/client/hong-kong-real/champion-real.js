@@ -83,6 +83,7 @@ export async function createChampion(assetBase, city, opts = {}) {
   // Dual-foot grounding uses min(soleL, soleR) so the PLANTED foot defines the
   // height and the swing foot never pumps the whole body at step cadence.
   let _footBones = null;
+  let _groundContacts = [];
   let _soleOffWorld = 0;  // ankle-bone → sole vertical gap in world units, once per skin
   // Grounding diagnostics (debug HUD): last measured sole/surface/gap in metres.
   const groundDebug = { surface: 0, soleY: 0, gap: 0, soleOff: 0 };
@@ -233,6 +234,26 @@ export async function createChampion(assetBase, city, opts = {}) {
       : 0;
   }
 
+  function groundedSoleAtZero() {
+    if (!model) return 0;
+    const savedY = group.position.y;
+    group.position.y = 0;
+    model.updateMatrixWorld(true);
+    let minY = Infinity;
+    if (_groundContacts.length) {
+      for (const contact of _groundContacts) {
+        if (contact.node) minY = Math.min(minY, contact.node.localToWorld(contact.point.clone()).y);
+      }
+    } else if (_footBones) {
+      _ensureSoleOffset();
+      for (const bone of [_footBones.left, _footBones.right]) {
+        if (bone) minY = Math.min(minY, bone.getWorldPosition(_footV).y - _soleOffWorld);
+      }
+    }
+    group.position.y = savedY;
+    return Number.isFinite(minY) ? minY : 0;
+  }
+
   function normalizeModel(m) {
     m.updateMatrixWorld(true);
     // World-space bounds via Box3: accounts for the armature parent + node
@@ -305,7 +326,7 @@ export async function createChampion(assetBase, city, opts = {}) {
     robot.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     normalizeModel(robot);
     model = robot;
-    _footBones = null;   // procedural robot has no skeleton — DROP_FRAC fallback
+    _footBones = null; _groundContacts = [];   // procedural robot has no skeleton — DROP_FRAC fallback
     _soleOffWorld = 0;
     group.add(robot);
     applyWorldScale();
@@ -324,19 +345,23 @@ export async function createChampion(assetBase, city, opts = {}) {
       gltf = await loader.loadAsync(glbUrl);
     } catch (e) {
       console.warn('[champion] skin GLB load failed:', glbUrl, e);
+      opts.onChampionWarning?.('The saved Champion model could not be opened. Upload its GLB again.');
       return false;   // keep the current model — caller decides the fallback
     }
     const newModel = gltf.scene;
     const rig = collectRigInfo(newModel);
     const declared = championMetadataFromGLTF(gltf);
-    const studioCheck = validateStudioChampion({ metadata: declared, animations: gltf.animations || [], boneNames: rig.boneNames, nodeNames: rig.nodeNames, rootName: newModel.name });
+    const visibleBox = new THREE.Box3().setFromObject(newModel);
+    const studioCheck = validateStudioChampion({ metadata: declared, animations: gltf.animations || [], boneNames: rig.boneNames, nodeNames: rig.nodeNames, rootName: newModel.name, hasGeometry: !visibleBox.isEmpty() });
     if (declared && !studioCheck.ok) {
       console.warn('[champion] Studio Champion rejected:', studioCheck.error);
       opts.onChampionWarning?.(studioCheck.error);
       return false;
     }
     normalizeModel(newModel);
-    _footBones = findFootBones(newModel, studioCheck.ok ? declared : null);
+    _footBones = studioCheck.ok && declared?.formatVersion === 2 ? null : findFootBones(newModel, studioCheck.ok ? declared : null);
+    _groundContacts = studioCheck.ok && declared?.formatVersion === 2
+      ? studioCheck.groundContacts.map(contact => ({ node: newModel.getObjectByName(contact.node), point: new THREE.Vector3(...contact.point) })) : [];
     // soleOff is measured lazily on the first grounded update (once the group
     // scale + scene matrices are final) — see _ensureSoleOffset() in update().
     _soleOffWorld = 0;
@@ -626,22 +651,8 @@ export async function createChampion(assetBase, city, opts = {}) {
       // robot) we fall back to the old fraction-based drop.
       mixer.update(dt);
       let soleWorldAtZero = 0;
-      if (!state.oneShot && _footBones && model) {
-        _ensureSoleOffset();
-        const savedY = group.position.y;
-        group.position.y = 0;
-        model.updateMatrixWorld(true);
-        let minSole = Infinity;
-        if (_footBones.left) {
-          _footBones.left.getWorldPosition(_footV);
-          minSole = Math.min(minSole, _footV.y - _soleOffWorld);
-        }
-        if (_footBones.right) {
-          _footBones.right.getWorldPosition(_footR);
-          minSole = Math.min(minSole, _footR.y - _soleOffWorld);
-        }
-        group.position.y = savedY;
-        soleWorldAtZero = Number.isFinite(minSole) ? minSole : 0;
+      if (!state.oneShot && (_groundContacts.length || _footBones) && model) {
+        soleWorldAtZero = groundedSoleAtZero();
         // Surface the champion stands on (analytic, from the layout when the
         // city provides it). Sink bias −0.01: the eye forgives 1 cm of sink,
         // never 1 cm of float.
@@ -693,17 +704,8 @@ export async function createChampion(assetBase, city, opts = {}) {
       const surface = city && typeof city.groundHeightAt === 'function'
         ? city.groundHeightAt(x, z)
         : 0;
-      if (!state.oneShot && _footBones && model) {
-        _ensureSoleOffset();
-        const savedY = group.position.y;
-        group.position.y = 0;
-        model.updateMatrixWorld(true);
-        let minSole = Infinity;
-        if (_footBones.left) { _footBones.left.getWorldPosition(_footV); minSole = Math.min(minSole, _footV.y - _soleOffWorld); }
-        if (_footBones.right) { _footBones.right.getWorldPosition(_footR); minSole = Math.min(minSole, _footR.y - _soleOffWorld); }
-        group.position.y = savedY;
-        const soleWorldAtZero = Number.isFinite(minSole) ? minSole : 0;
-        group.position.set(x, surface - 0.01 - soleWorldAtZero, z);
+      if (!state.oneShot && (_groundContacts.length || _footBones) && model) {
+        group.position.set(x, surface - 0.01 - groundedSoleAtZero(), z);
       } else {
         group.position.set(x, surface - 0.01, z);
       }

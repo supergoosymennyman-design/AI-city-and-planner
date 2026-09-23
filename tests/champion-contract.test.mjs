@@ -51,3 +51,19 @@ test('declared foot joints must exist in the exported skeleton', () => {
   assert.equal(validateStudioChampion({ metadata: withFeet, animations, boneNames: ['Hips', 'LeftFoot', 'RightFoot'] }).ok, true);
   assert.match(validateStudioChampion({ metadata: withFeet, animations, boneNames: ['Hips', 'LeftFoot'] }).error, /foot joints/);
 });
+
+test('version 2 admits a visible solid Champion without clips or a skeleton', () => {
+  const solid = { ...metadata, formatVersion: 2, animationMode: 'static', rigKind: 'other', groundContacts: [], actions: undefined };
+  const valid = validateStudioChampion({ metadata: solid, animations: [], boneNames: [], nodeNames: ['Body'], hasGeometry: true });
+  assert.equal(valid.ok, true, valid.error);
+  assert.deepEqual(valid.clips, {});
+  assert.match(validateStudioChampion({ metadata: solid, hasGeometry: false }).error, /visible geometry/);
+});
+
+test('version 2 admits many contacts and reports bad references and missing movement', () => {
+  const many = { ...metadata, formatVersion: 2, animationMode: 'studio', rigKind: 'other', actions: { idle: 'i', walk: 'w', run: 'r', jump: 'j' }, groundContacts: Array.from({ length: 6 }, (_, i) => ({ node: `Foot${i}`, point: [0, -.1, 0] })) };
+  const nodes = many.groundContacts.map(contact => contact.node);
+  assert.equal(validateStudioChampion({ metadata: many, animations: ['i', 'w', 'r', 'j'].map(name => clip(name, ['Body'])), nodeNames: ['Body', ...nodes] }).ok, true);
+  assert.match(validateStudioChampion({ metadata: many, animations: ['i', 'w', 'r'].map(name => clip(name, ['Body'])), nodeNames: ['Body', ...nodes] }).error, /jump/);
+  assert.match(validateStudioChampion({ metadata: { ...many, groundContacts: [{ node: 'Absent', point: [0, 0, 0] }] }, nodeNames: ['Body', ...nodes] }).error, /grounding contact/);
+});

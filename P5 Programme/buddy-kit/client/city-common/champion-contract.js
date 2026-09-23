@@ -1,6 +1,6 @@
 // champion-contract.js — the small, versioned contract between Studio and City.
 // Kept free of three.js so City imports and node:test use the same validator.
-export const CHAMPION_FORMAT_VERSION = 1;
+export const CHAMPION_FORMAT_VERSION = 2;
 export const CHAMPION_ACTIONS = ['idle', 'walk', 'run'];
 export const OPTIONAL_CHAMPION_ACTIONS = ['jump', 'wave', 'dance'];
 export const SUPPORTED_RIGS = ['biped', 'quadruped'];
@@ -17,23 +17,33 @@ export function championMetadataFromGLTF(gltf) {
 }
 
 /** Validate mappings against clips and nodes in the same GLB. Never throws. */
-export function validateStudioChampion({ metadata, animations = [], boneNames = [], nodeNames = boneNames, rootName = '', meshBounds = null } = {}) {
+export function validateStudioChampion({ metadata, animations = [], boneNames = [], nodeNames = boneNames, rootName = '', meshBounds = null, hasGeometry = true } = {}) {
   if (!metadata) return { ok: false, legacy: true, error: 'No Studio movement information was found.' };
   if (!Array.isArray(animations) || !Array.isArray(boneNames) || !Array.isArray(nodeNames)) return { ok: false, error: 'The Champion animation data is malformed.' };
-  if (metadata.formatVersion !== CHAMPION_FORMAT_VERSION) return { ok: false, error: 'This Champion was made by an unsupported Studio version.' };
+  if (![1, CHAMPION_FORMAT_VERSION].includes(metadata.formatVersion)) return { ok: false, error: 'This Champion was made by an unsupported Studio version.' };
   if (!metadata.championId || !Number.isInteger(metadata.studioRevision) || metadata.studioRevision < 1) return { ok: false, error: 'The Champion identity or revision is missing.' };
   if (metadata.rigKind && ![...SUPPORTED_RIGS, 'other'].includes(metadata.rigKind)) return { ok: false, error: `Rig kind “${metadata.rigKind}” is not supported.` };
   if (!finitePositive(metadata.height)) return { ok: false, error: 'The Champion height is missing or invalid.' };
   if (!metadata.assetHash || typeof metadata.assetHash !== 'string') return { ok: false, error: 'The Champion asset hash is missing.' };
+  if (!hasGeometry) return { ok: false, error: 'The Champion has no visible geometry.' };
+  if (meshBounds && (!finitePositive(meshBounds.height) || meshBounds.minY < -metadata.height * 0.2)) return { ok: false, error: 'The Champion cannot be grounded safely.' };
+  const animationMode = metadata.formatVersion === 1 ? 'studio' : metadata.animationMode;
+  if (!['static', 'studio'].includes(animationMode)) return { ok: false, error: 'The Champion movement mode is missing or invalid.' };
+  const contacts = metadata.formatVersion === 2 ? metadata.groundContacts || [] : [];
+  if (!Array.isArray(contacts) || contacts.length > 64 || contacts.some(contact =>
+    !contact || typeof contact.node !== 'string' || !nodeNames.includes(contact.node) ||
+    !Array.isArray(contact.point) || contact.point.length !== 3 || contact.point.some(n => typeof n !== 'number' || !Number.isFinite(n))))
+    return { ok: false, error: 'A grounding contact refers to a missing model part or invalid point.' };
+  if (animationMode === 'static') return { ok: true, metadata, clips: {}, groundContacts: contacts, footBoneNames: [], extraActions: [] };
   const byName = new Map(animations.map(clip => [clip?.name, clip]));
   if (byName.size !== animations.length) return { ok: false, error: 'The Champion has duplicate clip names.' };
   const targets = new Set([...boneNames, ...nodeNames]);
-  if (metadata.footBones !== undefined && (!Array.isArray(metadata.footBones) ||
+  if (metadata.formatVersion === 1 && metadata.footBones !== undefined && (!Array.isArray(metadata.footBones) ||
       metadata.footBones.length > 4 || metadata.footBones.some(name => !boneNames.includes(name))))
     return { ok: false, error: 'The Champion foot joints are missing from its skeleton.' };
   const clips = {};
-  const mappings = CHAMPION_ACTIONS.map(state => [state, metadata.actions?.[state]]);
-  for (const state of OPTIONAL_CHAMPION_ACTIONS) if (metadata.actions?.[state]) mappings.push([state, metadata.actions[state]]);
+  const mappings = [...CHAMPION_ACTIONS, ...(metadata.formatVersion === 2 ? ['jump'] : [])].map(state => [state, metadata.actions?.[state]]);
+  for (const state of OPTIONAL_CHAMPION_ACTIONS) if (metadata.actions?.[state] && !mappings.some(([key]) => key === state)) mappings.push([state, metadata.actions[state]]);
   if (metadata.extraActions !== undefined && !Array.isArray(metadata.extraActions)) return { ok: false, error: 'Extra actions must be a list.' };
   const extraActions = [];
   for (const extra of metadata.extraActions || []) {
@@ -60,8 +70,7 @@ export function validateStudioChampion({ metadata, animations = [], boneNames = 
     clips[state] = clip;
   }
   const feet = boneNames.filter(name => /(foot|paw|hoof)/i.test(name));
-  if (meshBounds && (!finitePositive(meshBounds.height) || meshBounds.minY < -metadata.height * 0.2)) return { ok: false, error: 'The Champion cannot be grounded safely.' };
-  return { ok: true, metadata, clips, footBoneNames: feet, extraActions };
+  return { ok: true, metadata, clips, groundContacts: contacts, footBoneNames: feet, extraActions };
 }
 
 export function collectRigInfo(root) {

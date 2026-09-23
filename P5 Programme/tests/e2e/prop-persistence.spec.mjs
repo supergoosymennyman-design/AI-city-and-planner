@@ -165,7 +165,7 @@ test('a valid device-local GLB can be named, role-assigned, placed and restored'
  page.once('dialog',dialog=>dialog.accept('Park Sculpture'));
  await page.locator('input[type="file"][accept*=".glb"]').setInputFiles({
   name:'park-sculpture.glb',mimeType:'model/gltf-binary',
-  buffer:readFileSync(new URL('../../buddy-kit/client/library/props/kenney-bench.glb',import.meta.url)),
+  buffer:readFileSync(new URL('../../docs/workshop-studio-demo/city-export-fixtures/four-legged-placement.glb',import.meta.url)),
  });
  const card=page.locator('[data-model-state="ready"]');
  await expect(card).toContainText('Park Sculpture');

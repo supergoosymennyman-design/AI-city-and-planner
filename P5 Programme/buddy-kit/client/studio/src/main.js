@@ -20,7 +20,7 @@ import { motionClips } from './rig/motion.js';
 import { clone as cloneRiggedScene } from 'three/addons/utils/SkeletonUtils.js';
 import { BindScheduler } from './rig/bind-scheduler.js';
 import { importGLBFile, exportGLB, downloadGLB } from './io/gltf.js';
-import { buildCityChampion } from './io/city-champion.js';
+import { CityExportPanel } from './ui/city-export-panel.js';
 import { applyGroupDelta } from './edit/group-transform.js';
 import { takeSnapshot, restoreSnapshot } from './edit/snapshot.js';
 import { setWireframe } from './edit/material-ops.js';
@@ -685,28 +685,9 @@ async function onExportPose() {
 }
 
 document.getElementById('export-model').addEventListener('click', onExportPose);
-document.getElementById('export-city').addEventListener('click', async () => {
-  const rig = studio.rig;
-  if (!rig?.skinBones.length) { toast.error('Rig and bend a two-legged Champion before exporting for AI City.'); return; }
-  studio.select(null);
-  rig.readPose();
-  const restore = rig.detachHelpers();
-  try {
-    const output = cloneRiggedScene(studio.group);
-    output.traverse(node => { if (node.isBone) node.quaternion.identity(); });
-    const identityKey = 'passiona_studio_city_champion_v1';
-    let identity;
-    try { identity = JSON.parse(localStorage.getItem(identityKey) || 'null'); } catch { /* start a new identity */ }
-    const championId = identity?.championId || globalThis.crypto?.randomUUID?.() || `studio-${Date.now()}`;
-    const studioRevision = (identity?.studioRevision || 0) + 1;
-    const { data } = await buildCityChampion(output, rig, { championId, studioRevision });
-    downloadGLB(data, 'my-ai-city-champion.glb');
-    localStorage.setItem(identityKey, JSON.stringify({ championId, studioRevision }));
-    toast.show('Downloaded my-ai-city-champion.glb with Idle, Walk, Run and Jump. Add it at the AI City entrance.');
-  } catch (error) { console.error(error); toast.error(`AI City export failed: ${error.message}`); }
-  finally { restore(); }
-});
 const motionPanel = new MotionPanel(studio, toast);
+const cityExportPanel = new CityExportPanel(studio, toast, () => motionPanel.open());
+document.getElementById('export-city').addEventListener('click', () => cityExportPanel.open());
 const toolbar = new Toolbar(document.getElementById('actions'), studio, transformControls, {
   toast,
   onImport: doImport,
@@ -1120,6 +1101,7 @@ function animate(now) {
   if (genPanel.isOpen()) return; // the AI overlay owns the keyboard while it is open
   if (studio.rig) studio.rig.update(); // a shape that owns joints moved → bones re-placed, skin follows (Task 8)
   motionPanel.update(now);
+  cityExportPanel.update(now);
   studio.syncOutlines();
   viewport.render();
 }

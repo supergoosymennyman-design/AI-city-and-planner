@@ -1,0 +1,30 @@
+[
+  {
+    "name": "four-legged",
+    "animationMode": "studio",
+    "contacts": 4,
+    "placementBytes": 16892,
+    "championBytes": 108692
+  },
+  {
+    "name": "six-legged",
+    "animationMode": "studio",
+    "contacts": 6,
+    "placementBytes": 22832,
+    "championBytes": 149328
+  },
+  {
+    "name": "legless-rig",
+    "animationMode": "studio",
+    "contacts": 0,
+    "placementBytes": 5032,
+    "championBytes": 27552
+  },
+  {
+    "name": "unrigged",
+    "animationMode": "static",
+    "contacts": 0,
+    "placementBytes": 6108,
+    "championBytes": 6320
+  }
+]
