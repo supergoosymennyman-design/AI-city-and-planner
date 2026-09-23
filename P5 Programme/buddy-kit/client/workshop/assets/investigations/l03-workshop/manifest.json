@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "lesson": 3,
+  "title": "Learn the AI Workshop",
+  "data": {
+    "dataset": "iris-v1",
+    "split": "test",
+    "ids": [
+      "iris-001",
+      "iris-005",
+      "iris-054",
+      "iris-055",
+      "iris-104",
+      "iris-110"
+    ],
+    "selection": "First two held-out rows per Iris class in frozen library order."
+  },
+  "machines": {
+    "student": {
+      "button": "1 · Button makes a crate",
+      "files": "2 · Files make crates",
+      "itemFault": "3 · Fault: broken item path",
+      "signalFault": "4 · Fault: signal detour"
+    },
+    "teacher": {
+      "button": "1 · Button makes a crate",
+      "files": "2 · Files make crates",
+      "itemFault": "3 · Fault: broken item path",
+      "signalFault": "4 · Fault: signal detour",
+      "itemAnswer": "5 · Answer: reconnect Track to Bin",
+      "signalAnswer": "6 · Answer: reconnect Button to Feeder"
+    }
+  },
+  "connectionLaw": {
+    "item": "Feeder → Track → Bin",
+    "buttonSignal": "Button pressed → Feeder drop",
+    "filesSignal": "Files row → Feeder drop",
+    "note": "Pieces start disconnected. Moving a piece never changes its connections."
+  }
+}

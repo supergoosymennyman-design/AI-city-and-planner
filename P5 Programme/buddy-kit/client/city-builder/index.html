@@ -144,15 +144,15 @@
     @media (max-width: 640px), (max-height: 640px) {
       .move-btn { width: 68px; height: 68px; font-size: 22px; }
     }
-    #example-session-banner {
+    #example-session-banner, #new-city-session-banner {
       position:fixed; z-index:140; top:72px; left:50%; transform:translateX(-50%);
       display:flex; align-items:center; gap:12px; width:max-content; max-width:calc(100vw - 24px);
       padding:8px 10px 8px 14px; border:1px solid rgba(255,184,76,.7); border-radius:14px;
       background:#211d31; color:#ffe0a8; box-shadow:0 8px 24px rgba(0,0,0,.35);
       font:800 14px/1.25 var(--font-ui, sans-serif);
     }
-    #example-session-banner[hidden] { display:none; }
-    #example-return {
+    #example-session-banner[hidden], #new-city-session-banner[hidden] { display:none; }
+    #example-return, #new-city-return {
       min-height:40px; display:flex; align-items:center; padding:7px 12px; border-radius:10px;
       background:#ffb84c; color:#152033; text-decoration:none; white-space:nowrap;
     }
@@ -288,6 +288,10 @@
 <div id="example-session-banner" role="status" hidden>
   <span data-i18n="example.viewing">🏙️ Viewing the example city</span>
   <a id="example-return" href="/planner/" data-i18n="example.backPlanner">Back to Planner</a>
+</div>
+<div id="new-city-session-banner" role="status" hidden>
+  <span>🏗️ Exploring your new city draft</span>
+  <a id="new-city-return" href="/planner/?new=1">Edit plan</a>
 </div>
 
 <!-- Save modal: name + Download / Save-to-cloud (shows the code) -->

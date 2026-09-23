@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "title": "Mira · camera creature",
+  "physicalTrainingExamples": [],
+  "note": "No examples are bundled. Teach two visually distinct physical objects with the Model Teach panel.",
+  "responseLearning": "One global three-action Chance table for all recognised objects. Reward changes only the last selected action weight in the current Run.",
+  "persistence": "Camera examples persist when the owner saves the Champion. Chance weights reset at every Run."
+}

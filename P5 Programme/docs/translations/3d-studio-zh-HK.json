@@ -1,0 +1,4437 @@
+{
+  "locale": "zh-HK",
+  "source": "Google Drive 3d-studio (latest), folder 1RfTXCUvJawZMHFZlv_uZU0mlvKdWw1rm",
+  "bundle": "assets/index-DYOibJJM.js",
+  "entries": [
+    {
+      "source": "3D Studio",
+      "translation": "3D 工作室",
+      "context": "HTML title text",
+      "location": "index.html"
+    },
+    {
+      "source": "🤖 3D STUDIO",
+      "translation": "🤖 3D 工作室",
+      "context": "HTML logo text",
+      "location": "index.html"
+    },
+    {
+      "source": "Download the scene as GLB, including any finished rig",
+      "translation": "把場景下載成 GLB，包括已完成的骨架",
+      "context": "HTML export-model [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Export GLB",
+      "translation": "匯出 GLB",
+      "context": "HTML export-model text",
+      "location": "index.html"
+    },
+    {
+      "source": "Undo (Ctrl+Z)",
+      "translation": "復原（Ctrl+Z）",
+      "context": "HTML undo [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Redo (Ctrl+Shift+Z)",
+      "translation": "重做（Ctrl+Shift+Z）",
+      "context": "HTML redo [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Start a new scene",
+      "translation": "開始新場景",
+      "context": "HTML new [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Help (?)",
+      "translation": "說明（?）",
+      "context": "HTML help [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Model shop",
+      "translation": "模型商店",
+      "context": "HTML shop-sidebar [aria-label]",
+      "location": "index.html"
+    },
+    {
+      "source": "Model Shop",
+      "translation": "模型商店",
+      "context": "HTML h2 text",
+      "location": "index.html"
+    },
+    {
+      "source": "Lv 1",
+      "translation": "等級 1",
+      "context": "HTML shop-level text",
+      "location": "index.html"
+    },
+    {
+      "source": "Collapse or expand the model shop",
+      "translation": "收起或展開模型商店",
+      "context": "HTML shop-toggle [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Search models",
+      "translation": "搜尋模型",
+      "context": "HTML shop-search [aria-label]",
+      "location": "index.html"
+    },
+    {
+      "source": "Search models",
+      "translation": "搜尋模型",
+      "context": "HTML shop-search [placeholder]",
+      "location": "index.html"
+    },
+    {
+      "source": "Model categories",
+      "translation": "模型類別",
+      "context": "HTML shop-categories [aria-label]",
+      "location": "index.html"
+    },
+    {
+      "source": "Shop view",
+      "translation": "商店檢視",
+      "context": "HTML shop-view-toggle [aria-label]",
+      "location": "index.html"
+    },
+    {
+      "source": "Shop",
+      "translation": "商店",
+      "context": "HTML shop-view-opt text",
+      "location": "index.html"
+    },
+    {
+      "source": "Tree",
+      "translation": "技能樹",
+      "context": "HTML shop-view-opt text",
+      "location": "index.html"
+    },
+    {
+      "source": "Demo credits. Lessons are not connected yet.",
+      "translation": "示範金幣；目前尚未連接課堂進度。",
+      "context": "HTML shop-demo-note text",
+      "location": "index.html"
+    },
+    {
+      "source": "Demo controls",
+      "translation": "示範控制項",
+      "context": "HTML shop-debug [aria-label]",
+      "location": "index.html"
+    },
+    {
+      "source": "Demo controls (not lesson rewards)",
+      "translation": "示範控制（並非課堂獎勵）",
+      "context": "HTML span text",
+      "location": "index.html"
+    },
+    {
+      "source": "+50 coins",
+      "translation": "+50 金幣",
+      "context": "HTML button text",
+      "location": "index.html"
+    },
+    {
+      "source": "+1 level",
+      "translation": "等級 +1",
+      "context": "HTML button text",
+      "location": "index.html"
+    },
+    {
+      "source": "Reset progress",
+      "translation": "重設進度",
+      "context": "HTML button text",
+      "location": "index.html"
+    },
+    {
+      "source": "Achieve next node",
+      "translation": "完成下一項技能",
+      "context": "HTML button text",
+      "location": "index.html"
+    },
+    {
+      "source": "Resize model shop",
+      "translation": "調整模型商店闊度",
+      "context": "HTML shop-resize [aria-label]",
+      "location": "index.html"
+    },
+    {
+      "source": "Reset the camera view",
+      "translation": "重設視角",
+      "context": "HTML reset-view [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "🖱️ Drag: look around · Scroll: zoom · Click: pick a shape · Shift-click: pick several · 🏠 resets the view",
+      "translation": "🖱️ 拖曳：轉動視角 · 捲動：縮放 · 點按：選取形狀 · Shift+點按：選取多個 · 🏠 重設視角",
+      "context": "HTML hint text",
+      "location": "index.html"
+    },
+    {
+      "source": "My shapes",
+      "translation": "我的形狀",
+      "context": "HTML h2 text",
+      "location": "index.html"
+    },
+    {
+      "source": "Drag to resize the panels",
+      "translation": "拖曳以調整面板大小",
+      "context": "HTML splitter [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Details",
+      "translation": "詳細資料",
+      "context": "HTML h2 text",
+      "location": "index.html"
+    },
+    {
+      "source": "AI Optimization",
+      "translation": "AI 優化",
+      "context": "HTML ai-section [aria-label]",
+      "location": "index.html"
+    },
+    {
+      "source": "AI Optimization",
+      "translation": "AI 優化",
+      "context": "HTML h2 text",
+      "location": "index.html"
+    },
+    {
+      "source": "Collapse or expand the AI panel",
+      "translation": "收起或展開 AI 面板",
+      "context": "HTML ai-collapse [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Model",
+      "translation": "模型",
+      "context": "HTML label text",
+      "location": "index.html"
+    },
+    {
+      "source": "Choose the AI model to use",
+      "translation": "選擇要使用的 AI 模型",
+      "context": "HTML ai-model-select [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Load the model list from the server",
+      "translation": "從伺服器載入模型清單",
+      "context": "HTML ai-refresh-models [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Refresh",
+      "translation": "重新載入",
+      "context": "HTML ai-refresh-models text",
+      "location": "index.html"
+    },
+    {
+      "source": "Context",
+      "translation": "範圍",
+      "context": "HTML label text",
+      "location": "index.html"
+    },
+    {
+      "source": "Send only the selected shapes, or the whole scene as context",
+      "translation": "只傳送選取的形狀，或把整個場景作為背景資料",
+      "context": "HTML ai-scope-toggle [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Selected shapes",
+      "translation": "選取的形狀",
+      "context": "HTML option text",
+      "location": "index.html"
+    },
+    {
+      "source": "Whole scene",
+      "translation": "整個場景",
+      "context": "HTML option text",
+      "location": "index.html"
+    },
+    {
+      "source": "Send full geometry",
+      "translation": "傳送完整形狀資料",
+      "context": "HTML span text",
+      "location": "index.html"
+    },
+    {
+      "source": "Settings",
+      "translation": "設定",
+      "context": "HTML summary text",
+      "location": "index.html"
+    },
+    {
+      "source": "Server URL",
+      "translation": "伺服器網址",
+      "context": "HTML label text",
+      "location": "index.html"
+    },
+    {
+      "source": "https://example.com/v1",
+      "translation": "https://example.com/v1",
+      "context": "HTML ai-base-url [placeholder]",
+      "location": "index.html"
+    },
+    {
+      "source": "API key",
+      "translation": "API 金鑰",
+      "context": "HTML label text",
+      "location": "index.html"
+    },
+    {
+      "source": "Paste your key",
+      "translation": "貼上金鑰",
+      "context": "HTML ai-key [placeholder]",
+      "location": "index.html"
+    },
+    {
+      "source": "The key is stored only in this browser.",
+      "translation": "金鑰只會儲存在這個瀏覽器。",
+      "context": "HTML ai-hint text",
+      "location": "index.html"
+    },
+    {
+      "source": "Ask the AI",
+      "translation": "問 AI",
+      "context": "HTML ai-sr-only text",
+      "location": "index.html"
+    },
+    {
+      "source": "Ask the AI to rebuild your shapes...",
+      "translation": "請 AI 改造你的形狀……",
+      "context": "HTML ai-prompt [placeholder]",
+      "location": "index.html"
+    },
+    {
+      "source": "Send",
+      "translation": "傳送",
+      "context": "HTML ai-send text",
+      "location": "index.html"
+    },
+    {
+      "source": "Stop",
+      "translation": "停止",
+      "context": "HTML ai-stop text",
+      "location": "index.html"
+    },
+    {
+      "source": "Replace",
+      "translation": "取代",
+      "context": "HTML ai-replace text",
+      "location": "index.html"
+    },
+    {
+      "source": "Add as new",
+      "translation": "另行加入",
+      "context": "HTML ai-add text",
+      "location": "index.html"
+    },
+    {
+      "source": "🧸 Let's make a champion!",
+      "translation": "🧸 一起創作 AI Champion！",
+      "context": "HTML h1 text",
+      "location": "index.html"
+    },
+    {
+      "source": "— add shapes to make a body",
+      "translation": "— 加入形狀，組成身體",
+      "context": "HTML li text",
+      "location": "index.html"
+    },
+    {
+      "source": "— tap the model to grow a skeleton of joints",
+      "translation": "— 點按模型，逐步加上關節骨架",
+      "context": "HTML li text",
+      "location": "index.html"
+    },
+    {
+      "source": "— turn a ring and watch it bend!",
+      "translation": "— 轉動圓環，看看模型如何彎曲！",
+      "context": "HTML li text",
+      "location": "index.html"
+    },
+    {
+      "source": "Let's go! 🚀",
+      "translation": "開始吧！🚀",
+      "context": "HTML welcome-go text",
+      "location": "index.html"
+    },
+    {
+      "source": "Are you sure?",
+      "translation": "你確定嗎？",
+      "context": "HTML confirm-message text",
+      "location": "index.html"
+    },
+    {
+      "source": "Yes",
+      "translation": "是",
+      "context": "HTML confirm-yes text",
+      "location": "index.html"
+    },
+    {
+      "source": "No",
+      "translation": "否",
+      "context": "HTML confirm-no text",
+      "location": "index.html"
+    },
+    {
+      "source": "How to use 3D Studio",
+      "translation": "3D 工作室使用方法",
+      "context": "HTML h2 text",
+      "location": "index.html"
+    },
+    {
+      "source": "How rigging works",
+      "translation": "關節如何運作",
+      "context": "HTML h3 text",
+      "location": "index.html"
+    },
+    {
+      "source": "Directions",
+      "translation": "方向",
+      "context": "HTML h3 text",
+      "location": "index.html"
+    },
+    {
+      "source": "Modes",
+      "translation": "模式",
+      "context": "HTML h3 text",
+      "location": "index.html"
+    },
+    {
+      "source": "Hotkeys",
+      "translation": "快捷鍵",
+      "context": "HTML h3 text",
+      "location": "index.html"
+    },
+    {
+      "source": "Tips",
+      "translation": "小貼士",
+      "context": "HTML h3 text",
+      "location": "index.html"
+    },
+    {
+      "source": "Close",
+      "translation": "關閉",
+      "context": "HTML help-close text",
+      "location": "index.html"
+    },
+    {
+      "source": "🧱 CLAY STUDIO",
+      "translation": "🧱 黏土工作室",
+      "context": "HTML clay-logo text",
+      "location": "index.html"
+    },
+    {
+      "source": "Off",
+      "translation": "關",
+      "context": "HTML clay-mirror-opt text",
+      "location": "index.html"
+    },
+    {
+      "source": "On",
+      "translation": "開",
+      "context": "HTML clay-mirror-opt text",
+      "location": "index.html"
+    },
+    {
+      "source": "Undo the last stroke (Clay Studio has its own undo)",
+      "translation": "復原上一筆（黏土工作室有獨立的復原記錄）",
+      "context": "HTML clay-undo [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Reset this shape to a fresh ball",
+      "translation": "把形狀重設為一個新球",
+      "context": "HTML clay-reset [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Clay Studio help",
+      "translation": "黏土工作室說明",
+      "context": "HTML clay-help-btn [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Discard the sculpt and go back",
+      "translation": "放棄這次塑形並返回",
+      "context": "HTML clay-cancel [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "Keep the sculpt and go back to the 3D Studio",
+      "translation": "保留塑形結果並返回 3D 工作室",
+      "context": "HTML clay-done [title]",
+      "location": "index.html"
+    },
+    {
+      "source": "✅ Done — back to 3D Studio",
+      "translation": "✅ 完成，返回 3D 工作室",
+      "context": "HTML clay-done text",
+      "location": "index.html"
+    },
+    {
+      "source": "Are you sure?",
+      "translation": "你確定嗎？",
+      "context": "HTML clay-confirm-message text",
+      "location": "index.html"
+    },
+    {
+      "source": "Yes",
+      "translation": "是",
+      "context": "HTML clay-confirm-yes text",
+      "location": "index.html"
+    },
+    {
+      "source": "No",
+      "translation": "否",
+      "context": "HTML clay-confirm-no text",
+      "location": "index.html"
+    },
+    {
+      "source": "How to use the Clay Studio",
+      "translation": "黏土工作室使用方法",
+      "context": "HTML h2 text",
+      "location": "index.html"
+    },
+    {
+      "source": "Close",
+      "translation": "關閉",
+      "context": "HTML clay-help-close text",
+      "location": "index.html"
+    },
+    {
+      "source": "ML Foundations",
+      "translation": "機器學習基礎",
+      "context": "Skill tree category",
+      "location": "skill-tree.json:categories[0].label"
+    },
+    {
+      "source": "Optimization",
+      "translation": "優化",
+      "context": "Skill tree category",
+      "location": "skill-tree.json:categories[1].label"
+    },
+    {
+      "source": "Unsupervised Learning",
+      "translation": "無監督學習",
+      "context": "Skill tree category",
+      "location": "skill-tree.json:categories[2].label"
+    },
+    {
+      "source": "Regression & Model Fitting",
+      "translation": "迴歸與模型擬合",
+      "context": "Skill tree branch",
+      "location": "skill-tree.json:branches[0].name"
+    },
+    {
+      "source": "Linear Regression Concept",
+      "translation": "認識線性迴歸",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[0].nodes[0].name"
+    },
+    {
+      "source": "MSE Cost Function",
+      "translation": "平均平方誤差（MSE）",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[0].nodes[1].name"
+    },
+    {
+      "source": "Normal Equation (Closed Form)",
+      "translation": "正規方程式（直接求解）",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[0].nodes[2].name"
+    },
+    {
+      "source": "Gradient Descent Mastery",
+      "translation": "掌握梯度下降",
+      "context": "Skill tree branch",
+      "location": "skill-tree.json:branches[1].name"
+    },
+    {
+      "source": "Gradient Descent Intuition",
+      "translation": "梯度下降是怎樣運作的",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[1].nodes[0].name"
+    },
+    {
+      "source": "Learning Rate & Convergence",
+      "translation": "學習率與收斂",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[1].nodes[1].name"
+    },
+    {
+      "source": "Batch vs SGD vs Mini-Batch",
+      "translation": "批次、SGD 與小批次",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[1].nodes[2].name"
+    },
+    {
+      "source": "Applying GD to Linear Regression",
+      "translation": "用梯度下降做線性迴歸",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[1].nodes[3].name"
+    },
+    {
+      "source": "Clustering Algorithms",
+      "translation": "分群演算法",
+      "context": "Skill tree branch",
+      "location": "skill-tree.json:branches[2].name"
+    },
+    {
+      "source": "K-Means Clustering Concept",
+      "translation": "認識 K-Means 分群",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[2].nodes[0].name"
+    },
+    {
+      "source": "Assignment & Update Steps",
+      "translation": "分配與更新步驟",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[2].nodes[1].name"
+    },
+    {
+      "source": "Choosing K (Elbow Method)",
+      "translation": "用手肘法選擇 K 值",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[2].nodes[2].name"
+    },
+    {
+      "source": "K-Means Limitations & Alternatives",
+      "translation": "K-Means 的限制與其他方法",
+      "context": "Skill tree skill",
+      "location": "skill-tree.json:branches[2].nodes[3].name"
+    },
+    {
+      "source": "Starter Cube",
+      "translation": "起步方塊",
+      "context": "Model shop item",
+      "location": "models/catalog.json:models[0].name"
+    },
+    {
+      "source": "A friendly cube to start your champion.",
+      "translation": "一個友善的小方塊，陪你開始製作 AI Champion。",
+      "context": "Model shop description",
+      "location": "models/catalog.json:models[0].description"
+    },
+    {
+      "source": "Bouncy Sphere",
+      "translation": "彈跳球體",
+      "context": "Model shop item",
+      "location": "models/catalog.json:models[1].name"
+    },
+    {
+      "source": "A round head that bounces with every step.",
+      "translation": "圓圓的頭，每走一步都會彈一彈。",
+      "context": "Model shop description",
+      "location": "models/catalog.json:models[1].description"
+    },
+    {
+      "source": "Rocket Cone",
+      "translation": "火箭圓錐",
+      "context": "Model shop item",
+      "location": "models/catalog.json:models[2].name"
+    },
+    {
+      "source": "A pointy nose cone for speedy champions.",
+      "translation": "尖尖的火箭頭，讓 AI Champion 看起來跑得更快。",
+      "context": "Model shop description",
+      "location": "models/catalog.json:models[2].description"
+    },
+    {
+      "source": "Party Ring",
+      "translation": "派對圓環",
+      "context": "Model shop item",
+      "location": "models/catalog.json:models[3].name"
+    },
+    {
+      "source": "A spinning ring with real party energy.",
+      "translation": "會旋轉的圓環，充滿派對氣氛。",
+      "context": "Model shop description",
+      "location": "models/catalog.json:models[3].description"
+    },
+    {
+      "source": "Golden Cylinder",
+      "translation": "黃金圓柱",
+      "context": "Model shop item",
+      "location": "models/catalog.json:models[4].name"
+    },
+    {
+      "source": "A shiny column. Reach level 3 and pay up.",
+      "translation": "閃亮的圓柱。達到等級 3，再用金幣解鎖。",
+      "context": "Model shop description",
+      "location": "models/catalog.json:models[4].description"
+    },
+    {
+      "source": "Silver Capsule",
+      "translation": "銀色膠囊",
+      "context": "Model shop item",
+      "location": "models/catalog.json:models[5].name"
+    },
+    {
+      "source": "The veteran capsule. Level 5 and 200 coins.",
+      "translation": "進階銀色膠囊。達到等級 5，並花 200 金幣解鎖。",
+      "context": "Model shop description",
+      "location": "models/catalog.json:models[5].description"
+    },
+    {
+      "source": "FRONT",
+      "translation": "前方",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17655"
+    },
+    {
+      "source": "Runs straight away",
+      "translation": "立即運行",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17692"
+    },
+    {
+      "source": "Choose one",
+      "translation": "選擇一個",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17692"
+    },
+    {
+      "source": "🧱 Build",
+      "translation": "🧱 製作",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17711"
+    },
+    {
+      "source": "🔧 Rig",
+      "translation": "🔧 加關節",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17711"
+    },
+    {
+      "source": "🧍 Pose",
+      "translation": "🧍 擺姿勢",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17711"
+    },
+    {
+      "source": "🎽 Fit",
+      "translation": "🎽 穿裝備",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17711"
+    },
+    {
+      "source": "🧱 box",
+      "translation": "🧱 方塊",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17718"
+    },
+    {
+      "source": "⚪ sphere",
+      "translation": "⚪ 球體",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17718"
+    },
+    {
+      "source": "🥫 cylinder",
+      "translation": "🥫 圓柱",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17718"
+    },
+    {
+      "source": "🔺 cone",
+      "translation": "🔺 圓錐",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17718"
+    },
+    {
+      "source": "🍩 torus",
+      "translation": "🍩 圓環",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17718"
+    },
+    {
+      "source": "💎 octahedron",
+      "translation": "💎 八面體",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17718"
+    },
+    {
+      "source": "🪟 plane",
+      "translation": "🪟 平面",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17718"
+    },
+    {
+      "source": "➕ Add shape",
+      "translation": "➕ 加入形狀",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17741"
+    },
+    {
+      "source": "✋ Move",
+      "translation": "✋ 移動",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17744"
+    },
+    {
+      "source": "🔄 Rotate",
+      "translation": "🔄 旋轉",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17744"
+    },
+    {
+      "source": "↔️ Scale",
+      "translation": "↔️ 縮放",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17744"
+    },
+    {
+      "source": "Move",
+      "translation": "移動",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17744"
+    },
+    {
+      "source": "✋ Move",
+      "translation": "✋ 移動",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17745"
+    },
+    {
+      "source": "🔄 Rotate",
+      "translation": "🔄 旋轉",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17745"
+    },
+    {
+      "source": "↔️ Scale",
+      "translation": "↔️ 縮放",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17745"
+    },
+    {
+      "source": "Keep proportions",
+      "translation": "保持比例",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17748"
+    },
+    {
+      "source": "Keep the object's current X, Y and Z proportions while scaling",
+      "translation": "縮放時保持物件目前的 X、Y 和 Z 比例",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17749"
+    },
+    {
+      "source": "📥 Import",
+      "translation": "📥 匯入",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17755"
+    },
+    {
+      "source": "Make it real",
+      "translation": "變成 3D 模型",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17758"
+    },
+    {
+      "source": "Turn your build into a 3D cartoon model with AI",
+      "translation": "讓 AI 把你的作品變成 3D 卡通模型",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17759"
+    },
+    {
+      "source": "Make from words",
+      "translation": "用文字創作",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17762"
+    },
+    {
+      "source": "Describe a character and let AI make it in 3D",
+      "translation": "描述一個角色，讓 AI 製作成 3D 模型",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17763"
+    },
+    {
+      "source": "🔲 Wireframe",
+      "translation": "🔲 線框",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17766"
+    },
+    {
+      "source": "Toggle wireframe view (W)",
+      "translation": "切換線框檢視（W）",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17767"
+    },
+    {
+      "source": "Give the model a skeleton in Rig mode first — tap the model to place joints.",
+      "translation": "首先在裝備模式下為模型提供骨架 - 點擊模型以放置關節。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17773"
+    },
+    {
+      "source": "Rest",
+      "translation": "還原姿勢",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17776"
+    },
+    {
+      "source": "Walk / Jump",
+      "translation": "行走／跳躍",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17776"
+    },
+    {
+      "source": "Export",
+      "translation": "匯出",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17776"
+    },
+    {
+      "source": "Tap a ball. The ring appears at the joint above it — that is the hinge. Turn the ring to swing the lit piece. The first ball turns the whole model. Rest straightens everything.",
+      "translation": "點擊一個球。環出現在其上方的關節處－即鉸鏈。轉動環來擺動點亮的部件。第一個球轉動了整個模型。休息可以解決一切問題。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17779"
+    },
+    {
+      "source": "Working out the bending… you can pose as soon as it is ready.",
+      "translation": "正在計算彎曲效果……完成後就能擺姿勢。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17781"
+    },
+    {
+      "source": "Gear piece",
+      "translation": "裝備",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17795"
+    },
+    {
+      "source": "Name",
+      "translation": "名稱",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17833"
+    },
+    {
+      "source": "Color",
+      "translation": "顏色",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17838"
+    },
+    {
+      "source": "Pick",
+      "translation": "挑選",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17841"
+    },
+    {
+      "source": "Tube width",
+      "translation": "管宽",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17851"
+    },
+    {
+      "source": "How thick the torus ring is",
+      "translation": "圓環的厚度是多少",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17851"
+    },
+    {
+      "source": "Position",
+      "translation": "職位",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17856"
+    },
+    {
+      "source": "Rotation",
+      "translation": "旋轉",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17859"
+    },
+    {
+      "source": "Scale",
+      "translation": "縮放",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17862"
+    },
+    {
+      "source": "Duplicate",
+      "translation": "重複",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17869"
+    },
+    {
+      "source": "Delete every selected shape.",
+      "translation": "刪除每個選取的形狀。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17874"
+    },
+    {
+      "source": "🧱 Sculpt",
+      "translation": "🧱 塑形",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17883"
+    },
+    {
+      "source": "Open this shape in the Clay Studio — pull, push, smooth, grab, carve and paint it, then press Done to put it back sculpted.",
+      "translation": "在黏土工作室為這個形狀塑形：拉出、推入、抹平、抓取、刻畫或塗色。完成後按「完成」，把它放回場景。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17883"
+    },
+    {
+      "source": "Joint",
+      "translation": "關節",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17888"
+    },
+    {
+      "source": "Parent",
+      "translation": "上層關節",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17890"
+    },
+    {
+      "source": "Bend",
+      "translation": "彎曲",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17890"
+    },
+    {
+      "source": "Reset pose",
+      "translation": "還原姿勢",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17895"
+    },
+    {
+      "source": "Gear piece",
+      "translation": "裝備",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17899"
+    },
+    {
+      "source": "This piece is not bound to any bone yet.",
+      "translation": "這件裝備尚未連接到骨骼。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17899"
+    },
+    {
+      "source": "Bind to bone",
+      "translation": "連接骨骼",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17902"
+    },
+    {
+      "source": "Attach this gear piece to a bone so it moves with the champion. Pick a bone here, then tune with the gizmo.",
+      "translation": "把這件裝備連接到骨骼，它便會跟着 AI Champion 移動。先在這裏選擇骨骼，再用控制器調整。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17903"
+    },
+    {
+      "source": "Bind to bone",
+      "translation": "連接骨骼",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17903"
+    },
+    {
+      "source": "— choose a bone —",
+      "translation": "— 選擇骨骼 —",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17903"
+    },
+    {
+      "source": "Unbind (move freely)",
+      "translation": "解除連接（自由移動）",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17908"
+    },
+    {
+      "source": "Detach this piece from its bone so it stays where it is but no longer follows the skeleton.",
+      "translation": "將這塊碎片從骨頭上拆下來，讓它留在原來的地方，但不再跟隨骨架。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17908"
+    },
+    {
+      "source": "👆 Click a shape or a joint ball to see its details here.",
+      "translation": "👆 點擊形狀或關節球可在此處查看其詳細資訊。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17911"
+    },
+    {
+      "source": "— choose a bone —",
+      "translation": "— 選擇骨骼 —",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17959"
+    },
+    {
+      "source": "This piece is not bound to any bone yet — it is floating freely.",
+      "translation": "這件裝備尚未連接到骨骼，可以自由移動。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:17961"
+    },
+    {
+      "source": "making a light copy",
+      "translation": "進行輕拷貝",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18044"
+    },
+    {
+      "source": "reading the surface",
+      "translation": "閱讀表面",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18044"
+    },
+    {
+      "source": "finding the bones",
+      "translation": "尋找骨頭",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18044"
+    },
+    {
+      "source": "preparing the solve",
+      "translation": "準備解決方案",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18044"
+    },
+    {
+      "source": "carrying the answer back",
+      "translation": "把答案帶回來",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18044"
+    },
+    {
+      "source": "Tap the model to place the first joint.",
+      "translation": "點按模型，放下第一個關節。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18044"
+    },
+    {
+      "source": "Tap the model again to add a second joint — one joint cannot bend.",
+      "translation": "再點按模型，加入第二個關節；只有一個關節無法彎曲。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18044"
+    },
+    {
+      "source": "solved on the full mesh",
+      "translation": "在全網格上解決",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18050"
+    },
+    {
+      "source": "There is no model to rig yet. Generate or import one, then tap it.",
+      "translation": "目前沒有模型可以加關節。請先建立或匯入模型，再點按它。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18129"
+    },
+    {
+      "source": "That tap missed the model. Tap the model to place a joint.",
+      "translation": "剛才沒有點到模型。請點按模型來放下關節。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18131"
+    },
+    {
+      "source": "That joint sits on the skin, not inside the model — drag it in.",
+      "translation": "這個關節在模型表面，請把它拖進模型內。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18135"
+    },
+    {
+      "source": "Tap the model to start a new chain.",
+      "translation": "點擊模型即可開始新的鏈。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18145"
+    },
+    {
+      "source": "Tap a joint ball first, then Remove joint.",
+      "translation": "先敲擊關節球，然後拆下關節。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18149"
+    },
+    {
+      "source": "Removed the joint.",
+      "translation": "拆下了接頭。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18151"
+    },
+    {
+      "source": "Skeleton and bending loaded from the file.",
+      "translation": "已從檔案載入骨架和彎曲效果。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18185"
+    },
+    {
+      "source": "Working out the bending…",
+      "translation": "正在計算彎曲效果……",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18216"
+    },
+    {
+      "source": "No joint is inside a shape yet — drag the joints into the model.",
+      "translation": "形狀內還沒有關節 - 將關節拖曳到模型中。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18223"
+    },
+    {
+      "source": "The bending could not be worked out. Try moving the joints inside the model, or Undo the last change.",
+      "translation": "無法解決彎曲問題。嘗試移動模型內的關節，或復原最後的變更。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18243"
+    },
+    {
+      "source": "Give the selected model a skeleton using UniRig",
+      "translation": "用 UniRig 為選取的模型建立骨架",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18274"
+    },
+    {
+      "source": "New chain",
+      "translation": "新關節鏈",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18274"
+    },
+    {
+      "source": "Deselect, so the next tap on the model starts a new chain of joints",
+      "translation": "取消選擇，以便下次點擊模型時會啟動新的關節鏈",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18274"
+    },
+    {
+      "source": "Remove joint",
+      "translation": "移除關節",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18274"
+    },
+    {
+      "source": "Remove the selected joint and everything hanging off it (Delete)",
+      "translation": "移除選取的關節，以及連在下方的所有關節（Delete）",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18274"
+    },
+    {
+      "source": "Clear skeleton",
+      "translation": "清除骨架",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18274"
+    },
+    {
+      "source": "Skeleton cleared. Undo brings it back.",
+      "translation": "已清除骨架。按「復原」可還原。",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18275"
+    },
+    {
+      "source": "Remove every joint",
+      "translation": "移除每個關節",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18276"
+    },
+    {
+      "source": "tap the model",
+      "translation": "點按模型",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18288"
+    },
+    {
+      "source": "tap again to grow the chain",
+      "translation": "再點按，延長關節鏈",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18288"
+    },
+    {
+      "source": "tap a ball, then the model, to branch",
+      "translation": "先點按關節球，再點按模型，讓關節鏈分支",
+      "context": "Build, rig and pose",
+      "location": "assets/index-DYOibJJM.js:18288"
+    },
+    {
+      "source": "Select the model or all its parts in Build mode first.",
+      "translation": "請先在「製作」模式選取模型或它的所有部件。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20585"
+    },
+    {
+      "source": "Build or import a model first.",
+      "translation": "首先建構或導入模型。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20585"
+    },
+    {
+      "source": "Select all parts of the existing rig before replacing its skeleton. Unrigged models can stay unselected.",
+      "translation": "在更換骨架之前選擇現有裝備的所有零件。未組裝的模型可以保持未選取狀態。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20595"
+    },
+    {
+      "source": "Select all parts that share this skeleton before auto-rigging.",
+      "translation": "在自動組裝之前選擇共享此骨架的所有零件。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20597"
+    },
+    {
+      "source": "The model has no usable volume.",
+      "translation": "該模型沒有可用體積。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20600"
+    },
+    {
+      "source": "The model or skeleton changed while auto-rigging. Try again with the current model.",
+      "translation": "自動加關節期間，模型或骨架改變了。請用目前的模型再試一次。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20618"
+    },
+    {
+      "source": "The returned rig has no binary mesh data.",
+      "translation": "傳回的裝備沒有二進位網格資料。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20629"
+    },
+    {
+      "source": "The returned rig has no mesh data.",
+      "translation": "傳回的裝備沒有網格資料。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20633"
+    },
+    {
+      "source": "The service changed the model frame. Your original model is unchanged.",
+      "translation": "該服務改變了模型框架。你的原始模型沒有改變。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20638"
+    },
+    {
+      "source": "The service returned no usable skeleton (2–256 joints required).",
+      "translation": "該服務沒有返回可用的骨架（需要 2-256 個關節）。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20642"
+    },
+    {
+      "source": "The returned skeleton has no usable connected bones.",
+      "translation": "返回的骨骼沒有可用的連接骨骼。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20643"
+    },
+    {
+      "source": "The service returned a joint far outside the model.",
+      "translation": "該服務返回了一個遠離模型的關節。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20651"
+    },
+    {
+      "source": "Enter a complete API endpoint URL.",
+      "translation": "輸入完整的 API 端點 URL。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20707"
+    },
+    {
+      "source": "Use HTTPS for the API endpoint (HTTP is allowed on localhost).",
+      "translation": "對 API 端點使用 HTTPS（本機上允許使用 HTTP）。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20710"
+    },
+    {
+      "source": "Use an endpoint without credentials, query parameters or a fragment. Put the key in API key.",
+      "translation": "使用沒有憑證、查詢參數或片段的端點。將金鑰放入 API 金鑰中。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20711"
+    },
+    {
+      "source": "Choose a supported auto-rig provider.",
+      "translation": "選擇受支援的自動加關節提供者。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20716"
+    },
+    {
+      "source": "Auto-rig cancelled.",
+      "translation": "已取消自動加關節。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20719"
+    },
+    {
+      "source": "Auto-rig took too long. Your model is unchanged. Try again later.",
+      "translation": "自動加關節花了太長時間。你的模型沒有改變。稍後再試。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20721"
+    },
+    {
+      "source": "Auto-rig cancelled.",
+      "translation": "已取消自動加關節。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20724"
+    },
+    {
+      "source": "Auto-rig cancelled.",
+      "translation": "已取消自動加關節。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20733"
+    },
+    {
+      "source": "Auto-rig cancelled.",
+      "translation": "已取消自動加關節。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20741"
+    },
+    {
+      "source": "The rigging service failed.",
+      "translation": "綁定服務失敗。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20743"
+    },
+    {
+      "source": "The rigging service is working…",
+      "translation": "索具服務正在運作...",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20744"
+    },
+    {
+      "source": "Receiving the skeleton…",
+      "translation": "收到骷髏…",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20744"
+    },
+    {
+      "source": "The service returned no rig.",
+      "translation": "該服務未返回任何設備。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20749"
+    },
+    {
+      "source": "The rigged GLB is too large (maximum 30 MB).",
+      "translation": "組裝的 GLB 太大（最大 30 MB）。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20774"
+    },
+    {
+      "source": "Your selected model will be uploaded to this API endpoint.",
+      "translation": "你選擇的模型將上傳到此 API 端點。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20803"
+    },
+    {
+      "source": "Using your local Hugging Face login. Usually takes about 1–2 minutes.",
+      "translation": "使用你本地的 Hugging Face 登入。通常需要大約 1-2 分鐘。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20803"
+    },
+    {
+      "source": "Enter your Hugging Face token to connect. Usually takes about 1–2 minutes.",
+      "translation": "輸入你的 Hugging Face 權杖進行連接。通常需要大約 1-2 分鐘。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20803"
+    },
+    {
+      "source": "Checking connection…",
+      "translation": "正在檢查連接...",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20814"
+    },
+    {
+      "source": "Close",
+      "translation": "關閉",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20814"
+    },
+    {
+      "source": "Enter a Hugging Face access token first.",
+      "translation": "請先輸入 Hugging Face 存取權杖。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20838"
+    },
+    {
+      "source": "Cancel auto-rig",
+      "translation": "取消自動加關節",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20844"
+    },
+    {
+      "source": "Making a temporary light copy…",
+      "translation": "製作臨時的光副本...",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20844"
+    },
+    {
+      "source": "The selected model changed. Close this panel and choose it again.",
+      "translation": "所選模型已更改。關閉該面板並再次選擇它。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20847"
+    },
+    {
+      "source": "Building the skeleton… This usually takes about 1–2 minutes.",
+      "translation": "建立骨架…這通常需要大約 1-2 分鐘。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20850"
+    },
+    {
+      "source": "Auto-rig failed.",
+      "translation": "自動加關節失敗。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20854"
+    },
+    {
+      "source": "Checking the skeleton…",
+      "translation": "檢查骨骼...",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20857"
+    },
+    {
+      "source": "Auto-rig timed out. Your model is unchanged. Try again later.",
+      "translation": "自動加關節逾時。模型保持不變，請稍後再試。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20863"
+    },
+    {
+      "source": "Close",
+      "translation": "關閉",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20866"
+    },
+    {
+      "source": "Walk",
+      "translation": "行走",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20898"
+    },
+    {
+      "source": "Walk",
+      "translation": "行走",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20899"
+    },
+    {
+      "source": "Finish rigging the model before animating it.",
+      "translation": "在為模型設定動畫之前完成模型的組裝。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20975"
+    },
+    {
+      "source": "Step needs leg segments. Use Waddle for a body without legs.",
+      "translation": "腳步需要腿段。對於沒有腿的身體使用 Waddle。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20979"
+    },
+    {
+      "source": "A selected leg is no longer in this rig.",
+      "translation": "選定的腿不再在此裝備中。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20982"
+    },
+    {
+      "source": "Choose one upper segment per leg, not both an upper and lower segment of the same leg.",
+      "translation": "每條腿選擇一個上段，而不是同一條腿的上段和下段。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20983"
+    },
+    {
+      "source": "Walk",
+      "translation": "行走",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20989"
+    },
+    {
+      "source": "Walk",
+      "translation": "行走",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:20995"
+    },
+    {
+      "source": "Walk",
+      "translation": "行走",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21004"
+    },
+    {
+      "source": "Walk",
+      "translation": "行走",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21020"
+    },
+    {
+      "source": "Jump",
+      "translation": "跳躍",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21020"
+    },
+    {
+      "source": "Settings changed. Press Play to preview.",
+      "translation": "設定已更改。按下“播放”即可預覽。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21039"
+    },
+    {
+      "source": "Give the model a skeleton and wait for bending to finish first.",
+      "translation": "給模型一個骨架，先等待彎曲完成。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21046"
+    },
+    {
+      "source": "An end joint cannot be a knee: it needs a foot joint below it.",
+      "translation": "最末端的關節不能作為膝蓋；膝蓋下方還需要腳部關節。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21077"
+    },
+    {
+      "source": "Still",
+      "translation": "不動",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21080"
+    },
+    {
+      "source": "Head",
+      "translation": "頭部",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21080"
+    },
+    {
+      "source": "Arm",
+      "translation": "手臂",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21080"
+    },
+    {
+      "source": "Tail",
+      "translation": "尾巴",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21080"
+    },
+    {
+      "source": "Highlight",
+      "translation": "標示",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21086"
+    },
+    {
+      "source": "Foot / ankle joint",
+      "translation": "足/踝關節",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21090"
+    },
+    {
+      "source": "Knee bends",
+      "translation": "膝蓋彎曲",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21102"
+    },
+    {
+      "source": "Rest-pose side",
+      "translation": "休息側",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21105"
+    },
+    {
+      "source": "Opposite side",
+      "translation": "對面",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21105"
+    },
+    {
+      "source": "Automatic uses Waddle: shift weight and rock the body without legs. Review the suggested head and arm roles.",
+      "translation": "自動使用搖晃：轉移重心並在沒有腿的情況下搖晃身體。查看建議的頭部和手臂角色。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21111"
+    },
+    {
+      "source": "Export Walk + Jump",
+      "translation": "匯出行走與跳躍",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21118"
+    },
+    {
+      "source": "Stopped. Preview returned to rest.",
+      "translation": "停了。預覽恢復靜止。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21145"
+    },
+    {
+      "source": "Fit needs a skeleton — in Rig mode, tap the model to place joints, then come back.",
+      "translation": "穿裝備前，模型需要骨架。請先在「加關節」模式點按模型，放下關節。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21238"
+    },
+    {
+      "source": "🗑️ Remove selected gear",
+      "translation": "🗑️ 移除選取的裝備",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21242"
+    },
+    {
+      "source": "Remove the currently selected gear piece from the model",
+      "translation": "從模型移除目前選取的裝備",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21242"
+    },
+    {
+      "source": "📥 Load gear (GLB/OBJ/FBX)",
+      "translation": "📥 載入裝備（GLB/OBJ/FBX）",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21246"
+    },
+    {
+      "source": "✋ Move",
+      "translation": "✋ 移動",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21247"
+    },
+    {
+      "source": "🔄 Rotate",
+      "translation": "🔄 旋轉",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21247"
+    },
+    {
+      "source": "↔️ Scale",
+      "translation": "↔️ 縮放",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21247"
+    },
+    {
+      "source": "📦 Download",
+      "translation": "📦 下載",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21251"
+    },
+    {
+      "source": "Download fitted GLB",
+      "translation": "下載已調整的 GLB",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21251"
+    },
+    {
+      "source": "Download dressed model",
+      "translation": "下載已穿裝備的模型",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21251"
+    },
+    {
+      "source": "Load a gear piece to start fitting.",
+      "translation": "載入一件裝備，開始穿裝備。",
+      "context": "Auto-rig and animation",
+      "location": "assets/index-DYOibJJM.js:21253"
+    },
+    {
+      "source": "Crown — antenna",
+      "translation": "頭頂 — 天線",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Senses",
+      "translation": "感官",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Eye / browline — lens",
+      "translation": "眼睛／眉線 — 鏡頭",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Visor (layers over eye)",
+      "translation": "護目鏡（覆蓋眼睛）",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Temples — audio rings",
+      "translation": "太陽穴 — 聲音圓環",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Chest — sensor",
+      "translation": "胸口 — 感應器",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Body",
+      "translation": "身體",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Shoulder L — drone bay",
+      "translation": "左肩 — 無人機艙",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Shoulder R — drone bay",
+      "translation": "右肩 — 無人機艙",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Hips — cargo rack",
+      "translation": "臀部 — 貨架",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Leg L — rover",
+      "translation": "左腿 — 探測車",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Leg R — rover",
+      "translation": "右腿 — 探測車",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Back — rig module",
+      "translation": "背部 — 骨架模組",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Back",
+      "translation": "背部",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Hand R — held tool",
+      "translation": "右手 — 手持工具",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "Other",
+      "translation": "其他",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:22996"
+    },
+    {
+      "source": "No .glb / .gltf / .fbx / .obj model among the chosen files.",
+      "translation": "選取的檔案沒有 .glb、.gltf、.fbx 或 .obj 模型。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23071"
+    },
+    {
+      "source": "Socket bone no longer exists:",
+      "translation": "插槽骨骼不再存在：",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23104"
+    },
+    {
+      "source": "Fit needs a skeleton (Rig mode) before you can load gear.",
+      "translation": "載入裝備前，請先在「加關節」模式建立骨架。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23244"
+    },
+    {
+      "source": "Could not load that gear file.",
+      "translation": "無法載入該裝備檔案。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23251"
+    },
+    {
+      "source": "Load",
+      "translation": "負載",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23277"
+    },
+    {
+      "source": "No bone available to seat that piece on.",
+      "translation": "沒有骨頭可以放置該部件。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23285"
+    },
+    {
+      "source": "Select a gear piece to bind first.",
+      "translation": "請先選取要連接骨骼的裝備。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23299"
+    },
+    {
+      "source": "Bind",
+      "translation": "綁定",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23307"
+    },
+    {
+      "source": "Select a gear piece to unbind first.",
+      "translation": "請先選取要解除連接的裝備。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23311"
+    },
+    {
+      "source": "That piece is already unbound.",
+      "translation": "那塊已經解綁了。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23315"
+    },
+    {
+      "source": "Unbind",
+      "translation": "解綁",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23318"
+    },
+    {
+      "source": "Load a gear piece first — the fit tools move that.",
+      "translation": "請先載入一件裝備；穿裝備工具會移動它。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23325"
+    },
+    {
+      "source": "Adjust",
+      "translation": "調整",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23334"
+    },
+    {
+      "source": "Select a gear piece to remove it.",
+      "translation": "請先選取要移除的裝備。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23350"
+    },
+    {
+      "source": "Remove",
+      "translation": "刪除",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23353"
+    },
+    {
+      "source": "Select a gear piece to download.",
+      "translation": "請先選取要下載的裝備。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23395"
+    },
+    {
+      "source": "Downloaded",
+      "translation": "已下載",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23401"
+    },
+    {
+      "source": "Could not bake the fitted piece.",
+      "translation": "無法烘烤已安裝的零件。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23403"
+    },
+    {
+      "source": "Fit at least one gear piece first.",
+      "translation": "請先替模型穿上一件裝備。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23408"
+    },
+    {
+      "source": "Wait for bending to finish before downloading your champion.",
+      "translation": "等待彎曲完成後再下載你的冠軍。",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23412"
+    },
+    {
+      "source": "Downloaded champion-dressed.glb!",
+      "translation": "已下載 champion-dressed.glb！",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23417"
+    },
+    {
+      "source": "Pull ✋",
+      "translation": "拉出 ✋",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Pull the surface out",
+      "translation": "將表面拉出",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Push 👊",
+      "translation": "推入 👊",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Push the surface in",
+      "translation": "將表面推入",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Smooth 🧼",
+      "translation": "抹平 🧼",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Soften bumps",
+      "translation": "軟化顛簸",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Grab ✊",
+      "translation": "抓取 ✊",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Drag a lump around",
+      "translation": "拖曳一個腫塊",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Carve ✏️",
+      "translation": "刻畫 ✏️",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Scratch a thin line",
+      "translation": "劃一條細線",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Paint 🎨",
+      "translation": "塗色 🎨",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Colour that stays glued to the clay",
+      "translation": "黏在黏土上的顏色",
+      "context": "Fit Studio",
+      "location": "assets/index-DYOibJJM.js:23543"
+    },
+    {
+      "source": "Reset this shape? Your sculpting and paint will be lost.",
+      "translation": "要重設這個形狀嗎？塑形和塗色結果會消失。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:23862"
+    },
+    {
+      "source": "Request timed out",
+      "translation": "請求超時",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:23958"
+    },
+    {
+      "source": "Request aborted",
+      "translation": "請求已中止",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:23958"
+    },
+    {
+      "source": "The AI reply was too large to read safely. Ask for a smaller result.",
+      "translation": "AI 的回覆太長，無法安全讀取。請它縮短回覆。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24019"
+    },
+    {
+      "source": "reply exceeded the size limit",
+      "translation": "回覆超出大小限制",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24019"
+    },
+    {
+      "source": "The AI service took too long to answer. Try again.",
+      "translation": "AI 服務回應時間過長。再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24022"
+    },
+    {
+      "source": "The request was stopped.",
+      "translation": "請求被停止。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24022"
+    },
+    {
+      "source": "Could not reach the AI service. Check the connection and try again.",
+      "translation": "無法連接 AI 服務。請檢查網絡，再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24022"
+    },
+    {
+      "source": "Your API key was rejected. Check it in AI settings.",
+      "translation": "你的 API 金鑰被拒絕。在AI設定中檢查一下。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24028"
+    },
+    {
+      "source": "This key is not allowed to use that model.",
+      "translation": "此密鑰不允許使用該模型。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24029"
+    },
+    {
+      "source": "Model not found. Pick another from the list.",
+      "translation": "未找到模型。從清單中選擇另一個。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24030"
+    },
+    {
+      "source": "Too many requests — wait a moment and try again.",
+      "translation": "請求太頻密。請稍等片刻，再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24031"
+    },
+    {
+      "source": "The AI service had a problem. Try again.",
+      "translation": "AI 服務出現問題。再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24032"
+    },
+    {
+      "source": "Could not reach the AI service. Check the connection and try again.",
+      "translation": "無法連接 AI 服務。請檢查網絡，再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24041"
+    },
+    {
+      "source": "The AI service sent an unexpected reply. Try again.",
+      "translation": "AI服務發出了意想不到的回應。再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24046"
+    },
+    {
+      "source": "The AI service sent an unexpected reply. Try again.",
+      "translation": "AI服務發出了意想不到的回應。再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24069"
+    },
+    {
+      "source": "The AI service sent an unexpected reply. Try again.",
+      "translation": "AI服務發出了意想不到的回應。再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24078"
+    },
+    {
+      "source": "The AI service sent an empty reply. Try again.",
+      "translation": "AI 服務發送了一個空回覆。再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24080"
+    },
+    {
+      "source": "The key is stored only in this browser.",
+      "translation": "金鑰只會儲存在這個瀏覽器。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24129"
+    },
+    {
+      "source": "Could not reach the AI service. Check the connection and try again.",
+      "translation": "無法連接 AI 服務。請檢查網絡，再試一次。",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24142"
+    },
+    {
+      "source": "Refresh",
+      "translation": "重新載入",
+      "context": "Clay Studio and AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24150"
+    },
+    {
+      "source": "Loading models…",
+      "translation": "正在載入模型……",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24208"
+    },
+    {
+      "source": "Load the model list from the server",
+      "translation": "從伺服器載入模型清單",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24208"
+    },
+    {
+      "source": "The reply looks incomplete — it was cut off before the end. Ask for a shorter result and try again.",
+      "translation": "回覆未完成，內容提早中斷。請 AI 縮短回覆後再試。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24373"
+    },
+    {
+      "source": "The reply did not include any shapes, so there is nothing to preview. Ask again and describe the shapes you want.",
+      "translation": "回覆沒有任何形狀，因此無法預覽。請再說明你想要的形狀。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24415"
+    },
+    {
+      "source": "Type a message before sending.",
+      "translation": "發送前輸入訊息。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24470"
+    },
+    {
+      "source": "Select a shape first, or switch Context to the whole scene.",
+      "translation": "請先選取一個形狀，或把「範圍」改為整個場景。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24470"
+    },
+    {
+      "source": "Add your server URL, API key and model in AI settings first.",
+      "translation": "請先到 AI 設定加入伺服器網址、API 金鑰和模型。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24470"
+    },
+    {
+      "source": "Enter",
+      "translation": "輸入",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24511"
+    },
+    {
+      "source": "Still finishing the last request — wait a moment, then send again.",
+      "translation": "上一個請求尚未完成。請稍等片刻，再傳送。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24533"
+    },
+    {
+      "source": "Send it anyway?",
+      "translation": "還是寄過去吧？",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24560"
+    },
+    {
+      "source": "Send anyway",
+      "translation": "無論如何發送",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24562"
+    },
+    {
+      "source": "Cancel",
+      "translation": "取消",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24568"
+    },
+    {
+      "source": "Cancelled — nothing was sent.",
+      "translation": "已取消 — 沒有發送任何內容。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24572"
+    },
+    {
+      "source": "Something went wrong. Try again.",
+      "translation": "出了點問題。再試一次。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24601"
+    },
+    {
+      "source": "Drop to place",
+      "translation": "掉落到指定地點",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24880"
+    },
+    {
+      "source": "No shapes selected",
+      "translation": "未選擇形狀",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24961"
+    },
+    {
+      "source": "Nothing was replaced.",
+      "translation": "沒有任何東西被替換。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24979"
+    },
+    {
+      "source": "Nothing was added.",
+      "translation": "沒有添加任何內容。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:24979"
+    },
+    {
+      "source": "Clear",
+      "translation": "清除",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:25025"
+    },
+    {
+      "source": "Clear the chat and the preview",
+      "translation": "清除聊天和預覽",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:25025"
+    },
+    {
+      "source": "Add your API key in AI settings first.",
+      "translation": "首先在 AI 設定中新增你的 API 金鑰。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:25110"
+    },
+    {
+      "source": "Drop to add",
+      "translation": "拖放添加",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:25118"
+    },
+    {
+      "source": "The AI request failed. Try again.",
+      "translation": "AI請求失敗。再試一次。",
+      "context": "AI Optimization",
+      "location": "assets/index-DYOibJJM.js:25138"
+    },
+    {
+      "source": "Sculpting your creature…",
+      "translation": "正在塑造你的角色……",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25264"
+    },
+    {
+      "source": "Building it in 3D…",
+      "translation": "以 3D 方式建構它...",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25264"
+    },
+    {
+      "source": "Drawing your idea…",
+      "translation": "畫出你的想法…",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25264"
+    },
+    {
+      "source": "Painting your model…",
+      "translation": "绘制你的模型...",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25264"
+    },
+    {
+      "source": "Taking longer than usual…",
+      "translation": "比平常花更長的時間…",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25295"
+    },
+    {
+      "source": "Hugging Face Spaces",
+      "translation": "擁抱臉部空間",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Access token",
+      "translation": "訪問權杖",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Paste an hf_… token here",
+      "translation": "在此處貼上 hf_… 標記",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Enter a browser API key or a fal-compatible server/proxy URL.",
+      "translation": "輸入瀏覽器 API 金鑰或相容 fal 的伺服器/代理 URL。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "API key",
+      "translation": "API 金鑰",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Paste a fal API key here",
+      "translation": "在此處貼上 fal API 金鑰",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Server or proxy URL",
+      "translation": "伺服器或代理 URL",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Optional fal-compatible proxy URL",
+      "translation": "可選的 fal 相容代理 URL",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Tencent TokenHub (official)",
+      "translation": "騰訊TokenHub（官方）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Use the official TokenHub API key. The optional URL must speak Tencent TokenHub's API protocol.",
+      "translation": "使用官方 TokenHub API 金鑰。可選的 URL 必須使用騰訊 TokenHub 的 API 協定。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Paste a Tencent TokenHub API key here",
+      "translation": "在此粘贴腾讯TokenHub API密钥",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Optional; defaults to https://tokenhub.tencentmaas.com",
+      "translation": "可選；預設為 https://tokenhub.tencentmaas.com",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Qwen Image Edit 2511 (Hugging Face)",
+      "translation": "Qwen Image Edit 2511（Hugging Face）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Edits the four-view sheet together.",
+      "translation": "一起編輯四視圖工作表。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Qwen Image Edit 2511 (fal)",
+      "translation": "Qwen Image Edit 2511（fal）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Direct fal API. Edits the four-view sheet together.",
+      "translation": "直接使用 fal API，一次修改四個視圖。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "FLUX.1 schnell (Hugging Face)",
+      "translation": "FLUX.1 schnell（Hugging Face）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Fast single-picture generation.",
+      "translation": "快速產生單張圖片。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "FLUX.1 schnell (fal)",
+      "translation": "FLUX.1 schnell（fal）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Direct fal API. Fast single-picture generation.",
+      "translation": "直接fal API。快速產生單張圖片。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Hunyuan3D 2mv",
+      "translation": "Hunyuan3D 2mv",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Tencent Hunyuan Community (excludes EU, UK and South Korea)",
+      "translation": "騰訊混元社群（不包括歐盟、英國和韓國）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Shape works. Texture is disabled on this Space even though its API lists the endpoint.",
+      "translation": "形狀作品。即使其 API 列出了端點，該空間上的紋理仍處於停用狀態。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Turbo",
+      "translation": "極速",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Octree resolution",
+      "translation": "八叉樹分辨率",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Low",
+      "translation": "低",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Standard",
+      "translation": "標準",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "High",
+      "translation": "高",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Inference steps",
+      "translation": "推理步驟",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Fast",
+      "translation": "快速",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Number of chunks",
+      "translation": "區塊數",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Simplify mesh",
+      "translation": "簡化網格",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Target face count",
+      "translation": "目標人臉數",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Shape detail",
+      "translation": "形狀細節",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "voxel resolution",
+      "translation": "體素解像度",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Hunyuan3D 2.1",
+      "translation": "Hunyuan3D 2.1",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Returns the original textured model by default. Optional mesh simplification exports an untextured shape; if export fails, the original is kept with a notice.",
+      "translation": "預設回傳原始紋理模型。可選的網格簡化匯出無紋理的形狀；如果匯出失敗，保留原件並附上通知。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Hunyuan3D v3 (fal)",
+      "translation": "Hunyuan3D v3（fal）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Commercial use via fal; provider and model terms apply",
+      "translation": "可透過 fal 作商業用途；須遵守服務商和模型的條款。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Paid fal API. Accepts front, back, left and right views and returns a textured GLB.",
+      "translation": "付費 fal API。接收前、後、左、右四個視圖，傳回有紋理的 GLB。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Generation type",
+      "translation": "一代類型",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Normal",
+      "translation": "正常",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Geometry",
+      "translation": "幾何",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Polygon type",
+      "translation": "多邊形類型",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "PBR materials",
+      "translation": "PBR材料",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Face count",
+      "translation": "面數",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "TRELLIS 2 (fal)",
+      "translation": "TRELLIS 2（fal）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Paid fal API. Single-picture generation with independent resolution, texture size and vertex target controls.",
+      "translation": "付費fal API。具有獨立解析度、紋理大小和頂點目標控制的單一圖片生成。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Decimation target",
+      "translation": "抽取目標",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Resolution",
+      "translation": "解析度",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Texture size",
+      "translation": "紋理尺寸",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Hunyuan3D 3.1 (Tencent official)",
+      "translation": "Hunyuan3D 3.1（騰訊官方）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Tencent Hunyuan model and TokenHub service terms apply",
+      "translation": "騰訊混元模式及TokenHub服務條款適用",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Official TokenHub API. This connection sends one picture as base64 and returns a textured GLB. TokenHub multiview needs hosted image URLs, so it is not wired to the four-view step yet.",
+      "translation": "官方 TokenHub API。此連線以 base64 形式傳送一張圖片並傳回帶有紋理的 GLB。 TokenHub 多視圖需要託管圖像 URL，因此它尚未連接到四視圖步驟。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "TRELLIS community",
+      "translation": "TRELLIS 社群",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Not connected: its single-image, multi-call session flow still needs an adapter.",
+      "translation": "未連線：其單一影像、多重呼叫會話流程仍需要適配器。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Hunyuan3D 2mini Turbo",
+      "translation": "Hunyuan3D 2mini Turbo",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Not connected: its hosted texture flow is single-image only and still needs an adapter.",
+      "translation": "未連接：其託管紋理流僅是單一圖像，並且仍然需要適配器。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "None — skip this step",
+      "translation": "無 — 跳過此步驟",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Not applicable",
+      "translation": "不適用",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "The seam is ready, but no standalone mesh-texturing service is connected.",
+      "translation": "接縫已準備就緒，但未連接獨立的網格紋理服務。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Yes",
+      "translation": "是",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25309"
+    },
+    {
+      "source": "Unverified",
+      "translation": "未驗證",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25309"
+    },
+    {
+      "source": "An adult needs to set up the AI connection in Settings first.",
+      "translation": "請成人先到「設定」建立 AI 連線。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25423"
+    },
+    {
+      "source": "The AI key was not accepted. An adult can check it in Settings.",
+      "translation": "AI 金鑰無效。請成人到「設定」檢查。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25423"
+    },
+    {
+      "source": "Today's AI time is used up. Try again later, or show the sample.",
+      "translation": "今天的 AI 使用時間已用完。請稍後再試，或查看範例。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25423"
+    },
+    {
+      "source": "The AI service is busy. Try again, or show the sample.",
+      "translation": "AI 服務正忙。請重試，或查看範例。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25423"
+    },
+    {
+      "source": "The AI service can't be reached right now. Try again, or show the sample.",
+      "translation": "暫時無法連接 AI 服務。請重試，或查看範例。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25423"
+    },
+    {
+      "source": "Stopped.",
+      "translation": "已停止。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25423"
+    },
+    {
+      "source": "Something went wrong making this. Try again, or show the sample.",
+      "translation": "創作時出了問題。請重試，或查看範例。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25423"
+    },
+    {
+      "source": "createGenService: providers and config() are required",
+      "translation": "createGenService：需要提供者和 config()",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25466"
+    },
+    {
+      "source": "There is nothing to photograph yet — add a shape first.",
+      "translation": "還沒有什麼可以拍攝的——先加入一個形狀。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25544"
+    },
+    {
+      "source": "Redesign the four views",
+      "translation": "重新設計四個視圖",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25652"
+    },
+    {
+      "source": "Four views to 3D",
+      "translation": "四個視圖轉為 3D",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25652"
+    },
+    {
+      "source": "Words to picture",
+      "translation": "文字轉圖片",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25652"
+    },
+    {
+      "source": "Picture to 3D",
+      "translation": "圖片轉 3D",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25652"
+    },
+    {
+      "source": "Texture the 3D mesh",
+      "translation": "對 3D 網格進行紋理化",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25652"
+    },
+    {
+      "source": "Front",
+      "translation": "前方",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25652"
+    },
+    {
+      "source": "Left",
+      "translation": "左方",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25652"
+    },
+    {
+      "source": "Back",
+      "translation": "後方",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25652"
+    },
+    {
+      "source": "Right",
+      "translation": "右方",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25652"
+    },
+    {
+      "source": "Adding your model…",
+      "translation": "新增你的模型...",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25840"
+    },
+    {
+      "source": "Cancel",
+      "translation": "取消",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25840"
+    },
+    {
+      "source": "The prompt that will be sent",
+      "translation": "將會傳送的文字指令",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25848"
+    },
+    {
+      "source": "Type what it is, and the prompt appears here.",
+      "translation": "輸入想創作的東西，文字指令就會顯示在這裏。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25851"
+    },
+    {
+      "source": "What is it?",
+      "translation": "它是什麼？",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25855"
+    },
+    {
+      "source": "What should the AI make?",
+      "translation": "AI 該做什麼？",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25855"
+    },
+    {
+      "source": "a dinosaur with spikes on its back",
+      "translation": "背上有尖刺的恐龍",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25855"
+    },
+    {
+      "source": "a blue dragon with big wings",
+      "translation": "一條長著大翅膀的藍龍",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25855"
+    },
+    {
+      "source": "Done editing",
+      "translation": "編輯完成",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25858"
+    },
+    {
+      "source": "Edit the prompt",
+      "translation": "修改文字指令",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25858"
+    },
+    {
+      "source": "Done editing",
+      "translation": "編輯完成",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25859"
+    },
+    {
+      "source": "Edit the prompt",
+      "translation": "修改文字指令",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25859"
+    },
+    {
+      "source": "Edit the prompt",
+      "translation": "修改文字指令",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25860"
+    },
+    {
+      "source": "Reset",
+      "translation": "重置",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25861"
+    },
+    {
+      "source": "What is it?",
+      "translation": "它是什麼？",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25862"
+    },
+    {
+      "source": "What should the AI make?",
+      "translation": "AI 該做什麼？",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25862"
+    },
+    {
+      "source": "Type what it is first.",
+      "translation": "首先輸入它是什麼。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25862"
+    },
+    {
+      "source": "The prompt that will be sent",
+      "translation": "將會傳送的文字指令",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25862"
+    },
+    {
+      "source": "Use my view as the front",
+      "translation": "以我的視角為前方",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25874"
+    },
+    {
+      "source": "Reset angle",
+      "translation": "復位角度",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25874"
+    },
+    {
+      "source": "Turn",
+      "translation": "轉",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25874"
+    },
+    {
+      "source": "Tilt",
+      "translation": "傾斜",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25874"
+    },
+    {
+      "source": "Send my whole build, not just what I picked",
+      "translation": "發送我的整個構建，而不僅僅是我選擇的",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25874"
+    },
+    {
+      "source": "Taking pictures of your build…",
+      "translation": "為你的構建拍照...",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25877"
+    },
+    {
+      "source": "Make it real",
+      "translation": "變成 3D 模型",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25878"
+    },
+    {
+      "source": "These four pictures will be sent. Turn them so the AI sees the front of your model, then press Send.",
+      "translation": "這四張照片將會被發送。轉動它們，讓 AI 看到模型的正面，然後按「發送」。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25878"
+    },
+    {
+      "source": "Settings",
+      "translation": "設定",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25878"
+    },
+    {
+      "source": "Cancel",
+      "translation": "取消",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25878"
+    },
+    {
+      "source": "Retake",
+      "translation": "重新拍攝",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25878"
+    },
+    {
+      "source": "Send",
+      "translation": "傳送",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25878"
+    },
+    {
+      "source": "Make from words",
+      "translation": "用文字創作",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25881"
+    },
+    {
+      "source": "Settings",
+      "translation": "設定",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25881"
+    },
+    {
+      "source": "Cancel",
+      "translation": "取消",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25881"
+    },
+    {
+      "source": "Send",
+      "translation": "傳送",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25881"
+    },
+    {
+      "source": "Cancel",
+      "translation": "取消",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25885"
+    },
+    {
+      "source": "Here is the redesign",
+      "translation": "這是重新設計的",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25888"
+    },
+    {
+      "source": "Here is the picture",
+      "translation": "這是圖片",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25888"
+    },
+    {
+      "source": "Here is your 3D model",
+      "translation": "這是你的 3D 模型",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25888"
+    },
+    {
+      "source": "Sample",
+      "translation": "樣品",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25889"
+    },
+    {
+      "source": "This is a ready-made example, not made from your build.",
+      "translation": "這是一個現成的範例，不是根據你的構建製作的。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25889"
+    },
+    {
+      "source": "What the AI drew",
+      "translation": "AI 畫出的圖片",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25889"
+    },
+    {
+      "source": "Back",
+      "translation": "返回",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25889"
+    },
+    {
+      "source": "Try again",
+      "translation": "再試一次",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25889"
+    },
+    {
+      "source": "Use this",
+      "translation": "用這個",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25889"
+    },
+    {
+      "source": "Your 3D model, turning",
+      "translation": "你的 3D 模型，正在轉動",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25890"
+    },
+    {
+      "source": "The picture it was made from",
+      "translation": "它的圖片是由它製作的",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25893"
+    },
+    {
+      "source": "Back to my build",
+      "translation": "回到我的構建",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25893"
+    },
+    {
+      "source": "Back",
+      "translation": "返回",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25893"
+    },
+    {
+      "source": "Try again",
+      "translation": "再試一次",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25893"
+    },
+    {
+      "source": "Replace my blocks",
+      "translation": "取代我的方塊",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25893"
+    },
+    {
+      "source": "Add the sample",
+      "translation": "添加樣品",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25893"
+    },
+    {
+      "source": "Add to my studio",
+      "translation": "加入我的工作室",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25893"
+    },
+    {
+      "source": "The preview could not be shown, but the model is ready.",
+      "translation": "無法顯示預覽，但模型已準備就緒。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25894"
+    },
+    {
+      "source": "That did not work",
+      "translation": "那不起作用",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25899"
+    },
+    {
+      "source": "Settings",
+      "translation": "設定",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25899"
+    },
+    {
+      "source": "Back to my build",
+      "translation": "回到我的構建",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25899"
+    },
+    {
+      "source": "Show the sample",
+      "translation": "查看範例",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25899"
+    },
+    {
+      "source": "Try again",
+      "translation": "再試一次",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25899"
+    },
+    {
+      "source": "· Not connected",
+      "translation": "· 未連接",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25903"
+    },
+    {
+      "source": "Off",
+      "translation": "關",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25916"
+    },
+    {
+      "source": "Custom",
+      "translation": "自訂",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25920"
+    },
+    {
+      "source": "· Export call only",
+      "translation": "· 僅匯出呼叫",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25924"
+    },
+    {
+      "source": "Use model defaults",
+      "translation": "使用模型預設值",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25936"
+    },
+    {
+      "source": "(one required)",
+      "translation": "（至少選一個）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25946"
+    },
+    {
+      "source": "Settings (for adults)",
+      "translation": "設定（成人）",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Close settings",
+      "translation": "關閉設定",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Close",
+      "translation": "關閉",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Save & close",
+      "translation": "儲存並關閉",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Models for each step",
+      "translation": "每個步驟的模型",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Choose a model for each step. Capabilities and licence limits are shown because models are not interchangeable.",
+      "translation": "為每個步驟選擇 AI 模型。各模型的功能和授權限制不同，這裏會顯示供你比較。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Model controls",
+      "translation": "模型控制",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Options for the selected models, using each provider’s supported ranges, choices and defaults. Hunyuan shape-detail presets change voxel resolution, not face count. Mesh simplification is optional.",
+      "translation": "這裏顯示所選模型支援的數值範圍、選項和預設值。Hunyuan 的形狀細節預設值會改變體素解像度，而非面數。你也可以選擇簡化網格。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Connections",
+      "translation": "連接",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Add each provider once; every selected model from that provider reuses this connection. Settings are stored in localStorage on this device and sent only to that provider. A server URL must speak that provider's protocol.",
+      "translation": "每個服務商只需設定一次；該服務商的模型會共用這個連線。設定儲存在這部裝置的 localStorage，只會傳送給相應服務商。伺服器網址必須支援該服務商的通訊方式。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Use restricted test keys in this browser-only demo. Put keys behind a server proxy before production.",
+      "translation": "在此僅限瀏覽器的示範中使用受限測試鍵。在生產之前將密鑰放在伺服器代理後面。",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Test the AI services",
+      "translation": "測試AI服務",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Save",
+      "translation": "儲存",
+      "context": "AI generation",
+      "location": "assets/index-DYOibJJM.js:25989"
+    },
+    {
+      "source": "Model loading was cancelled.",
+      "translation": "模型載入已取消。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26364"
+    },
+    {
+      "source": "Model loading timed out. Try again.",
+      "translation": "載入模型逾時，請再試一次。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26366"
+    },
+    {
+      "source": "Model loading was cancelled.",
+      "translation": "模型載入已取消。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26379"
+    },
+    {
+      "source": "Saved shop progress needs a different app version. It has been kept unchanged.",
+      "translation": "保存的商店進度需要不同的應用程式版本。它一直保持不變。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26484"
+    },
+    {
+      "source": "Saved shop progress could not be read. It has been kept unchanged.",
+      "translation": "無法讀取已儲存的商店進度。它一直保持不變。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26486"
+    },
+    {
+      "source": "Shop progress could not be updated.",
+      "translation": "無法更新商店進度。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26496"
+    },
+    {
+      "source": "Shop progress could not be saved. No credits were spent.",
+      "translation": "無法保存商店進度。沒有花費任何積分。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26497"
+    },
+    {
+      "source": "This browser cannot safely update shop progress. Use a browser with Web Locks support.",
+      "translation": "此瀏覽器無法安全地更新商店進度。使用支援 Web Locks 的瀏覽器。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26501"
+    },
+    {
+      "source": "The shop is still loading.",
+      "translation": "商店仍在加載中。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26592"
+    },
+    {
+      "source": "Unlock this model first.",
+      "translation": "首先解鎖這個模型。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26635"
+    },
+    {
+      "source": "Model loading timed out. Try again.",
+      "translation": "載入模型逾時，請再試一次。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26640"
+    },
+    {
+      "source": "The model could not be opened.",
+      "translation": "無法開啟這個模型。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26651"
+    },
+    {
+      "source": "This model has no shapes.",
+      "translation": "這個模型沒有形狀。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26656"
+    },
+    {
+      "source": "The placement point is invalid.",
+      "translation": "放置點無效。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26660"
+    },
+    {
+      "source": "Other",
+      "translation": "其他",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26666"
+    },
+    {
+      "source": "Add",
+      "translation": "加入",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26768"
+    },
+    {
+      "source": "Unlock",
+      "translation": "解鎖",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26768"
+    },
+    {
+      "source": "Retry",
+      "translation": "重試",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26768"
+    },
+    {
+      "source": "Loading models…",
+      "translation": "正在載入模型……",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26768"
+    },
+    {
+      "source": "All",
+      "translation": "全部",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26768"
+    },
+    {
+      "source": "Drag",
+      "translation": "拖曳",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26768"
+    },
+    {
+      "source": "No models match",
+      "translation": "找不到符合的模型。",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26768"
+    },
+    {
+      "source": "No skill tree",
+      "translation": "沒有技能樹",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26768"
+    },
+    {
+      "source": "Skill tree unavailable",
+      "translation": "暫時無法開啟技能樹",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26768"
+    },
+    {
+      "source": "no reward",
+      "translation": "沒有獎勵",
+      "context": "Model shop and skill tree",
+      "location": "assets/index-DYOibJJM.js:26798"
+    },
+    {
+      "source": "Model",
+      "translation": "模型",
+      "context": "Model shop",
+      "location": "assets/index-DYOibJJM.js:27203"
+    },
+    {
+      "source": "Model",
+      "translation": "模型",
+      "context": "Model shop",
+      "location": "assets/index-DYOibJJM.js:27260"
+    },
+    {
+      "source": "Reset demo credits and skill progress? Your scene will be kept.",
+      "translation": "要重設示範金幣和技能進度嗎？你的場景會保留。",
+      "context": "Model shop",
+      "location": "assets/index-DYOibJJM.js:27727"
+    },
+    {
+      "source": "Drop to place",
+      "translation": "掉落到指定地點",
+      "context": "Model shop",
+      "location": "assets/index-DYOibJJM.js:27747"
+    },
+    {
+      "source": "Sculpted — it is back in your scene! ✨",
+      "translation": "塑形完成！它已回到場景中。✨",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30361"
+    },
+    {
+      "source": "No sculpting done, so the shape is unchanged.",
+      "translation": "沒有進行塑形，形狀保持不變。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30362"
+    },
+    {
+      "source": "Sculpt cancelled — the shape is unchanged.",
+      "translation": "已取消塑形，形狀保持不變。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30365"
+    },
+    {
+      "source": "Imported with its skeleton and bending.",
+      "translation": "其骨架和折彎均採用進口。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30496"
+    },
+    {
+      "source": "Skeleton kept — working out the bending",
+      "translation": "保留骨架——计算弯曲度",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30496"
+    },
+    {
+      "source": "Imported. Tap it in Rig mode to give it a skeleton.",
+      "translation": "進口的。在裝備模式下點擊它，給它一個骨架。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30496"
+    },
+    {
+      "source": "Could not import that file.",
+      "translation": "無法導入該文件。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30498"
+    },
+    {
+      "source": "Sample",
+      "translation": "樣品",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30557"
+    },
+    {
+      "source": "AI model",
+      "translation": "人工智慧模型",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30557"
+    },
+    {
+      "source": "Added the sample model.",
+      "translation": "新增了範例模型。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30572"
+    },
+    {
+      "source": "Added your AI model beside your build. Undo removes it.",
+      "translation": "在你的构建旁边添加了你的 AI 模型。復原會將其刪除。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30572"
+    },
+    {
+      "source": "Nothing to rest — give the model a skeleton in Rig mode first.",
+      "translation": "沒什麼好休息的——首先在 Rig 模式下給模型一個骨架。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30578"
+    },
+    {
+      "source": "Back to rest.",
+      "translation": "已還原原始姿勢。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30582"
+    },
+    {
+      "source": "Add or generate a model first, then export.",
+      "translation": "先新增或產生模型，然後匯出。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30591"
+    },
+    {
+      "source": "Wait for the bending to finish before exporting this skeleton.",
+      "translation": "等待彎曲完成後再匯出此骨架。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30595"
+    },
+    {
+      "source": "Exported my-model.glb with its skeleton, Walk and Jump.",
+      "translation": "已匯出 my-model.glb，包含骨架、行走和跳躍動畫。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30605"
+    },
+    {
+      "source": "Exported my-model.glb with its skeleton.",
+      "translation": "已匯出 my-model.glb，包含骨架。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30605"
+    },
+    {
+      "source": "Exported my-model.glb.",
+      "translation": "已匯出 my-model.glb。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30605"
+    },
+    {
+      "source": "Export failed.",
+      "translation": "匯出失敗。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30607"
+    },
+    {
+      "source": "Build something first, then make it real.",
+      "translation": "首先建造一些東西，然後將其變為現實。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30615"
+    },
+    {
+      "source": "Undone (fit).",
+      "translation": "已復原穿裝備操作。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30635"
+    },
+    {
+      "source": "Undone.",
+      "translation": "已復原。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30638"
+    },
+    {
+      "source": "Nothing to undo.",
+      "translation": "沒有什麼可以復原的。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30638"
+    },
+    {
+      "source": "Redone (fit).",
+      "translation": "已重做穿裝備操作。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30642"
+    },
+    {
+      "source": "Redone.",
+      "translation": "已重做。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30645"
+    },
+    {
+      "source": "Nothing to redo.",
+      "translation": "沒什麼好重做的。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30645"
+    },
+    {
+      "source": "Bones are part of the skeleton — use Clear skeleton in Rig mode to remove them.",
+      "translation": "骨骼是骨架的一部分 - 在裝備模式下使用「清除骨架」來移除它們。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30650"
+    },
+    {
+      "source": "Nothing selected to delete. Click a shape first.",
+      "translation": "沒有選擇要刪除的內容。首先點選一個形狀。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30654"
+    },
+    {
+      "source": "Select a shape (or several, with Shift-click) to duplicate.",
+      "translation": "選擇一個形狀（或多個，按住 Shift 鍵並點擊）進行複製。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30666"
+    },
+    {
+      "source": "Start a new scene? Your current work will be lost.",
+      "translation": "要開始新場景嗎？目前的作品將會消失。",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30674"
+    },
+    {
+      "source": "New scene ready! ✨",
+      "translation": "新場景準備好了！✨",
+      "context": "Main studio",
+      "location": "assets/index-DYOibJJM.js:30675"
+    },
+    {
+      "source": "Give your model a skeleton",
+      "translation": "為模型加上骨架",
+      "context": "Auto-rig/animation dialog rig-auto-title text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "A temporary light copy goes to your chosen rigging service. Your original detail stays here. You can adjust the joints afterwards, or Undo.",
+      "translation": "系統會把簡化後的暫時副本傳送到你選擇的加關節服務。原本的細節會保留在這裏。完成後，你可以調整關節或按「復原」。",
+      "context": "Auto-rig/animation dialog p text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Connection settings",
+      "translation": "連線設定",
+      "context": "Auto-rig/animation dialog legend text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Rigging provider",
+      "translation": "加關節服務",
+      "context": "Auto-rig/animation dialog label text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Hugging Face · UniRig",
+      "translation": "Hugging Face · UniRig",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Custom API",
+      "translation": "自訂 API",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Use my local Hugging Face login",
+      "translation": "使用本機的 Hugging Face 登入",
+      "context": "Auto-rig/animation dialog rig-auto-local text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Hugging Face access token (this tab only)",
+      "translation": "Hugging Face 存取權杖（只在此分頁使用）",
+      "context": "Auto-rig/animation dialog rig-auto-key text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "hf_…",
+      "translation": "hf_…",
+      "context": "Auto-rig/animation dialog input [placeholder]",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "API endpoint URL",
+      "translation": "API 端點網址",
+      "context": "Auto-rig/animation dialog label text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "https://your-server.example/rig",
+      "translation": "https://your-server.example/rig",
+      "context": "Auto-rig/animation dialog rig-auto-endpoint [placeholder]",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "API key (optional, this tab only)",
+      "translation": "API 金鑰（選填，只在此分頁使用）",
+      "context": "Auto-rig/animation dialog label text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Use an endpoint that accepts a GLB upload and returns a rigged GLB. API keys are sent as Bearer tokens. The server must allow browser access (CORS).",
+      "translation": "使用能接收 GLB 並傳回已加骨架 GLB 的端點。API 金鑰會以 Bearer 權杖傳送。伺服器必須允許瀏覽器存取（CORS）。",
+      "context": "Auto-rig/animation dialog p text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Connection settings stay in this tab until you reload. They are not saved with your model.",
+      "translation": "連線設定只會留在此分頁，重新載入後就會消失，也不會與模型一起儲存。",
+      "context": "Auto-rig/animation dialog rig-auto-settings-note text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Close",
+      "translation": "關閉",
+      "context": "Auto-rig/animation dialog button text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Make skeleton",
+      "translation": "建立骨架",
+      "context": "Auto-rig/animation dialog button text",
+      "location": "assets/index-DYOibJJM.js:20781"
+    },
+    {
+      "source": "Walk & Jump",
+      "translation": "行走與跳躍",
+      "context": "Auto-rig/animation dialog motion-title text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Automatic motion preview. Check the suggested legs and adjust the direction. Walk stays in place.",
+      "translation": "預覽自動動作。檢查建議的腿部關節，再調整方向。行走動畫會留在原位。",
+      "context": "Auto-rig/animation dialog p text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Motion",
+      "translation": "動作",
+      "context": "Auto-rig/animation dialog label text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Motion",
+      "translation": "動作",
+      "context": "Auto-rig/animation dialog select [aria-label]",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Walk",
+      "translation": "行走",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Jump",
+      "translation": "跳躍",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Walk style",
+      "translation": "行走方式",
+      "context": "Auto-rig/animation dialog label text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Walk style",
+      "translation": "行走方式",
+      "context": "Auto-rig/animation dialog select [aria-label]",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Automatic",
+      "translation": "自動",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Waddle — rock and shift weight",
+      "translation": "搖擺 — 左右轉移重心",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Step — use legs",
+      "translation": "邁步 — 使用雙腿",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Softness",
+      "translation": "柔和程度",
+      "context": "Auto-rig/animation dialog label text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Forward direction",
+      "translation": "前進方向",
+      "context": "Auto-rig/animation dialog label text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Front (+Z)",
+      "translation": "前方（+Z）",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Back (−Z)",
+      "translation": "後方（−Z）",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Right (+X)",
+      "translation": "右方（+X）",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Left (−X)",
+      "translation": "左方（−X）",
+      "context": "Auto-rig/animation dialog option text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Cycle duration (seconds)",
+      "translation": "每次動作時間（秒）",
+      "context": "Auto-rig/animation dialog label text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Motion amount",
+      "translation": "動作幅度",
+      "context": "Auto-rig/animation dialog label text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Body roles — edit automatic suggestions",
+      "translation": "身體部位 — 修改自動建議",
+      "context": "Auto-rig/animation dialog summary text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Check each knee joint; its parent is the hip. Confirm its foot and bend direction below. Knees stay 8–120° from straight; unreachable targets may slip instead of overextending. Play saves these animations for Export.",
+      "translation": "檢查每個膝蓋關節：它的上層關節是髖部。確認下方的腳部和彎曲方向。膝蓋會保持彎曲 8–120°；如果目標太遠，腳可能會滑動。按「播放」會儲存動畫，供匯出使用。",
+      "context": "Auto-rig/animation dialog p text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Play",
+      "translation": "播放",
+      "context": "Auto-rig/animation dialog button text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Stop",
+      "translation": "停止",
+      "context": "Auto-rig/animation dialog button text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Export Walk + Jump",
+      "translation": "匯出行走與跳躍",
+      "context": "Auto-rig/animation dialog button text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Close",
+      "translation": "關閉",
+      "context": "Auto-rig/animation dialog button text",
+      "location": "assets/index-DYOibJJM.js:21024"
+    },
+    {
+      "source": "Could not start the 3D view (WebGL is not available). Try a different browser, or restart this one.",
+      "translation": "無法開啟 3D 畫面（WebGL 無法使用）。請換一個瀏覽器，或重新啟動目前的瀏覽器。",
+      "context": "Auto-rig/animation dialog div text",
+      "location": "assets/index-DYOibJJM.js:30349"
+    },
+    {
+      "source": "A <b>skeleton</b> is a chain of joints. Tap the model in <b>Rig</b> mode to place the first joint; every next tap adds a joint linked to the selected one. Tap a ball to select it, so the next tap branches from there. Drag a ball to move it — turn the model and drag again to set its depth. The bending is worked out for you a moment after you stop. Joints belong to the shape you tapped: move, turn or scale the shape and they come along. A shape with no joint inside rides the nearest bone.",
+      "translation": "一副<b>骨架</b>由一串關節組成。在<b>加關節</b>模式點按模型，放下第一個關節；之後每點按一次，就會加上一個連接到所選關節的新關節。點按關節球來選取它，下一次點按便會從那裏分支。拖曳關節球可移動它；轉動模型後再拖曳，就能調整深度。放開後，系統會稍後算出彎曲效果。關節會跟着你點按的形狀移動、旋轉和縮放。若形狀內沒有關節，它會跟着最近的骨骼移動。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[0]"
+    },
+    {
+      "source": "In <b>Pose</b> mode, tap a ball. The ring appears at the joint above it — that is the hinge. Turn the ring to swing the lit piece. The first ball turns the whole model. <b>Rest</b> straightens everything; <b>Export</b> saves a .glb with the skeleton, and importing that file brings the skeleton back.",
+      "translation": "在<b>擺姿勢</b>模式點按關節球。上方關節會出現圓環，那就是轉動的位置。轉動圓環，讓亮起的部分擺動。第一個關節球會轉動整個模型。按<b>還原姿勢</b>可拉直模型；按<b>匯出</b>可把骨架一起存成 .glb。再匯入該檔案，骨架也會回來。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[1]"
+    },
+    {
+      "source": "The <b>FRONT</b> arrow points toward +Z — build your character facing that way. Red = X (right), green = Y (up), blue = Z (forward).",
+      "translation": "<b>FRONT</b> 箭嘴指向 +Z。製作角色時，讓它面向這個方向。紅色 = X（右）、綠色 = Y（上）、藍色 = Z（前）。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[2]"
+    },
+    {
+      "source": "<b>Build</b> (1) — add shapes and move them around.",
+      "translation": "<b>製作</b>（1）— 加入形狀並移動它們。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[3]"
+    },
+    {
+      "source": "<b>Rig</b> (2) — tap the model to place joints; drag balls to move them.",
+      "translation": "<b>加關節</b>（2）— 點按模型放下關節；拖曳關節球來移動。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[4]"
+    },
+    {
+      "source": "<b>Pose</b> (3) — tap a ball and turn the ring at the joint above it to swing the lit piece.",
+      "translation": "<b>擺姿勢</b>（3）— 點按關節球，再轉動上方關節的圓環，讓亮起的部分擺動。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[5]"
+    },
+    {
+      "source": "<b>Fit</b> (4) — load a gear model (GLB / OBJ / FBX), pick a slot, auto-fit it onto the current character, then adjust it with Move / Rotate / Scale and download the result.",
+      "translation": "<b>穿裝備</b>（4）— 載入裝備模型（GLB / OBJ / FBX）、選擇位置，自動穿到目前角色身上，再用「移動／旋轉／縮放」調整和下載。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[6]"
+    },
+    {
+      "source": "<b>Delete / Backspace</b> — delete the selected shape · <b>Ctrl+D</b> — duplicate · <b>Ctrl+Z</b> — undo · <b>Ctrl+Shift+Z / Ctrl+Y</b> — redo",
+      "translation": "<b>Delete / Backspace</b> — 刪除選取的形狀 · <b>Ctrl+D</b> — 複製 · <b>Ctrl+Z</b> — 復原 · <b>Ctrl+Shift+Z / Ctrl+Y</b> — 重做",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[7]"
+    },
+    {
+      "source": "<b>G / R / S</b> — move / rotate / scale gizmo · <b>1-4</b> — switch modes",
+      "translation": "<b>G / R / S</b> — 移動／旋轉／縮放控制器 · <b>1-4</b> — 切換模式",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[8]"
+    },
+    {
+      "source": "In Scale, turn on <b>Keep proportions</b> to resize an object without changing its shape.",
+      "translation": "使用「縮放」時，開啟<b>保持比例</b>，就能在不改變形狀的情況下調整大小。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[9]"
+    },
+    {
+      "source": "<b>Move several shapes at once:</b> Shift-click to select a few shapes, then drag the gizmo — they all move, spin, or scale together around one shared centre. Ctrl+D duplicates the whole selection.",
+      "translation": "<b>一次移動多個形狀：</b>按住 Shift 並點按幾個形狀，再拖曳控制器。它們會圍繞同一個中心一起移動、旋轉或縮放。按 Ctrl+D 可複製整組。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[10]"
+    },
+    {
+      "source": "<b>Shape sculpting:</b> select a shape, then press <b>🧱 Sculpt</b> in its Details to open the Clay Studio with just that shape. Pull, Push, Smooth, Grab, Carve and Paint it, with Mirror and Undo. Press <b>✅ Done</b> to put the sculpted shape back in your scene.",
+      "translation": "<b>形狀塑形：</b>選取一個形狀，在「詳細資料」按<b>🧱 塑形</b>，便可在黏土工作室塑造這個形狀。你可以拉出、推入、抹平、抓取、刻畫和塗色，也可以使用鏡像和復原。按<b>✅ 完成</b>，就能把塑形後的形狀放回場景。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[11]"
+    },
+    {
+      "source": "This is the shape you picked — sculpt it with your finger, like playdough!",
+      "translation": "這是你選取的形狀。像玩黏土一樣，用手指替它塑形吧！",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[12]"
+    },
+    {
+      "source": "<b>One finger on the clay</b> sculpts it with the chosen tool. <b>One finger on the background</b> turns the shape around. <b>Two fingers</b> (or pinch) zoom.",
+      "translation": "在<b>黏土上用一根手指</b>，可用選取的工具塑形。<b>在背景用一根手指</b>，可轉動形狀。<b>用兩根手指</b>捏合，可縮放。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[13]"
+    },
+    {
+      "source": "<b>Pull / Push</b> — pinch the surface in or out. <b>Smooth</b> — soften bumps. <b>Grab</b> — drag a lump around. <b>Carve</b> — scratch a thin line. <b>Paint</b> — add colour that stays glued to the shape.",
+      "translation": "<b>拉出／推入</b> — 把表面拉出或壓入。<b>抹平</b> — 弄平凸起。<b>抓取</b> — 拖動一塊黏土。<b>刻畫</b> — 刻出細線。<b>塗色</b> — 塗上會跟着形狀移動的顏色。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[14]"
+    },
+    {
+      "source": "<b>Mirror</b> sculpts both sides at once. <b>Brush</b> sets the tool size. <b>Undo</b> steps back one stroke. <b>✅ Done</b> puts the sculpted shape back in your scene; <b>✕ Cancel</b> throws the sculpt away.",
+      "translation": "<b>鏡像</b>會同時塑造兩側。<b>筆刷</b>可調整工具大小。<b>復原</b>可退回上一步。按<b>✅ 完成</b>可把形狀放回場景；按<b>✕ 取消</b>會放棄這次塑形。",
+      "context": "Help dialog paragraph with markup",
+      "location": "index.html:help-paragraph[15]"
+    },
+    {
+      "source": "${t2.text} Go back to Rig mode to fix it.",
+      "translation": "${t2.text} 請返回加關節模式修正。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:17781"
+    },
+    {
+      "source": "Shapes (${n2.length})",
+      "translation": "形狀（${n2.length}）",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:17807"
+    },
+    {
+      "source": "Gear (${t2.length})",
+      "translation": "裝備（${t2.length}）",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:17810"
+    },
+    {
+      "source": "Skeleton (${r2.bones.size})",
+      "translation": "骨架（${r2.bones.size}）",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:17815"
+    },
+    {
+      "source": "Bound to ${n2.boneKey}. Pick a bone to move it, or Unbind to make it float.",
+      "translation": "已連接到 ${n2.boneKey}。選取骨骼來移動它，或按「解除連接」讓它自由移動。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:17961"
+    },
+    {
+      "source": " (solved on ${e27.coarsePoints.toLocaleString()})",
+      "translation": "（以 ${e27.coarsePoints.toLocaleString()} 個點計算）",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:18047"
+    },
+    {
+      "source": "Removed ${r2.length} joints.",
+      "translation": "已移除 ${r2.length} 個關節。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:18151"
+    },
+    {
+      "source": "Working out the bending… ${V_[t2] || t2} ${Math.round(e27 * 100)}%",
+      "translation": "正在計算彎曲效果……${V_[t2] || t2} ${Math.round(e27 * 100)}%",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:18228"
+    },
+    {
+      "source": "${e28} joints sit outside the model — drag them inside.",
+      "translation": "有 ${e28} 個關節在模型外面，請把它們拖進模型內。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:18284"
+    },
+    {
+      "source": "${t2.length} selected parts",
+      "translation": "已選取 ${t2.length} 個部件",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:20599"
+    },
+    {
+      "source": "The rigging API returned HTTP ${n4.status}. Check the endpoint and API key.",
+      "translation": "加關節 API 傳回 HTTP ${n4.status}。請檢查端點和 API 金鑰。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:20727"
+    },
+    {
+      "source": "Could not download the rig (${c3.status}).",
+      "translation": "無法下載骨架（${c3.status}）。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:20752"
+    },
+    {
+      "source": "${this.targets.length} selected parts",
+      "translation": "已選取 ${this.targets.length} 個部件",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:20813"
+    },
+    {
+      "source": "${u2} joints added. Working out the bending. Undo brings the previous skeleton back.",
+      "translation": "已加入 ${u2} 個關節，正在計算彎曲效果。按「復原」可還原之前的骨架。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:20859"
+    },
+    {
+      "source": "${t3}. Your model is unchanged.",
+      "translation": "${t3}。模型保持不變。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:20863"
+    },
+    {
+      "source": "Leg ${t3} needs a knee and a foot below it. Choose a higher knee segment or correct its foot.",
+      "translation": "腿部 ${t3} 需要膝蓋和下方的腳。請選擇較高的膝蓋部位，或修正腳的位置。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:20880"
+    },
+    {
+      "source": "Leg ${t3} has a zero-length thigh or lower leg. Correct its joints before animating.",
+      "translation": "腿部 ${t3} 的大腿或小腿長度為零。請先修正關節，再製作動畫。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:20885"
+    },
+    {
+      "source": "Invalid knee limits on ${t3}.",
+      "translation": "${t3} 的膝蓋彎曲限制無效。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:20887"
+    },
+    {
+      "source": "Could not prepare animation preview: ${e28.message}",
+      "translation": "無法準備動畫預覽：${e28.message}",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:21054"
+    },
+    {
+      "source": "Role for ${t3.id}",
+      "translation": "${t3.id} 的身體部位",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:21079"
+    },
+    {
+      "source": "Highlight ${t3.id}",
+      "translation": "標示 ${t3.id}",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:21086"
+    },
+    {
+      "source": "Foot for knee ${t3.id}",
+      "translation": "膝蓋 ${t3.id} 對應的腳",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:21092"
+    },
+    {
+      "source": "Bend direction for knee ${t3.id}",
+      "translation": "膝蓋 ${t3.id} 的彎曲方向",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:21104"
+    },
+    {
+      "source": "Could not start animation: ${e27.message}",
+      "translation": "無法播放動畫：${e27.message}",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:21141"
+    },
+    {
+      "source": "Export failed: ${e28.message}",
+      "translation": "匯出失敗：${e28.message}",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:21162"
+    },
+    {
+      "source": "${i2.name} re-fitted on ${e28.name} (pre-fitted, pose kept).",
+      "translation": "已把 ${i2.name} 重新穿到 ${e28.name}（保留原有姿勢）。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:23279"
+    },
+    {
+      "source": "${e27.name} fitted on ${t2.name}.",
+      "translation": "已把 ${e27.name} 穿到 ${t2.name}。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:23289"
+    },
+    {
+      "source": "This model has no \"${e27}\" bone.",
+      "translation": "這個模型沒有「${e27}」骨骼。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:23304"
+    },
+    {
+      "source": "Could not download the dressed model: ${e27.message}",
+      "translation": "無法下載已穿裝備的模型：${e27.message}",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:23419"
+    },
+    {
+      "source": "🧱 Sculpting \"${n3.name}\" — one finger sculpts, one finger on the background turns, pinch zooms.",
+      "translation": "🧱 正在塑造「${n3.name}」— 在形狀上用一根手指塑形；在背景上用一根手指轉動；捏合可縮放。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:23875"
+    },
+    {
+      "source": "Request failed (HTTP ${e27}).",
+      "translation": "請求失敗（HTTP ${e27}）。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:24033"
+    },
+    {
+      "source": "The AI's reply needed one small fix (${n2}), so it was adjusted and previewed anyway.",
+      "translation": "AI 的回覆有一個小問題（${n2}），已修正並顯示預覽。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:24427"
+    },
+    {
+      "source": "This request is large (about ${PC(n2).toLocaleString()} tokens).",
+      "translation": "這次請求很大（約 ${PC(n2).toLocaleString()} 個 token）。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:24555"
+    },
+    {
+      "source": "${t2} shapes selected",
+      "translation": "已選取 ${t2} 個形狀",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:24961"
+    },
+    {
+      "source": "The AI returned ${n2} shapes — only the first ${r2} will be applied.",
+      "translation": "AI 傳回 ${n2} 個形狀；只會使用前 ${r2} 個。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:24983"
+    },
+    {
+      "source": "Applied the first ${r2} of ${n2} shapes.",
+      "translation": "已使用 ${n2} 個形狀中的前 ${r2} 個。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:24987"
+    },
+    {
+      "source": "Waiting in line: ${e27} ahead",
+      "translation": "正在排隊：前面還有 ${e27} 個",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:25293"
+    },
+    {
+      "source": "step ${a2.index} of ${a2.length}",
+      "translation": "第 ${a2.index} 步，共 ${a2.length} 步",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:25295"
+    },
+    {
+      "source": "Sending your whole build — all ${n2} shapes, not just the ${t2} you picked.",
+      "translation": "將傳送整個作品的 ${n2} 個形狀，包括未選取的形狀；你選取了 ${t2} 個。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:25544"
+    },
+    {
+      "source": "${BE[e28]} of your build",
+      "translation": "作品的${BE[e28]}視圖",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:25877"
+    },
+    {
+      "source": "Part ${n2} of ${r2}",
+      "translation": "第 ${n2} 部分，共 ${r2} 部分",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:25885"
+    },
+    {
+      "source": "Model for: ${zE[e28]}",
+      "translation": "用於以下步驟的模型：${zE[e28]}",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:25906"
+    },
+    {
+      "source": "Skill unlocked: ${i2[0]}",
+      "translation": "已解鎖技能：${i2[0]}",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:26835"
+    },
+    {
+      "source": "Preview of ${this._label}",
+      "translation": "${this._label} 的預覽",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:27213"
+    },
+    {
+      "source": "Added ${r3.name}. Undo removes it.",
+      "translation": "已加入 ${r3.name}。按「復原」可移除。",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:27715"
+    },
+    {
+      "source": "the sample is missing (${t3})",
+      "translation": "找不到範例（${t3}）",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:30565"
+    },
+    {
+      "source": "Shop could not load: ${e27.message}",
+      "translation": "無法載入商店：${e27.message}",
+      "context": "Dynamic student message",
+      "location": "assets/index-DYOibJJM.js:30779"
+    },
+    {
+      "source": "reach level ${r2.level}",
+      "translation": "達到等級 ${r2.level}",
+      "context": "Model shop lock reason",
+      "location": "assets/index-DYOibJJM.js:26039"
+    },
+    {
+      "source": "pay ${r2.coins} coins",
+      "translation": "花 ${r2.coins} 金幣",
+      "context": "Model shop purchase",
+      "location": "assets/index-DYOibJJM.js:26040"
+    },
+    {
+      "source": "need ${r2.coins - n2.coins} more coins",
+      "translation": "還差 ${r2.coins - n2.coins} 金幣",
+      "context": "Model shop lock reason",
+      "location": "assets/index-DYOibJJM.js:26040"
+    },
+    {
+      "source": "reach level ${r2.level} and pay ${r2.coins} coins",
+      "translation": "達到等級 ${r2.level}，並花 ${r2.coins} 金幣",
+      "context": "Model shop lock reason",
+      "location": "assets/index-DYOibJJM.js:26042"
+    },
+    {
+      "source": "${SO} · ${typeof t2.coins == `number` ? t2.coins : 0} coins",
+      "translation": "${SO} · ${typeof t2.coins == `number` ? t2.coins : 0} 金幣",
+      "context": "Model shop unlock button",
+      "location": "assets/index-DYOibJJM.js:26775"
+    },
+    {
+      "source": "+${e27} level${e27 === 1 ? `` : `s`}",
+      "translation": "等級 +${e27}",
+      "context": "Skill tree reward; Chinese has no plural suffix",
+      "location": "assets/index-DYOibJJM.js:26798"
+    },
+    {
+      "source": "+${t2} coin${t2 === 1 ? `` : `s`}",
+      "translation": "金幣 +${t2}",
+      "context": "Skill tree reward; Chinese has no plural suffix",
+      "location": "assets/index-DYOibJJM.js:26798"
+    },
+    {
+      "source": "${i2.length} skills unlocked: ${i2.join(`, `)}",
+      "translation": "已解鎖 ${i2.length} 項技能：${i2.join(`, `)}",
+      "context": "Skill tree success message",
+      "location": "assets/index-DYOibJJM.js:26835"
+    },
+    {
+      "source": "Lv ${r2.level ?? 0}",
+      "translation": "等級 ${r2.level ?? 0}",
+      "context": "Model shop wallet",
+      "location": "assets/index-DYOibJJM.js:27041"
+    },
+    {
+      "source": "Added ${c2} shape${c2 === 1 ? `` : `s`}.",
+      "translation": "已加入 ${c2} 個形狀。",
+      "context": "AI Optimization result; Chinese has no plural suffix",
+      "location": "assets/index-DYOibJJM.js:30533"
+    },
+    {
+      "source": "${s2.length} shape${s2.length === 1 ? `` : `s`} could not be built.",
+      "translation": "有 ${s2.length} 個形狀無法建立。",
+      "context": "AI Optimization error; Chinese has no plural suffix",
+      "location": "assets/index-DYOibJJM.js:30533"
+    },
+    {
+      "source": "Replaced ${t2} shape${t2 === 1 ? `` : `s`} with ${n2.length}.",
+      "translation": "已把 ${t2} 個形狀取代為 ${n2.length} 個。",
+      "context": "AI Optimization result; Chinese has no plural suffix",
+      "location": "assets/index-DYOibJJM.js:30537"
+    },
+    {
+      "source": "${r2.length} shape${r2.length === 1 ? `` : `s`} could not be built.",
+      "translation": "有 ${r2.length} 個形狀無法建立。",
+      "context": "AI Optimization error; Chinese has no plural suffix",
+      "location": "assets/index-DYOibJJM.js:30537"
+    },
+    {
+      "source": "Deleted ${t2} shape${t2 === 1 ? `` : `s`}.",
+      "translation": "已刪除 ${t2} 個形狀。",
+      "context": "Main studio result; Chinese has no plural suffix",
+      "location": "assets/index-DYOibJJM.js:30661"
+    },
+    {
+      "source": "Duplicated ${t2.length} shape${t2.length > 1 ? `s` : ``}.",
+      "translation": "已複製 ${t2.length} 個形狀。",
+      "context": "Main studio result; Chinese has no plural suffix",
+      "location": "assets/index-DYOibJJM.js:30671"
+    },
+    {
+      "source": "Auto-rig",
+      "translation": "自動加關節",
+      "context": "Rig action",
+      "location": "assets/index-DYOibJJM.js:18274"
+    },
+    {
+      "source": "1 joint sits outside the model — drag it inside.",
+      "translation": "有 1 個關節在模型外面，請把它拖進模型內。",
+      "context": "Rig warning",
+      "location": "assets/index-DYOibJJM.js:18284"
+    },
+    {
+      "source": "The service returned an invalid GLB.",
+      "translation": "服務傳回的 GLB 無效。",
+      "context": "Auto-rig error",
+      "location": "assets/index-DYOibJJM.js:20622"
+    },
+    {
+      "source": "The returned rig must be a self-contained GLB.",
+      "translation": "傳回的骨架必須是一個完整的 GLB 檔案。",
+      "context": "Auto-rig error",
+      "location": "assets/index-DYOibJJM.js:20624"
+    },
+    {
+      "source": "The returned skeleton has an invalid hierarchy.",
+      "translation": "傳回的骨架關節層級無效。",
+      "context": "Auto-rig error",
+      "location": "assets/index-DYOibJJM.js:20656"
+    },
+    {
+      "source": "The service returned an invalid model URL.",
+      "translation": "服務傳回的模型網址無效。",
+      "context": "Auto-rig error",
+      "location": "assets/index-DYOibJJM.js:20750"
+    },
+    {
+      "source": "Invalid motion settings.",
+      "translation": "動作設定無效。",
+      "context": "Animation error",
+      "location": "assets/index-DYOibJJM.js:20976"
+    },
+    {
+      "source": "Invalid movement style or softness.",
+      "translation": "行走方式或柔和程度無效。",
+      "context": "Animation error",
+      "location": "assets/index-DYOibJJM.js:20978"
+    },
+    {
+      "source": "A body role is invalid for this rig.",
+      "translation": "這副骨架有一個無效的身體部位設定。",
+      "context": "Animation error",
+      "location": "assets/index-DYOibJJM.js:20980"
+    },
+    {
+      "source": "Thinking…",
+      "translation": "正在思考……",
+      "context": "AI Optimization status",
+      "location": "assets/index-DYOibJJM.js:24649"
+    },
+    {
+      "source": "1 shape selected",
+      "translation": "已選取 1 個形狀",
+      "context": "AI Optimization selection",
+      "location": "assets/index-DYOibJJM.js:24961"
+    },
+    {
+      "source": "Not connected: multiview requires session state that is not yet verified end to end.",
+      "translation": "尚未連接：多視圖功能需要跨步驟保存資料，目前尚未完成驗證。",
+      "context": "AI model availability",
+      "location": "assets/index-DYOibJJM.js:25301"
+    },
+    {
+      "source": "Adding…",
+      "translation": "正在加入……",
+      "context": "AI generation status",
+      "location": "assets/index-DYOibJJM.js:25840"
+    },
+    {
+      "source": "(optional)",
+      "translation": "（選填）",
+      "context": "AI settings",
+      "location": "assets/index-DYOibJJM.js:25946"
+    },
+    {
+      "source": "Checking…",
+      "translation": "正在檢查……",
+      "context": "AI settings",
+      "location": "assets/index-DYOibJJM.js:25971"
+    },
+    {
+      "source": "Shop models must be static meshes. Import rigged models through Import GLB.",
+      "translation": "商店模型必須是不帶骨架的靜態模型。如要匯入有骨架的模型，請使用「匯入 GLB」。",
+      "context": "Model shop error",
+      "location": "assets/index-DYOibJJM.js:26654"
+    },
+    {
+      "source": "This model has invalid dimensions.",
+      "translation": "這個模型的尺寸無效。",
+      "context": "Model shop error",
+      "location": "assets/index-DYOibJJM.js:26658"
+    }
+  ],
+  "sourceUrl": "https://drive.google.com/drive/folders/1RfTXCUvJawZMHFZlv_uZU0mlvKdWw1rm",
+  "sourceFiles": {
+    "index.html": "sha256:0c14a0ed45ede8f9e8400c12149397193f9f2e0c95fb923f8878e24556d23054",
+    "assets/index-DYOibJJM.js": "sha256:ba95e885d10c15cb09f898ef018f9e73d09431edb6e0d57e0dddd1e0db29f7d4",
+    "skill-tree.json": "sha256:6e6d0e3d4444b299bbdc043584d4115c12c1e0c1cbcdd9bdc316bb978f517744",
+    "models/catalog.json": "sha256:bf32492ba83246c74fbd91a73534f2a2e8a6914c77f402717172c1b5d1623424"
+  },
+  "notes": "Review catalog for later integration. Locations in the JavaScript bundle refer to a prettified copy of the exact downloaded file. Expression placeholders, file formats, keyboard shortcuts, identifiers and URLs are retained."
+}

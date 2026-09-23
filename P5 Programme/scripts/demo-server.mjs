@@ -64,6 +64,10 @@ async function assetResponse(request) {
   try { pathname = decodeURIComponent(new URL(request.url).pathname); }
   catch { return new Response('bad path', { status: 400 }); }
   if (pathname === '/favicon.ico') return new Response(null, { status: 204 });
+  if (pathname.startsWith('/workshop/buddy/') && !pathname.includes('/api/')) {
+    const relative = pathname.slice('/workshop/buddy/'.length);
+    pathname = '/workshop/buddy/' + (relative.startsWith('logic/') ? relative : 'client/' + relative);
+  }
   let file = resolve(DOCROOT, '.' + pathname);
   if (!contained(file)) return new Response('forbidden', { status: 403 });
   try {
@@ -104,6 +108,9 @@ const workerEntry = pathToFileURL(join(DOCROOT, 'buddy', 'worker', 'index.mjs'))
 let worker;
 try { worker = (await import(workerEntry)).default; }
 catch (error) { console.error('[demo] Buddy worker could not start:', error?.message || error); process.exit(1); }
+let workshopWorker;
+try { workshopWorker = (await import(pathToFileURL(join(P5_ROOT, 'buddy-kit/client/workshop/buddy/worker/index.mjs')).href)).default; }
+catch (e) { console.warn('[demo] Local Workshop gateway unavailable:', e.message); }
 const useDeepSeekDefault = !process.env.BUDDY_MODEL_ID?.trim() || process.env.BUDDY_MODEL_ID === 'deepseek-v4-flash';
 const env = {
   ...process.env,
@@ -144,14 +151,19 @@ const server = createServer(async (req, res) => {
         storage: true,
         gateway: model.ok,
         buddy: false,
-        workshop: 'online-required',
+        workshop: workshopWorker ? 'local' : 'unavailable',
       }), { status:model.ok ? 200 : 503, headers:{ 'content-type':'application/json', 'cache-control':'no-store' } }));
     }
     if (req.method === 'POST' && req.url === '/api/demo/check') {
       const check = await checkBuddyTurn(worker, env);
       return send(res, new Response(JSON.stringify(check), { headers:{ 'content-type':'application/json', 'cache-control':'no-store' } }));
     }
-    await send(res, await worker.fetch(await nodeRequest(req), env));
+    const request = await nodeRequest(req);
+    if (req.url.startsWith('/workshop/buddy/api/') && workshopWorker) {
+      const url = new URL(request.url); url.pathname = url.pathname.replace('/workshop/buddy', '');
+      return send(res, await workshopWorker.fetch(new Request(url, request), env));
+    }
+    await send(res, await worker.fetch(request, env));
   } catch (error) {
     const status = Number(error?.status) || 500;
     console.error('[demo]', error?.stack || error);

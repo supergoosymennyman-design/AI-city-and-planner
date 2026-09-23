@@ -1,0 +1,19 @@
+/* examples/host-minimal/theme.css — the whole restyle: four variables and this page's own chrome.
+   No buddy layout is re-authored here, which is the point: structure stays in buddy-core.css, so a
+   layout fix upstream reaches this host for free. */
+body { margin:0; padding:2rem; font:16px/1.5 Georgia, serif; background:#f7f3ec; color:#2b2118; }
+h1 { font-size:1.6rem; margin:0 0 .3rem; }
+pre { background:#fff; border:1px solid #ddd2bf; border-radius:.5rem; padding:1rem; }
+
+/* Recolour the buddy to warm paper-and-ink. These four are usually all it takes.
+   The SELECTOR LIST matters: the launcher (.bw-bubble) and the panel (.bw-panel) are appended to
+   <body>, OUTSIDE the chat root (.buddy-app), so a block declared on .buddy-app alone would recolour
+   the chat and leave a mint-green launcher sitting next to it. Match buddy-theme.css's own list.
+   Note what is NOT here: --buddy-font. It defaults to `inherit`, so the buddy's chat, bubbles and
+   name tag are already set in this page's Georgia — no wiring needed. */
+.buddy-app, .bw-bubble, .bw-panel {
+  --buddy-surface: #fffdf8;
+  --buddy-ink: #2b2118;
+  --buddy-accent: #b4552d;
+  --buddy-accent-ink: #fffdf8;
+}

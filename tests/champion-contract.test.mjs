@@ -44,3 +44,10 @@ test('old colon-bearing quadruped documents migrate without losing role mapping'
   assert.equal(old.bones[0].name, 'rig:FrontLeftPaw');
   assert.equal(colonFreeBoneName('rig:Rear Right'), 'rig_Rear_Right');
 });
+
+test('declared foot joints must exist in the exported skeleton', () => {
+  const withFeet = { ...metadata, footBones: ['LeftFoot', 'RightFoot'] };
+  const animations = [clip('i'), clip('w'), clip('r')];
+  assert.equal(validateStudioChampion({ metadata: withFeet, animations, boneNames: ['Hips', 'LeftFoot', 'RightFoot'] }).ok, true);
+  assert.match(validateStudioChampion({ metadata: withFeet, animations, boneNames: ['Hips', 'LeftFoot'] }).error, /foot joints/);
+});

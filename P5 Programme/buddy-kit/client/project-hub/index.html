@@ -42,8 +42,8 @@
             <span id="studio-transfer">No Studio transfer yet</span>
           </div>
         </div>
-        <a class="continue-button" id="continue" href="/planner/">
-          <span>Continue my project</span><b id="continue-label">Open Planner</b><small id="continue-cue" hidden>Opens in new tab ↗</small>
+        <a class="continue-button" id="continue" href="/city-builder/?example=1">
+          <span>Explore a finished city</span><b id="continue-label">Open the example AI City</b><small id="continue-cue" hidden></small>
         </a>
       </section>
 
@@ -72,8 +72,9 @@
             <div class="card-top"><span class="icon-zone" aria-hidden="true">▥</span><span class="revision" id="city-revision">REV 0</span></div>
             <div><h3>3D AI City</h3><p id="city-count">Checking your saved city…</p></div>
             <div class="city-actions">
-              <a class="card-action" id="city-action" href="/planner/">Start in Planner <span aria-hidden="true">→</span></a>
-              <a class="secondary-action" href="/city-builder/?example=1">Explore the example city</a>
+              <a class="card-action" id="city-action" href="/city-builder/?example=1">Explore the example city <span aria-hidden="true">→</span></a>
+              <a class="secondary-action" id="new-city-action" href="/planner/?new=1">Start a new city</a>
+              <a class="secondary-action" id="saved-city-action" href="/city-builder/?resume=1" hidden>Continue my city</a>
             </div>
           </article>
 

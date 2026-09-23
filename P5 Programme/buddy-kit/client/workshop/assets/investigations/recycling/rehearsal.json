@@ -1,0 +1,503 @@
+{
+  "dataset": "trashnet-v1",
+  "classes": [
+    "paper",
+    "metal",
+    "plastic"
+  ],
+  "trainingIds": [
+    "metal/metal1",
+    "metal/metal10",
+    "metal/metal101",
+    "paper/paper1",
+    "paper/paper10",
+    "paper/paper100",
+    "plastic/plastic1",
+    "plastic/plastic100",
+    "plastic/plastic101"
+  ],
+  "developmentIds": [
+    "metal/metal100",
+    "metal/metal105",
+    "metal/metal106",
+    "metal/metal111",
+    "metal/metal113",
+    "metal/metal117",
+    "metal/metal118",
+    "metal/metal119",
+    "metal/metal12",
+    "metal/metal120",
+    "metal/metal125",
+    "metal/metal126",
+    "paper/paper101",
+    "paper/paper104",
+    "paper/paper108",
+    "paper/paper109",
+    "paper/paper112",
+    "paper/paper117",
+    "paper/paper12",
+    "paper/paper121",
+    "paper/paper125",
+    "paper/paper126",
+    "paper/paper135",
+    "paper/paper145",
+    "plastic/plastic10",
+    "plastic/plastic105",
+    "plastic/plastic106",
+    "plastic/plastic107",
+    "plastic/plastic115",
+    "plastic/plastic119",
+    "plastic/plastic121",
+    "plastic/plastic122",
+    "plastic/plastic128",
+    "plastic/plastic13",
+    "plastic/plastic139",
+    "plastic/plastic14"
+  ],
+  "selection": "First 3 training and first 12 test observations per selected class in the existing library order. Fixed before threshold sweep; reused development feedback, not an untouched final exam.",
+  "thresholds": [
+    {
+      "threshold": 0,
+      "branches": {
+        "review": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "paper": {
+          "n": 12,
+          "right": 10,
+          "wrong": 2,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 10,
+          "right": 7,
+          "wrong": 3,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 14,
+          "right": 10,
+          "wrong": 4,
+          "unsure": 0
+        }
+      },
+      "automatic": 36,
+      "wrong": 9,
+      "predictionWrong": 9,
+      "review": 0,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.2,
+      "branches": {
+        "review": {
+          "n": 3,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 3
+        },
+        "paper": {
+          "n": 10,
+          "right": 9,
+          "wrong": 1,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 9,
+          "right": 7,
+          "wrong": 2,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 14,
+          "right": 10,
+          "wrong": 4,
+          "unsure": 0
+        }
+      },
+      "automatic": 33,
+      "wrong": 7,
+      "predictionWrong": 7,
+      "review": 3,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.25,
+      "branches": {
+        "review": {
+          "n": 11,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 11
+        },
+        "paper": {
+          "n": 9,
+          "right": 8,
+          "wrong": 1,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 3,
+          "right": 3,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 13,
+          "right": 9,
+          "wrong": 4,
+          "unsure": 0
+        }
+      },
+      "automatic": 25,
+      "wrong": 5,
+      "predictionWrong": 5,
+      "review": 11,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.3,
+      "branches": {
+        "review": {
+          "n": 19,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 19
+        },
+        "paper": {
+          "n": 6,
+          "right": 6,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 2,
+          "right": 2,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 9,
+          "right": 7,
+          "wrong": 2,
+          "unsure": 0
+        }
+      },
+      "automatic": 17,
+      "wrong": 2,
+      "predictionWrong": 2,
+      "review": 19,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.35,
+      "branches": {
+        "review": {
+          "n": 22,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 22
+        },
+        "paper": {
+          "n": 6,
+          "right": 6,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 1,
+          "right": 1,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 7,
+          "right": 6,
+          "wrong": 1,
+          "unsure": 0
+        }
+      },
+      "automatic": 14,
+      "wrong": 1,
+      "predictionWrong": 1,
+      "review": 22,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.4,
+      "branches": {
+        "review": {
+          "n": 28,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 28
+        },
+        "paper": {
+          "n": 2,
+          "right": 2,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 6,
+          "right": 5,
+          "wrong": 1,
+          "unsure": 0
+        }
+      },
+      "automatic": 8,
+      "wrong": 1,
+      "predictionWrong": 1,
+      "review": 28,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.45,
+      "branches": {
+        "review": {
+          "n": 33,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 33
+        },
+        "paper": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 3,
+          "right": 3,
+          "wrong": 0,
+          "unsure": 0
+        }
+      },
+      "automatic": 3,
+      "wrong": 0,
+      "predictionWrong": 0,
+      "review": 33,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.5,
+      "branches": {
+        "review": {
+          "n": 33,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 33
+        },
+        "paper": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 3,
+          "right": 3,
+          "wrong": 0,
+          "unsure": 0
+        }
+      },
+      "automatic": 3,
+      "wrong": 0,
+      "predictionWrong": 0,
+      "review": 33,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.55,
+      "branches": {
+        "review": {
+          "n": 33,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 33
+        },
+        "paper": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 3,
+          "right": 3,
+          "wrong": 0,
+          "unsure": 0
+        }
+      },
+      "automatic": 3,
+      "wrong": 0,
+      "predictionWrong": 0,
+      "review": 33,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.65,
+      "branches": {
+        "review": {
+          "n": 36,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 36
+        },
+        "paper": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        }
+      },
+      "automatic": 0,
+      "wrong": 0,
+      "predictionWrong": 0,
+      "review": 36,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.75,
+      "branches": {
+        "review": {
+          "n": 36,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 36
+        },
+        "paper": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        }
+      },
+      "automatic": 0,
+      "wrong": 0,
+      "predictionWrong": 0,
+      "review": 36,
+      "total": 36,
+      "comparisons": {}
+    },
+    {
+      "threshold": 0.85,
+      "branches": {
+        "review": {
+          "n": 36,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 36
+        },
+        "paper": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "metal": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        },
+        "plastic": {
+          "n": 0,
+          "right": 0,
+          "wrong": 0,
+          "unsure": 0
+        }
+      },
+      "automatic": 0,
+      "wrong": 0,
+      "predictionWrong": 0,
+      "review": 36,
+      "total": 36,
+      "comparisons": {}
+    }
+  ],
+  "threeModels": {
+    "branches": {
+      "review": {
+        "n": 36,
+        "right": 28,
+        "wrong": 8,
+        "unsure": 0
+      }
+    },
+    "automatic": 0,
+    "wrong": 0,
+    "predictionWrong": 0,
+    "review": 36,
+    "total": 36,
+    "comparisons": {
+      "join-proto-agree": 30,
+      "join-proto-disagree": 6,
+      "join-proto-review": 0,
+      "join-neural-agree": 33,
+      "join-neural-disagree": 3,
+      "join-neural-review": 0
+    }
+  }
+}

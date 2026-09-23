@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.mp4
+
+# big local inputs for the dev check pages (dino GLB, bone lists)
+dev/inputs/
+
+# live auto-rigging probe outputs (uploaded models, reports, generated rigs)
+dev/auto-rig/

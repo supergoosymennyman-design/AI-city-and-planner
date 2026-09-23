@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" /> <!-- lint-web-allow-cdn: display fonts from Google Fonts; self-host before offline use -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /> <!-- lint-web-allow-cdn: display fonts from Google Fonts; self-host before offline use -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" /> <!-- lint-web-allow-cdn: display fonts from Google Fonts; self-host before offline use -->
+    <!-- The studio's own stylesheet, as a real render-blocking <link> rather than `import
+         './style.css'` in main.js. Vite injects a JS-imported stylesheet at RUNTIME in dev, so the
+         browser painted this page with NO stylesheet at all until main.js and its whole import
+         graph (three.js, unbundled in dev) had downloaded and run — measured at 4.3 s of unstyled
+         white on a cold load. A <link> blocks rendering until the CSS is there, in dev as well as
+         in the build. Vite bundles a stylesheet referenced here exactly as it did the JS import;
+         the built CSS is byte-identical either way. -->
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/ui/shop.css" />
+    <title>3D Studio</title>
+  </head>
+  <body>
+    <div id="app">
+      <div id="topbar">
+        <span id="logo">🤖 3D STUDIO</span>
+        <div id="modebar"></div>
+        <div id="actions"></div>
+        <button id="export-model" type="button" title="Download the scene as GLB, including any finished rig">Export GLB</button>
+        <button id="export-city" type="button" title="Download a rigged Champion with Idle, Walk, Run and Jump for AI City">Export for AI City</button>
+        <button id="undo" class="icon" title="Undo (Ctrl+Z)">↩️</button>
+        <button id="redo" class="icon" title="Redo (Ctrl+Shift+Z)">↪️</button>
+        <button id="new" class="icon" title="Start a new scene">➕</button>
+        <button id="help" class="icon" title="Help (?)">❓</button>
+      </div>
+      <div id="main">
+        <aside id="shop-sidebar" aria-label="Model shop">
+          <div class="shop-head">
+            <h2>Model Shop</h2>
+            <div class="shop-wallet">
+              <span id="shop-coins" data-role="coins">0</span>
+              <span id="shop-level" data-role="level">Lv 1</span>
+            </div>
+            <button
+              id="shop-toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="shop-body"
+              title="Collapse or expand the model shop"
+            >
+              &minus;
+            </button>
+          </div>
+          <!-- Persistent shop toolbar (Wave A). Lives OUTSIDE #shop-body so a card
+               re-render never rebuilds it — that is how focus stays in #shop-search
+               while typing. The category chips inside #shop-categories are built once
+               by shop-panel.js from view.categories; this markup is just the hooks. -->
+          <div class="shop-tools">
+            <input
+              id="shop-search"
+              type="search"
+              aria-label="Search models"
+              placeholder="Search models"
+            />
+            <div id="shop-categories" role="group" aria-label="Model categories"></div>
+            <!-- Wave B: Shop ⇄ Tree view switch. Like the chips above it lives in the
+                 persistent .shop-tools region, so the panel updates aria-pressed/active
+                 on render instead of rebuilding the toolbar. Visual pattern follows the
+                 Clay Studio .clay-mirror-seg segmented control. -->
+            <div id="shop-view-toggle" role="group" aria-label="Shop view">
+              <button type="button" class="shop-view-opt active" data-view="shop" aria-pressed="true">Shop</button>
+              <button type="button" class="shop-view-opt" data-view="tree" aria-pressed="false">Tree</button>
+            </div>
+          </div>
+          <p class="shop-demo-note">Teacher-awarded credits. Owned gear can be reused for free.</p>
+          <div id="shop-status" role="status" aria-live="polite"></div>
+          <div id="shop-body"></div>
+          <!-- Wave B: the skill tree (root at the bottom). A sibling of #shop-body so the
+               panel shows one and hides the other; shop-panel.js fills it with .skill-node
+               markup. Starts hidden (Shop is the default view). -->
+          <div id="shop-tree" hidden></div>
+          <div id="shop-debug" aria-label="Demo controls" hidden>
+            <span>Demo controls (not lesson rewards)</span>
+            <button type="button" data-debug="coins">+50 coins</button>
+            <button type="button" data-debug="level">+1 level</button>
+            <button type="button" data-debug="reset">Reset progress</button>
+            <!-- Wave B (decision 10): stand-in for the not-yet-existing external producer.
+                 It drives window.__skillTree.applyAchieved with the first node the config
+                 says is available, so a dev click can never drift from the producer path. -->
+            <button type="button" data-debug="achieve-next">Achieve next node</button>
+          </div>
+          <!-- Thin drag handle on the sidebar's RIGHT edge. Pointer-only for now
+               (keyboard resize is not implemented, so no tabindex). shop-resize.js
+               writes the --shop-w custom property on #shop-sidebar, never an inline
+               width — an inline width would break the 56px rail and the 1180px rule. -->
+          <div
+            id="shop-resize"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize model shop"
+            aria-hidden="true"
+          ></div>
+        </aside>
+        <div id="viewport">
+          <button id="reset-view" title="Reset the camera view">🏠</button>
+          <!-- The toast lives INSIDE the viewport so it can never cover the toolbar. Fixed to the
+               window at top:18px it landed straight on the action buttons (measured: #actions spans
+               21-107px), hiding Remove joint and Clear skeleton in Rig mode and Export in Pose. The
+               top bar wraps, so its height is not a number the toast could have been offset by. -->
+          <div id="toast"></div>
+          <div id="hint">
+            🖱️ Drag: look around · Scroll: zoom · Click: pick a shape · Shift-click: pick
+            several · 🏠 resets the view
+          </div>
+        </div>
+        <aside id="sidebar">
+          <!-- The tree + splitter + details live in their own flex container so the
+               splitter drag maps 1:1 onto the region the two panels actually share.
+               When the AI panel became a third #sidebar child, mapping the cursor over
+               the FULL sidebar height (678px) against a ~350px two-panel region made the
+               handle jump ~77px on pointerdown and track at only ~0.48x. Keeping the
+               two-panel region as its own container fixes both (main.js updateSplit). -->
+          <div id="split-region">
+            <section id="scene-section">
+              <h2>My shapes</h2>
+              <ul id="tree"></ul>
+            </section>
+            <div id="splitter" title="Drag to resize the panels"></div>
+            <section id="properties-section">
+              <h2>Details</h2>
+              <div id="properties"></div>
+            </section>
+          </div>
+          <!-- AI Optimization panel.
+               PLACEMENT: last child of #sidebar, i.e. AFTER #split-region. It is
+               flex:0 0 auto with its own fixed height, so it never competes for the
+               space the tree/details share above it and it scrolls internally.
+               Markup + CSS only here — wiring is main.js (Task 13). -->
+          <section id="ai-section" aria-label="AI Optimization">
+            <div class="ai-head">
+              <h2>AI Optimization</h2>
+              <button
+                id="ai-collapse"
+                class="ai-collapse"
+                type="button"
+                title="Collapse or expand the AI panel"
+                aria-expanded="true"
+                aria-controls="ai-body"
+              >
+                &minus;
+              </button>
+            </div>
+            <div id="ai-body" class="ai-body">
+              <div class="row ai-model-row">
+                <label for="ai-model-select">Model</label>
+                <div class="ai-model-controls">
+                  <select id="ai-model-select" title="Choose the AI model to use"></select>
+                  <button
+                    id="ai-refresh-models"
+                    type="button"
+                    title="Load the model list from the server"
+                  >
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              <div class="row">
+                <label for="ai-scope-toggle">Context</label>
+                <select
+                  id="ai-scope-toggle"
+                  title="Send only the selected shapes, or the whole scene as context"
+                >
+                  <option value="selected">Selected shapes</option>
+                  <option value="scene">Whole scene</option>
+                </select>
+              </div>
+
+              <label class="ai-check" for="ai-geo-toggle">
+                <input type="checkbox" id="ai-geo-toggle" />
+                <span>Send full geometry</span>
+              </label>
+
+              <details id="ai-settings" class="ai-settings">
+                <summary>Settings</summary>
+                <div class="ai-field">
+                  <label for="ai-base-url">Server URL</label>
+                  <input
+                    type="text"
+                    id="ai-base-url"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="https://example.com/v1"
+                  />
+                </div>
+                <div class="ai-field">
+                  <label for="ai-key">API key</label>
+                  <input
+                    type="password"
+                    id="ai-key"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="Paste your key"
+                  />
+                </div>
+                <p class="ai-hint">The key is stored only in this browser.</p>
+              </details>
+
+              <ul id="ai-chat-log" class="ai-chat-log" aria-live="polite"></ul>
+
+              <div class="ai-prompt-row">
+                <label class="ai-sr-only" for="ai-prompt">Ask the AI</label>
+                <textarea
+                  id="ai-prompt"
+                  rows="2"
+                  placeholder="Ask the AI to rebuild your shapes..."
+                ></textarea>
+                <div class="ai-prompt-actions">
+                  <button id="ai-send" type="button">Send</button>
+                  <button id="ai-stop" type="button" hidden>Stop</button>
+                </div>
+              </div>
+
+              <div id="ai-preview-wrap" class="ai-preview-wrap">
+                <canvas id="ai-preview"></canvas>
+              </div>
+
+              <div class="ai-actions">
+                <button id="ai-replace" type="button" disabled>Replace</button>
+                <button id="ai-add" type="button" disabled>Add as new</button>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <div id="welcome-overlay">
+        <div class="card">
+          <h1>🧸 Let's make a champion!</h1>
+          <ol>
+            <li><b>Build</b> — add shapes to make a body</li>
+            <li><b>Rig</b> — tap the model to grow a skeleton of joints</li>
+            <li><b>Pose</b> — turn a ring and watch it bend!</li>
+          </ol>
+          <button id="welcome-go">Let's go! 🚀</button>
+        </div>
+      </div>
+
+      <div id="confirm-overlay">
+        <div class="card small">
+          <p id="confirm-message">Are you sure?</p>
+          <div class="confirm-buttons">
+            <button id="confirm-yes">Yes</button>
+            <button id="confirm-no">No</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="help-overlay">
+        <div class="help-box">
+          <h2>How to use 3D Studio</h2>
+          <h3>How rigging works</h3>
+          <p>A <b>skeleton</b> is a chain of joints. Tap the model in <b>Rig</b> mode to place the first joint; every next
+          tap adds a joint linked to the selected one. Tap a ball to select it, so the next tap branches from there. Drag a
+          ball to move it — turn the model and drag again to set its depth. The bending is worked out for you a moment
+          after you stop. Joints belong to the shape you tapped: move, turn or scale the shape and they come along. A shape
+          with no joint inside rides the nearest bone.</p>
+          <p>In <b>Pose</b> mode, tap a ball. The ring appears at the joint above it — that is the hinge. Turn the ring to
+          swing the lit piece. The first ball turns the whole model. <b>Rest</b> straightens everything; <b>Export</b> saves
+          a .glb with the skeleton, and importing that file brings the skeleton back.</p>
+          <h3>Directions</h3>
+          <p>The <b>FRONT</b> arrow points toward +Z — build your character facing that way. Red = X (right),
+          green = Y (up), blue = Z (forward).</p>
+          <h3>Modes</h3>
+          <p><b>Build</b> (1) — add shapes and move them around.</p>
+          <p><b>Rig</b> (2) — tap the model to place joints; drag balls to move them.</p>
+          <p><b>Pose</b> (3) — tap a ball and turn the ring at the joint above it to swing the lit piece.</p>
+          <p><b>Fit</b> (4) — load a gear model (GLB / OBJ / FBX), pick a slot, auto-fit it onto the
+          current character, then adjust it with Move / Rotate / Scale and download the result.</p>
+          <h3>Hotkeys</h3>
+          <p><b>Delete / Backspace</b> — delete the selected shape · <b>Ctrl+D</b> — duplicate · <b>Ctrl+Z</b> —
+          undo · <b>Ctrl+Shift+Z / Ctrl+Y</b> — redo</p>
+          <p><b>G / R / S</b> — move / rotate / scale gizmo · <b>1-4</b> — switch modes</p>
+          <p>In Scale, turn on <b>Keep proportions</b> to resize an object without changing its shape.</p>
+          <h3>Tips</h3>
+          <p><b>Move several shapes at once:</b> Shift-click to select a few shapes, then drag the gizmo — they all
+          move, spin, or scale together around one shared centre. Ctrl+D duplicates the whole selection.</p>
+          <p><b>Shape sculpting:</b> select a shape, then press <b>🧱 Sculpt</b> in its Details
+          to open the Clay Studio with just that shape. Pull, Push, Smooth, Grab, Carve and Paint it,
+          with Mirror and Undo. Press <b>✅ Done</b> to put the sculpted shape back in your scene.</p>
+          <button id="help-close">Close</button>
+        </div>
+      </div>
+
+      <!-- AI generation ("Make it real" / "Make from words"): content is built by src/ui/gen-panel.js -->
+      <div id="gen-overlay" role="dialog" aria-modal="true" aria-labelledby="gen-title">
+        <div class="card gen-card"><div id="gen-root"></div></div>
+      </div>
+    </div>
+    <div id="clay-app" hidden>
+        <div id="clay-topbar">
+          <span id="clay-logo">🧱 CLAY STUDIO</span>
+          <div id="clay-tools"></div>
+          <div id="clay-size-wrap">
+            <label for="clay-size">Brush</label>
+            <input id="clay-size" type="range" min="3" max="80" value="26" />
+            <span id="clay-size-label"></span>
+          </div>
+          <div class="clay-mirror" id="clay-mirror" role="group" aria-label="Mirror">
+            <span class="clay-mirror-title">Mirror</span>
+            <div class="clay-mirror-seg">
+              <button type="button" class="clay-mirror-opt active" data-m="off" aria-pressed="true">Off</button>
+              <button type="button" class="clay-mirror-opt" data-m="on" aria-pressed="false">On</button>
+            </div>
+          </div>
+          <button id="clay-undo" title="Undo the last stroke (Clay Studio has its own undo)">↩️</button>
+          <button id="clay-reset" title="Reset this shape to a fresh ball">🧨</button>
+          <button id="clay-help-btn" title="Clay Studio help">❓</button>
+          <div class="clay-spacer"></div>
+          <button id="clay-cancel" title="Discard the sculpt and go back">✕ Cancel</button>
+          <button id="clay-done" title="Keep the sculpt and go back to the 3D Studio">✅ Done — back to 3D Studio</button>
+        </div>
+        <div id="clay-main">
+          <canvas id="clay-canvas"></canvas>
+          <div id="clay-hint"></div>
+          <div id="clay-stats"></div>
+        </div>
+        <div id="clay-palette"></div>
+
+        <div id="clay-confirm">
+          <div class="card small">
+            <p id="clay-confirm-message">Are you sure?</p>
+            <div class="confirm-buttons">
+              <button id="clay-confirm-yes">Yes</button>
+              <button id="clay-confirm-no">No</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="clay-help">
+          <div class="help-box">
+            <h2>How to use the Clay Studio</h2>
+            <p>This is the shape you picked — sculpt it with your finger, like playdough!</p>
+            <p><b>One finger on the clay</b> sculpts it with the chosen tool. <b>One finger on the
+            background</b> turns the shape around. <b>Two fingers</b> (or pinch) zoom.</p>
+            <p><b>Pull / Push</b> — pinch the surface in or out. <b>Smooth</b> — soften bumps.
+            <b>Grab</b> — drag a lump around. <b>Carve</b> — scratch a thin line. <b>Paint</b> —
+            add colour that stays glued to the shape.</p>
+            <p><b>Mirror</b> sculpts both sides at once. <b>Brush</b> sets the tool size. <b>Undo</b>
+            steps back one stroke. <b>✅ Done</b> puts the sculpted shape back in your scene;
+            <b>✕ Cancel</b> throws the sculpt away.</p>
+            <button id="clay-help-close">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -197,11 +197,13 @@ export async function createChampion(assetBase, city, opts = {}) {
   // "mixamorig:LeftFoot" or "mixamorigLeftFoot"). Used by auto-grounding so any
   // skin (bunny, dragon, fitted champion) sits on the ground regardless of
   // clip-space proportions. Returns { left, right } or null (procedural robot).
-  function findFootBones(m) {
+  function findFootBones(m, declared = null) {
     let skinned = null;
     m.traverse((o) => { if (o.isSkinnedMesh && !skinned) skinned = o; });
     if (!skinned || !skinned.skeleton) return null;
     const bones = skinned.skeleton.bones;
+    const named = Array.isArray(declared?.footBones) ? declared.footBones.map(name => bones.find(b => b.name === name)).filter(Boolean) : [];
+    if (named.length) return { left: named[0], right: named[1] || null };
     const footLike = bones.filter((b) => /(foot|paw|hoof)$/i.test(b.name));
     const left = bones.find((b) => /LeftFoot$/i.test(b.name)) || footLike.find((b) => /left|[_-]l$/i.test(b.name)) || footLike[0] || null;
     const right = bones.find((b) => /RightFoot$/i.test(b.name)) || footLike.find((b) => /right|[_-]r$/i.test(b.name)) || footLike.find((b) => b !== left) || null;
@@ -334,7 +336,7 @@ export async function createChampion(assetBase, city, opts = {}) {
       return false;
     }
     normalizeModel(newModel);
-    _footBones = findFootBones(newModel);
+    _footBones = findFootBones(newModel, studioCheck.ok ? declared : null);
     // soleOff is measured lazily on the first grounded update (once the group
     // scale + scene matrices are final) — see _ensureSoleOffset() in update().
     _soleOffWorld = 0;

@@ -1,0 +1,2164 @@
+/* The workshop — THE BAY PASS (2026-08-19). The workshop is a THIRD ROOM in p5-01's facility,
+   and it borrows that facility's colour vocabulary wholesale. The rule it follows is p5-01's own:
+   its Depot room declares its GEOMETRY (--dp-champ-w) and never a colour of its own, painting
+   everything in var(--void)/var(--gold)/var(--lens)/var(--armor). Palette is per-WORLD, geometry
+   is per-ROOM — which is what makes two rooms read as one product. One material language:
+
+     STEEL   the chrome you work AROUND — header, docks, overlays: dark rolled steel, gold edge.
+     FACE    the dark instrument surface you TOUCH — buttons, fields, trays, cards. It used to be
+             cream; the owner's call was that the machines go dark with the room, so a face is now
+             separated from what it stands on by its GOLD RIM rather than by being paler.
+     ICE     every edge and every micro-label. The workshop had a gold one until the owner
+             asked for light blue to match p5-01 (2026-08-20); there is no warm metal left.
+     ICE-BRIGHT the ONE live colour: the Run key, a lit wire, a focused field. Trim, live and
+             signal now share a HUE, so they are told apart by BRIGHTNESS — deep edge, standard
+             signal, bright live — and ITEMS stay warm so cargo never reads as electricity.
+     NUMERALS are monospace everywhere (seed, counts, tallies, gauges) — the instrument tell, and
+     it costs nothing offline (no webfont: rule #4 of edu-frontend, self-host or system stack).
+
+   Blueprint mode is drawn as AN ACTUAL BLUEPRINT — navy drafting field, cyan grid, white cards —
+   so the toggle's name is honest instead of decorative.
+
+   The shape law (unchanged): SQUARE connectors carry items (fat couplings, train-set style),
+   ROUND connectors carry signals (bezier noodles), DIAMOND sockets are dials. */
+
+:root {
+  /* SIX NAMES, and nothing outside them. IRON is what the hall is built of, OIL is its shadow,
+     CHALK is every surface a child touches, BRASS is every edge, LAMP is the light (and so: power
+     and items), SIGNAL is electricity (and so: readings and thought). */
+  --iron: #171d29;
+  --oil: #0b0d12;
+  --chalk: #f2f6fa;
+  /* ---- THE ACCENT IS LIGHT BLUE (owner 2026-08-20: "change the yellow toned to light blue.
+     just like p5-01 style"). These are p5-01's OWN lens values, not a new invention.
+     Cyan was already this room's SIGNAL colour, so trim/live/signal would have collapsed into one
+     colour. They are held apart by BRIGHTNESS instead of hue:
+       --ice-bright  LIVE   the Run key, a focused field, a lit wire — the brightest thing on screen
+       --ice         SIGNAL wires, screens, readings (this is what --signal always was)
+       --ice-deep    EDGE   quiet structural rims and hairlines — the job brass used to do
+     ITEMS STAY WARM (crates, item couplings, --band). They are cargo, not chrome, and they are
+     what stops "an item" and "a signal" reading as the same thing once the chrome goes cool. */
+  --ice: #5fe3dc;
+  --ice-bright: #b6fff8;
+  --ice-deep: #2b7f8c;
+  /* The warm names are RETIRED ALIASES — every rule in this sheet still speaks them, so they are
+     repointed rather than renamed. There is no gold left in the chrome; do not reintroduce one. */
+  --brass: var(--ice);
+  --lamp: var(--ice-bright);
+  --signal: var(--ice);
+  /* shades of the six */
+  --iron-up: #2a3446;
+  --iron-line: #38465e;
+  --brass-d: var(--ice-deep);
+  --brass-l: var(--ice-bright);
+  --lamp-d: var(--ice);
+  --chalk-2: #b9cbdb;
+  /* ---- THE BAY, verbatim from p5-01 ----
+     The workshop is a THIRD ROOM in that facility, and p5-01's own Depot already sets the rule
+     these follow: a room declares its own GEOMETRY and never its own COLOUR (`dp-*` defines
+     --dp-champ-w and then paints everything in var(--void)/var(--gold)/var(--lens)/var(--armor)).
+     So none of the names below are invented here — they are the same values the bay is built of,
+     which is what makes the two read as one product rather than two apps that happen to be dark. */
+  --void: #0b0d12;
+  --face: #212a3a;        /* an instrument face — the top of its gradient */
+  --face-2: #171d29;      /* …and the bottom. THE PAIR --armor SITS ON. */
+  --face-in: #10151e;     /* a field you type INTO: sunk below the face, not raised off it */
+  --hair: #38465e;
+  --armor: #f2f6fa;       /* text on a face — 15:1 on --face-2, past the 7:1 floor */
+  --armor-shade: #b9cbdb;
+  --armor-deep: #7d93a8;
+  --gold: var(--ice);            /* retired name, cool value — see the accent note above */
+  --gold-bright: var(--ice-bright);
+  --lens: #5fe3dc;
+  --crimson-lit: #d8405c;
+  /* Muted text ON A FACE. Deliberately NOT --dim: that one is muted text on a white BLUEPRINT
+     card and has to stay dark. The two faces never share a text colour. */
+  --dim-face: #9fb1c6;
+  /* the old names every rule in this sheet already speaks, remapped onto the six */
+  --bg: var(--oil);
+  --steel: var(--iron);
+  --steel-2: var(--oil);
+  --steel-3: var(--iron-up);
+  --steel-line: var(--iron-line);
+  --amber: var(--lamp);
+  --amber-d: var(--lamp-d);
+  --panel: var(--armor);      /* used as light TEXT (nameplate, overlay headings) */
+  --plate-2: var(--face-2);   /* used as a SURFACE (button + card gradients) */
+  --line: var(--hair);
+  /* --ink and --dim are the BLUEPRINT's, and the blueprint is white paper on a navy field, so
+     they stay dark. Everything on a bay face uses --armor / --dim-face instead. */
+  --ink: #1f2933;
+  --dim: #6b6152;
+  --steel-ink: #f2f6fa;
+  --steel-dim: #b9cbdb;
+  /* the blueprint field */
+  --draft: #122539;
+  --draft-line: rgba(126, 186, 232, 0.17);
+  --accent: var(--lamp-d);
+  --band: #c3a97c;          /* ITEM couplings wear brass */
+  --wire: var(--signal);    /* SIGNAL wires wear teal */
+  --wire-lit: var(--lamp);
+  --font-num: ui-monospace, "Cascadia Mono", "Consolas", "DejaVu Sans Mono", monospace;
+  --micro: 10px; /* the tracked uppercase micro-label size, used everywhere one is needed */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+body {
+  /* task 085: the Latin stack first, then HK/TW Traditional faces, then a generic CJK
+     fallback. System faces ONLY — a webfont would be a runtime CDN fetch, which the
+     offline law forbids, and self-hosting a CJK face is megabytes. "PingFang HK" is the
+     HK-shaped face on Apple devices, "Microsoft JhengHei" on Windows, "Noto Sans CJK HK"
+     on Linux/ChromeOS; HK glyph forms differ from TW ones for some characters, so the
+     HK-specific faces are named BEFORE the generic ones. */
+  font-family: system-ui, "Segoe UI", Roboto, "PingFang HK", "Noto Sans CJK HK",
+    "Microsoft JhengHei", "PingFang TC", "Noto Sans CJK TC", "Microsoft YaHei", sans-serif;
+  background: var(--steel-2);
+  color: var(--ink);
+  overflow: hidden;
+}
+/* Every micro-label in the hall is the same stamped brass caption. */
+.micro, .shelf h2, .panel h3, .peyebrow, .model .mkind, .ovhead .oveyebrow {
+  letter-spacing: 0.14em; text-transform: uppercase;
+}
+/* Numbers are instrument readings, never prose. */
+#seed, .row .tv, .rval, .vdist, .shelfcount, .chipname, .binentry .num { font-family: var(--font-num); }
+/* One focus ring for the whole hall — amber, thick enough to see on steel AND on cream. */
+:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+/* A select's OPTION list is drawn by the platform, not by this page: it paints its own (light)
+   ground and would show our light --armor text on top of it. Owner screenshot 2026-08-20 — every
+   entry unreadable. State BOTH halves, or the pair is decided by two different parties. */
+option {
+  background-color: var(--face-2);
+  color: var(--armor);
+}
+/* Scrollbars are part of the machine. (Standard `scrollbar-width` would make Chrome ignore all
+   of this — the two syntaxes are mutually exclusive; webkit only, deliberately.) */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.22); }
+::-webkit-scrollbar-thumb { background: #4b5766; border: 3px solid transparent; background-clip: content-box; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brass); border: 3px solid transparent; background-clip: content-box; }
+
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+/* The header is not a toolbar — it is the GANTRY BEAM spanning the top of the hall, and the
+   workshop's one lamp (which pools on the floor canvas below) washes its left shoulder. Same
+   light, same room: that is the whole trick that stops this reading as a web page. */
+/* CHROME IS A FRACTION OF THE SCREEN, NEVER A CONSTANT (owner 2026-08-27, school tablet).
+   MEASURED: a 2560x1600 Xiaomi reports a 1280x800 CSS viewport, where the header (154px) and the
+   floor shelf (129px) took 283px — 35% of the screen — before a single block was drawn. Every
+   metric that steals height from the floor is clamped against vh below, so the same layout gives
+   the floor its share at 800px tall and is bit-for-bit unchanged at desk height (each clamp's MAX
+   is today's constant). Touch targets are NOT in here: `button { min-height: 44px }` stays fixed,
+   because a tap target does not get smaller just because the screen did. */
+header {
+  /* THE RAIL (owner 2026-09-13: "high-end, futuristic, simplistic"). The old beam was a stack of
+     bevelled plates: every key had a fill, a rim and an under-edge, every word was a tracked
+     capital, and three borders separated the rows. Now the header is ONE flat rail on the hall's
+     own dark, and nothing on it carries a fill except the Run key. The keys are words; a hairline
+     between groups says what belongs together (edits · libraries · drawers · view); the champion's
+     name reads as text until it is being edited. The one bold thing is Run, and it is the only
+     thing that glows. Row order (flex `order`): title 0 · champion 1 · tools 2 · Run 3 · status 99.
+     At desk width everything sits on one row; at 1024 the tools drop to their own row under the
+     title and Run stays at the top right, so the key is in the same corner at every width. */
+  display: flex; align-items: center; gap: clamp(6px, 1vh, 12px); flex-wrap: wrap;
+  padding: clamp(5px, 0.9vh, 9px) 18px clamp(4px, 0.7vh, 8px);
+  background: linear-gradient(180deg, #10141c, var(--oil));
+  border-bottom: 1px solid rgba(95, 227, 220, 0.18);
+  /* z-index 10 (task 120): the file menu lives inside the header and must paint over the floor's own
+     positioned children — the invitation (5) and a plate (6) used to cover it — while staying under
+     #overlay (20) and every dialog. */
+  color: var(--steel-ink); position: relative; z-index: 10;
+}
+/* A single thread of lamp-light along the rail's lower edge, fading out under the tools. */
+header::before {
+  content: ''; position: absolute; left: 18px; width: 38%; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, rgba(182, 255, 248, 0.75), rgba(182, 255, 248, 0));
+}
+/* The title is a word with a lit tick beside it — not a nameplate, not a web-page h1. */
+header h1 {
+  order: 0; display: inline-flex; align-items: center; gap: 11px;
+  font-size: 16px; font-weight: 600; letter-spacing: 0.01em; text-transform: none;
+  color: var(--armor); margin-right: 8px; padding: 0; border: 0; white-space: nowrap;
+}
+header h1::before {
+  content: ''; width: 3px; height: 18px; border-radius: 2px; flex: none;
+  background: var(--ice); box-shadow: 0 0 9px rgba(95, 227, 220, 0.6);
+}
+/* The champion's name sits right after the title — the identity, before anything else. The
+   label is quiet; the name is the text. It has no box: a hairline under it says "editable", and
+   the hairline lights when it is. */
+header label.champ {
+  display: inline-flex; align-items: center; gap: 9px; margin-right: 6px;
+  font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--dim-face);
+}
+#championName {
+  width: 168px; min-height: 36px; padding: 4px 2px; font: inherit; font-size: 15px; font-weight: 600;
+  color: var(--armor); background: none; border: 0; border-radius: 0;
+  border-bottom: 1px solid rgba(185, 203, 219, 0.28); box-shadow: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+#championName::placeholder { color: var(--armor-deep); font-weight: 500; }
+#championName:hover { border-bottom-color: rgba(185, 203, 219, 0.6); }
+#championName:focus-visible { outline: none; border-bottom-color: var(--ice); box-shadow: 0 1px 0 var(--ice); }
+/* The Run key: the rail's one filled shape and its one light — a pill, not a plate. It still
+   breathes (rule #7: the primary CTA invites the tap), through the lamp below. */
+#runBtn {
+  order: 3; margin-left: auto; position: relative; min-width: 132px; min-height: 46px;
+  padding: 0 24px 0 42px; text-align: center; white-space: nowrap;
+  font-size: 15px; font-weight: 700; letter-spacing: 0.04em; text-transform: none;
+  color: #06201f; background: var(--ice); border: 1px solid rgba(182, 255, 248, 0.7); border-radius: 999px;
+  box-shadow: 0 0 0 4px rgba(95, 227, 220, 0.10), 0 0 28px rgba(95, 227, 220, 0.35);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease, color 0.15s ease;
+}
+#runBtn:hover { background: var(--ice-bright); border-color: #fff; box-shadow: 0 0 0 4px rgba(95, 227, 220, 0.16), 0 0 38px rgba(95, 227, 220, 0.5); }
+#runBtn:active { transform: translateY(1px); box-shadow: 0 0 0 4px rgba(95, 227, 220, 0.10), 0 0 16px rgba(95, 227, 220, 0.3); }
+/* The pilot lamp on the key. Rest state is a lit lamp — correct on its own; the breath is only
+   flair on top. Period 3.4 s = 0.29 cycles/s.
+   task 092: the breath is a CROSS-FADE — the lit lamp (::after) fading over the dim one (::before)
+   with an opacity animation the compositor runs by itself. The old keyframes animated background
+   and box-shadow, which made the main thread recalculate style and repaint the key sixty times a
+   second for as long as the machine was NOT running: measured 2026-09-13 at an idle hall, 60 style
+   recalcs a second, 13% of the main thread at 1x and 72% under a 4x CPU throttle — more than the
+   whole floor once the paint clock had put the floor to rest. */
+#runBtn::before, #runBtn::after {
+  content: ''; position: absolute; left: 18px; top: 50%; width: 10px; height: 10px; margin-top: -5px;
+  border-radius: 50%;
+}
+#runBtn::before { background: #0f4f4d; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45); }
+#runBtn::after {
+  background: #ffffff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.85);
+  animation: pilot 3.4s ease-in-out infinite; will-change: opacity;
+}
+@keyframes pilot { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+/* Running: the key hollows out and the lamp is HARD ON and steady (a machine under power does
+   not blink at you). */
+.app.running #runBtn::before {
+  background: #2fbf71;
+  box-shadow: 0 0 12px rgba(47, 191, 113, 0.85);
+}
+.app.running #runBtn::after { animation: none; opacity: 0; }
+.app.running #runBtn {
+  background: rgba(95, 227, 220, 0.06); color: var(--ice-bright); border-color: rgba(95, 227, 220, 0.55);
+  box-shadow: 0 0 0 4px rgba(95, 227, 220, 0.06), inset 0 0 18px rgba(95, 227, 220, 0.08);
+}
+/* The tools are WORDS on the rail: no fill, no rim, no under-edge. A key lights on hover, holds
+   the ice while its drawer is open, and every one of them is a full 44px tap target. */
+.tools { order: 2; flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.tools button {
+  min-height: 44px; padding: 0 13px; font-size: 13px; font-weight: 600; letter-spacing: 0.01em;
+  text-transform: none; white-space: nowrap;
+  background: none; border: 1px solid transparent; border-radius: 8px; color: var(--armor-shade);
+  box-shadow: none; transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+}
+.tools button:hover { color: #fff; background: rgba(255, 255, 255, 0.05); border-color: transparent; }
+.tools button:active { transform: none; box-shadow: none; color: var(--ice-bright); background: rgba(95, 227, 220, 0.10); }
+.tools button:disabled { opacity: 0.32; background: none; color: var(--armor-shade); }
+.tools button[aria-expanded="true"] { color: var(--ice-bright); background: rgba(95, 227, 220, 0.09); border-color: rgba(95, 227, 220, 0.25); }
+/* Groups, told by a hairline before each group's first key: edits (Undo Redo) · libraries
+   (Models, Data library) · drawers (My file, Teacher's drawer) · tutorial + view (Tutorial,
+   Blueprint / Floor). The language key is a setting, not a tool — it stands alone at the rail's
+   far end, before Run. car-gallery tutorial (task 7): #tutorialBtn opens the group so it and
+   #viewBtn sit together with one hairline ahead of them, not one wedged between them. */
+#modelsBtn, #fileBtn, #tutorialBtn { margin-left: 12px; position: relative; }
+#modelsBtn::before, #fileBtn::before, #tutorialBtn::before {
+  content: ''; position: absolute; left: -7px; top: 50%; width: 1px; height: 18px; margin-top: -9px;
+  background: rgba(185, 203, 219, 0.2);
+}
+#viewBtn { position: relative; }
+#langBtn { order: 9; margin-left: auto; font-weight: 500; }
+/* task 061: Undo/Redo are the two you reach for mid-build, one-handed, without looking — they
+   keep the 44px house floor (every key on the rail now has it). */
+#undoBtn, #redoBtn { min-height: 44px; }
+/* task 063 (spec R2): the two header drawers — a plain disclosure panel anchored under its own
+   button. Full 44px tap targets throughout (drawer contents are reached deliberately, not
+   grazed mid-build, so they get the house floor same as every other control). */
+.drawerbtn { min-height: 44px; }
+.drawer {
+  position: absolute; top: 100%; z-index: 30;
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 10px;
+  background: #10151e;
+  border: 1px solid rgba(95, 227, 220, 0.22); border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  max-width: min(520px, calc(100vw - 16px));
+}
+/* An author `display` rule beats the UA `[hidden] { display: none }` by ORIGIN, not specificity
+   — without this, a "hidden" drawer still painted (measured: .drawer's own display:flex above
+   wins the cascade regardless of the hidden attribute). Higher-specificity attribute selector
+   restores the honest hide. */
+.drawer[hidden] { display: none; }
+.drawer button, .drawer select, .drawer input { min-height: 44px; }
+/* The example dropdown takes its widest option's width unless told otherwise (1000+ px) — the
+   header rail commit dropped this and the drawer ran off a 1024 screen. */
+/* Anchor each panel under its OWN button (tools row order: …modelsBtn, fileBtn, teacherBtn,
+   viewBtn). Fix wave (I3): a fixed `right` here assumed a right-anchored row, but the tools row
+   is actually LEFT-anchored — at wide windows the panel drifted thousands of px from its button.
+   toggleDrawer (game.js) now sets `left` from the button's own offsetLeft every time it opens, so
+   no static left/right belongs here; `left: 8px` is only the pre-JS fallback (never visible in
+   practice — toggleDrawer sets the real value before the `hidden` attribute clears). */
+.drawer { left: 8px; }
+/* The view key wears the ice: it says which world you are in. */
+#viewBtn { color: var(--ice); }
+/* The champion's name IS the file menu (spec 2026-09-19 §1): it reads as the name it always was
+   — bigger and brighter than the tool keys — with a small chevron saying it opens. */
+#fileBtn {
+  order: 1; min-height: 44px; padding: 0 10px; margin-right: 6px; max-width: 260px;
+  font-size: 15px; font-weight: 600; color: var(--armor); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: none; border: 1px solid transparent; border-radius: 8px; box-shadow: none;
+}
+#fileBtn::after { content: " ▾"; color: var(--ice); font-size: 12px; }
+#fileBtn:hover, #fileBtn[aria-expanded="true"] { color: #fff; background: rgba(255, 255, 255, 0.05); }
+/* ? — the help key: a round glyph at the end of the tools row. */
+#helpBtn { width: 44px; min-width: 44px; padding: 0; font-size: 18px; border-radius: 50%; border-color: rgba(185, 203, 219, 0.28); }
+/* Inside the file menu: the Name field leads, the dev foot (?dev=1) trails on its own line. */
+.drawer label.champ { flex-basis: 100%; margin: 0 0 4px; }
+.drawer .devfoot { flex-basis: 100%; display: flex; gap: 6px; align-items: center; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(185, 203, 219, 0.16); }
+.machine-note { display: block; margin: 8px 0; }
+.machine-note textarea { display: block; width: 100%; min-height: 64px; margin-top: 4px; font: inherit; font-size: 13px; }
+/* car-gallery tutorial (task 7): the Tutorial key wears the ice too — it and the view key are one
+   group (both change what world you are in). */
+#tutorialBtn { color: var(--ice); }
+/* The chooser's two rows (openTutorialChooser): full-width keys, one per tutorial gallery. */
+.tutorial-choice {
+  display: block; width: 100%; min-height: 48px; padding: 0 16px; text-align: left;
+  font-size: 15px; font-weight: 600; color: #fff;
+  background: rgba(95, 227, 220, 0.07); border: 1px solid rgba(95, 227, 220, 0.22); border-radius: 10px;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.tutorial-choice:hover { background: rgba(95, 227, 220, 0.14); border-color: rgba(95, 227, 220, 0.38); }
+.tutorial-choice:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+/* Narrow (a 1024 tablet, a half-window): the tools take their own row and Run moves ahead of
+   them in flex order, so the key keeps the top-right corner instead of dropping beside the tools
+   and leaving the title row half empty (measured 2026-09-13 at 1024x768). */
+@media (max-width: 1400px) {
+  #runBtn { order: 2; }
+  .tools { order: 3; flex-basis: 100%; }
+}
+/* Inside a drawer the actions are the same quiet keys as the rail, with a hairline so they read
+   as tappable on the panel's own dark. */
+.drawer button {
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(185, 203, 219, 0.16); border-radius: 8px;
+  box-shadow: none; font-size: 13px; font-weight: 600; color: var(--armor-shade); padding: 0 14px;
+}
+.drawer button:hover { color: #fff; border-color: rgba(185, 203, 219, 0.4); background: rgba(255, 255, 255, 0.07); }
+.drawer button:active { transform: none; background: rgba(95, 227, 220, 0.10); color: var(--ice-bright); }
+/* The status line is its OWN full-width row under the toolbar: squeezed between eleven
+   buttons it wrapped a gallery hint into a 20-line column (seen 2026-08-17 at 1500px). */
+/* The status line is the machine's ticker: its own strip, with an amber tell-tale at the left.
+   While the machine RUNS, a slow light travels along it — the "system is working" tell (period
+   3.2 s = 0.31 cycles/s; with animation off it is a plain readable strip, which is correct). */
+#status {
+  /* A ticker is READ, not tapped, so it is free to shrink with the screen (see the chrome note
+     above header) — it keeps its own full-width row either way.
+
+     AND IT IS CAPPED AT THREE LINES (vision-breaker 2026-09-02, finding 2). A gallery hint is
+     ~1 100 characters; unclamped it wrapped to ELEVEN lines and took 147 px of a 768-tall
+     window, leaving the floor canvas 374 px — too short to hold the machine's own front strip,
+     so a child opened the ice-cream stand, was told "press Run, then work the three Buttons in
+     order", and could not see a single Button until Run collapsed the banner to one line. The
+     ticker keeps its three lines and scrolls for the rest (touch and wheel both reach it), which
+     is also the right shape for a ticker: prose belongs in the block plates and the Blocks
+     overlay, not in a status strip. */
+  order: 99; flex: 1 1 100%; min-height: clamp(24px, 3.2vh, 30px);
+  max-height: calc(3lh + clamp(4px, 1vh, 10px)); display: flex; align-items: center;
+  position: relative; overflow: hidden auto; overscroll-behavior: contain;
+  font-size: 13px; font-weight: 500; color: var(--armor-shade); padding: clamp(2px, 0.5vh, 5px) 12px;
+  background: none; border: 0; border-left: 2px solid rgba(95, 227, 220, 0.45); border-radius: 0;
+}
+/* `lh` is new-ish; a browser without it keeps the old unclamped banner rather than a broken one. */
+@supports not (max-height: 1lh) { #status { max-height: 58px; } }
+.app.running #status { border-left-color: var(--ice-bright); }
+.app.running #status::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(79,209,197,0) 0%, rgba(79,209,197,0.16) 50%, rgba(79,209,197,0) 100%);
+  transform: translateX(-100%);
+  animation: ticker 3.2s linear infinite;
+}
+@keyframes ticker { to { transform: translateX(100%); } }
+header label {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 500; color: var(--dim-face);
+}
+/* Drawer fields (seed, the example picker): flat, hairlined — never browser default. */
+header input, header select {
+  font: inherit; font-size: 13px; font-weight: 600; min-height: 36px; padding: 6px 10px;
+  color: var(--armor); background: var(--face-in);
+  border: 1px solid var(--hair); border-radius: 8px; box-shadow: none;
+}
+/* Native select chrome is the single loudest "web form" tell: draw our own brass chevron.
+   Inline data-URI, so it stays offline (no CDN — AGENTS.md offline rule). */
+header select {
+  appearance: none; -webkit-appearance: none; padding-right: 30px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%235fe3dc' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"), linear-gradient(180deg, var(--face-in), var(--face-in));
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 10px center, 0 0;
+}
+#seed { width: 92px; text-align: center; letter-spacing: 0.08em; }
+
+main { display: flex; flex: 1; min-height: 0; }
+
+.shelf {
+  width: 196px; padding: 10px 9px; overflow-y: auto; display: flex; flex-direction: column; gap: 7px;
+  background: linear-gradient(180deg, #222932, #1a2027); border-right: 2px solid var(--brass);
+  position: relative; z-index: 5;
+}
+.shelf h2 { font-size: var(--micro); font-weight: 800; color: var(--brass-l); margin: 2px 0 4px; }
+/* A shelf row = the block button (name over its one-line job) + the "?" into the manual. */
+.shelfrow { display: flex; gap: 4px; align-items: stretch; }
+.shelfrow .shelfbtn {
+  flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; gap: 1px;
+  padding: 6px 9px; line-height: 1.2; border-left-width: 5px; border-left-style: solid;
+}
+.shelfrow .bname { font-weight: 800; font-size: 13px; }
+.shelfrow .bjob { font-size: 11px; color: var(--dim-face); }
+.shelfrow .shelfhelp { width: 36px; padding: 0; flex: none; color: var(--gold-bright); font-weight: 800; font-size: 15px; }
+/* THE CHILD'S OWN LIBRARY (composing-arc "make your own part", task 4): a made part's shelf row —
+   same shelfrow/shelfbtn shape as every block above, its accent the SAME teal the sealed face's
+   own seam glows (floor-art.js brickBox), so a brick reads as one family across both views. The
+   remove badge reuses the palette's own "?" square, recoloured — removing a LIBRARY entry, never
+   a placed copy (the copy law), so it earns the same crimson every other delete button wears. */
+.shelf button[data-type="brick"] { border-left-color: #5fe3dc; }
+/* task 062 T6 (spec R7 measure pass): the Blueprint's own shelf-x predates 062 and inherited
+   `.shelfrow .shelfhelp`'s 36px width (0,2,0) — under the >=44px floor every OTHER `.brickdel`
+   in this file already clears (`.floorshelf .brickdel`, fix round 1 M2). Specificity-bump it here
+   (0,3,0, the same `.plate .pfoot .movebtn` precedent) rather than widen `.shelfhelp` generally,
+   which would also fatten the unrelated "?" help squares beside it. */
+.shelf .shelfhelp.brickdel { color: #ff8a95; width: 44px; min-width: 44px; }
+
+/* Every button is a PLATE: cream face, brass edge, a real under-edge that it presses into. */
+button {
+  font: inherit; font-weight: 700; min-height: 44px; padding: 7px 12px; color: var(--armor);
+  border: 1px solid var(--hair); border-radius: 9px; cursor: pointer;
+  background: linear-gradient(180deg, var(--face), var(--face-2));
+  box-shadow: 0 2px 0 var(--brass-d);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+button:hover { border-color: var(--accent); }
+button:active { transform: translateY(2px); box-shadow: none; }
+button:disabled { opacity: 0.45; box-shadow: none; cursor: default; }
+button.primary {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold)); color: #241c07;
+  border-color: var(--brass-d); box-shadow: 0 3px 0 var(--brass-d);
+}
+
+/* Shelf buttons wear their family colour as a STRIPE down the plate's edge (pastel-filled
+   buttons read as a toy web form; a cream plate with a colour-coded edge reads as a parts rack). */
+.shelf button[data-type="track"] { border-left-color: #7e8c7e; }
+.shelf button[data-type="feeder"] { border-left-color: #6fb8c9; }
+.shelf button[data-type="gate"] { border-left-color: #7c5cbf; }
+.shelf button[data-type="bin"] { border-left-color: #3f9d5f; }
+.shelf button[data-type="sense"] { border-left-color: #2f7fc4; }
+.shelf button[data-type="teach"] { border-left-color: #c4519a; }
+.shelf button[data-type="button"] { border-left-color: #d0455b; }
+.shelf button[data-type="filter"], .shelf button[data-type="timer"],
+.shelf button[data-type="counter"], .shelf button[data-type="dice"] { border-left-color: #6b7784; }
+.shelf button[data-type="lamp"], .shelf button[data-type="noisemaker"],
+.shelf button[data-type="sign"] { border-left-color: #a2a8b0; }
+
+/* The stage clips an infinite-feeling world; pan + zoom transform the world.
+   It is called BLUEPRINT, so it IS one: navy drafting paper, cyan grid, a lit centre. */
+.stage { position: relative; flex: 1; overflow: hidden; touch-action: none;
+  background-color: var(--draft);
+  background-image:
+    radial-gradient(ellipse 70% 60% at 50% 42%, rgba(126, 186, 232, 0.11), transparent 70%),
+    linear-gradient(var(--draft-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--draft-line) 1px, transparent 1px),
+    linear-gradient(rgba(126, 186, 232, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(126, 186, 232, 0.07) 1px, transparent 1px);
+  /* 120px major / 24px minor — texture only; positions are FREE, nothing snaps to this */
+  background-size: 100% 100%, 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+.world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+
+#links { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+#links line, #links path { pointer-events: stroke; cursor: pointer; }
+#links .band { stroke: var(--band); stroke-width: 10; stroke-linecap: round; }
+#links .wire, #links .wireline { stroke: var(--wire); stroke-width: 3; fill: none; transition: stroke 0.3s ease; }
+#links .wire.lit { stroke: var(--wire-lit); stroke-width: 4; }
+#links .watch { stroke: #2563eb; stroke-width: 2; stroke-dasharray: 4 4; opacity: 0.6; }
+#links .rubber { opacity: 0.5; pointer-events: none; }
+
+/* ---- node cards ---- */
+.pieces { position: absolute; left: 0; top: 0; }
+/* A card is a drafting card pinned to the blueprint: warm white, hairline edge, real drop. */
+.piece {
+  position: absolute;
+  background: #fbf9f3; border: 1px solid #0c1926; border-radius: 8px;
+  font-size: 11px; cursor: grab; user-select: none; touch-action: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.38);
+}
+.piece.selected { border-color: var(--lamp); box-shadow: 0 0 0 3px rgba(182, 255, 248, 0.5), 0 8px 20px rgba(0, 0, 0, 0.45); }
+/* Cards lift toward the light when you reach for them. */
+.piece { transition: box-shadow 0.15s ease, transform 0.15s ease; }
+.piece:hover { box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(182, 255, 248, 0.35); }
+/* A belt-reading eye standing on NO track cannot read anything — the card says so. */
+.piece.detached { border-color: #e11d48; }
+
+/* NOTE: this 26px strip belongs to the CARD header only. The bench and the control plate used to
+   reuse this class name and inherited the fixed height — a 38px button row crammed into 26px, its
+   contents spilling out the top (owner: "overflow is pretty serious", 2026-08-19). They are `.pbar`
+   now; nothing but a node card may wear `.phead`. */
+.phead {
+  height: 26px; display: flex; align-items: center; gap: 6px;
+  padding: 0 10px; border-bottom: 1px solid rgba(0,0,0,0.1);
+  border-radius: 6px 6px 0 0; font-weight: 600;
+}
+/* The eye's live thought sits in the header strip — it must never wrap out of the 26px
+   band ("not sure" broke into two lines spilling over the card border). The name input
+   shrinks (min-width:0) so the whole answer stays on one line inside the strip. */
+.phead .live { margin-left: auto; font-weight: 700; font-size: 12px; white-space: nowrap; }
+/* The header IS the name: a borderless input wearing the header's own look. Sized so the
+   right side of the strip stays a bare grab area — cards still drag by their header edge. */
+.phead input.pname {
+  flex: 0 1 70%; min-width: 0; border: none; background: transparent; padding: 0;
+  font: inherit; font-weight: 600; color: inherit;
+}
+.phead input.pname:focus { outline: 1px dashed var(--accent); outline-offset: 1px; }
+.phead input.pname::placeholder { color: inherit; opacity: 0.85; }
+.pdel {
+  min-height: 20px; width: 20px; padding: 0; line-height: 1;
+  border: none; background: transparent; color: #e11d48; font-size: 15px; cursor: pointer;
+}
+
+.row {
+  height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 12px;
+}
+.row .rlabel { color: var(--ink); font-size: 10px; white-space: nowrap; }
+.row .rlabel.dim { color: var(--dim); }
+/* A belt-reading eye standing on NO track is a dead sensor — its watch row shouts. */
+.row .rlabel.warn { color: #e11d48; font-weight: 700; }
+.row .rlabel.right { margin-left: auto; }
+.row.sig-out { justify-content: flex-end; }
+/* The Sign's face — the board the machine writes on. The ROW ITSELF is the board (the
+   wrapper's class is `row signface`; a same-named inner div collided with it and the
+   first dynamic write wiped the styling). Dark board + light lettering so an idle Sign
+   still reads as A DISPLAY; clears to '—' on Stop like bins do. */
+.row.signface {
+  display: block; height: 22px; line-height: 22px; margin: 2px 8px; padding: 0 6px;
+  background: #1e293b; color: #f8fafc; border-radius: 4px; text-align: center;
+  font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.row.widget .rlabel { color: var(--dim); }
+/* Card fields are tiny instrument plates too — same inset cream, same brass hairline, same drawn
+   chevron as the fascia. Heights are UNCHANGED: sizeOf() computes a card from its row count, so a
+   taller field here would desync the card box from the connectors pinned to those rows. */
+.row.widget input, .row.widget select {
+  font: inherit; font-size: 11px; margin-left: auto; width: 74px; min-height: 22px;
+  border: 1px solid var(--brass-d); border-radius: 5px; padding: 1px 4px; color: var(--ink);
+  background: linear-gradient(180deg, #fffdf7, #f0e9da); box-shadow: inset 0 1px 2px rgba(60, 45, 20, 0.16);
+}
+.row.widget select {
+  appearance: none; -webkit-appearance: none; padding-right: 16px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.5 5 5.5 9 1.5' fill='none' stroke='%238f6217' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E"), linear-gradient(180deg, #fffdf7, #f0e9da);
+  background-repeat: no-repeat, no-repeat; background-position: right 4px center, 0 0;
+}
+.row.widget input:focus, .row.widget select:focus { border-color: var(--lamp-d); }
+/* A SETTING THE ENGINE CANNOT OBEY HERE (whole-branch review I2, the dead-controls law): the file
+   spot checkbox on a belt a Splitter deals — the crate's own act decides, so the box is inert.
+   It stays visible (it is real again the moment the Splitter goes) and reads as unavailable, with
+   the reason spelled out beside it rather than left for the child to discover by tapping. */
+.row.widget.dead { opacity: 0.72; }
+.row.widget.dead input { cursor: not-allowed; }
+
+/* THE SAME ROWS, THE OTHER FACE. `.row.widget` markup is used in two places: on a blueprint CARD
+   (white paper — the cream field above is correct there) and inside a floating control PLATE,
+   which is a bay face. Arriving in a plate wearing the card's cream field left a control that
+   glowed on a dark plate, with its label in card-ink at ~1.3:1 against it. Whoever owns the
+   background owns the ink, and this markup has two possible owners — so the plate states its own. */
+.plate .row .rlabel, .plate .row.widget .rlabel { color: var(--dim-face); }
+.plate .row.widget input, .plate .row.widget select {
+  color: var(--armor); border-color: var(--brass-d);
+  background: linear-gradient(180deg, var(--face-in), #0c1119);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.plate .row.widget select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.5 5 5.5 9 1.5' fill='none' stroke='%235fe3dc' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E"), linear-gradient(180deg, var(--face-in), var(--face-in));
+  /* MUST be re-declared: the `background:` shorthand above reset these to repeat/0 0, which tiled
+     the chevron into a zigzag pattern across the field. A shorthand always resets what it omits. */
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 4px center, 0 0;
+}
+.row.widget input[type="text"] { width: 92px; }
+/* Knob rows: a real slider the child turns (min 44px hit height comes from the row); the value beside it. */
+/* Combos carry NAMES ("Camera eye", "Memory brain", "Prototype brain"): 74px cut them to "Camera ey".
+   The label column beside them is short (sense/brain/mode), so the combo can take the width. */
+.row.widget select { width: 104px; }
+/* Files sample/answer rows are not generic widget rows. Long option labels must not set
+   a Blueprint card's intrinsic width or cover its neighbour. Keep the closed control inside. */
+.piece .row select { min-width: 0; max-width: 100%; flex: 1; }
+.plate .pbody .row.itemroute { height: auto; gap: 6px; }
+/* task 104: the route is REPORTED here (made by pulling the square socket); × cuts it. A tablet-sized target. */
+.plate .pbody .row.itemroute button.fdel { margin-left: auto; flex: none; min-height: 28px; min-width: 28px; padding: 0 6px; font-size: 14px; line-height: 1; color: #b91c1c; }
+.piece .row.widget input:not([type="checkbox"]) { min-width: 0; flex: 1; }
+.piece .row.widget input[type="number"] { flex: 0 1 74px; }
+.machines-dialog { margin: auto; }
+.machines-dialog::backdrop { background: rgba(8,11,15,.72); }
+.machines-dialog .machine-name { display: flex; flex-direction: column; gap: 6px; }
+.machines-dialog .machine-name input { width: 100%; min-width: 0; }
+.machines-dialog .machine-list { display: grid; gap: 8px; margin-top: 16px; }
+.machines-dialog .machine-list button { white-space: normal; overflow-wrap: anywhere; text-align: left; }
+/* task 106: the seal-a-part chooser (openMachines' own seal-as-part door + panel). Buttons clear
+   the >=44px floor from the global `button` rule above; these three add it to what that rule
+   cannot reach — plain inputs (`.ovcard input` sets 36px) and a checkbox's own tiny native box,
+   whose hit area comes from the LABEL it sits in, same precedent as #modelLibrary fieldset label. */
+.machines-dialog .sealpanel { display: flex; flex-direction: column; gap: 10px; }
+.machines-dialog .seal-name { display: flex; flex-direction: column; gap: 6px; }
+.machines-dialog .seal-name input, .machines-dialog .sealportname input[type=text] { min-height: 44px; width: 100%; min-width: 0; }
+.machines-dialog .sealports { display: flex; flex-direction: column; gap: 6px; }
+.machines-dialog .sealgroup { font-weight: 700; margin: 6px 0 0; }
+.machines-dialog .sealportrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* the LABEL, not the input, is the flex ITEM now (fix round 1: the input moved inside a <label>
+   for its accessible name) — sizing has to target the element .sealportrow actually lays out. */
+.machines-dialog .sealportname { flex: 1 1 160px; min-width: 0; }
+.machines-dialog .sealcheck { display: flex; align-items: center; gap: 8px; min-height: 44px; flex: 1 1 200px; }
+.machines-dialog .sealcheck input[type=checkbox] { width: 24px; height: 24px; min-width: 24px; min-height: 24px; }
+.machines-dialog .sealcut, .machines-dialog .sealwhat { flex: 1 1 100%; margin: 0; }
+.machines-dialog .seal-error { color: #b91c1c; font-weight: 700; }
+.machines-dialog .seal-as-part, .machines-dialog .sealconfirm { align-self: flex-start; }
+
+/* family colours on the header strip */
+.piece.track .phead { background: #d9ded9; }
+.piece.feeder .phead { background: #fef3c7; }
+.piece.gate .phead { background: #ede9fe; }
+.piece.bin .phead { background: #dcfce7; }
+.piece.checker .phead { background: #d1fae5; }
+.piece.datafeed .phead { background: #fde68a; }
+.shelf button[data-type="datafeed"] { border-left-color: #4f93a8; }
+.shelf button[data-type="checker"] { border-left-color: #17916b; }
+/* task D: the same one-line-ellipsis treatment now covers the table-source rows (preview/note/
+   privacy/summary) too, not just datastory's — a generalization, not a narrowing (unscoped from
+   .row.datastory so any row's .story text truncates the same way; full text rides .title). */
+.row .story { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; }
+.row.study button.study { margin-left: auto; }
+.row.tally { gap: 4px; }
+.row.tally .rlabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; }
+.row.tally .tv { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.row.tally .tv.th { font-weight: 800; font-size: 10.5px; min-width: 60px; }
+.row.tally .tv.fresh { color: #b45309; }
+/* THE SEALED EXAM'S OWN COLUMN (whole-branch review M1). The Blueprint card gained a third Tally
+   value with the exam lane, and with no rule of its own it inherited Training's ink — so on the
+   card the pile a teacher deliberately unseals was indistinguishable from the pile the machine
+   studied. Slate, the same chalk-on-dark role the floor's own lane and the Splitter's sealed
+   slice use, kept dark enough for the card's pale ground to clear the contrast floor. */
+.row.tally .tv.exam { color: #475569; }
+.item-dot.data { background: #fde68a; color: #422006; font-size: 9px; }
+.piece.sense .phead { background: #dbeafe; }
+.piece.teach .phead { background: #fbcfe8; }
+.piece.button .phead { background: #ffe4e6; }
+.piece.filter .phead, .piece.timer .phead, .piece.counter .phead, .piece.dice .phead { background: #f1f5f9; }
+.piece.lamp .phead { background: #fafafa; }
+.piece.sign { border-style: double; }
+.piece.track { background: #eef1ee; }
+.piece.button { background: #fff5f6; }
+
+.piece.lamp.lit-red { background: #ef4444; color: #fff; }
+.piece.lamp.lit-green { background: #22c55e; color: #fff; }
+.piece.lamp.lit-blue { background: #3b82f6; color: #fff; }
+.piece.lamp.lit-yellow { background: #eab308; }
+.piece.noisemaker.pulse { background: #fde68a; }
+
+/* The connectors — the shape law made visible. Row-aligned, generous hit area. */
+.conn {
+  position: absolute; width: 18px; height: 18px; cursor: crosshair;
+  outline: 10px solid transparent;
+}
+.conn.item-out, .plugshape.item-out { background: var(--band); border: 2px solid #7c827c; }           /* filled square plug */
+.conn.item-in, .plugshape.item-in { background: #fff; border: 3px solid var(--band); }               /* hollow square socket */
+.conn.sig-out, .plugshape.sig-out { background: var(--wire); border: 2px solid #6a7078; border-radius: 50%; }  /* filled round nub */
+.conn.sig-in, .plugshape.sig-in { background: #fff; border: 3px solid var(--wire); border-radius: 50%; }      /* hollow round socket */
+.conn.dial, .plugshape.dial { background: #fff; border: 3px solid #b45309; transform: rotate(45deg); width: 14px; height: 14px; } /* diamond dial socket */
+
+.items { position: absolute; left: 0; top: 0; pointer-events: none; }
+.item-dot {
+  position: absolute; width: 18px; height: 18px; border-radius: 50%;
+  background: #78350f; border: 2px solid #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  transition: left 0.28s linear, top 0.28s linear;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; color: #fff;
+}
+/* The overflow tag past a piece's PILE_CAP dots (finding I4) — a count, not a crate: wider than a
+   circle so "+32" never clips, and steel-toned so it never reads as one more brown crate. */
+.item-dot.pile-more {
+  width: auto; min-width: 18px; padding: 0 4px; border-radius: 9px;
+  background: #334155; font-size: 9px; font-weight: 700;
+}
+
+/* ================= THE TEACH BENCH (the sense panel) =================
+   It used to be a 280px white column of stacked paragraphs — the owner read it as "terrible and
+   poorly presented" (2026-08-19). It is now a BENCH that belongs to the Floor's workshop: a steel
+   frame with a brass edge, a MONITOR for the live eye, cream TRAYS for the shelves, and a brass
+   GAUGE for the answer. Two columns when the sense has a feed (eye | shelves), one when it does not.
+   Colours are the Floor's own (floorshelf steel #1d2228, brass #b79a6c, plate cream #f6f1e6). */
+.panel { display: none; }
+.panel.open {
+  display: flex; flex-direction: column; gap: 0;
+  width: clamp(320px, 30vw, 460px);
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(182, 255, 248, 0.14), rgba(182, 255, 248, 0) 60%),
+    linear-gradient(180deg, var(--iron-up), var(--oil));
+  border-left: 3px solid var(--brass);
+  box-shadow: -14px 0 34px rgba(0, 0, 0, 0.45);
+  color: var(--steel-ink); font-size: 13px;
+  overflow-y: auto; overflow-x: hidden; position: relative; z-index: 5;
+}
+/* A sense with a live feed earns the second column — the monitor needs real estate. */
+.panel.open.live { width: clamp(380px, 46vw, 760px); }
+@media (max-width: 1180px) { .panel.open.live { width: clamp(320px, 38vw, 460px); } }
+
+/* ---- head: sticky, so Close is reachable however far the trays scroll ---- */
+.panel .pbar {
+  position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: linear-gradient(180deg, var(--iron-up), var(--iron));
+  border-bottom: 2px solid var(--brass);
+}
+.panel .ptitle { flex: 1; min-width: 0; }
+.panel .peyebrow { font-size: 10px; font-weight: 800; color: var(--brass-l); }
+.panel .pbar h2 { font-size: 17px; font-weight: 800; color: var(--chalk); line-height: 1.15; }
+.panel .paboutbtn, .panel .pclosebtn {
+  flex: none; min-height: 34px; padding: 4px 12px; font-size: 12px; font-weight: 700;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--iron-line); color: var(--steel-ink);
+  border-radius: 8px; box-shadow: none;
+}
+.panel .paboutbtn.on { background: var(--brass); border-color: var(--brass); color: var(--oil); }
+.panel .paboutbtn:hover, .panel .pclosebtn:hover { border-color: var(--lamp); }
+.panel .pabout {
+  margin: 8px 12px 0; padding: 9px 11px; background: rgba(255,255,255,0.05);
+  border: 1px solid #3d4855; border-left: 3px solid var(--ice-deep); border-radius: 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+/* ---- body: eye | shelves ---- */
+.panel .pbody { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; align-items: flex-start; }
+.panel .peye { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.panel .pshelves { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.panel h3 { font-size: 10px; font-weight: 800; color: var(--brass-l); margin-top: 2px; }
+.panel .hint { color: var(--steel-dim); font-size: 12px; line-height: 1.45; }
+.panel .pcaption { color: var(--steel-dim); font-size: 11px; }
+.panel .phrow { display: flex; align-items: center; gap: 6px; }
+.panel .phrow input, .panel .phrow select {
+  font: inherit; font-size: 13px; min-height: 38px; padding: 4px 9px; flex: 1; min-width: 0;
+  border: 1px solid var(--brass-d); border-radius: 8px; color: var(--armor);
+  background: linear-gradient(180deg, var(--face-in), #0c1119); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55);
+}
+.panel .phrow input::placeholder { color: var(--armor-deep); }
+.panel .phrow button {
+  min-height: 38px; padding: 4px 12px; font-size: 13px; font-weight: 700; flex: none;
+  background: linear-gradient(180deg, var(--face), var(--face-2)); border: 1px solid var(--brass-d);
+  color: var(--armor); border-radius: 8px; box-shadow: 0 2px 0 var(--brass-d);
+}
+.panel .phrow button:active { transform: translateY(1px); box-shadow: none; }
+.panel .phrow button:disabled { opacity: 0.45; box-shadow: none; }
+/* The one action the bench exists for (Snap / Add example) wears the brass. */
+.panel .phrow button.snapbtn {
+  background: linear-gradient(180deg, var(--lamp), var(--lamp-d)); border-color: var(--brass-d); color: #241c07;
+}
+.panel .addrow { margin-top: 2px; }
+/* The way back from a private collection this session does not hold (P3a): a real control, sitting
+   under the sentence that says one is needed, not a line of advice pointing elsewhere. */
+.panel .ptitle button.privreattachbtn { margin-top: 6px; }
+
+/* ---- the monitor: the live eye, in a bezel, with a LIVE pip ---- */
+.cambox { display: flex; flex-direction: column; gap: 6px; }
+.monitor {
+  position: relative; padding: 8px; border-radius: 12px; border: 1px solid #3d4855;
+  background: linear-gradient(180deg, #10151b, #070a0e);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.6), 0 6px 18px rgba(0,0,0,0.4);
+}
+.monitor video.camview {
+  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+  border-radius: 7px; background: #05070a; border: 0;
+}
+.livepip {
+  position: absolute; top: 15px; left: 15px; display: flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.14em; color: #ffe4e4;
+  background: rgba(0,0,0,0.6); border-radius: 999px; padding: 3px 9px 3px 7px;
+}
+/* One slow breath, 2.8s → 0.36 cycles/s, far under the 3/s flash ceiling. */
+.livepip::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%; background: #e5484d;
+  box-shadow: 0 0 8px rgba(229,72,77,0.9); animation: pippulse 2.8s ease-in-out infinite;
+}
+@keyframes pippulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.cambox button {
+  min-height: 38px; padding: 4px 12px; align-self: flex-start;
+  background: linear-gradient(180deg, var(--face), var(--face-2)); border: 1px solid var(--ice-deep); color: var(--armor);
+  border-radius: 8px; font-weight: 700;
+}
+
+/* ---- trays: one cream tray per shelf, the count saying its own noun ---- */
+.trays { display: flex; flex-direction: column; gap: 8px; }
+.shelfbox {
+  background: linear-gradient(180deg, var(--face), var(--face-2)); border: 1px solid var(--ice-deep);
+  border-radius: 10px; padding: 8px 9px 9px; color: var(--armor);
+  box-shadow: 0 2px 0 var(--ice-deep), 0 5px 12px rgba(0,0,0,0.3);
+}
+.shelfname { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.shelfname .shelflabel { font-weight: 800; font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+.shelfname .shelfcount {
+  margin-left: auto; flex: none; font-size: 11px; font-weight: 700; color: var(--ice);
+  background: rgba(0,0,0,0.35); border-radius: 999px; padding: 3px 9px;
+}
+.emptytray {
+  border: 1px dashed var(--hair); border-radius: 10px; padding: 10px 11px;
+  background: rgba(255,255,255,0.04);
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 5px; font-size: 12px; background: var(--face-2); color: var(--armor); border: 1px solid var(--ice-deep); border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; min-height: 28px;
+}
+.chip .chipthumb { display: block; width: 72px; height: 72px; border-radius: 6px; }
+/* --armor, not the old cream-tray brown: the chip sits on --face-2 now, where #4a4034 read at
+   about 1.5:1 ("photo 1" was near invisible — seen 2026-09-16 with a shelf of filed photos). */
+.chip .chipname { display: block; text-align: center; font-size: 11px; color: var(--armor); font-weight: 600; }
+/* Remove is a WORD on its own red-tinted button — "photo 3 x" read as a count of three. */
+.chip .chipdel {
+  min-height: 22px; padding: 2px 9px; font-size: 11px; font-weight: 700;
+  background: #fee2e2; border: 1px solid #dc2626; border-radius: 8px; color: #991b1b;
+}
+/* Belt teaching not kept yet (plan 2026-09-16): a dashed edge and a small "this Run" word —
+   state carried by form and by words, never by colour alone. */
+.chip.belt { border-style: dashed; border-color: var(--brass-d); }
+/* A private photo held back for checking, or waiting for a pile (task P2b): it keeps its answer but
+   does not teach — a dotted edge plus its pile's word on the chip, never colour alone. */
+.chip.held { border-style: dotted; border-color: var(--brass-d); }
+.chip .chiptag {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.04em; color: var(--ice);
+  border: 1px dashed var(--brass-d); border-radius: 999px; padding: 1px 7px;
+}
+.shelfname .shelfdel {
+  flex: none; min-height: 26px; padding: 2px 9px; font-size: 11px; font-weight: 700;
+  background: #fee2e2; border: 1px solid #dc2626; border-radius: 8px; color: #991b1b;
+}
+.shelfname .shelfdel[data-armed="1"] { background: #dc2626; color: #fff; }
+.keeprow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 8px;
+  border: 1px dashed var(--brass-d); border-radius: 10px; padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.keeprow .hint { flex: 1 1 180px; }
+.keeprow button.keepbtn {
+  flex: none; min-height: 38px; padding: 4px 14px; font-size: 13px; font-weight: 800; border-radius: 8px;
+  background: linear-gradient(180deg, var(--lamp), var(--lamp-d)); border: 1px solid var(--brass-d); color: #241c07;
+  box-shadow: 0 2px 0 var(--brass-d);
+}
+.keeprow button.keepbtn:active { transform: translateY(1px); box-shadow: none; }
+/* ---- task P6a: the Evaluation section of a private Model's Teach panel ----
+   A frozen check, its predictions, and the evidence behind ONE of them. Everything here is
+   text and buttons on purpose: the only picture in this path is the brain's own (brain-view.js),
+   where the query sits at the centre and every example is at its TRUE distance. Nothing in this
+   stylesheet may draw a position, a bar or a gauge that implies a closeness the model never
+   measured — state is carried by words and by form, never by colour alone. */
+.privresults { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.privresults .evalnote { margin-bottom: 2px; }
+.privresults .evalage { display: block; font-weight: 400; margin-top: 3px; }
+.privresults .evalsummary, .privresults .evalcompare { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--armor-deep); border-radius: 8px; }
+.privresults .evalcompare label { display: flex; flex-direction: column; gap: 4px; }
+.privresults .evalcompare select { width: 100%; min-width: 0; min-height: 44px; }
+.privresults .evalrow button, .privresults button.evalforget { min-height: 44px; }
+.chip[data-source] button { min-height: 44px; }
+.chip .chipedit { display: flex; flex-direction: column; gap: 4px; max-width: 155px; }
+.chip .chipedit input { width: 100%; min-width: 0; min-height: 44px; }
+.chip .chipedit .hint { font-size: 11px; }
+.privresults .evalrow { margin: 0 0 6px; }
+.privresults .evalrecords { display: flex; flex-direction: column; gap: 6px; }
+.privresults button.evalrec {
+  text-align: left; min-height: 38px; padding: 6px 10px; font-size: 12px; font-weight: 700;
+  border: 1px solid var(--brass-d); border-radius: 8px; color: var(--steel-ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+.privresults button.evalrec.on { border-style: solid; border-color: var(--brass); background: rgba(255, 255, 255, 0.11); }
+.privresults h4 { font-size: 11px; font-weight: 800; color: var(--brass-l); margin-top: 4px; }
+.privresults h5 { font-size: 10px; font-weight: 800; color: var(--brass-l); margin-top: 6px; letter-spacing: 0.03em; }
+.privresults .evalpreds, .privresults .evalevidence {
+  display: flex; flex-direction: column; gap: 5px;
+  border: 1px dashed var(--brass-d); border-radius: 10px; padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.privresults button.evalpred {
+  display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; text-align: left;
+  min-height: 38px; padding: 6px 10px; font-size: 12px;
+  border: 1px solid var(--armor-deep); border-radius: 8px; color: var(--steel-ink);
+  background: rgba(255, 255, 255, 0.04);
+}
+.privresults button.evalpred:hover, .privresults button.evalrec:hover { border-color: var(--lamp); }
+.privresults button.evalpred .predname { font-weight: 800; }
+.privresults button.evalpred .predverdict {
+  margin-left: auto; font-weight: 800; letter-spacing: 0.04em;
+  border: 1px solid var(--brass-d); border-radius: 999px; padding: 1px 8px;
+}
+/* Wrong / not answered / ungradeable wear a DIFFERENT EDGE as well as a different word. */
+.privresults button.evalpred[data-verdict="wrong"] .predverdict { border-style: double; border-width: 3px; }
+.privresults button.evalpred[data-verdict="unsure"] .predverdict,
+.privresults button.evalpred[data-verdict="unread"] .predverdict,
+.privresults button.evalpred[data-verdict="error"] .predverdict,
+.privresults button.evalpred[data-verdict="unscorable"] .predverdict { border-style: dotted; }
+.privresults button.evalback, .privresults button.evpicture {
+  align-self: flex-start; min-height: 38px; padding: 4px 12px; font-size: 12px; font-weight: 800;
+  border: 1px solid var(--brass-d); border-radius: 8px; color: var(--steel-ink);
+  background: rgba(255, 255, 255, 0.06);
+}
+.privresults button.evalback:hover, .privresults button.evpicture:hover { border-color: var(--lamp); }
+.privresults .evfrozen, .privresults .evpath, .privresults .evrev, .privresults .evnow {
+  display: flex; flex-direction: column; gap: 3px;
+  border-top: 1px solid var(--armor-deep); padding-top: 6px;
+}
+.privresults .evline { font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.privresults .evrev .evline { color: var(--steel-dim); font-size: 11px; }
+.privresults .evline.warn, .privresults .hint.warn { color: #fca5a5; font-weight: 700; }
+.privresults .evline.evmissing { font-weight: 800; }
+.privresults ol.evsteps { list-style: none; display: flex; flex-direction: column; gap: 3px; }
+.privresults li.evstep { font-size: 12px; line-height: 1.45; padding-left: 14px; position: relative; overflow-wrap: anywhere; }
+/* A decorative step dot - empty content on purpose, so a screen reader reads the step's own
+   sentence and never a punctuation mark standing in for it. */
+.privresults li.evstep::before {
+  content: ""; position: absolute; left: 1px; top: 7px; width: 5px; height: 5px;
+  border-radius: 50%; background: var(--brass-l);
+}
+.privresults .evrows { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.privresults .evrow {
+  font-size: 12px; line-height: 1.4; padding: 3px 8px; overflow-wrap: anywhere;
+  border: 1px solid var(--armor-deep); border-radius: 6px; background: rgba(255, 255, 255, 0.03);
+}
+
+.waitline { margin-bottom: 6px; }
+.waitline.warn { color: #fca5a5; font-weight: 700; }
+
+/* ---- the readout: the answer BIG, sureness as a gauge, then who voted ---- */
+.tryrow { flex-wrap: wrap; }
+.tryrow select.trybrain { flex: 1 1 140px; }
+.tryrow button.trybtn { flex: 1 1 auto; }
+.tryresult { display: flex; flex-direction: column; gap: 6px; }
+.tryresult .readout {
+  background: linear-gradient(180deg, #121820, #0a0e13); border: 1px solid #3d4855;
+  border-radius: 10px; padding: 9px 11px 11px;
+}
+.tryresult .rlabel {
+  font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--signal); overflow-wrap: anywhere;
+  text-shadow: 0 0 18px rgba(79, 209, 197, 0.35);
+}
+.tryresult .rlabel.unsure { font-size: 19px; color: #f0a35e; }
+.tryresult .rgauge {
+  position: relative; height: 20px; margin-top: 8px; border-radius: 999px;
+  background: #05080b; border: 1px solid #3d4855; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.tryresult .rfill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: linear-gradient(90deg, #2b8f88, var(--signal)); transition: width 0.3s ease;
+}
+.tryresult .rval { position: relative; font-size: 11px; font-weight: 700; color: #f6f1e6; text-shadow: 0 1px 2px #000; }
+.tryresult .voter {
+  display: flex; align-items: center; gap: 8px; font-size: 12px;
+  background: rgba(255,255,255,0.05); border: 1px solid #3d4855; border-radius: 8px; padding: 4px 8px;
+}
+.tryresult .voter .chipthumb { width: 40px; height: 40px; border-radius: 6px; flex: none; }
+.tryresult .voter .vname { flex: 1; min-width: 0; color: #cfd8e2; overflow-wrap: anywhere; }
+.tryresult .voter .vlabel { flex: none; font-weight: 800; color: var(--signal); }
+.tryresult .voter .vdist { flex: none; font-size: 11px; color: #93a0ad; }
+
+/* ---- the bin / checker why-log shares the bench; its entries are cream cards on the steel ---- */
+.binlist { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 12px; }
+.panel .binlist { padding: 0; }
+.panel > .phrow:not(.pbar) { padding: 9px 12px; gap: 8px; }
+.panel > .phrow:not(.pbar) h2 { flex: 1; font-size: 16px; color: #f6f1e6; }
+.panel > .pnote { padding: 10px 12px 0; }
+.panel > .binlist { margin: 10px 12px 12px; }
+.binentry {
+  background: linear-gradient(180deg, var(--face), var(--face-2)); border: 1px solid var(--ice-deep); border-radius: 8px;
+  padding: 6px 9px; font-size: 12px; color: var(--armor);
+  box-shadow: 0 1px 0 var(--ice-deep);
+}
+.binentry .hint { margin-top: 2px; color: var(--dim-face); }
+
+/* ---- THE DEBUGGING WALK (task-8) + THE LIT PATH's own toggle (task-9) — I5 (final whole-branch
+   review): these classes existed only in the markup until now, so §5.6's "the shakiest step is
+   marked" drew as an unstyled inline span, the `.shakiest` row class was a no-op, and the inspect
+   toggle's ON state was invisible past its own label swap. Styled here in the file's own idiom
+   (--ice signal accent, --face/--face-2 instrument gradients) so a binentry's walk reads as its
+   own list of rows, never a stack of identical default buttons. ---- */
+.trailwalk { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--ice-deep); }
+.trailstep { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.trailtap {
+  min-height: 44px; width: 100%; text-align: left; font-size: 12px; font-weight: 600; line-height: 1.35;
+  padding: 6px 10px; border-radius: 7px; color: var(--armor);
+  background: linear-gradient(180deg, var(--face), var(--face-2)); border: 1px solid var(--ice-deep);
+  box-shadow: 0 1px 0 var(--ice-deep);
+}
+.trailtap:active { transform: translateY(1px); box-shadow: none; }
+.trailstep .hint { margin: 0 2px; }
+/* The shakiest mark: a badge that SAYS so in words (the a11y floor — never colour alone) plus a
+   left accent stripe on its own row (the sighted reinforcement, per ui-ux-common.md's own rule
+   that a shape/label always accompanies a colour cue). A HINT, never a verdict (spec Ruling 5) —
+   the stripe reads as "notice", never as an error/danger colour. */
+.trailbadge {
+  align-self: flex-start; font-size: 10px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--void); background: var(--ice-bright); border: 1px solid var(--ice-deep); border-radius: 5px; padding: 2px 7px;
+}
+.trailstep.shakiest { border-left: 3px solid var(--ice-bright); padding-left: 7px; }
+.trailinspect {
+  align-self: flex-start; min-height: 44px; font-size: 11px; font-weight: 700; padding: 6px 12px;
+  border-radius: 999px; background: var(--face-2); border: 1px solid var(--hair); color: var(--dim-face);
+}
+/* ON reads as on two ways at once: its OWN label already swapped text ("Light this path" ->
+   "Stop lighting this path" — game.js's own t() call), and here a filled signal-coloured face
+   with a dark inset ring, never a colour change alone. */
+.trailinspect.on {
+  background: linear-gradient(180deg, var(--ice-bright), var(--ice)); border-color: var(--ice-deep); color: var(--void);
+  box-shadow: 0 0 0 2px var(--ice-deep) inset;
+}
+
+.row.widget button.teach, .row button.teach {
+  min-height: 20px; width: 100%; padding: 1px 6px; font-size: 11px; box-shadow: none;
+  background: #dbeafe; border-color: #2563eb;
+}
+.row button.teach.binlog { background: #dcfce7; border-color: #16a34a; }
+/* The Models row's door (task 120): the same key as Teach, its own class so a Teach locator never finds two. */
+.row.widget button.models, .row button.models { background: #e0f2fe; border-color: #0284c7; color: var(--ink); }
+/* Card-internal controls are small: the plate's 2px under-edge would break their 20px rows. */
+.row button, .row.widget button, .phead .pdel { box-shadow: none; }
+/* THE SEAM. Every button in the workshop is a bay face — dark, wearing --armor — EXCEPT the few
+   that set their own pastel background on a blueprint card. The rule is: whoever sets the
+   background sets the ink. A blanket `.piece button` is wrong, because a card's +/-/Add item
+   buttons have no background of their own and correctly wear the bay face. */
+.row.widget button.teach, .row button.teach, .row button.teach.binlog { color: var(--ink); }
+/* …but ONLY on a blueprint card. The same markup also appears inside a control plate, where the
+   card's pastel read as a bright bar pasted onto a dark instrument. Third time this markup has
+   needed splitting by face — the plate states its own, as it does for fields and labels. */
+.plate .row button.teach, .plate .row button.teach.binlog {
+  background: linear-gradient(180deg, var(--face), var(--face-2));
+  border: 1px solid var(--ice-deep); color: var(--ice-bright);
+}
+.plate .row button.teach:hover { border-color: var(--ice); }
+/* the bin why-log entries in the drawer */
+.row .wayswrap { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.row button.ways { min-height: 20px; min-width: 24px; padding: 0 6px; font-size: 13px; line-height: 1; }
+/* Feeder item rows: an editable tag per row, its own remove, and the add row under them. */
+.row.feed-item input {
+  font: inherit; font-size: 11px; margin-left: auto; width: 74px; min-height: 22px;
+  border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; background: #fcfcfa;
+}
+.row.feed-item button.fdel {
+  min-height: 20px; min-width: 20px; padding: 0 4px; font-size: 12px; line-height: 1; color: #b91c1c;
+}
+.row.feed-add button.feedadd { margin-left: auto; min-width: 0; padding: 0 10px; font-size: 11px; }
+/* The file picker (task D, now the FILES block's own pick row — task E): a file <input> hidden
+   behind a label styled AS the button (the reliable cross-browser pattern: a native label always
+   forwards its click to the input it wraps, an element styled to merely LOOK like a button might
+   not). The paste box's rules died with the in-feeder upload; the warn tint now serves the Files
+   block's own note row. */
+.row .filepick {
+  display: inline-flex; align-items: center; justify-content: center; margin-left: auto;
+  font: inherit; font-weight: 700; min-height: 20px; padding: 0 10px; font-size: 11px;
+  color: var(--armor); border: 1px solid var(--hair); border-radius: 9px; cursor: pointer;
+  background: linear-gradient(180deg, var(--face), var(--face-2));
+}
+.row .filepick:hover { border-color: var(--accent); }
+.row.files-note .warn { color: #b91c1c; }
+
+/* ---- the Scored Test overlay ---- */
+.overlay { display: none; }
+.overlay.open {
+  display: flex; align-items: center; justify-content: center;
+  position: fixed; inset: 0; background: rgba(8, 11, 15, 0.62); z-index: 20;
+}
+.ovcard {
+  background: linear-gradient(180deg, var(--steel), var(--steel-2));
+  border: 1px solid var(--steel-line); border-top: 3px solid var(--brass);
+  border-radius: 14px; padding: 18px 20px 20px; width: min(460px, 94vw);
+  max-height: 90vh; display: flex; flex-direction: column; gap: 10px; font-size: 14px;
+  color: var(--steel-ink); box-shadow: 0 26px 70px rgba(0, 0, 0, 0.55);
+}
+.ovcard h2, .ovcard h3 { color: var(--panel); }
+#modelLibrary { width: min(720px, 94vw); margin: auto; }
+#modelLibrary:not([open]) { display: none; }
+#modelLibrary::backdrop { background: rgba(8,11,15,.72); }
+#modelLibrary button, #modelLibrary select, #modelLibrary input[type=number] { min-height: 44px; }
+#modelLibrary label { display: flex; flex-direction: column; gap: 5px; }
+#modelLibrary fieldset { display: flex; flex-wrap: wrap; gap: 14px; border: 1px solid var(--steel-line); padding: 10px; }
+#modelLibrary fieldset[hidden] { display: none; } /* number data has no classes; see the [hidden] note above */
+#modelLibrary fieldset label { flex-direction: row; align-items: center; min-height: 44px; }
+#modelLibrary input[type=checkbox] { width: 24px; height: 24px; }
+#modelLibrary select { color: var(--steel-ink); background: var(--steel); border: 1px solid var(--steel-line); padding: 8px; font: inherit; }
+#modelLibrary a { color: var(--brass-l); }
+#libraryStatus { white-space: pre-wrap; flex: 0 0 auto; min-height: 1.4em; max-height: 96px; overflow: auto; margin: 0; }
+.library-previews { display: flex; gap: 8px; }
+.library-previews img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+#buddyMemory { margin: auto; width: min(640px, 94vw); }
+#buddyMemory:not([open]) { display: none; }
+#buddyMemory::backdrop { background: rgba(8, 11, 15, 0.72); }
+#buddyMemory .memory-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
+#buddyMemory label { grid-column: 1 / -1; font-weight: 700; }
+#buddyMemory button, #buddyMemory select { min-height: 44px; }
+#buddyMemory select { min-width: 0; font: inherit; border: 1px solid var(--steel-line); border-radius: 6px; padding: 8px; background: var(--steel); color: var(--steel-ink); }
+#buddyMemory pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.ovcard .hint { color: var(--steel-dim); }
+.ovcard input {
+  background: linear-gradient(180deg, var(--face-in), #0c1119); border-color: var(--brass-d); color: var(--armor);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55);
+}
+.ovhead { border-bottom: 1px solid var(--steel-line); padding-bottom: 10px; }
+.ovcard.wide { width: min(880px, 94vw); }
+.ovcard h2 { font-size: 16px; }
+/* Reading overlays (Steps / Models / Blocks): a fixed head, ONE scrolling body. The card never
+   outgrows the viewport, so the title and Close are always on screen. */
+.ovhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; }
+.ovhead h2 { font-size: 18px; }
+.ovbody { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+.ovbody h3 { font-size: 15px; margin-top: 8px; }
+.ovcard .hint { font-size: 13px; }
+.ovcard .big { font-weight: 700; }
+.ovcard input { font: inherit; min-height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.ovcard .phrow { display: flex; gap: 8px; }
+.ovcard .steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+/* THIS example's own lesson, kept above the generic recipe. It is the only surviving copy once
+   Run overwrites the status line, so it is given a lit brass edge and reads first. */
+.ovcard .ownsteps {
+  border-left: 3px solid var(--brass-l); background: rgba(95,227,220,0.10);
+  padding: 10px 12px; margin: 0 0 14px; border-radius: 0 6px 6px 0; font-size: 13px; line-height: 1.5;
+}
+.ovcard .ownsteps .peyebrow { font-size: 10px; font-weight: 800; color: var(--brass-l); margin-bottom: 4px; }
+
+/* The Models shelf — the sense registry made visible. */
+.models { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.model {
+  border: 1px solid var(--brass-d); border-radius: 10px; padding: 11px 13px;
+  display: flex; flex-direction: column; gap: 6px;
+  background: linear-gradient(180deg, var(--face), var(--face-2)); color: var(--armor);
+  box-shadow: 0 2px 0 var(--brass-d), 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+.model h3, .models .model h3 { color: var(--armor); }
+.model .mknows.dim, .manual .mports dt { color: var(--dim-face); }
+.model .mhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.model .mkind {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 999px; background: #e0e7ff; color: #3730a3;
+}
+.model .mknows { font-size: 12px; }
+.model .mknows.dim { color: var(--dim-face); }
+.model button { align-self: flex-start; min-height: 36px; }
+
+/* The Help page (game.js renderManual) — tabs over four panes; the block pages keep the Models
+   shelf's card grammar: the job line rides where the kind chip does, and the in/out/dials/try
+   table reads as one legible list. */
+.manual .mkind { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 12px; background: #f1f5f9; color: var(--dim); }
+.manual .mports { display: grid; grid-template-columns: 52px 1fr; gap: 3px 10px; font-size: 13px; margin: 0; }
+.manual .mports dt { color: var(--dim-face); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; padding-top: 2px; }
+.manual .mports dd { margin: 0; }
+.ovcard.helpcard { height: min(90vh, 880px); }
+.ovcard.helpcard .ovbody { flex: 1 1 auto; }
+.manual { display: flex; flex-direction: column; gap: 14px; }
+/* The tab row stays on screen while its pane scrolls (sticky inside .ovbody, the scroller). */
+.helptabs {
+  position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 2px 0 10px; background: var(--steel); border-bottom: 1px solid var(--steel-line);
+}
+.helptabs [role="tab"] { box-shadow: none; font-weight: 600; color: var(--steel-dim); background: transparent; border-color: var(--steel-line); border-radius: 999px; padding: 7px 16px; }
+.helptabs [role="tab"][aria-selected="true"] { color: #0b1016; background: var(--lamp); border-color: var(--lamp); }
+.helppane { display: flex; flex-direction: column; gap: 12px; }
+/* An author display beats the UA's [hidden] rule — every hidden pane and view says so itself. */
+.helppane[hidden] { display: none; }
+.manual h3 { margin: 6px 0 0; }
+/* This machine: a Demo note is written in paragraphs. */
+.manual .model.machine .hint { white-space: pre-line; font-size: 14px; line-height: 1.55; }
+/* Basics: numbered steps, then the plug key, then the tools. */
+.helpsteps { margin: 0; padding-left: 26px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.5; max-width: 70ch; }
+.helpsteps li::marker { color: var(--lamp); font-weight: 800; }
+.plugkey { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--steel-line); border-radius: 10px; }
+.plugrow { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.plugswatch { flex: 0 0 52px; display: flex; align-items: center; gap: 8px; }
+.plugshape { display: inline-block; width: 18px; height: 18px; flex: none; box-sizing: border-box; }
+.plugshape.dial { margin-left: 2px; }
+.helptools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.demo-files { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.filelink {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 7px 12px; border-radius: 9px;
+  font-weight: 700; color: var(--armor); text-decoration: none; border: 1px solid var(--hair);
+  background: linear-gradient(180deg, var(--face), var(--face-2)); box-shadow: 0 2px 0 var(--brass-d);
+}
+.filelink:hover, .filelink:focus-visible { border-color: var(--accent); }
+/* Blocks: the shelf as pictures, then one block's page. */
+.blockgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+.blockgrid[hidden], .blockpage-host[hidden] { display: none; }
+.blocktile { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px 9px; font-weight: 700; }
+.blocktile .micon { width: 112px; height: 72px; }
+.blocktile .tilename { font-size: 13px; line-height: 1.2; text-align: center; }
+.blocktile:hover, .blocktile:focus-visible { border-color: var(--lamp); }
+.blockpage-host { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.blockpage { align-self: stretch; }
+.helpback { font-weight: 600; }
+/* A block's page: its shelf picture left, name over job right — a long job wraps beside it. */
+.manual .mhead.iconed { display: grid; grid-template-columns: 168px 1fr; column-gap: 16px; row-gap: 6px; }
+.manual .mhead.iconed > .micon { grid-column: 1; grid-row: 1 / span 2; width: 168px; height: 108px; }
+.manual .mhead.iconed > strong { grid-column: 2; align-self: end; font-size: 17px; }
+.manual .mhead.iconed > .mkind { grid-column: 2; align-self: start; justify-self: start; border-radius: 8px; }
+@media (max-width: 520px) {
+  .manual .mhead.iconed { grid-template-columns: 112px 1fr; }
+  .manual .mhead.iconed > .micon { width: 112px; height: 72px; }
+}
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* Reduced motion: kill every loop. Each animated element's REST state (what it looks like with
+   animation:none) was designed to be the correct frame — the pilot lamp sits lit, the ticker strip
+   is a plain readable bar, the dust in the canvas freezes because floor.js holds its clock at 0 —
+   so nothing is left invisible or mid-cycle. */
+@media (prefers-reduced-motion: reduce) {
+  .app *, .app *::before, .app *::after { transition: none !important; animation: none !important; }
+  .app.running #status::after { display: none; }
+  .stagehud button:active { transform: none; }
+}
+
+/* ===== THE BUDDY (mounted from the gateway; buddy-core.css + buddy-theme.css load ahead of this
+   sheet). The theme sets no BASE text colour — it inherits the host's, and this host's ink is dark
+   on a light table while the buddy's panel is dark. One rule keeps its words readable. ===== */
+.bw-panel, .buddy-app { color: var(--buddy-ink, #eaf2f8); }
+/* While the STAGE is up it owns the screen: the buddy's fixed bubble/panel would sit on the HUD. */
+body.staged .bw-bubble, body.staged .bw-panel { display: none !important; }
+
+
+/* ===== The FLOOR (floor.js) — the child's face; the Blueprint (card grid) is a teacher toggle ===== */
+.floor { position: relative; flex: 1; min-width: 0; overflow: hidden; display: none; background: var(--oil); }
+.app.view-floor .floor { display: block; }
+.app.view-floor .shelf, .app.view-floor .stage { display: none; }
+/* DISCOVERY (fix round 1, product-wide): without this, the BROWSER itself claims the pointer for
+   its own pan/zoom the instant a real touch travels — every gesture on this canvas (this task's
+   marquee/hold included, and every pre-existing drag: object move, cable pull, the Splitter's
+   bar) dies as a `pointercancel` on the first move under REAL touch input. Mouse-event Playwright
+   never sees this (a mouse never triggers the browser's own touch-scroll heuristic), which is why
+   it went unnoticed until the reviewer drove it with touch emulation. `none` hands the canvas
+   every gesture the finger makes — nothing here wants the page to pan or the browser to zoom. */
+.floorcanvas { position: absolute; left: 0; top: 0; display: block; touch-action: none; }
+/* task 063 (spec R1/R6): the invitation on the empty hall — CHROME, not a piece: it never
+   intercepts a pointer outside its own card (the hall behind it, and the shelf below it, stay
+   tappable through it), and it records nothing. Same plate/chip family as .plate/.brickchip
+   below (face gradient, brass border, drop shadow) so it reads as part of this room, not a modal
+   bolted on top of it. Positioned above the shelf on purpose (34% down) — it never covers the
+   targets its own copy names. */
+.invite {
+  position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); z-index: 5;
+  max-width: min(440px, calc(100% - 32px)); padding: 18px 22px; text-align: center;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--face), var(--face-2));
+  color: var(--armor); border: 1px solid var(--brass-d); border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(182, 255, 248, 0.18);
+}
+.invite h2 { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: var(--brass-l); }
+.invite p { margin: 0 0 14px; font-size: 13px; line-height: 1.4; }
+/* Fix wave (M1): the card's own × (spec R1's other dismiss route, beside Escape) — a flex header
+   row with the title so the button never overlaps the (centered) copy below it, same shape as
+   this room's other panel headers. */
+.invitehead { display: flex; align-items: flex-start; justify-content: center; gap: 10px; }
+.invitehead h2 { flex: 1; }
+.invitex { flex: none; min-width: 44px; min-height: 44px; padding: 0; font-size: 18px; line-height: 1; }
+.invite button { pointer-events: auto; min-height: 44px; }
+.inviterow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+/* task 063 (spec R3): the moment-help tip — fixed above the shelf, never blocking input (only
+   its own × button takes pointer events; the card's own body just rides the document-level
+   dismiss-on-tap). Same plate/chip family as .invite above. z-index 60: above the overlay (20)
+   and every in-room chrome, since a tip can fire while a plate or the manual is open.
+   Fix wave (I2): the body itself must carry `pointer-events: none` for that "never blocking
+   input" claim to be true — without it, a tap aimed at whatever control the card happens to
+   float over (measured: the docked chip's Make row) hit the tipcard instead, dismissing the tip
+   and acting on nothing. `.tipx` opts back IN so its own × still takes the tap; the document-level
+   capture pointerdown listener (game.js) dismisses on any tap regardless, since it fires on
+   whatever the pointer actually hits once the card itself is transparent to hit-testing. */
+.tipcard {
+  position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); z-index: 60;
+  display: flex; gap: 8px; align-items: center; padding: 10px 14px;
+  max-width: min(420px, calc(100vw - 24px));
+  background: linear-gradient(180deg, var(--face), var(--face-2));
+  color: var(--armor); border: 1px solid var(--brass-d); border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(182, 255, 248, 0.18);
+  font-size: 13px; line-height: 1.4;
+  pointer-events: none;
+}
+.tipx { min-width: 44px; min-height: 44px; pointer-events: auto; }
+/* Fix round 1 (task 063 T3): `.model button` (below — written for the Models-shelf's own button)
+   beats the base `button { min-height: 44px; }` by specificity (0,1,1) > (0,0,1) — same precedent
+   as `.invite button` above. An id selector wins it back explicitly. */
+#resetTips { min-height: 44px; }
+/* The parts rack bolted along the foot of the hall. (No `scrollbar-width` here: the standard
+   property makes Chrome ignore every ::-webkit-scrollbar rule — the two syntaxes are exclusive,
+   and the styled bar is the one that belongs to this room.) */
+/* The shelf is the OTHER half of the chrome bill (129px of an 800px tablet, and its buttons ran
+   off the right edge at 1280 — measured right=1299,1407,1515 past a 1280 viewport). Its metrics
+   clamp against vh/vw for the same reason the header's do: narrower buttons put more of the shelf
+   on screen AND hand the floor back its height. `shelfHeight()` in floor.js measures this element
+   and resizes the canvas from it, so the floor follows automatically at any resolution. */
+.floorshelf {
+  position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: clamp(5px, 0.6vw, 8px);
+  padding: clamp(5px, 0.9vh, 9px) clamp(7px, 0.9vw, 11px) clamp(5px, 1vh, 10px);
+  overflow-x: auto; overflow-y: hidden; z-index: 4;
+  background:
+    radial-gradient(90% 180% at 26% -60%, rgba(182, 255, 248, 0.13), rgba(182, 255, 248, 0) 62%),
+    linear-gradient(180deg, var(--iron-up), var(--oil));
+  border-top: 3px solid var(--brass);
+  box-shadow: 0 -10px 26px rgba(0, 0, 0, 0.45);
+}
+.floorshelf .shelfobj {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  /* Floor 78x72: still far above the 44px tap minimum, so this shrinks with the screen safely. */
+  min-width: clamp(78px, 6.6vw, 100px); min-height: clamp(72px, 9.5vh, 96px);
+  padding: clamp(3px, 0.6vh, 5px) clamp(5px, 0.6vw, 7px) clamp(4px, 0.8vh, 7px); cursor: pointer;
+  background: linear-gradient(180deg, var(--face), var(--face-2)); border: 1px solid var(--brass-d);
+  border-radius: 10px; color: var(--armor);
+  box-shadow: 0 3px 0 var(--brass-d), 0 6px 14px rgba(0, 0, 0, 0.45);
+  transition: transform 0.13s ease, box-shadow 0.13s ease;
+}
+.floorshelf .shelfobj:hover, .floorshelf .shelfobj:focus-visible {
+  transform: translateY(-3px); box-shadow: 0 5px 0 var(--brass-d), 0 12px 22px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--lamp) inset;
+}
+.floorshelf .shelfobj:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--brass-d); }
+/* task 089: a card is tap-OR-lift. `pan-x` keeps the strip's own sideways finger-scroll as the
+   browser's gesture (a sideways swipe never reaches floor.js's liftable() as a lift — it arrives
+   as pointercancel), while an upward pull is delivered as pointermove and lifts the part. Set on
+   the palette card AND the made-part add button; the strip itself keeps overflow-x: auto above. */
+.floorshelf .shelfobj, .floorshelf .brickaddbtn { touch-action: pan-x; }
+/* The lifted part riding under the finger (floor.js makeGhost) — the card's own face, on
+   document.body (never inside a transformed ancestor: fixed would stop meaning fixed), above the
+   header/plate stack, and never a hit target of its own so the release still reaches the card
+   that holds pointer capture. `translate(-50%,-50%)` is applied in JS after the position, so the
+   bitmap sits centred on the fingertip — the same point shelfLanding turns into the part's centre. */
+.shelfghost {
+  position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 5px 7px 6px; border-radius: 10px; color: var(--armor);
+  background: linear-gradient(180deg, var(--face), var(--face-2)); border: 1px solid var(--brass-d);
+  box-shadow: 0 8px 0 var(--brass-d), 0 18px 30px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--lamp) inset;
+  opacity: 0.94; will-change: transform;
+}
+.shelfghost .shelficon { width: clamp(60px, 5.4vw, 84px); height: clamp(38px, 5.6vh, 54px); }
+.shelfghost .shelfname { font-size: 11px; font-weight: 800; white-space: nowrap; letter-spacing: 0.02em; }
+/* Off the floor (back over the shelf, the header, outside): it will be put back, and it says so
+   by fading — the honest preview of what a release there does. */
+.shelfghost.shelfghost-off { opacity: 0.45; box-shadow: 0 2px 0 var(--brass-d), 0 6px 12px rgba(0, 0, 0, 0.35); }
+/* The icon is drawn into a 112x72 bitmap (floor.js buildShelf) and scaled by CSS, so shrinking
+   this costs no sharpness — it is the same bitmap in a smaller box. */
+.floorshelf .shelficon { width: clamp(60px, 5.4vw, 84px); height: clamp(38px, 5.6vh, 54px); }
+.floorshelf .shelfname { font-size: 11px; font-weight: 800; white-space: nowrap; letter-spacing: 0.02em; }
+/* task 063 (spec R4): the strip says there is more — paddles built in floor.js buildShelf() as
+   siblings of .floorshelf on `host` (NOT inside it), so they stay fixed while the strip scrolls
+   under them. Iron/signal family like `.selectbtn` above — a "do a thing" control, not one more
+   part on the shelf. `bottom` roughly centers a 44px circle on the strip's own resting height (see
+   `.floorshelf`'s clamp()s above, ~80-115px tall); the strip sits at the room's bottom edge while
+   the invitation card sits at 34% from the top, so the two never fight. Edge-fade gradients were
+   the brief's optional garnish — skipped: `.floorshelf`'s own radial+linear background (above)
+   fought a `mask-image` fade under test, and the paddles alone already carry the "more" cue.
+   `[hidden]` (floor.js updatePaddles) needs an explicit override below — the base rule's own
+   `display: flex` would otherwise beat the UA's `[hidden] { display: none }` by specificity, the
+   same trap `.brickchip[hidden]` documents above. */
+/* NO `transform` on hover/active here on purpose (unlike `.shelfobj`'s lift above) — a paddle is
+   pressed repeatedly in a burst (the strip is many paddle-widths wide), and a transform that moves
+   the box delays every actionability/"is this stable yet" check a real driver (or a fast tapping
+   finger's own hit-test) runs against it by its transition's own duration, right as a scroll this
+   same click just kicked off can cross the strip's end and legitimately hide the button — a live
+   collision a moving box only widens. box-shadow/brightness feedback costs nothing here. */
+.shelfpaddle {
+  position: absolute; bottom: clamp(14px, 3vh, 26px); z-index: 5;
+  min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; padding: 0; border: 1px solid var(--iron-line); cursor: pointer;
+  background: linear-gradient(180deg, var(--iron-up), var(--iron)); color: var(--signal);
+  font-size: 20px; font-weight: 800; line-height: 1;
+  box-shadow: 0 2px 0 var(--oil), 0 6px 14px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.13s ease, filter 0.13s ease;
+}
+.shelfpaddle[hidden] { display: none; }
+.shelfpaddle:hover, .shelfpaddle:focus-visible { filter: brightness(1.15); }
+.shelfpaddle:active { box-shadow: 0 1px 0 var(--oil); filter: brightness(0.95); }
+.shelfpaddle[data-dir="left"] { left: 4px; }
+.shelfpaddle[data-dir="right"] { right: 4px; }
+/* THE CHILD'S OWN LIBRARY, on the Floor (composing-arc "make your own part", task 4): appended
+   after the fixed palette in the SAME scrollable row, set off by a small uppercase label + a
+   brass divider (the header's own micro-label voice, `.shelf h2`'s cousin over here). Every entry
+   wears the identical sealed-box icon (Art.icon('brick', …) draws one shape, always) — the
+   child's OWN NAME is the only thing telling two parts apart, so it gets the SAME bold weight the
+   palette caption carries, just allowed to wrap onto a second line instead of running off the
+   tile (a made-up name is rarely as short as a block word). */
+.floorshelf .floorshelf-bricks {
+  flex: 0 0 auto; display: flex; align-items: center; gap: clamp(5px, 0.6vw, 8px);
+}
+.floorshelf .floorshelf-bricklabel {
+  flex: 0 0 auto; align-self: stretch; display: flex; align-items: center;
+  padding: 0 8px 0 4px; margin-right: 2px; border-left: 2px solid var(--brass-d);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--brass-l); white-space: nowrap;
+}
+/* task 062 (spec R1): the strip's own permanent doorway button — sized/placed like the shelf's
+   other buttons (`.brickaddbtn`'s family), but coloured with the app's own ACTION palette (the
+   chip's `.chipmake` / `#runBtn` iron-signal gradient) rather than the parts' face gradient, so it
+   reads as "do a thing" and not as one more made part sitting on the shelf. */
+.floorshelf .selectbtn {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  min-height: 44px; min-width: 44px; padding: 0 14px; margin-right: 4px;
+  border-radius: 10px; border: 1px solid var(--iron-line); cursor: pointer;
+  background: linear-gradient(180deg, var(--iron-up), var(--iron)); color: var(--signal);
+  font-size: 12px; font-weight: 800; white-space: nowrap; box-shadow: 0 2px 0 var(--oil);
+  transition: transform 0.13s ease, box-shadow 0.13s ease;
+}
+.floorshelf .selectbtn:active { transform: translateY(2px); }
+.floorshelf .brickobj {
+  position: relative; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
+  gap: 3px; min-width: clamp(78px, 6.6vw, 100px); min-height: clamp(72px, 9.5vh, 96px);
+  padding: clamp(3px, 0.6vh, 5px) clamp(5px, 0.6vw, 7px) clamp(4px, 0.8vh, 7px);
+  background: linear-gradient(180deg, var(--face), var(--face-2)); border: 1px solid var(--brass-d);
+  border-radius: 10px; color: var(--armor); box-shadow: 0 3px 0 var(--brass-d), 0 6px 14px rgba(0, 0, 0, 0.45);
+  transition: transform 0.13s ease, box-shadow 0.13s ease;
+}
+.floorshelf .brickobj:hover, .floorshelf .brickobj:focus-within {
+  transform: translateY(-3px); box-shadow: 0 5px 0 var(--brass-d), 0 12px 22px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--lamp) inset;
+}
+.floorshelf .brickaddbtn {
+  all: unset; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;
+  gap: 3px; width: 100%; flex: 1; cursor: pointer;
+}
+.floorshelf .brickaddbtn:active { transform: translateY(2px); }
+.floorshelf .shelfname.brickname {
+  max-width: clamp(78px, 6.6vw, 100px); white-space: normal; overflow-wrap: anywhere; text-align: center;
+}
+/* fix round 1, M2: this used to be a 24x24 badge — below the a11y floor (docs/standards/
+   ui-ux-common.md's >=44px touch target, AGENTS.md's non-negotiable one). The interactive box is
+   now a real 44x44 (the global `button{min-height:44px}` law, extended here to width too, since
+   this is the one shelf control that used to override it downward instead of just leaving it
+   alone); nothing stops it looking small and precise on the tile, it just has to BE tappable. */
+.floorshelf .brickdel {
+  position: absolute; top: -12px; right: -12px; width: 44px; height: 44px; min-height: 44px; min-width: 44px;
+  border-radius: 50%; padding: 0; font-size: 15px; line-height: 1; font-weight: 800;
+  background: linear-gradient(180deg, var(--face), var(--face-2)); border: 1px solid var(--brass-d);
+  color: #ff8a95; box-shadow: 0 2px 0 var(--brass-d);
+}
+/* THE ACTION CHIP (task 4) — a marquee's own >=2 pick raises this over the picked group's top
+   edge, the plate's own face (same gradient/border/shadow) so it reads as the same machine. */
+/* `display: flex` below OVERRIDES the UA's own `[hidden] { display: none }`, so without this rule
+   the IDLE chip stayed hit-testable (an invisible pill parked at the floor's top-left corner,
+   eating the pointerdown of any gesture that began there). Harmless while machines centred
+   mid-world; the LEFT START (2026-09-08) put every fresh machine under it — a marquee starting
+   just left of the first block died in it. The dead-controls class, in mirror: a control that
+   LOOKS absent and still acts. */
+.brickchip[hidden] { display: none; }
+.brickchip {
+  position: absolute; z-index: 6; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 8px;
+  border-radius: 10px; background: linear-gradient(180deg, var(--face), var(--face-2));
+  color: var(--armor); border: 1px solid var(--brass-d);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(182, 255, 248, 0.18);
+  font-size: 12px;
+}
+/* task 062 (spec R7): the chip now carries a whole selection (count, tokens, add-select, Make,
+   Cancel) — clamp its width so a long pick WRAPS instead of clipping/overflowing the floor's own
+   window (`.brickchip`'s own `flex-wrap: wrap` above is what actually lets it wrap). */
+#brickchip { max-width: min(420px, calc(100vw - 16px)); }
+/* fix round 1, M2: `min-height: 36px` here explicitly OVERRODE the global 44px law on the child's
+   own primary action (Make this a part) — removed; every chip button now keeps the un-overridden
+   44px floor, padding/font-size are the only sizing left to hand. */
+.brickchip button { padding: 4px 12px; font-size: 12px; }
+.brickchip .chipmake, .brickchip .chipconfirm {
+  background: linear-gradient(180deg, var(--iron-up), var(--iron)); color: var(--signal);
+  border-color: var(--iron-line); box-shadow: 0 2px 0 var(--oil); font-weight: 800; white-space: nowrap;
+}
+.brickchip .chipx { min-width: 44px; padding: 0; font-size: 16px; line-height: 1; }
+/* fix wave (2026-09-08 final review, finding 6): 34px beat the >=44px control law, same class of
+   miss as .pfoot button above. */
+.brickchip input.chipname {
+  flex: 1; min-width: 100px; height: 44px; font: inherit; font-size: 12px; padding: 4px 8px;
+  border-radius: 7px; border: 1px solid var(--brass-d); background: rgba(255, 255, 255, 0.1); color: inherit;
+}
+/* task 062 (spec R3/R7): the chip's new membership surface — tokens (name + drop x), the
+   add-select, and the labeled Cancel all clear the >=44px touch-target floor. */
+.chiptokx, .chipadd, .chipmake, .chipcancel, .chipconfirm { min-height: 44px; }
+.chiptokx { min-width: 44px; }
+/* fix wave (2026-09-08 final review, finding 12): `.chipadd` is a <select>, not a <button>, so it
+   never inherited the plain `button {}` face this chip's OTHER controls (.chipcancel included)
+   get for free — it rendered as a bare browser-default white box, the one control on the chip
+   that looked like it wandered in from a different app. Same plate-and-brass family, unstyled
+   otherwise (sizing already handled by the rule just above). */
+.chipadd {
+  font: inherit; font-size: 12px; font-weight: 700; padding: 4px 10px; color: var(--armor);
+  border: 1px solid var(--hair); border-radius: 9px; cursor: pointer;
+  background: linear-gradient(180deg, var(--face), var(--face-2));
+}
+.chiptokens { display: flex; flex-wrap: wrap; gap: 4px; }
+.chiptoken {
+  display: flex; align-items: center; gap: 4px; padding: 2px 4px 2px 8px;
+  border-radius: 7px; background: rgba(0, 0, 0, 0.18); border: 1px solid var(--brass-d);
+}
+.chipnote { flex: 1 0 100%; font-size: 11px; color: var(--armor); opacity: 0.85; }
+.plate {
+  position: absolute; z-index: 6; background: linear-gradient(180deg, var(--face), var(--face-2));
+  color: var(--armor); border: 1px solid var(--brass-d); border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(182, 255, 248, 0.18);
+  overflow: auto; font-size: 12px;
+}
+/* THE CABLE'S DETAIL POPOVER — same room chrome as .plate, amber-edged so a selected wire reads
+   as wire-family, not block-family. Reconnect/Delete are ≥40px tall thumb targets. */
+.wireplate {
+  position: absolute; z-index: 7; max-width: 300px; padding: 8px 10px 10px;
+  background: linear-gradient(180deg, var(--face), var(--face-2));
+  color: var(--armor); border: 1px solid var(--warn, #e8a13c); border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(232, 161, 60, 0.25);
+  font-size: 12px;
+}
+.wireplate .wptitle { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #e8a13c; margin-bottom: 5px; }
+.wireplate .wprow { padding: 2px 0; font-weight: 700; color: var(--chalk); word-break: break-word; }
+.wireplate .wpnote { color: var(--dim-face); font-weight: 700; }
+.wireplate .wpfoot { display: flex; gap: 6px; margin-top: 8px; }
+.wireplate .wpfoot button { min-height: 40px; flex: 1; border-radius: 8px; font-weight: 800; }
+.wireplate .wpfoot .wpx { flex: none; min-width: 40px; font-size: 18px; line-height: 1; }
+.plate .pbar {
+  display: flex; align-items: center; gap: 6px; padding: 9px 11px; position: sticky; top: 0; z-index: 2;
+  background: linear-gradient(180deg, var(--iron-up), var(--iron)); color: var(--chalk);
+  border-bottom: 2px solid var(--brass);
+}
+.plate .pbar .pname {
+  flex: 1; min-width: 0; font-weight: 800; font-size: 14px; color: var(--chalk); font-family: inherit;
+  border: 1px solid transparent; border-radius: 7px; padding: 5px 7px; background: rgba(255, 255, 255, 0.08);
+}
+.plate .pbar .pname:focus { border-color: var(--brass); background: rgba(255, 255, 255, 0.14); }
+.plate .pbar .pkind { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brass-l); white-space: nowrap; }
+.plate .pbar .pclose { min-width: 36px; height: 36px; border-radius: 8px; font-size: 20px; line-height: 1; }
+.plate .pbody { padding: 6px 8px 10px; }
+.plate .pbody .row { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 2px 0; }
+.plate .pbody .row .rlabel { min-width: 64px; }
+.plate .pbody .row input[type="number"], .plate .pbody .row input[type="text"] { flex: 1; min-width: 0; height: 30px; }
+.plate .pbody .row select { flex: 1; min-width: 0; height: 30px; }
+/* EVERY field in a plate, classed or not. The Sorter gate's label field carries no class at all,
+   so every rule that targets `.row.widget` missed it and it rendered as a browser-default WHITE
+   box with BLACK text on a dark plate (owner screenshot 2026-08-20 — measured rgb(255,255,255)
+   on rgb(0,0,0)). It was equally unstyled before the bay pass; a cream plate just hid it.
+   Styling by POSITION rather than by class is what stops the next unclassed field falling through
+   the same gap. `.row.widget`'s own rule is more specific, so its sizing still wins where it applies. */
+.plate .row input, .plate .row select, .plate .row textarea {
+  color: var(--armor); border: 1px solid var(--brass-d); border-radius: 6px; padding: 2px 7px;
+  background: linear-gradient(180deg, var(--face-in), #0c1119);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.plate .row input::placeholder { color: var(--armor-deep); }
+.plate .pbody .row.tally { display: none; } /* the Floor shows the Tally on the object */
+.plate .pbody .row.signface { display: none; }
+.plate .pcables { margin-top: 6px; border-top: 1px dashed var(--hair); padding-top: 6px; }
+.plate .pcable { display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 2px 0; }
+.plate .pcable span { flex: 1; }
+.plate .pfoot { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+/* fix wave (2026-09-08 final review, finding 5): 40px beat the >=44px control law — .cablebtn and
+   .pdel both cascade through this rule (neither overrides min-height of its own), so raising it
+   here clears both without a bespoke selector for each. */
+.plate .pfoot button { flex: 1; min-height: 44px; }
+.plate .pfoot .cablebtn { background: linear-gradient(180deg, var(--iron-up), var(--iron)); color: var(--signal); border-color: var(--iron-line); box-shadow: 0 2px 0 var(--oil); font-weight: 800; }
+.plate .pfoot .pdel { color: #ff8a95; }  /* 6.3:1 on --face; --crimson-lit measured only 3.3 */
+/* task 062 (spec R5): the Move row — movement's DOM twin. `.moverow` is a full-width row inside
+   `.pfoot` (flex-wrap above lets it drop below Cable/Delete instead of squeezing them), so the
+   generic `.plate .pfoot button` rule above (flex:1, min-height:40) still reaches these buttons
+   through it — a bare `.movebtn` selector would lose that cascade (two classes beat one) and
+   silently shrink under the 44px control law. The `.plate .pfoot .movebtn` selector wins instead. */
+.moverow { display: flex; gap: 4px; flex: 1 0 100%; }
+.plate .pfoot .movebtn { min-width: 44px; min-height: 44px; flex: 1; }
+
+/* ---- the picture surface (chart-art.js) — the Data lab's chart in the checker's drawer ---- */
+.chartwrap {
+  margin: 0 0 10px; padding: 9px 10px 10px; border-radius: 10px;
+  background: linear-gradient(180deg, #121820, #0a0e13); border: 1px solid var(--iron-line);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.panel > .chartwrap { margin: 10px 12px; }
+.chartwrap .chartcanvas { display: block; width: 100%; border-radius: 6px; }
+.chartwrap .hint { font-size: 11px; line-height: 1.4; }
+
+/* ---- the LABORATORY (brain-panel.js, task-7) — tapping a model's FACE opens this OVER the
+   Floor: one frozen crate, turn k or swap the brain, watch it answer again. Not a view mode
+   (spec §5.3) — an overlay on the SAME #floor host `.plate` already lives in, one z-index above
+   it (.plate is 6), so the two never fight for the same layer. */
+.brainpanel {
+  position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(11, 13, 18, 0.97), rgba(11, 13, 18, 0.995));
+  color: var(--armor); padding: 18px 20px; gap: 14px; overflow: auto;
+}
+.brainpanel .labhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: 0 0 auto; }
+.brainpanel .labtitle { font-size: 16px; font-weight: 800; margin: 0; letter-spacing: 0.01em; }
+/* Finding 8 (fix round 1): the k the machine is actually wired to (no max on that widget) can
+   exceed K_MAX — this says so instead of silently answering under the cap. */
+.brainpanel .labcap {
+  font-size: 12px; font-weight: 700; color: var(--lamp);
+  background: rgba(95, 227, 220, 0.12); border: 1px solid var(--brass-d); border-radius: 8px;
+  padding: 6px 10px;
+}
+/* THE LAB'S SHAPE (owner, 2026-08-20: "improve the UI of the panel"). It used to wrap three
+   content-sized blocks, so the picture sat in the left third and ~60% of a wide screen was empty
+   black. Now: a two-column grid that GROWS the picture into the space instead of leaving it —
+   the picture is the lesson, so it takes the room, and the reading column is fixed and scannable. */
+.brainpanel .labbody {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 24rem);
+  gap: 18px; align-items: stretch; flex: 1 1 auto; min-height: 0;
+}
+@media (max-width: 900px) { .brainpanel .labbody { grid-template-columns: minmax(0, 1fr); } }
+.brainpanel .labpicture {
+  background: radial-gradient(120% 100% at 50% 0%, #14202a, #080b10 70%);
+  border: 1px solid var(--iron-line);
+  border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  min-width: 0; min-height: 0; overflow: hidden; justify-content: center; align-items: stretch;
+}
+/* The canvas FILLS its box; brain-panel.js's fitCanvas() matches the backing store to it on every
+   render. `height:auto` sized it by aspect ratio instead, so a wide window made it tall enough to
+   run straight through the controls (owner, 2026-08-20). */
+.brainpanel .labcanvas {
+  display: block; border-radius: 8px; cursor: pointer;
+  width: 100%; height: 100%; min-height: 0; flex: 1 1 auto;
+}
+.brainpanel [hidden] { display: none !important; }
+.brainpanel .labintro, .brainpanel .lablegend, .brainpanel .labexperiment { margin:0; font-size:13px; line-height:1.5; }
+.brainpanel .labintro { max-width:85ch; }
+.brainpanel .labbody { min-height:300px; }
+.brainpanel .labpicture { min-height:300px; }
+.brainpanel .labhead { position:sticky; top:-18px; z-index:2; background:#0b1016; padding:4px 0; }
+.brainpanel .labcanvas { flex:1 1 auto; height:230px; }
+.brainpanel .labside { max-height:430px; overflow:auto; padding:2px; }
+.brainpanel .labquery { border-bottom:1px solid var(--iron-line); padding-bottom:10px; }
+.brainpanel .labmeasurement { font-size:13px; line-height:1.5; }
+.brainpanel .labscore { font-size:14px; margin-top:8px; font-weight:700; }
+.brainpanel .labreason, .brainpanel .labcompare { font-size:14px; line-height:1.4; }
+.brainpanel .labcompare { border-left:3px solid var(--lamp); padding:8px 12px; }
+.brainpanel .labvoter { text-align:left; width:100%; white-space:normal; }
+.brainpanel button.labvoter { min-height:44px; cursor:pointer; }
+.brainpanel .labnetwork { overflow:auto; flex:1 1 auto; }
+.brainpanel .labunits { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; margin:8px 0 16px; }
+.brainpanel .labunit { background:#182c32; border:1px solid #3c6268; border-radius:6px; padding:6px; display:flex; flex-direction:column; font-size:12px; }
+.brainpanel .labunit strong { font-size:15px; color:#a5eee4; }
+.brainpanel .labunit.active { border-color:#87d9c9; background:#20433f; }
+.brainpanel .labnetwork:focus-visible { outline:2px solid var(--lamp); outline-offset:-2px; }
+.brainpanel .labviewbuttons { display:flex; gap:8px; flex:none; }
+.brainpanel .labviewbuttons button { flex:1; min-height:44px; }
+.brainpanel .laboutput { display:grid; grid-template-columns:minmax(75px,1fr) 2fr 60px; gap:8px; align-items:center; min-height:32px; font-size:13px; }
+.brainpanel .laboutput meter { width:100%; height:20px; accent-color:#83e8d6; }
+.brainpanel .labcontrols { flex-wrap:wrap; gap:12px; }
+.brainpanel .labtryrow, .brainpanel .labpenalty { display:flex; align-items:center; gap:8px; font-size:13px; }
+.brainpanel .labtryrow select { max-width:240px; }
+.brainpanel .labtryrow select { background:#15232c; color:#e2f1f3; border:1px solid #57808a; border-radius:7px; padding:8px; font:inherit; }
+.brainpanel .labcontrols select, .brainpanel .labcontrols button, .brainpanel .labtraining { min-height:44px; }
+.brainpanel .labcontrols input[type=range] { min-height:44px; }
+.brainpanel .labexperiment { color:#c9e7e4; border-top:1px solid var(--iron-line); padding-top:8px; }
+.brainpanel .labside:focus-visible { outline:2px solid var(--lamp); }
+@media (max-width:900px) { .brainpanel .labside { max-height:none; overflow:visible; } .brainpanel .labpicture { min-height:360px; } }
+.brainpanel .hint { color: var(--dim-face); font-size: 12px; line-height: 1.45; }
+/* the reading column: answer, then evidence, then the tapped voter's photo */
+.brainpanel .labside { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.brainpanel .labanswer {
+  background: rgba(95, 227, 220, 0.06); border: 1px solid var(--iron-line);
+  border-left: 3px solid var(--brass); border-radius: 10px; padding: 12px 14px;
+}
+.brainpanel .labsays { font-size: 18px; font-weight: 800; margin-bottom: 2px; line-height: 1.25; }
+/* I7 (final whole-branch review): the step's own RECORDED answer, a subtitle beside the
+   re-answer above — deliberately smaller/dimmer than .labsays (it is history, not the live
+   reading) but still its own line, never folded into .hint, so the two are visibly side by side. */
+.brainpanel .labrecorded { font-size: 12px; color: var(--dim-face); margin-bottom: 8px; }
+.brainpanel .peyebrow {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--brass-l); margin: 10px 0 6px;
+}
+.brainpanel .labvoter {
+  font-size: 12px; padding: 5px 8px; color: var(--armor);
+  background: rgba(255, 255, 255, 0.04); border-radius: 6px; margin-bottom: 4px;
+  display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums;
+}
+.brainpanel .labphoto { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.brainpanel .labphoto canvas, .brainpanel .labphoto img {
+  border-radius: 8px; border: 1px solid var(--iron-line); max-width: 100%;
+}
+.brainpanel .labcontrols {
+  display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center;
+  padding-top: 12px; border-top: 1px dashed var(--iron-line); flex: 0 0 auto;
+}
+.brainpanel .labk, .brainpanel .labbrainrow { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; min-height: 44px; }
+/* Themed range + select: the browser defaults (a bright blue slider, a white dropdown) read as a
+   settings dialog dropped into the hall. */
+.brainpanel .labkslider {
+  width: 180px; height: 44px; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer;
+}
+.brainpanel .labkslider::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--brass), rgba(95, 227, 220, 0.2));
+}
+.brainpanel .labkslider::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(95, 227, 220, 0.25); }
+.brainpanel .labkslider::-webkit-slider-thumb {
+  appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px;
+  border-radius: 50%; background: var(--lamp); border: 2px solid #0b0d12; box-shadow: 0 0 8px rgba(182, 255, 248, 0.7);
+}
+.brainpanel .labkslider::-moz-range-thumb {
+  width: 20px; height: 20px; border-radius: 50%; background: var(--lamp); border: 2px solid #0b0d12;
+}
+.brainpanel .labkslider:focus-visible { outline: 2px solid var(--lamp); outline-offset: 4px; }
+.brainpanel .labbrain {
+  min-height: 44px; min-width: 170px; background: #10161d; color: var(--armor);
+  border: 1px solid var(--brass-d); border-radius: 8px; padding: 8px 10px; font-weight: 700;
+}
+.brainpanel .labclose { min-width: 88px; }
+
+/* ---- THE BOARD'S ZOOM (board-panel.js, Plan 3 task 5) — tapping a Board opens this OVER the
+   Floor: chart large, dials down the side, log underneath, earlier charts beneath that (spec §4's
+   own layout sentence). Same overlay mechanics as .brainpanel (absolute, one z-index above
+   .plate) but its OWN three-zone stack — a frozen one-decision lab has no log/archive rows to fit
+   underneath a two-column body, this one does. */
+.boardpanel {
+  position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(11, 13, 18, 0.97), rgba(11, 13, 18, 0.995));
+  color: var(--armor); padding: 18px 20px; gap: 14px; overflow: auto;
+}
+/* space-between with 3 children would strand the middle button in the row's dead centre, far from
+   both the title and Close — the title grows instead, so both buttons stay grouped together on
+   the right (fix round 2: the header gained a second button, openPlateBtn). */
+.boardpanel .bphead { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.boardpanel .bptitle { font-size: 16px; font-weight: 800; margin: 0; letter-spacing: 0.01em; flex: 1 1 auto; min-width: 0; }
+.boardpanel .bpopenplate { min-width: 120px; flex: 0 0 auto; }
+.boardpanel .bpclose { min-width: 88px; flex: 0 0 auto; }
+/* FIX ROUND 1, CRITICAL — the unbounded canvas-resize feedback loop (see board-panel.js's own
+   fitCanvas() doc for the full mechanism). `.bpbody` is now a FLEX ROW with a DEFINITE height
+   (flex:1 1 auto against `.boardpanel`'s own definite, viewport-filling column) — flexbox's
+   default `align-items:stretch` in the cross axis is what gives `.bpchart` a real, content
+   -independent height, the standard, unambiguous pattern for "fill the remaining space" (grid's
+   own implicit-row sizing under content has edge cases this sidesteps entirely). */
+.boardpanel .bpbody {
+  display: flex; flex-direction: row; gap: 18px; flex: 1 1 auto; min-height: 260px;
+}
+@media (max-width: 900px) {
+  .boardpanel .bpbody { flex-direction: column; }
+  .boardpanel .bpchart { flex: 1 1 320px; }
+  .boardpanel .bpside { flex: 0 0 auto; }
+}
+.boardpanel .bpchart {
+  background: radial-gradient(120% 100% at 50% 0%, #14202a, #080b10 70%);
+  border: 1px solid var(--iron-line); border-radius: 12px; padding: 12px;
+  display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0;
+  flex: 1 1 auto;
+}
+/* The canvas's own containing block: `position:relative` + `flex:1 1 auto;min-height:0` gets a
+   DEFINITE size from `.bpchart`'s own flex-column distribution (after archiveBand/caption take
+   their natural heights) — a size that can NEVER depend on the canvas inside it, because... */
+.boardpanel .bpcanvaswrap { position: relative; flex: 1 1 auto; min-height: 180px; min-width: 0; }
+/* ...the canvas is ABSOLUTELY POSITIONED — taken out of normal flow, so it contributes NOTHING to
+   canvasWrap's own auto-sizing, structurally, regardless of its attribute width/height. This is
+   the actual fix; everything above it just makes canvasWrap's own box definite in the first place. */
+.boardpanel .bpcanvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: 8px; }
+.boardpanel .bpcaption {
+  font-size: 12px; font-weight: 700; color: var(--dim-face); text-align: center; flex: 0 0 auto;
+}
+.boardpanel .bparchiveband {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 12px; font-weight: 700; color: var(--lamp);
+  background: rgba(95, 227, 220, 0.12); border: 1px solid var(--brass-d); border-radius: 8px;
+  padding: 6px 10px; flex: 0 0 auto;
+}
+.boardpanel .bpback { min-width: 70px; }
+.boardpanel .bpside { display: flex; flex-direction: column; gap: 14px; flex: 0 0 320px; min-width: 0; min-height: 0; overflow-y: auto; }
+.boardpanel .bppicker { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 700; }
+.boardpanel .bpselect {
+  min-height: 44px; background: #10161d; color: var(--armor);
+  border: 1px solid var(--brass-d); border-radius: 8px; padding: 8px 10px; font-weight: 700;
+}
+.boardpanel .bpslider { display: flex; flex-direction: column; gap: 6px; }
+.boardpanel .bpsliderlabel { font-size: 12px; font-weight: 700; }
+.boardpanel .bpsliderin {
+  width: 100%; height: 44px; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer;
+}
+.boardpanel .bpsliderin::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--brass), rgba(95, 227, 220, 0.2));
+}
+.boardpanel .bpsliderin::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(95, 227, 220, 0.25); }
+.boardpanel .bpsliderin::-webkit-slider-thumb {
+  appearance: none; -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px;
+  border-radius: 50%; background: var(--lamp); border: 2px solid #0b0d12; box-shadow: 0 0 8px rgba(182, 255, 248, 0.7);
+}
+.boardpanel .bpsliderin::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--lamp); border: 2px solid #0b0d12; }
+.boardpanel .bpsliderin:focus-visible { outline: 2px solid var(--lamp); outline-offset: 4px; }
+.boardpanel .bpacts { display: flex; flex-direction: column; gap: 8px; }
+.boardpanel .bpacts h3 { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brass-l); margin: 0; }
+.boardpanel .bpactlist { display: flex; flex-wrap: wrap; gap: 8px; }
+.boardpanel .bpactbtn { min-height: 44px; padding: 8px 14px; }
+.boardpanel .bpactbtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.boardpanel .hint { color: var(--dim-face); font-size: 12px; line-height: 1.4; }
+.boardpanel .bplog, .boardpanel .bparchives { flex: 0 0 auto; }
+.boardpanel .bplog h3, .boardpanel .bparchives h3 {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brass-l);
+  margin: 0 0 8px;
+}
+.boardpanel .bplogrows, .boardpanel .bparchivelist { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; }
+.boardpanel .bplogrow {
+  font-size: 12px; padding: 6px 10px; color: var(--armor);
+  background: rgba(255, 255, 255, 0.04); border-radius: 6px; font-variant-numeric: tabular-nums;
+}
+.boardpanel .bparchiverow {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: 12px; padding: 6px 10px; color: var(--armor);
+  background: rgba(255, 255, 255, 0.04); border-radius: 6px;
+}
+.boardpanel .bpviewbtn { min-height: 36px; padding: 4px 12px; }
+
+/* ---- A SEALED PART'S OWN SMALL FLOOR (brick-panel.js, composing-arc task 6) — tapping the
+   porthole on a placed brick opens this OVER the Floor: the same overlay mechanics as
+   .brainpanel/.boardpanel (absolute, inset:0, one z-index above .plate), but its own picture is
+   the whole body — no dials/acts/log/archives, since v1 is READ-ONLY. `.bkcanvaswrap` is the SAME
+   dedicated, absolutely-positioned-child wrapper board-panel.js's own fix round 1 introduced
+   (a canvas sized by CSS percentage against an indefinite ancestor feeds its own attribute height
+   back into itself forever) — carried over here rather than re-earning that bug a second time. */
+.brickpanel {
+  position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(11, 13, 18, 0.97), rgba(11, 13, 18, 0.995));
+  color: var(--armor); padding: 18px 20px; gap: 10px; overflow: hidden;
+}
+.brickpanel .bkhead { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.brickpanel .bktitle { font-size: 16px; font-weight: 800; margin: 0; letter-spacing: 0.01em; flex: 1 1 auto; min-width: 0; }
+.brickpanel .bkclose { min-width: 88px; flex: 0 0 auto; }
+.brickpanel .bkcaption { font-size: 13px; color: var(--dim-face); flex: 0 0 auto; }
+.brickpanel .bkcanvaswrap { position: relative; flex: 1 1 auto; min-height: 220px; min-width: 0; }
+.brickpanel .bkcanvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: 8px; }
+
+/* The buddy's default berth must clear the FLOOR's parts rack (the rack is new; the widget's
+   own default bottom:18px put the bubble on top of the last shelf object). No !important: the
+   child can still drag the bubble anywhere, and a dragged berth is an inline style that wins. */
+.app.view-floor ~ .bw-bubble { bottom: 122px; }
+/* Floor raises the launcher above the shelf. Reserve that same space when sizing the chat:
+   bottom:190px with the kit's 648px tablet height put the header/minimise above the screen. */
+.app.view-floor ~ .bw-panel { bottom: 190px; height: min(640px, calc(100vh - 206px)); }
+
+/* The photo tray — imported photos waiting to be told what they are. Full width under both
+   panel columns, so filing reads as cause and effect: the tray shrinks, the shelf grows. */
+.panel .ptray { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: 6px;
+  padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(0, 0, 0, 0.16); }
+.panel .ptray .trayhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.panel .ptray .trayhead h3 { margin: 0; }
+/* A CONTACT SHEET, not a filmstrip. This was `display:flex; overflow-x:auto` — one row of 56px
+   thumbs, ~1860px wide for thirty photos inside a panel a fraction that wide, so sorting a mixed
+   import meant shuttling sideways hunting for the paper ones. A filmstrip is for browsing things
+   in ORDER; sorting needs everything visible at once. Wraps into rows, scrolls VERTICALLY once it
+   passes roughly three rows, and auto-fill means it uses whatever width the panel actually has.
+
+   Columns are FIXED at the stored thumbnail size (TRAY_THUMB, 96px) rather than `minmax(84px,1fr)`:
+   flexible columns stretched a tile to 102px on a wide panel and upscaled a 96px source into it.
+   Fixed columns keep every tile 1:1 crisp at any panel width, and the spare width becomes gap —
+   on a wide window that means MORE photos per row, which is exactly what a contact sheet wants. */
+.panel .traystrip { display: grid; grid-template-columns: repeat(auto-fill, 96px);
+  justify-content: space-between; gap: 8px; align-items: start;
+  max-height: 340px; overflow-y: auto; padding: 2px 4px 4px 2px; }
+/* Thumbnail ABOVE, drop button BELOW — the same thumb-then-remove stack .chip already uses.
+   The old layout put a 20px delete button absolutely OVER the 56px thumbnail: the two targets'
+   click centres overlapped, which fails WCAG 2.2 SC 2.5.8 (24x24, and the overlap voids the
+   spacing exception too, since the thing it overlapped was itself a target) — finding 2026-08-24,
+   task 4 review. Stacking instead of overlapping gives both their own full box. */
+.panel .traycell { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 0 0 auto; }
+.panel .traythumb { display: block; padding: 0; border: 2px solid transparent; border-radius: 6px;
+  background: none; cursor: pointer; line-height: 0; }
+/* Fills its grid cell, so the tile grows with the panel instead of being pinned to a thumbnail
+   size. The stored canvas is TRAY_THUMB px (game.js) so this never upscales into blur. */
+.panel .traythumb { width: 100%; }
+.panel .traythumb canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 4px; }
+/* Chosen is announced by aria-pressed AND shown two ways — an outline and a lift — because
+   colour alone is not a channel. */
+.panel .traythumb.on { border-color: var(--brass-l); transform: translateY(-2px); }
+.panel .traythumb:focus-visible { outline: 2px solid var(--brass-l); outline-offset: 2px; }
+/* NOT reached by `.chip .chipdel` (below) — that selector is scoped to a `.chip` ancestor, and a
+   tray cell is a `div.traycell`, not a `.chip` (the OLD comment here claimed that precedent by
+   mistake). This is its own rule so the tray's Remove gets the same red-pill treatment without
+   inheriting `.chip .chipdel`'s undersized 22px min-height — stacked below the thumb, there is
+   room for the button-default tap target. */
+.panel .traycell .chipdel { min-height: 24px; min-width: 24px; padding: 2px 9px; font-size: 10px;
+  font-weight: 700; background: #fee2e2; border: 1px solid #dc2626; border-radius: 8px; color: #991b1b; }
+.panel .ptray .filerow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.panel .ptray input.newshelf { min-width: 0; flex: 1 1 120px; }
+.brainpanel input:disabled, .brainpanel select:disabled { opacity: .55; cursor: default; }
+.row.learning-scope { flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; }
+.row.learning-scope .hint { white-space: normal; line-height: 1.3; }
+
+/* Task 081: field names must be readable on tablets without a hover tooltip. */
+.row.composition-help, .plate .pbody .row.composition-help { height: 112px; }
+.memory-monitor { width: min(660px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; margin: auto; }
+.memory-monitor table { width: 100%; border-collapse: collapse; }
+.memory-monitor th, .memory-monitor td { padding: 10px 6px; border-bottom: 1px solid #718391; text-align: left; }
+.memory-monitor td { text-align: right; font-variant-numeric: tabular-nums; }
+.row.composition-help .rlabel.story { white-space: normal; overflow: visible; overflow-wrap: anywhere; line-height: 1.5; }
+.row.routing-help .rlabel.story, .row.routing-review { white-space: normal; overflow-wrap: anywhere; line-height: 1.45; font-size: 12px; }
+.row.routing-help .rlabel.story { overflow: visible; }
+.plate .pbody .row.routing-help, .plate .pbody .row.routing-review { height: auto !important; padding: 8px 0; }
+.routing-trace { font-size: 12px; line-height: 1.45; }
+
+/* The ? on an overlay or dialog head (task 120) sits beside Close, not mid-rail. */
+.ovhead button.help { margin-left: auto; margin-right: 8px; width: 44px; min-width: 44px; padding: 0; font-size: 18px; border-radius: 50%; }
+.ovhead button.help + button { margin-left: 0; }
+/* Finite batch review uses the Workshop's existing tablet overlay and a single scroll body. */
+.batchsource { border:1px solid var(--line,#c8d1d9); border-radius:8px; padding:12px; margin:12px 0; }
+.batchsource label { display:inline-flex; align-items:center; gap:8px; margin:4px 18px 4px 0; }
+.batchsource input { width:86px; min-height:44px; }
+.batchresults { display:grid; gap:8px; margin:16px 0; }
+.batchresult { text-align:left; min-height:44px; white-space:normal; overflow-wrap:anywhere; }
+.batchstatus { font-weight:650; }
+.batchdetail:empty { display:none; }
+.batchdetail,.batchexport { border-top:1px solid var(--line,#c8d1d9); margin-top:18px; padding-top:12px; }
+.batchfield { display:flex; align-items:center; gap:10px; min-height:44px; }
+.batchfield input { width:20px; height:20px; }
+.batchformat { min-height:44px; margin:8px; }
+.batchpreview { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; max-width:100%; }
+.batchphoto { width:96px; height:96px; object-fit:contain; }
+.batchtext,.batchtrace { overflow-wrap:anywhere; }
+.batchcard button { margin:4px; }
+/* Optional experiment bench inside the Evaluator, using its existing drawer. */
+.mlrecipe { margin: 12px; padding: 16px; border: 1px solid var(--iron-line); border-radius: 10px; background: linear-gradient(180deg, var(--face), var(--face-2)); color: var(--armor); }
+.panel.open.mlwide { width: min(780px, 100vw); }
+.panel .mlrecipe .hint { color: var(--steel-dim); }
+.panel .mlrecipe h3 { color: var(--brass-l); font-size: 18px; }
+.mlrecipe h3, .mlrecipe h4 { margin: 0 0 8px; }
+.mlrecipe p { line-height: 1.5; margin: 8px 0; overflow-wrap: anywhere; }
+.mlcontrols { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0; }
+.mlcontrols label { display: flex; gap: 10px; align-items: center; }
+.mlcontrols button, .mlcontrols select, .mltrial { min-height: 44px; padding: 8px 12px; }
+.mlcontrols select { font: inherit; color: var(--armor); background: var(--face-in); border: 1px solid var(--hair); border-radius: 6px; color-scheme: dark; }
+.mlrecipe button:focus-visible, .mlrecipe select:focus-visible, .mlrecipe summary:focus-visible { outline: 3px solid var(--lens); outline-offset: 3px; }
+.mlresults { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; }
+.mlresult { min-width: 0; padding: 12px; background: var(--face-in); border: 1px solid var(--hair); border-radius: 8px; border-top: 3px solid var(--lens); }
+.mlresult[data-pile="validation"] { border-top-color: #ffbd7d; }
+.mlresult[data-pile="test"] { border-top-color: var(--armor-deep); }
+.mlcount { font-size: 1.15em; font-weight: 700; }
+.mlrecordstate, .mlnotice { font-weight: 600; }
+.mlresult[data-current="false"] .mlrecordstate { color: #ffbd7d; }
+.mlrecipe summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+.mlhistory { margin-top: 18px; }
+.mltrial { margin: 4px; border: 1px solid var(--hair); border-radius: 8px; }
+.mltrial[aria-pressed="true"] { border-color: var(--lens); color: var(--lens); box-shadow: inset 0 0 0 1px var(--lens); }
+.mlchart { display: block; width: 100%; height: auto; margin-top: 12px; border-radius: 10px; }
+.mlpoints { width: 100%; border-collapse: collapse; font-size: .9em; }
+.mlpoints th, .mlpoints td { padding: 8px 4px; text-align: left; border-bottom: 1px solid var(--hair); overflow-wrap: anywhere; }
+.mlpredictions { max-height: 280px; overflow: auto; }
+.mlphoto { display: block; width: 96px; height: 96px; border-radius: 6px; margin-bottom: 6px; }
+
+/* ===== THE TUTORIAL (tutorial-panel.js, car-gallery tutorial task 3) — VISUAL primitives only =====
+   A child being walked through a gallery build: a scrim, a spotlight that dims everything except
+   the piece being pointed at, a highlight ring, a slow-fading Next key, and a ghost cursor that
+   rides the drag the child is about to make. One fixed layer owns the z-order; the layer is
+   transparent to the pointer (`pointer-events: none`) so a decorative dim can never trap the tap
+   path, and the Next key is the ONE child that re-enables `pointer-events: auto`. */
+.tutorial-layer { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+.tutorial-layer > * { pointer-events: none; }
+
+.tutorial-scrim {
+  position: absolute; inset: 0; display: none;
+  /* LIGHTER than .overlay's 0.62 modal scrim on purpose: the preview behind it is the finished
+     machine the child is being shown — at modal strength they would be looking at a dark room. */
+  background: rgba(8, 11, 15, 0.34);
+}
+.tutorial-scrim.open { display: block; }
+
+.tutorial-dim { position: absolute; inset: 0; display: none; background: rgba(8, 11, 15, 0.58); }
+.tutorial-dim.on { display: block; }
+/* A highlight is on: the dim's own uniform wash gives way to one shadow cast OUT of the target's
+   own box (a 100vmax spread) — the "everything but this" hole, one element, no clip-path. */
+.tutorial-dim.on.has-spot { background: transparent; }
+.tutorial-spot { position: absolute; display: none; border-radius: 16px; box-shadow: 0 0 0 100vmax rgba(8, 11, 15, 0.58); }
+.tutorial-dim.has-spot .tutorial-spot { display: block; }
+
+.tutorial-highlight {
+  position: absolute; display: none; border-radius: 14px;
+  border: 3px dashed var(--ice-bright);
+  outline: 2px solid rgba(11, 13, 18, 0.55); outline-offset: 3px;
+  box-shadow: 0 0 0 1px rgba(11, 13, 18, 0.85), 0 0 26px rgba(95, 227, 220, 0.45);
+}
+.tutorial-highlight.on { display: block; }
+/* The corner brackets are the shape cue that survives greyscale/colour-blindness — a dashed rim
+   alone reads as "selected", four ticks read as "target" (colour is never the only channel). */
+.tutorial-tick { position: absolute; width: 16px; height: 16px; border: 0 solid var(--ice-bright); }
+.tutorial-tick-tl { left: -6px; top: -6px; border-left-width: 4px; border-top-width: 4px; border-top-left-radius: 8px; }
+.tutorial-tick-tr { right: -6px; top: -6px; border-right-width: 4px; border-top-width: 4px; border-top-right-radius: 8px; }
+.tutorial-tick-bl { left: -6px; bottom: -6px; border-left-width: 4px; border-bottom-width: 4px; border-bottom-left-radius: 8px; }
+.tutorial-tick-br { right: -6px; bottom: -6px; border-right-width: 4px; border-bottom-width: 4px; border-bottom-right-radius: 8px; }
+/* One slow breath, 2.6 s → 0.38 cycles/s, far under the 3/s ceiling. With animations off the REST
+   frame (the 0%/100% shadow) is the correct one. */
+.tutorial-highlight.pulse { animation: tutorial-breath 2.6s ease-in-out infinite; }
+@keyframes tutorial-breath {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(11, 13, 18, 0.85), 0 0 20px rgba(95, 227, 220, 0.30); }
+  50% { box-shadow: 0 0 0 1px rgba(11, 13, 18, 0.85), 0 0 34px rgba(95, 227, 220, 0.62); }
+}
+
+.tutorial-hl-label {
+  position: absolute; left: 50%; top: -12px; transform: translate(-50%, -100%);
+  background: linear-gradient(180deg, var(--face), var(--face-2)); color: var(--armor);
+  border: 1px solid var(--brass-d); border-radius: 999px; padding: 5px 12px;
+  font-size: 13px; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+/* An author `display` beats the UA `[hidden] { display: none }` by origin — the same trap the
+   drawers/`.brickchip` document. This keeps an empty label honestly hidden. */
+.tutorial-hl-label[hidden] { display: none; }
+
+/* The Next key: a full-width pill in the thumb zone, ≥44px, with an arrow SHAPE (an arrow says
+   "continue" without colour) and a fixed gap so swapping labels never reflows the key. */
+.tutorial-next {
+  position: absolute; display: none; align-items: center; gap: 10px;
+  min-height: 44px; min-width: 44px; padding: 0 22px;
+  font: inherit; font-size: 16px; font-weight: 800; letter-spacing: 0.01em; color: #06171a;
+  background: linear-gradient(180deg, var(--ice-bright), var(--ice));
+  border: 2px solid #04121a; border-radius: 999px;
+  box-shadow: 0 4px 0 #04121a, 0 10px 24px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(182, 255, 248, 0.28);
+  cursor: pointer; pointer-events: auto;
+}
+.tutorial-next.on { display: inline-flex; }
+.tutorial-next-center { left: 50%; bottom: 30px; transform: translateX(-50%); }
+.tutorial-next:active { transform: translateY(2px); }
+.tutorial-next-center:active { transform: translateX(-50%) translateY(2px); }
+.tutorial-next:focus-visible { outline: 3px solid #ffffff; outline-offset: 3px; }
+.tutorial-next-arrow {
+  width: 0; height: 0; flex: 0 0 auto;
+  border-top: 9px solid transparent; border-bottom: 9px solid transparent; border-left: 13px solid #06171a;
+}
+/* The blink is a SLOW FADE — one full cycle every 2.4 s (≈0.42 cycles/s), an order of magnitude
+   under WCAG 2.3.1's 3 flashes/s ceiling. Rest state (animation off) is full opacity. */
+.tutorial-blink { animation: tutorial-next-fade 2.4s ease-in-out infinite; }
+@keyframes tutorial-next-fade { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* The ghost cursor: a literal fixed pointer-follower on document.body (same reasoning as
+   .shelfghost — fixed inside any transformed ancestor stops meaning fixed). Zero-size root at the
+   fingertip; the ring and dot are drawn around it. Never a hit target. */
+.tutorial-ghost { position: fixed; left: 0; top: 0; z-index: 90; pointer-events: none; opacity: 0.96; will-change: transform; }
+.tutorial-ghost-dot {
+  position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff, var(--ice-bright) 60%, var(--ice));
+  border: 2px solid #04121a; box-shadow: 0 0 14px rgba(95, 227, 220, 0.75);
+}
+.tutorial-ghost-ring {
+  position: absolute; left: -20px; top: -20px; width: 40px; height: 40px; border-radius: 50%;
+  border: 3px dashed var(--ice-bright); animation: tutorial-ghost-spin 3.6s linear infinite;
+}
+/* A slow spin (0.28 turns/s) — motion, not flashing. Static under reduced motion. */
+@keyframes tutorial-ghost-spin { to { transform: rotate(360deg); } }
+.tutorial-ghost-static .tutorial-ghost-ring { animation: none; }
+
+/* Reduced motion: this layer mounts on document.body, OUTSIDE `.app`, so the blanket kill at
+   styles.css ~1008 (`.app *`) does not reach it. Mirrored here so the blink's computed
+   `animation-name` is `none` and the ghost ring stops, exactly as the in-app loops do. The rest
+   frames were designed to be correct with animation off (Next key at full opacity, ring still).
+   T12: the mirror covers every T9–T11 node that lives on the layer — `.tutorial-next` (blink),
+   `.tutorial-highlight` (breath), `.tutorial-slot`, `.tutorial-lock`, the `.tutorial-anchor`s, the
+   `.tutorial-mark`s and the `.tutorial-testbar` keys. The one animated tutorial node OUTSIDE the
+   layer is the shelf card (`.shelfobj.tutorial-tile`), which `.app *` already kills; it is named
+   here too so the guarantee survives the shelf ever moving off `.app`. */
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-layer *, .tutorial-layer *::before, .tutorial-layer *::after,
+  .tutorial-ghost, .tutorial-ghost *,
+  .shelfobj.tutorial-tile { animation: none !important; transition: none !important; }
+}
+
+/* ===== THE TUTORIAL CONTROLLER's own affordances (car-gallery tutorial, task 9) =====
+   `.tutorial-active` is set on `.app` for the whole tutorial so the CLEAR step's empty hall does not
+   summon the free-play invitation card over the very spot the first part must land on — the floor's
+   own empty-hall chrome is suppressed here, never changed in floor.js. */
+.app.tutorial-active .invite { display: none; }
+
+/* FIX-1: the guided build draws the highlight from the piece's LIVE page rect, so the canvas must not
+   reflow between steps. The status ticker grows/shrinks with its own text (a 2-line hint vs a 3-line
+   purpose sentence is ~15 px), which used to push the canvas — and every rect on it — up and down.
+   While a tutorial is up the ticker holds ONE height (its 3-line cap), so the revealed piece stays
+   exactly under the ring it was shown. Free play is untouched. */
+.app.tutorial-active #status {
+  min-height: calc(3lh + clamp(4px, 1vh, 10px));
+  max-height: calc(3lh + clamp(4px, 1vh, 10px));
+}
+@supports not (height: 1lh) { .app.tutorial-active #status { min-height: 58px; max-height: 58px; } }
+
+/* The tappable target over the current slot: the tap-path's second half. A real button (so it is
+   focusable and has an accessible name) drawn exactly over the ring. Inline pointer-events (in JS)
+   beat the layer's blanket `none`, so this is the one slot child that takes the pointer. */
+.tutorial-slot {
+  position: absolute; display: none; padding: 0; margin: 0; background: transparent;
+  border: 3px dashed var(--ice-bright); border-radius: 14px; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(11, 13, 18, 0.85), 0 0 26px rgba(95, 227, 220, 0.45);
+}
+.tutorial-slot:focus-visible { outline: 3px solid #ffffff; outline-offset: 3px; }
+
+/* The shelf card the next part comes from. Marked with a class (not `highlightRect`) because the
+   primitive owns exactly ONE ring, and both cues — card AND slot — must stand at once. */
+.shelfobj.tutorial-tile {
+  outline: 3px dashed var(--ice-bright); outline-offset: 2px; border-radius: 10px;
+  animation: tutorial-breath 2.6s ease-in-out infinite;
+}
+
+/* The 2 s preview input-lock: a CSS-drawn padlock (zero emoji), fixed on the same layer. Static — no
+   animation, so it adds nothing to the flash budget. */
+.tutorial-lock {
+  position: absolute; left: 18px; bottom: 18px; width: 34px; height: 30px;
+  display: none; align-items: center; justify-content: center;
+}
+.tutorial-lock.on { display: flex; }
+.tutorial-lock svg { width: 30px; height: 30px; display: block; }
+
+/* The test control bar (T11, audited T12). Its Exit is the tutorial's always-available door — the
+   only control that must survive preview, build AND test — so it is the ice accent; Submit/Retry/
+   Return sit beside it once they apply. Every key is ≥44px (the house touch floor), carries its own
+   text label (the non-colour cue), and is a real button (keyboard + :focus-visible). It sits
+   bottom-left, ABOVE the centred Next key, so the two never overlap. */
+.tutorial-testbar {
+  position: fixed; left: 18px; bottom: 96px; z-index: 60;
+  display: none; align-items: center; gap: 12px; flex-wrap: wrap; max-width: calc(100vw - 36px);
+}
+.tutorial-testbar.on { display: flex; }
+.tutorial-testbar button {
+  min-height: 44px; min-width: 44px; padding: 0 20px;
+  font: inherit; font-size: 16px; font-weight: 800; color: var(--armor);
+  background: linear-gradient(180deg, var(--face), var(--face-2));
+  border: 2px solid var(--brass-d); border-radius: 999px; cursor: pointer;
+  box-shadow: 0 3px 0 var(--brass-d), 0 8px 18px rgba(0, 0, 0, 0.45);
+}
+.tutorial-testbar button:active { transform: translateY(2px); }
+.tutorial-testbar button:focus-visible { outline: 3px solid #ffffff; outline-offset: 3px; }
+/* An author `display` would beat the UA `[hidden] { display: none }`; this keeps a hidden key gone. */
+.tutorial-testbar button[hidden] { display: none; }
+/* Exit wears the ice: same raised-button grammar, but the accent says "this is the way out". */
+.tutorial-testbar .tutorial-exit {
+  color: #06171a; background: linear-gradient(180deg, var(--ice-bright), var(--ice));
+  border-color: #04121a; box-shadow: 0 3px 0 #04121a, 0 8px 18px rgba(0, 0, 0, 0.45);
+}
+.tutorial-score {
+  font-size: 18px; font-weight: 800; color: var(--ice-bright);
+  padding: 0 10px; min-height: 44px; display: inline-flex; align-items: center;
+}
+.tutorial-score[hidden] { display: none; }
+
+/* The connection anchors (T10, audited T12). Their look is inline in JS (the ring is a SHAPE:
+   dashed → solid when armed), so this only adds the keyboard focus ring — the second channel. */
+.tutorial-anchor:focus-visible { outline: 3px solid #ffffff; outline-offset: 3px; }
+
+/* The self-test's error marks (T11, audited T12). STATIC — no animation, so they add nothing to the
+   flash budget. Colour is never the only cue: each bucket carries its own SHAPE (missing = dashed
+   ring + a hollow square, wrong = solid ring + a cross, extra = dotted ring + a filled dot) and a
+   part mark also shows the block's own name; every mark is role="img" with an aria-label. */
+.tutorial-mark { position: absolute; display: block; border-radius: 14px; }
+.tutorial-mark-missing, .tutorial-mark-missing-edge { border: 3px dashed #ffd166; }
+.tutorial-mark-missing::after, .tutorial-mark-missing-edge::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 16px; height: 16px;
+  margin: -8px 0 0 -8px; border: 3px solid #ffd166; border-radius: 3px;
+}
+.tutorial-mark-wrong { border: 3px solid #ff6b6b; }
+.tutorial-mark-wrong::after {
+  content: '\00d7'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  font-size: 28px; font-weight: 900; line-height: 1; color: #ff6b6b;
+}
+.tutorial-mark-extra, .tutorial-mark-extra-edge { border: 3px dotted #ffd166; }
+.tutorial-mark-extra::after, .tutorial-mark-extra-edge::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 14px; height: 14px;
+  margin: -7px 0 0 -7px; border-radius: 50%; background: #ffd166;
+}
+.tutorial-mark-label {
+  position: absolute; left: 50%; top: -10px; transform: translate(-50%, -100%);
+  background: #0b0d12; color: #ffffff; border: 1px solid #718391; border-radius: 999px;
+  padding: 3px 10px; font-size: 12px; font-weight: 800; white-space: nowrap;
+}
+
+/* Tutorial controls occupy their own flex row; the floor gives up real space. */
+.app > .tutorial-testbar {
+  position: relative; inset: auto; z-index: 60; flex: 0 0 auto;
+  max-width: none; padding: 10px 16px; min-height: 64px;
+  background: #17252a; border-top: 1px solid #476067; gap: 12px;
+}
+.tutorial-testbar .tutorial-exit { margin-right: auto; order: 0; }
+.tutorial-testbar .tutorial-score { order: 1; }
+.tutorial-testbar .tutorial-retry { order: 2; }
+.tutorial-testbar .tutorial-next,
+.tutorial-testbar .tutorial-submit { order: 3; margin-left: auto; }
+.tutorial-testbar .tutorial-next { position: static; transform: none; }
+.tutorial-testbar .tutorial-next:active { transform: translateY(2px); }
+/* Geometry cues stay on the socket even while a finger holds the button. */
+.tutorial-anchor, .tutorial-anchor:active,
+.tutorial-slot, .tutorial-slot:active { transform: none; transition: none; touch-action: none; }

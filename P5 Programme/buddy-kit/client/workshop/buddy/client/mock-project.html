@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reflex Wiring — Course Editor</title>
+<!-- Contract order: the buddy's structure, then its skin, then every sheet this page owns (so the
+     page always wins an equal-specificity tie against the buddy's defaults). buddy-widget.css is now
+     intentionally empty — kept linked because this page is one of the two consumers that pins its
+     filename; see its header. -->
+<link rel="stylesheet" href="buddy-core.css">
+<link rel="stylesheet" href="buddy-theme.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="buddy-widget.css">
+<link rel="stylesheet" href="mock-project.css">
+</head>
+<body>
+  <div id="rw-app"></div>
+  <script src="../logic/action-schema.js"></script>
+  <script src="../logic/project-state.js"></script>
+  <script src="../logic/projects/reflex-wiring.js"></script>
+  <script src="../logic/stream-frames.js"></script>
+  <script src="../logic/kid-markdown.js"></script>
+  <script src="../logic/command-parse.js"></script>
+  <script src="buddy.js"></script>
+  <script src="buddy-widget.js"></script>
+  <script src="mock-project.js"></script>
+</body></html>

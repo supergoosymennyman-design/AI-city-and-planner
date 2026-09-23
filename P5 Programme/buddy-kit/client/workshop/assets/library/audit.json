@@ -1,0 +1,418 @@
+{
+  "irisSourceZipSha256": "d11fe30213d36434a0879aab7cb00ce3c812eb7ba2495874438abff7b7b762e9",
+  "irisCorrections": {
+    "35": [
+      4.9,
+      3.1,
+      1.5,
+      0.2
+    ],
+    "38": [
+      4.9,
+      3.6,
+      1.4,
+      0.1
+    ]
+  },
+  "photosBytes": 13932636,
+  "nearDuplicatePairs": [
+    [
+      "cardboard/cardboard311",
+      "cardboard/cardboard221"
+    ],
+    [
+      "cardboard/cardboard355",
+      "cardboard/cardboard354"
+    ],
+    [
+      "cardboard/cardboard72",
+      "cardboard/cardboard386"
+    ],
+    [
+      "cardboard/cardboard83",
+      "cardboard/cardboard221"
+    ],
+    [
+      "cardboard/cardboard83",
+      "cardboard/cardboard311"
+    ],
+    [
+      "metal/metal91",
+      "glass/glass115"
+    ],
+    [
+      "paper/paper108",
+      "paper/paper101"
+    ],
+    [
+      "paper/paper110",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper110",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper110",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper204",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper204",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper204",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper204",
+      "paper/paper110"
+    ],
+    [
+      "paper/paper284",
+      "paper/paper180"
+    ],
+    [
+      "paper/paper308",
+      "paper/paper305"
+    ],
+    [
+      "paper/paper317",
+      "paper/paper239"
+    ],
+    [
+      "paper/paper347",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper347",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper347",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper347",
+      "paper/paper110"
+    ],
+    [
+      "paper/paper347",
+      "paper/paper204"
+    ],
+    [
+      "paper/paper349",
+      "paper/paper246"
+    ],
+    [
+      "paper/paper385",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper385",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper385",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper385",
+      "paper/paper110"
+    ],
+    [
+      "paper/paper385",
+      "paper/paper204"
+    ],
+    [
+      "paper/paper385",
+      "paper/paper347"
+    ],
+    [
+      "paper/paper40",
+      "paper/paper2"
+    ],
+    [
+      "paper/paper444",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper444",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper444",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper444",
+      "paper/paper110"
+    ],
+    [
+      "paper/paper444",
+      "paper/paper385"
+    ],
+    [
+      "paper/paper451",
+      "paper/paper345"
+    ],
+    [
+      "paper/paper466",
+      "paper/paper459"
+    ],
+    [
+      "paper/paper477",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper477",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper477",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper477",
+      "paper/paper110"
+    ],
+    [
+      "paper/paper477",
+      "paper/paper204"
+    ],
+    [
+      "paper/paper477",
+      "paper/paper347"
+    ],
+    [
+      "paper/paper477",
+      "paper/paper385"
+    ],
+    [
+      "paper/paper477",
+      "paper/paper444"
+    ],
+    [
+      "paper/paper497",
+      "paper/paper347"
+    ],
+    [
+      "paper/paper50",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper50",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper50",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper50",
+      "paper/paper110"
+    ],
+    [
+      "paper/paper50",
+      "paper/paper385"
+    ],
+    [
+      "paper/paper50",
+      "paper/paper477"
+    ],
+    [
+      "paper/paper534",
+      "paper/paper522"
+    ],
+    [
+      "paper/paper552",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper552",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper552",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper552",
+      "paper/paper110"
+    ],
+    [
+      "paper/paper552",
+      "paper/paper204"
+    ],
+    [
+      "paper/paper552",
+      "paper/paper347"
+    ],
+    [
+      "paper/paper552",
+      "paper/paper385"
+    ],
+    [
+      "paper/paper552",
+      "paper/paper477"
+    ],
+    [
+      "paper/paper560",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper560",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper560",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper560",
+      "paper/paper110"
+    ],
+    [
+      "paper/paper560",
+      "paper/paper204"
+    ],
+    [
+      "paper/paper560",
+      "paper/paper347"
+    ],
+    [
+      "paper/paper560",
+      "paper/paper385"
+    ],
+    [
+      "paper/paper560",
+      "paper/paper444"
+    ],
+    [
+      "paper/paper560",
+      "paper/paper477"
+    ],
+    [
+      "paper/paper560",
+      "paper/paper50"
+    ],
+    [
+      "paper/paper560",
+      "paper/paper552"
+    ],
+    [
+      "paper/paper582",
+      "cardboard/cardboard221"
+    ],
+    [
+      "paper/paper582",
+      "cardboard/cardboard311"
+    ],
+    [
+      "paper/paper582",
+      "cardboard/cardboard83"
+    ],
+    [
+      "paper/paper582",
+      "paper/paper110"
+    ],
+    [
+      "paper/paper582",
+      "paper/paper204"
+    ],
+    [
+      "paper/paper582",
+      "paper/paper347"
+    ],
+    [
+      "paper/paper582",
+      "paper/paper385"
+    ],
+    [
+      "paper/paper582",
+      "paper/paper444"
+    ],
+    [
+      "paper/paper582",
+      "paper/paper477"
+    ],
+    [
+      "paper/paper582",
+      "paper/paper50"
+    ],
+    [
+      "paper/paper582",
+      "paper/paper552"
+    ],
+    [
+      "paper/paper582",
+      "paper/paper560"
+    ],
+    [
+      "paper/paper99",
+      "paper/paper147"
+    ],
+    [
+      "plastic/plastic152",
+      "glass/glass176"
+    ],
+    [
+      "plastic/plastic332",
+      "glass/glass389"
+    ],
+    [
+      "plastic/plastic52",
+      "plastic/plastic102"
+    ]
+  ],
+  "splitRule": "SHA256 group prefix modulo 10: 0..6 train, 7..9 test. No model scores.",
+  "photoCounts": {
+    "cardboard": {
+      "train": 293,
+      "test": 110
+    },
+    "glass": {
+      "train": 346,
+      "test": 155
+    },
+    "metal": {
+      "train": 280,
+      "test": 130
+    },
+    "paper": {
+      "train": 405,
+      "test": 189
+    },
+    "plastic": {
+      "train": 340,
+      "test": 142
+    },
+    "trash": {
+      "train": 98,
+      "test": 39
+    }
+  },
+  "irisCounts": {
+    "setosa": {
+      "train": 36,
+      "test": 14
+    },
+    "versicolor": {
+      "train": 33,
+      "test": 17
+    },
+    "virginica": {
+      "train": 36,
+      "test": 14
+    }
+  },
+  "carsSourceZipSha256": "afc38de54173e47f6508ea9cfd582f467085255aa4974d9ab398698ac984040a",
+  "carsCounts": {
+    "train": 153,
+    "test": 47
+  }
+}

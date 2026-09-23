@@ -86,6 +86,7 @@ import { HUNYUAN_IDS, EMERALD_RAIN_TREE_CANOPY_METRES, coordinateKey, selectHuny
 import { CITY_CHAMPION_HEIGHT, uniformScaleForBounds, scaledBounds } from '../city-common/model-scale.js';
 import { buildSampleCity } from '../city-common/sample-city.js';
 import { readExampleDraft, writeExampleDraft } from '../city-common/example-draft.js';
+import { readNewCityDraft } from '../city-common/new-city-draft.js';
 import { isRoadVehicle, vehicleTargetLength, vehicleTargetWidth } from '../city-common/vehicle-scale.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, rememberSavedAt, lastSavedAt, CF_KEYS } from '../city-common/champion-file.js';
 import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
@@ -128,10 +129,11 @@ async function importCustomChampion(file) {
     }
     const nextUrl = blobToObjectUrl(file);
     if (!nextUrl) throw new Error('Could not create Champion URL');
-    try { await saveCustomSkin(file); }
+    try { await saveCustomSkin(file, metadata || null); }
     catch (error) { revokeObjectUrl(nextUrl); throw error; }
     if (_customSkinUrl) revokeObjectUrl(_customSkinUrl);
     _customSkinUrl = nextUrl;
+    _customSkinMetadata = metadata || null;
     equipCustomDefault();
     return { ok: true, skin: { url: _customSkinUrl, name: file.name } };
   } catch (e) {
@@ -815,6 +817,13 @@ function showExampleSessionBanner() {
   banner.hidden = false;
   const editPlan = document.querySelector('#city-mode-switch a.city-mode');
   if (editPlan) editPlan.href = '/planner/?example=1';
+}
+
+function showNewCityBanner() {
+  const banner = document.getElementById('new-city-session-banner');
+  if (banner) banner.hidden = false;
+  const editPlan = document.querySelector('#city-mode-switch a.city-mode');
+  if (editPlan) editPlan.href = '/planner/?new=1';
 }
 
 // Orbit / input state
@@ -2250,7 +2259,7 @@ function buildCityGateways(gen = _bootGen, queue = null) {
   specialSystem ||= { beacon:null, beaconPositions:[], questRefs:[] };
   const returnTo = new URL(window.location.href); returnTo.searchParams.delete('studioTransfer');
   const specs = [
-    { id:'workshop', emoji:'⚙️', en:'AI Workshop', zh:'AI 工坊', model:GATEWAY_MODELS.workshop, url: (()=>{ const u=new URL(WORKSHOP_URL);u.searchParams.set('returnTo',returnTo.href);return u.href; })() },
+    { id:'workshop', emoji:'⚙️', en:'AI Workshop', zh:'AI 工坊', model:GATEWAY_MODELS.workshop, url: (()=>{ const u=new URL(WORKSHOP_URL, window.location.href);u.searchParams.set('returnTo',returnTo.href);return u.href; })() },
     { id:'studio', emoji:'✦', en:'Fit Studio', zh:'造型工作室', model:GATEWAY_MODELS.studio, url: new URL(`../studio/?returnTo=${encodeURIComponent(returnTo.href)}`, window.location.href).href },
   ];
   city.gateways = {};
@@ -5068,6 +5077,7 @@ function startEntryFlow() {
   const entryMode = new URLSearchParams(location.search);
   const forceExample = entryMode.get('example') === '1';
   const previewExampleDraft = forceExample && entryMode.get('draft') === '1';
+  const forceNewCity = !forceExample && entryMode.get('new') === '1';
   const forceResume = entryMode.get('resume') === '1';
 
   let saved = null;
@@ -5150,6 +5160,14 @@ function startEntryFlow() {
         begin(draft);
       }
     } else begin(sampleLayout());
+  } else if (forceNewCity) {
+    const draft = readNewCityDraft();
+    if (!draft) showEntryError('The new city draft is missing. Start a new city from the Hub.');
+    else {
+      _exampleSession = false;
+      showNewCityBanner();
+      begin(draft);
+    }
   } else if (forceResume) {
     // Resume is intentionally strict: a missing or malformed saved layout stays
     // on the entry screen and never turns into the bundled example silently.

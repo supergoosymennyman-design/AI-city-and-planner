@@ -1,0 +1,477 @@
+{
+  "kind": "ai-champion",
+  "version": 1,
+  "champion": {
+    "name": "L3 · Teacher reference",
+    "parts": {}
+  },
+  "projects": {
+    "workshop": {
+      "v": 1,
+      "current": "button",
+      "machines": {
+        "button": {
+          "v": 1,
+          "seed": 42,
+          "name": "1 · Button makes a crate",
+          "brains": {},
+          "pieces": [
+            {
+              "id": "button",
+              "type": "button",
+              "x": 40,
+              "y": 40,
+              "name": "Send parcel"
+            },
+            {
+              "id": "feed",
+              "type": "feeder",
+              "x": 40,
+              "y": 300,
+              "rate": 20,
+              "items": [],
+              "name": "Make crate"
+            },
+            {
+              "id": "belt",
+              "type": "track",
+              "x": 290,
+              "y": 300,
+              "speed": 3,
+              "name": "Delivery belt"
+            },
+            {
+              "id": "bin",
+              "type": "bin",
+              "x": 680,
+              "y": 300,
+              "name": "Arrivals"
+            }
+          ],
+          "snaps": [
+            {
+              "from": {
+                "piece": "feed",
+                "end": "out"
+              },
+              "to": {
+                "piece": "belt",
+                "end": "in"
+              }
+            },
+            {
+              "from": {
+                "piece": "belt",
+                "end": "out"
+              },
+              "to": {
+                "piece": "bin",
+                "end": "in"
+              }
+            }
+          ],
+          "wires": [
+            {
+              "from": {
+                "block": "button",
+                "port": "pressed"
+              },
+              "to": {
+                "block": "feed",
+                "port": "drop"
+              }
+            }
+          ]
+        },
+        "files": {
+          "v": 1,
+          "seed": 42,
+          "name": "2 · Files make crates",
+          "brains": {},
+          "pieces": [
+            {
+              "id": "source",
+              "type": "files",
+              "x": 40,
+              "y": 30,
+              "rate": 20,
+              "name": "Six real flowers",
+              "libraryData": {
+                "version": 1,
+                "dataset": "iris-v1",
+                "split": "test",
+                "ids": [
+                  "iris-001",
+                  "iris-005",
+                  "iris-054",
+                  "iris-055",
+                  "iris-104",
+                  "iris-110"
+                ]
+              }
+            },
+            {
+              "id": "feed",
+              "type": "feeder",
+              "x": 40,
+              "y": 350,
+              "rate": 20,
+              "items": [],
+              "name": "Make crates"
+            },
+            {
+              "id": "belt",
+              "type": "track",
+              "x": 290,
+              "y": 350,
+              "speed": 4,
+              "name": "Measurement belt"
+            },
+            {
+              "id": "bin",
+              "type": "bin",
+              "x": 680,
+              "y": 350,
+              "name": "All six rows"
+            }
+          ],
+          "snaps": [
+            {
+              "from": {
+                "piece": "feed",
+                "end": "out"
+              },
+              "to": {
+                "piece": "belt",
+                "end": "in"
+              }
+            },
+            {
+              "from": {
+                "piece": "belt",
+                "end": "out"
+              },
+              "to": {
+                "piece": "bin",
+                "end": "in"
+              }
+            }
+          ],
+          "wires": [
+            {
+              "from": {
+                "block": "source",
+                "port": "row"
+              },
+              "to": {
+                "block": "feed",
+                "port": "drop"
+              }
+            }
+          ]
+        },
+        "itemFault": {
+          "v": 1,
+          "seed": 42,
+          "name": "3 · Fault: broken item path",
+          "brains": {},
+          "pieces": [
+            {
+              "id": "button",
+              "type": "button",
+              "x": 40,
+              "y": 40,
+              "name": "Send parcel"
+            },
+            {
+              "id": "feed",
+              "type": "feeder",
+              "x": 40,
+              "y": 300,
+              "rate": 20,
+              "items": [],
+              "name": "Make crate"
+            },
+            {
+              "id": "belt",
+              "type": "track",
+              "x": 290,
+              "y": 300,
+              "speed": 3,
+              "name": "Delivery belt"
+            },
+            {
+              "id": "bin",
+              "type": "bin",
+              "x": 680,
+              "y": 300,
+              "name": "Arrivals"
+            }
+          ],
+          "snaps": [
+            {
+              "from": {
+                "piece": "feed",
+                "end": "out"
+              },
+              "to": {
+                "piece": "belt",
+                "end": "in"
+              }
+            }
+          ],
+          "wires": [
+            {
+              "from": {
+                "block": "button",
+                "port": "pressed"
+              },
+              "to": {
+                "block": "feed",
+                "port": "drop"
+              }
+            }
+          ]
+        },
+        "signalFault": {
+          "v": 1,
+          "seed": 42,
+          "name": "4 · Fault: signal detour",
+          "brains": {},
+          "pieces": [
+            {
+              "id": "button",
+              "type": "button",
+              "x": 40,
+              "y": 40,
+              "name": "Send parcel"
+            },
+            {
+              "id": "feed",
+              "type": "feeder",
+              "x": 40,
+              "y": 300,
+              "rate": 20,
+              "items": [],
+              "name": "Make crate"
+            },
+            {
+              "id": "belt",
+              "type": "track",
+              "x": 290,
+              "y": 300,
+              "speed": 3,
+              "name": "Delivery belt"
+            },
+            {
+              "id": "bin",
+              "type": "bin",
+              "x": 680,
+              "y": 300,
+              "name": "Arrivals"
+            },
+            {
+              "id": "lamp",
+              "type": "lamp",
+              "x": 390,
+              "y": 40,
+              "colour": "orange",
+              "seconds": 1,
+              "name": "Wrong destination"
+            }
+          ],
+          "snaps": [
+            {
+              "from": {
+                "piece": "feed",
+                "end": "out"
+              },
+              "to": {
+                "piece": "belt",
+                "end": "in"
+              }
+            },
+            {
+              "from": {
+                "piece": "belt",
+                "end": "out"
+              },
+              "to": {
+                "piece": "bin",
+                "end": "in"
+              }
+            }
+          ],
+          "wires": [
+            {
+              "from": {
+                "block": "button",
+                "port": "pressed"
+              },
+              "to": {
+                "block": "lamp",
+                "port": "on"
+              }
+            }
+          ]
+        },
+        "itemAnswer": {
+          "v": 1,
+          "seed": 42,
+          "name": "5 · Answer: reconnect Track to Bin",
+          "brains": {},
+          "pieces": [
+            {
+              "id": "button",
+              "type": "button",
+              "x": 40,
+              "y": 40,
+              "name": "Send parcel"
+            },
+            {
+              "id": "feed",
+              "type": "feeder",
+              "x": 40,
+              "y": 300,
+              "rate": 20,
+              "items": [],
+              "name": "Make crate"
+            },
+            {
+              "id": "belt",
+              "type": "track",
+              "x": 290,
+              "y": 300,
+              "speed": 3,
+              "name": "Delivery belt"
+            },
+            {
+              "id": "bin",
+              "type": "bin",
+              "x": 680,
+              "y": 300,
+              "name": "Arrivals"
+            }
+          ],
+          "snaps": [
+            {
+              "from": {
+                "piece": "feed",
+                "end": "out"
+              },
+              "to": {
+                "piece": "belt",
+                "end": "in"
+              }
+            },
+            {
+              "from": {
+                "piece": "belt",
+                "end": "out"
+              },
+              "to": {
+                "piece": "bin",
+                "end": "in"
+              }
+            }
+          ],
+          "wires": [
+            {
+              "from": {
+                "block": "button",
+                "port": "pressed"
+              },
+              "to": {
+                "block": "feed",
+                "port": "drop"
+              }
+            }
+          ]
+        },
+        "signalAnswer": {
+          "v": 1,
+          "seed": 42,
+          "name": "6 · Answer: reconnect Button to Feeder",
+          "brains": {},
+          "pieces": [
+            {
+              "id": "button",
+              "type": "button",
+              "x": 40,
+              "y": 40,
+              "name": "Send parcel"
+            },
+            {
+              "id": "feed",
+              "type": "feeder",
+              "x": 40,
+              "y": 300,
+              "rate": 20,
+              "items": [],
+              "name": "Make crate"
+            },
+            {
+              "id": "belt",
+              "type": "track",
+              "x": 290,
+              "y": 300,
+              "speed": 3,
+              "name": "Delivery belt"
+            },
+            {
+              "id": "bin",
+              "type": "bin",
+              "x": 680,
+              "y": 300,
+              "name": "Arrivals"
+            },
+            {
+              "id": "lamp",
+              "type": "lamp",
+              "x": 390,
+              "y": 40,
+              "colour": "orange",
+              "seconds": 1,
+              "name": "Wrong destination"
+            }
+          ],
+          "snaps": [
+            {
+              "from": {
+                "piece": "feed",
+                "end": "out"
+              },
+              "to": {
+                "piece": "belt",
+                "end": "in"
+              }
+            },
+            {
+              "from": {
+                "piece": "belt",
+                "end": "out"
+              },
+              "to": {
+                "piece": "bin",
+                "end": "in"
+              }
+            }
+          ],
+          "wires": [
+            {
+              "from": {
+                "block": "button",
+                "port": "pressed"
+              },
+              "to": {
+                "block": "feed",
+                "port": "drop"
+              }
+            }
+          ]
+        }
+      },
+      "bricks": {}
+    }
+  }
+}

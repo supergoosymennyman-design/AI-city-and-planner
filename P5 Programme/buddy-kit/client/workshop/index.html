@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Workshop</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Classic scripts, no fetches: the workshop runs over file:// as-is — EXCEPT the Camera eye,
+       whose model import needs http(s); over file:// that one sense blocks honestly with a reason
+       while everything else keeps working (serve via `node web/serve.js` for the full kit).
+       v1 is deliberately SIMPLE (function over polish) — the skin is a later pass. -->
+  <script src="logic/rng.js"></script>
+  <!-- The private learning loop's two PURE contracts, ahead of the engine (task P4): the Evaluator
+       reads reference-answer presence from private-session.js and the verdict rule from
+       evaluation-record.js instead of keeping a second copy of either (rulings R5 / R11), and
+       logic/engine.js resolves both EAGERLY at load like every other logic/*.js here. Their own
+       dependency is rng.js above; the rest of the private stack still sits further down, after the
+       modules IT resolves eagerly (datasets, model-library, brain). -->
+  <script src="logic/private-session.js"></script>
+  <script src="logic/evaluation-record.js"></script>
+  <script src="logic/ml-recipe.js"></script>
+  <script src="ml-recipe-panel.js"></script>
+  <script src="logic/composition.js"></script>
+  <script src="logic/engine.js"></script>
+  <script src="logic/snap.js"></script>
+  <!-- The brick mapper (composing-arc "make your own part", task 2/3): makePart/expand/unpack.
+       Pure, same load idiom as snap.js above — game.js reads window.WorkshopBrick eagerly at
+       closure-build time, so this must load before game.js, same as every other logic/*.js here. -->
+  <script src="logic/brick.js"></script>
+  <!-- The ONE undo/redo history for building (task 061): record/apply/reset over serialized
+       {table, bricks} states. Pure, same eager-resolve load idiom as brick.js above — game.js
+       reads window.WorkshopHistory at closure-build time, so this must load before game.js. -->
+  <script src="logic/history.js"></script>
+  <script src="logic/layout.js"></script>
+  <script src="logic/datasets.js"></script>
+  <script src="assets/library/catalogue.js"></script>
+  <script src="assets/library/models.js"></script>
+  <script src="logic/model-library.js"></script>
+  <script src="library-loader.js"></script>
+  <script src="library-ui.js"></script>
+  <!-- task D (bring-your-own-data): the CSV/TSV parser + schema builder behind the Feeder's third
+       source — must load before game.js, which reads window.WorkshopTableImport at closure-build
+       time (the same eager-resolve idiom every other logic/*.js module here already uses). -->
+  <script src="logic/table-import.js"></script>
+  <script src="logic/brain.js"></script>
+  <script src="logic/learned-state.js"></script>
+  <!-- The private learning loop (task P2b): the session registry that owns a session's private
+       collections. Each resolves its dependencies EAGERLY at load (window.WorkshopRng,
+       WorkshopDatasets, WorkshopModelLibrary, WorkshopBrain), so they sit after rng.js,
+       datasets.js, model-library.js and brain.js, in this order, and before game.js, which reads
+       them at closure-build time. The two pure contracts they build on (private-session,
+       evaluation-record) load at the top, ahead of logic/engine.js — see there. -->
+  <script src="logic/private-examples.js"></script>
+  <script src="logic/private-registry.js"></script>
+  <script src="logic/private-policy.js"></script>
+  <script src="logic/runtime-budget.js"></script>
+  <!-- The run session (task P5a) eagerly resolves window.WorkshopBrick / WorkshopSnap /
+       WorkshopEngine / WorkshopRuntimeBudget at closure-build time, so it loads after all four
+       (engine/snap/brick are near the top of this list) and before game.js, which resolves
+       window.WorkshopRunSession the same way. -->
+  <script src="logic/run-session.js"></script>
+  <script src="logic/run-results.js"></script>
+  <script src="logic/batch-run.js"></script>
+  <script src="training-client.js"></script>
+  <script src="logic/tray.js"></script>
+  <script src="logic/score.js"></script>
+  <script src="logic/away.js"></script>
+  <script src="logic/stage-layout.js"></script>
+  <script src="logic/chart.js"></script>
+  <!-- The BOARD's pure half (Plan 3 task 4): fingerprint/commit/plan. Loads after chart.js, whose
+       WorkshopChart.ticks it reads EAGERLY at its own top level (board.js is not wrapped in an
+       IIFE, unlike its neighbours) — and before floor-art.js, which reads window.WorkshopBoard
+       lazily to draw the Board's mini chart. -->
+  <script src="logic/board.js"></script>
+  <script src="logic/floor-layout.js"></script>
+  <!-- logic/paint-clock.js (task 092): WHEN the floor paints — dirty, a rate, or rest. Pure;
+       floor.js schedules its animation frames from it. -->
+  <script src="logic/paint-clock.js"></script>
+  <script src="logic/wire-id.js"></script>
+  <script src="logic/reel.js"></script>
+  <!-- GENERATED from TrashNet's folder names; a classic script so the lesson works over file://
+       with zero fetches. Must load before game.js, which reads window.LESSON_MANIFEST at boot. -->
+  <script src="assets/lesson/manifest.js"></script>
+  <!-- brain-view.js resolves window.WorkshopBrain EAGERLY at load (same pattern as brains/knn.js
+       below) — it must load after logic/brain.js (line 19) and before ANY brain adapter that
+       reads window.WorkshopBrainView eagerly (knn.js does), so it sits here, ahead of them. -->
+  <script src="logic/brain-view.js"></script>
+  <script src="logic/buddy-host.js"></script>
+  <script src="./toolbox/buddy-preferences.js"></script>
+  <script src="./toolbox/champion-file.js"></script>
+<script src="./toolbox/champion-session.js"></script>
+<script src="./toolbox/champion-controls.js"></script>
+  <script src="./toolbox/camera.js"></script>
+  <script src="./toolbox/embedder.js"></script>
+  <script src="./toolbox/holistic.js"></script>
+  <!-- The voice pair's host tools (Composing Arc Plan A, task 2): speech.js is the ONE shared
+       SpeechManager (TTS + STT) game.js lazily constructs; consent.js is the mic's own
+       privacy gate (workshop.consent.stt). Both must load before game.js, which reads
+       window.SpeechManager / window.WorkshopConsent at boot and on every voice event. -->
+  <script src="./toolbox/speech.js"></script>
+  <script src="./toolbox/consent.js"></script>
+  <script src="senses/pose.js"></script>
+  <script src="brains/line.js"></script>
+  <script src="brains/knn.js"></script>
+  <script src="brains/proto.js"></script>
+  <script src="brains/grouper.js"></script>
+  <script src="brains/number.js"></script>
+  <script src="brains/neural.js"></script>
+  <!-- The workshop in Traditional Chinese (task 085). A classic script, NOT a fetched .json:
+       the same zero-fetch law that keeps STRINGS inline in game.js. GENERATED by
+       scripts/gen-zh-hant.mjs. game.js's t() reads window.WORKSHOP_STRINGS lazily and falls
+       back per key to English, so load order is forgiving here — it sits beside game.js
+       anyway, because that is where a reader will look for it. -->
+  <script src="i18n/zh-Hant.js"></script>
+  <script src="logic/memory-accounting.js"></script>
+  <script src="memory-monitor.js"></script>
+  <!-- logic/tutorial-script.js (car-gallery tutorial, task 1): the PURE step model
+       (buildSteps/propsKey + the seeded removal) the T9 controller walks. A classic script so the
+       tutorial works over file:// with zero fetches; must load before tutorial-panel.js and
+       game.js, both of which read window.WorkshopTutorialScript eagerly at use time. -->
+  <script src="logic/car-examples.js"></script>
+  <script src="logic/tutorial-script.js"></script>
+  <!-- logic/tutorial-score.js (car-gallery tutorial, task 2): the PURE topological matcher + scorer
+       (topology/classify/score) T10's completion match reads. Same classic-script, zero-fetch idiom
+       as tutorial-script.js beside it; must load before game.js, which hands it to the controller. -->
+  <script src="logic/tutorial-score.js"></script>
+  <!-- tutorial-panel.js (car-gallery tutorial, task 3): the tutorial's VISUAL primitives — scrim /
+       spotlight / highlight ring / slow-fading Next / ghost cursor — PLUS the T9 controller
+       (createController) that sequences them over the T8 floor seams. Loads with the other
+       eagerly-resolved modules, just before game.js, which reads window.WorkshopTutorial at boot
+       (the same idiom brick.js/history.js/board.js above document). -->
+  <script src="tutorial-panel.js"></script>
+  <script src="game.js"></script>
+  <script src="chart-art.js"></script>
+  <script src="brain-view-art.js"></script>
+  <script src="composition-art.js"></script>
+  <script src="floor-art.js"></script>
+  <!-- brain-panel.js (task-7): the laboratory a tap on a model's FACE opens. Must load after
+       brain-view-art.js (it draws the panel-budget plan with WorkshopBrainViewArt.draw at open
+       time) and before floor.js (floor.js's tap router calls window.BrainPanel.open directly). -->
+  <script src="logic/brain-lab.js"></script>
+  <script src="brain-panel.js"></script>
+  <!-- board-panel.js (Plan 3 task 5): the zoom a tap on the Board opens. Must load after
+       floor-art.js (it reads window.WorkshopFloorArt.P for the chart's own inks) and after
+       logic/board.js (it reads window.WorkshopBoard only through floor.js's own deps, but sits
+       beside brain-panel.js on purpose — same idiom, same neighbours) and before floor.js (whose
+       tap router calls window.BoardPanel.open directly). -->
+  <script src="board-panel.js"></script>
+  <!-- brick-panel.js (composing-arc "make your own part", task 6): a sealed part's own small
+       floor, opened by tapping the porthole on its placed face. Must load after floor-layout.js
+       (its own floorPlan/objectAt/kindOf) and floor-art.js (Art.draw/Art.crate/Art.link/
+       Art.cable — the SAME drawing vocabulary the main floor uses) and before floor.js (whose tap
+       router calls window.BrickPanel.open directly) — sits beside brain-panel.js/board-panel.js
+       on purpose, same idiom, same neighbours. -->
+  <script src="brick-panel.js"></script>
+  <script src="floor.js"></script>
+</body>
+</html>

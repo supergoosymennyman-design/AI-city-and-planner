@@ -49,6 +49,7 @@ button,input { font:inherit; }
 .city-actions .card-action { margin-top:0; }
 .secondary-action { color:#b8c5d7; text-align:center; font-size:12px; font-weight:700; text-underline-offset:3px; }
 .secondary-action:hover { color:#fff; }
+.secondary-action[hidden] { display:none; }
 .project-tools,.demo-check { display:flex; justify-content:space-between; align-items:center; gap:24px; margin-top:28px; padding:22px 25px; border:1px solid var(--line); border-radius:9px; background:#131e31; }
 .demo-check { border-left:4px solid #facc15; }
 .demo-check h2 { margin:0; font:600 clamp(1.25rem,3vw,1.6rem)/1.15 var(--display); }

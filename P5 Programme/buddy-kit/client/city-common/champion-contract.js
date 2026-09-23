@@ -28,6 +28,9 @@ export function validateStudioChampion({ metadata, animations = [], boneNames = 
   const byName = new Map(animations.map(clip => [clip?.name, clip]));
   if (byName.size !== animations.length) return { ok: false, error: 'The Champion has duplicate clip names.' };
   const targets = new Set([...boneNames, ...nodeNames]);
+  if (metadata.footBones !== undefined && (!Array.isArray(metadata.footBones) ||
+      metadata.footBones.length > 4 || metadata.footBones.some(name => !boneNames.includes(name))))
+    return { ok: false, error: 'The Champion foot joints are missing from its skeleton.' };
   const clips = {};
   const mappings = CHAMPION_ACTIONS.map(state => [state, metadata.actions?.[state]]);
   for (const state of OPTIONAL_CHAMPION_ACTIONS) if (metadata.actions?.[state]) mappings.push([state, metadata.actions[state]]);

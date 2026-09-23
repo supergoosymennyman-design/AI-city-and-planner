@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "startingCoins": 120,
+  "startingLevel": 1,
+  "models": [
+    {
+      "id": "starter-cube",
+      "name": "Starter Cube",
+      "category": "character",
+      "file": "starter-cube.glb",
+      "description": "A friendly cube to start your champion.",
+      "unlock": { "type": "free" }
+    },
+    {
+      "id": "bouncy-sphere",
+      "name": "Bouncy Sphere",
+      "category": "head",
+      "file": "bouncy-sphere.glb",
+      "description": "A round head that bounces with every step.",
+      "unlock": { "type": "level", "level": 2 }
+    },
+    {
+      "id": "rocket-cone",
+      "name": "Rocket Cone",
+      "category": "head",
+      "file": "rocket-cone.glb",
+      "description": "A pointy nose cone for speedy champions.",
+      "unlock": { "type": "coins", "coins": 40 }
+    },
+    {
+      "id": "party-torus",
+      "name": "Party Ring",
+      "category": "body-decoration",
+      "file": "party-torus.glb",
+      "description": "A spinning ring with real party energy.",
+      "unlock": { "type": "coins", "coins": 80 }
+    },
+    {
+      "id": "golden-cylinder",
+      "name": "Golden Cylinder",
+      "category": "feet",
+      "file": "golden-cylinder.glb",
+      "description": "A shiny column. Reach level 3 and pay up.",
+      "unlock": { "type": "level+coins", "level": 3, "coins": 120 }
+    },
+    {
+      "id": "silver-capsule",
+      "name": "Silver Capsule",
+      "category": "hands",
+      "file": "silver-capsule.glb",
+      "description": "The veteran capsule. Level 5 and 200 coins.",
+      "unlock": { "type": "level+coins", "level": 5, "coins": 200 }
+    }
+  ]
+}

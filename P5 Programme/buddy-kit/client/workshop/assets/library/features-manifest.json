@@ -1,0 +1,404 @@
+{
+  "version": 1,
+  "id": "mobilenet-v3-small-224-squash-f32-unit-v1",
+  "dimensions": 1024,
+  "modelSha256": "bbbb4c51a55a53905af1daec995ca1aae355046f8839bb8c9f5ce9271394bc40",
+  "catalogueSha256": "49c8ddac3075ff7065f3e53c40093cf809b44408f9cc3276102f010343417f61",
+  "chunks": [
+    {
+      "file": "features-000.js",
+      "sha256": "44d5be685d8bd9e2275bf51419a9f64107326ae4092aca3428838ac9c93f4a0b",
+      "count": 32
+    },
+    {
+      "file": "features-001.js",
+      "sha256": "93982dc7f2ac2260a3136bb8ab65e709486ef7158103fc06eebe19fb207434d3",
+      "count": 32
+    },
+    {
+      "file": "features-002.js",
+      "sha256": "71d0ffca81e4065badb25e60d59d07d68a300742483584d003d23a719528d30f",
+      "count": 32
+    },
+    {
+      "file": "features-003.js",
+      "sha256": "1f7597d6313ef94289f325522c6c912c7c58d2b7970b39623ddc44f4657aaf92",
+      "count": 32
+    },
+    {
+      "file": "features-004.js",
+      "sha256": "5afc2f290205bef554c64e51b1ebcde5fc8085b6e1b2b80e25824bfb869532c7",
+      "count": 32
+    },
+    {
+      "file": "features-005.js",
+      "sha256": "9eae12c45431dfee0c4af20a5258d566bd269497845ecc4c7b2374a941878cc0",
+      "count": 32
+    },
+    {
+      "file": "features-006.js",
+      "sha256": "e5d74eece34e15d91e8b12f38476f1924d5aa838e2470e252ba1e4ba3e06c4e2",
+      "count": 32
+    },
+    {
+      "file": "features-007.js",
+      "sha256": "2c918978d7c5d6efa1b110f5a2b9251a5ef4a60486e12e8278455c6c91e6e2c0",
+      "count": 32
+    },
+    {
+      "file": "features-008.js",
+      "sha256": "8424643d07d4b4210b95ebfc2da27fe98936c633a137a325e19932499c044071",
+      "count": 32
+    },
+    {
+      "file": "features-009.js",
+      "sha256": "31c744408f040afb3f7b7c717acc213a995c472552633b81e63864fe03f40f2a",
+      "count": 32
+    },
+    {
+      "file": "features-010.js",
+      "sha256": "52ab5336c9a5428913c0f306910a3431cc5cb98e268bab65b4edc621bc188454",
+      "count": 32
+    },
+    {
+      "file": "features-011.js",
+      "sha256": "b0938a6a5f6bbf436ee44ead4ee11a799fe238be160f688af351412754cc89dc",
+      "count": 32
+    },
+    {
+      "file": "features-012.js",
+      "sha256": "e2ee42504df5027e7e543ab5f489c7fc64956eec559e7efcc81693b7c9ad6ee2",
+      "count": 32
+    },
+    {
+      "file": "features-013.js",
+      "sha256": "04a70d2425eb6c3f63591f6fc415d2a5c31e02ca20a07453ec3aaee90c11b06b",
+      "count": 32
+    },
+    {
+      "file": "features-014.js",
+      "sha256": "52a33dc363eeac19e234cc354775db9743fcfe7543318c11950dff4933734c69",
+      "count": 32
+    },
+    {
+      "file": "features-015.js",
+      "sha256": "f6a4609c8ea93d4308dfa40c07ae5f8fdcb91be98d07c8ee5d4052aaaa8e63c4",
+      "count": 32
+    },
+    {
+      "file": "features-016.js",
+      "sha256": "fd275139b251a8d01dc0e4c472a9f97e437d342d44dde8a179e671803e3e42d5",
+      "count": 32
+    },
+    {
+      "file": "features-017.js",
+      "sha256": "f41bc1e034a560b7b977c03c7349d7efbf4b628eca2d8a5fcb3f1e2380ef68e2",
+      "count": 32
+    },
+    {
+      "file": "features-018.js",
+      "sha256": "90a09661db500ba00ccf0b04b95256f6e13d47b7ccd54168bb38b41ee29aafe1",
+      "count": 32
+    },
+    {
+      "file": "features-019.js",
+      "sha256": "c9b64f2e61b877f1cd0aa55bdbf748725f7cac6e9178e0743832d6059b93537a",
+      "count": 32
+    },
+    {
+      "file": "features-020.js",
+      "sha256": "4985227fe36281ff96b19dd9fef9676467a451bd28bf8fb001469dfdf3eeb04a",
+      "count": 32
+    },
+    {
+      "file": "features-021.js",
+      "sha256": "5e609dc591f4a03eb885b7a63d4f2bb39649596d524d82ae5f76022b9c15ae37",
+      "count": 32
+    },
+    {
+      "file": "features-022.js",
+      "sha256": "b89ff26222a9be5a184d3e64384a011c92eb505cc43923910b207b40de83fbbf",
+      "count": 32
+    },
+    {
+      "file": "features-023.js",
+      "sha256": "b27d9eaf352f83e264b5cfe5a54f305a68ffbe01a4ef49792f36725cad53f7c9",
+      "count": 32
+    },
+    {
+      "file": "features-024.js",
+      "sha256": "e849bbd0d0192bdf8cabee57e4a20c567da39b6b95ff30e4a0d990efc9508e05",
+      "count": 32
+    },
+    {
+      "file": "features-025.js",
+      "sha256": "9e26d9853646b44e871254589049d4fb5c3ec71b63a9fe11f14472fc6f1e2088",
+      "count": 32
+    },
+    {
+      "file": "features-026.js",
+      "sha256": "658d04847587be1acd3ebdce906d7185df01b922d7a4e1dd0eb3fd9218252887",
+      "count": 32
+    },
+    {
+      "file": "features-027.js",
+      "sha256": "504bcd48d528cd29abfdb0a04e9be97912723a187a7c74c9b190e32a7db1e099",
+      "count": 32
+    },
+    {
+      "file": "features-028.js",
+      "sha256": "d4eea036f8e731b4bc8148fd249454cd5028dd17a2f7326b1d857e74e6c5596c",
+      "count": 32
+    },
+    {
+      "file": "features-029.js",
+      "sha256": "61c06e1a61db8b78bd07968d33b867e52f74ac4cff20a38cb5ed2328a76d540a",
+      "count": 32
+    },
+    {
+      "file": "features-030.js",
+      "sha256": "b365fc93d4272d863c8064086a206e5ac1f7bda1225fe5ea55270213d1dd40f8",
+      "count": 32
+    },
+    {
+      "file": "features-031.js",
+      "sha256": "759521baa07b5c74ea81989c2cd213827243a614dcfd6081a80c8cc0d3519471",
+      "count": 32
+    },
+    {
+      "file": "features-032.js",
+      "sha256": "98304454bc4d4d3d0b6f3f3f5c3887fd7a7e8c228bfa7a26267bc6376cdb4ed1",
+      "count": 32
+    },
+    {
+      "file": "features-033.js",
+      "sha256": "31214404c30157cb6efb5c6d25f9fe9cff4cbb0558ae34f4b7f159a88e246979",
+      "count": 32
+    },
+    {
+      "file": "features-034.js",
+      "sha256": "3ff14e76e3c76091c8f12b39209fb0db5ba0eb06019d08fa23f7cd216fe3da7b",
+      "count": 32
+    },
+    {
+      "file": "features-035.js",
+      "sha256": "703efc5031db57f1e502425deed7a2d0911bd5561edd026a8e70d631a3a71b7c",
+      "count": 32
+    },
+    {
+      "file": "features-036.js",
+      "sha256": "fc4b7a8adf3483a3adce880261da6dcf5c36023536c9506f7a129668f4ae1b65",
+      "count": 32
+    },
+    {
+      "file": "features-037.js",
+      "sha256": "a963bd911055723671a6cf48ccaa5a6042bfbe9ba64d5abc929e4db2461d6f45",
+      "count": 32
+    },
+    {
+      "file": "features-038.js",
+      "sha256": "37eea580097cc7b470438b1608be4c528b01d3f77c9eb6bf143239de4c225b08",
+      "count": 32
+    },
+    {
+      "file": "features-039.js",
+      "sha256": "8d93c31be65c8cbad51b5e319c4770bbb04501bf90a3997cb448e74efd842f3b",
+      "count": 32
+    },
+    {
+      "file": "features-040.js",
+      "sha256": "9b583ae12505c1e9e849fec5f028a1c63a4a5856354d7dd6f542e69294d825e7",
+      "count": 32
+    },
+    {
+      "file": "features-041.js",
+      "sha256": "83be82b8d3a516d71275aef6cb8c834a0e395b98b18ea8c1bae3f9c925cb2a39",
+      "count": 32
+    },
+    {
+      "file": "features-042.js",
+      "sha256": "0a20d18b546c939981a40e2f381a617ee5469a5d8895f7c260fbdc1fc53c1117",
+      "count": 32
+    },
+    {
+      "file": "features-043.js",
+      "sha256": "d24402158a07220f98bdf23624ed322db443949b898163e0f3896a483a104328",
+      "count": 32
+    },
+    {
+      "file": "features-044.js",
+      "sha256": "9a7d31b3afd96fd8749cdd3abb6f131028c8c5afe8cd335c52f5064e03ca0704",
+      "count": 32
+    },
+    {
+      "file": "features-045.js",
+      "sha256": "102c37759a3a1387dda127f36ea28e3476386581787b1f8fe3c11647ebfce3e5",
+      "count": 32
+    },
+    {
+      "file": "features-046.js",
+      "sha256": "bdc09777f674cbb92135e6536c77c539c7d643aace1f97afa61e8966779b38be",
+      "count": 32
+    },
+    {
+      "file": "features-047.js",
+      "sha256": "3dda73c3c00ef4a31df8db932448a68ae871e0277b984c21f82be6789f3a6703",
+      "count": 32
+    },
+    {
+      "file": "features-048.js",
+      "sha256": "0e67458179b1d86ecac06e3affadbf2bae432b0f850809b65e07aee07f0816aa",
+      "count": 32
+    },
+    {
+      "file": "features-049.js",
+      "sha256": "5ab7ecca983f27d119dedc123c39982048e238edf9afcf4883d38e0f975e5088",
+      "count": 32
+    },
+    {
+      "file": "features-050.js",
+      "sha256": "c0c557f9280323a26d1db04836093312528f864fee4b93e1e01cb207db457766",
+      "count": 32
+    },
+    {
+      "file": "features-051.js",
+      "sha256": "03b932135afcdd1fb1fc2f19614ee9ae81ca922d677f7cc922c5529a6fc65935",
+      "count": 32
+    },
+    {
+      "file": "features-052.js",
+      "sha256": "173453e51859015f6bfaca1e859a07c65271323370e21331f2326e3c9f481d7f",
+      "count": 32
+    },
+    {
+      "file": "features-053.js",
+      "sha256": "2fc607075af5bdd89f88c275ae628485a26cd5c1161ba4be517fe470d9b3a3d7",
+      "count": 32
+    },
+    {
+      "file": "features-054.js",
+      "sha256": "c872c66bb9e2c82e11f70b3a314f032fc0877d1f6e2496e52804761d6c6cbb95",
+      "count": 32
+    },
+    {
+      "file": "features-055.js",
+      "sha256": "35aeb4f5ef5fde403fe8218cdd178cec320b1dbc500641b23870b0015dbb6261",
+      "count": 32
+    },
+    {
+      "file": "features-056.js",
+      "sha256": "ed68b93757db3694e4a552872269fb5b2e3d06515f669cef9a37ee196b1356bb",
+      "count": 32
+    },
+    {
+      "file": "features-057.js",
+      "sha256": "3bc02aed6fe3bdf6078c05c2588e0a35e2f18a92faed4db79d2a2e7bb4116aae",
+      "count": 32
+    },
+    {
+      "file": "features-058.js",
+      "sha256": "f135ff0e41de1c1d8f28eb834067976939ffee9b531883465c31714e63393066",
+      "count": 32
+    },
+    {
+      "file": "features-059.js",
+      "sha256": "ffcd513e4174cee8531d2420889628b625b5c1ebb60f32564ed6f91baa274cd2",
+      "count": 32
+    },
+    {
+      "file": "features-060.js",
+      "sha256": "d88e21e6b8845cf3aa34791b131ca073f5ba730ccda265aa9ce25dad87661024",
+      "count": 32
+    },
+    {
+      "file": "features-061.js",
+      "sha256": "01396fe6561e99819c45470092a1c1dc460301db9f9b979a7c7c3deb319b2d1c",
+      "count": 32
+    },
+    {
+      "file": "features-062.js",
+      "sha256": "2ec593959386b114d7e57d748d855aaf7c14f3d2b714816e6a9e534d96b967b6",
+      "count": 32
+    },
+    {
+      "file": "features-063.js",
+      "sha256": "427a468d51e646b3d46c3a5eaa0d5f8b84014712e1a2aec8c9166e4fae376476",
+      "count": 32
+    },
+    {
+      "file": "features-064.js",
+      "sha256": "6a37b9352f7e1a61f15513a29c99b64a07f1e56a72fa9bc0a8bcf01f55b364a7",
+      "count": 32
+    },
+    {
+      "file": "features-065.js",
+      "sha256": "b2eb07e3c7cbfb090cf99a1bb4645afc3f470335a73936684f51b925fe4439ad",
+      "count": 32
+    },
+    {
+      "file": "features-066.js",
+      "sha256": "fc24d88e675944e333ef822b22a71736fa8d8409c2f8dd5cf3f1cee005747264",
+      "count": 32
+    },
+    {
+      "file": "features-067.js",
+      "sha256": "2a5266f8a88783a69c5a64712c0b3d08e5ec328cb5ad5d2d856586f115a14459",
+      "count": 32
+    },
+    {
+      "file": "features-068.js",
+      "sha256": "eb98f07b054ed516a70d5017827d4563362e1f9d51bbaf10e725ed87930f65bf",
+      "count": 32
+    },
+    {
+      "file": "features-069.js",
+      "sha256": "22570b641b5ea4122d562d394a5170c117c86e3217d5ef76f652c5d0a1f13d1d",
+      "count": 32
+    },
+    {
+      "file": "features-070.js",
+      "sha256": "87f6e8b87025b1d4320c4959962b97ba81078b3d5f2b468cec40d493a2cfaeac",
+      "count": 32
+    },
+    {
+      "file": "features-071.js",
+      "sha256": "b602dbcb502cad656561ced77e83aa254b96a4e80e6074b7f37d09f703dde16f",
+      "count": 32
+    },
+    {
+      "file": "features-072.js",
+      "sha256": "d92c1235396cb66718857ca31382703645262147f524eb84d56d47678c1532fa",
+      "count": 32
+    },
+    {
+      "file": "features-073.js",
+      "sha256": "68d5f649faae609d3246efb6bacb8c228d95717abfe6588f0183d676ed59a84a",
+      "count": 32
+    },
+    {
+      "file": "features-074.js",
+      "sha256": "717dbdf13a8a6381e1bf9e0b75e66691c81202cff7d317c2e0a9f12887a0e615",
+      "count": 32
+    },
+    {
+      "file": "features-075.js",
+      "sha256": "57eed3df7f6bce1f44f127a69c205e74813f9a193fbbb6a073ee6c913b87060f",
+      "count": 32
+    },
+    {
+      "file": "features-076.js",
+      "sha256": "34b1d3f34d0a3d4b5e04c7ab2f65d3efe009886636637a7f012843061bc96eba",
+      "count": 32
+    },
+    {
+      "file": "features-077.js",
+      "sha256": "5a1956e49d8f16fb92998517308f0890f8d84000d1c441f313bc705f22ce8a0a",
+      "count": 32
+    },
+    {
+      "file": "features-078.js",
+      "sha256": "46662faa8561e6b6650d91762dd3ab88f1aa0a66ae8fb839411c8c9694b539f7",
+      "count": 31
+    }
+  ]
+}

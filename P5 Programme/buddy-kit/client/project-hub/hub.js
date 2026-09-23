@@ -3,6 +3,7 @@ import { CF_KEYS, collectState, writeState } from '../city-common/champion-file.
 import { loadCustomSkinBlob, loadCustomSkinMetadata, saveCustomSkin } from '../champion-city/custom-skin.js';
 import { parseCityLayout, projectHubView } from './hub-state.js';
 import { FIT_STUDIO_URL, WORKSHOP_URL } from '../shared/links.js';
+import { resetNewCityDraft } from '../city-common/new-city-draft.js';
 
 const $ = selector => document.querySelector(selector);
 const store = createProjectStore();
@@ -101,10 +102,6 @@ function formatCheckpoint(value) {
   catch { return 'Checkpoint saved on this device'; }
 }
 
-function workspaceLabel(name) {
-  return ({ city:'Open 3D AI City', planner:'Open City Planner', studio:'Open Fit Studio', workshop:'Open AI Workshop' })[name] || 'Open City Planner';
-}
-
 function render(project, versions) {
   const view = projectHubView(project, versions.length);
   activeProject = project;
@@ -114,19 +111,15 @@ function render(project, versions) {
   $('#checkpoint-count').textContent = `${view.checkpointCount} recovery checkpoint${view.checkpointCount === 1 ? '' : 's'}`;
   $('#studio-transfer').textContent = view.studioRevision ? `Studio transfer · revision ${view.studioRevision}` : 'No Studio transfer yet';
   $('#city-count').textContent = view.hasSavedCity ? `1 saved city · ${view.buildingCount} building${view.buildingCount === 1 ? '' : 's'}` : '0 saved cities · ready to grow';
-  $('#machine-count').textContent = 'Build AI skills online. Internet is required; work saves separately.';
-  $('#studio-count').textContent = 'Shape and dress your Champion in the live Studio. Work there saves separately.';
+  $('#machine-count').textContent = isLocalDemo ? 'Build machines locally. Buddy uses your configured online provider.' : 'Build AI skills online. Internet is required; work saves separately.';
+  $('#studio-count').textContent = isLocalDemo ? 'Workshop and Studio share a Champion File. City work stays separate.' : 'Shape and dress your Champion in the live Studio. Work there saves separately.';
   for (const name of ['planner', 'city']) $(`#${name}-revision`).textContent = `REV ${view.revisions[name]}`;
-  $('#continue').href = view.resumeRoute;
-  $('#continue-label').textContent = workspaceLabel(view.resumeWorkspace);
-  const externalResume = ['studio', 'workshop'].includes(view.resumeWorkspace);
-  $('#continue').target = externalResume ? '_blank' : '_self';
-  if (externalResume) $('#continue').rel = 'noopener noreferrer';
-  else $('#continue').removeAttribute('rel');
-  $('#continue-cue').hidden = !externalResume;
+  $('#continue').href = '/city-builder/?example=1';
+  $('#continue-label').textContent = 'Open the example AI City';
+  $('#continue-cue').hidden = true;
   const cityAction = $('#city-action');
-  cityAction.href = view.hasSavedCity ? '/city-builder/?resume=1' : '/planner/';
-  cityAction.innerHTML = `${view.hasSavedCity ? 'Continue my city' : 'Start in Planner'} <span aria-hidden="true">→</span>`;
+  cityAction.href = '/city-builder/?example=1';
+  $('#saved-city-action').hidden = !view.hasSavedCity;
   $('#health').innerHTML = '<span aria-hidden="true">✓</span> Saved on this device';
   $('#health').classList.remove('error');
 }
@@ -190,9 +183,15 @@ $('#open-project').addEventListener('change', async event => {
 
 if (isLocalDemo) {
   $('#demo-check').hidden = false;
-  $('.hub-status').innerHTML = '<i aria-hidden="true"></i> LOCAL DEMO';
   $('#run-demo-check').addEventListener('click', runDemoCheck);
 }
+
+$('#new-city-action').addEventListener('click', event => {
+  if (resetNewCityDraft()) return;
+  event.preventDefault();
+  $('#health').textContent = 'This browser cannot keep a new draft. Check storage before starting.';
+  $('#health').classList.add('error');
+});
 
 $('#studio-action').href = FIT_STUDIO_URL;
 $('#workshop-action').href = WORKSHOP_URL;

@@ -1,0 +1,22 @@
+.rig-auto-dialog { width: min(480px, calc(100vw - 48px)); padding: 26px; border: 1px solid #176079; border-radius: 16px; background: #0b1c2b; color: #d9eaf2; box-shadow: 0 24px 90px #0009; }
+.rig-auto-dialog::backdrop { background: #020a13bc; }
+.rig-auto-dialog h2 { font-size: 21px; margin: 0 0 16px; color: #7eeafa; }
+.rig-auto-dialog p { line-height: 1.6; }
+.rig-auto-target { font-weight: bold; }
+.rig-auto-key { display: block; margin: 20px 0; }
+.rig-auto-key[hidden] { display: none; }
+.rig-auto-key input { display: block; box-sizing: border-box; width: 100%; margin-top: 8px; min-height: 44px; }
+.rig-auto-status { min-height: 48px; color: #a9dbe8; }
+.rig-auto-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 22px; }
+.rig-auto-actions button { min-height: 44px; }
+.rig-auto-actions [data-action=start] { background: #00d4b0; color: #041d24; font-weight: bold; }
+.rig-auto-dialog { box-sizing: border-box; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.rig-auto-connection { min-width: 0; margin: 18px 0; padding: 14px; border: 1px solid #306075; border-radius: 10px; }
+.rig-auto-connection legend { padding: 0 6px; color: #7eeafa; }
+.rig-auto-connection label { display: block; margin: 12px 0; }
+.rig-auto-connection [hidden] { display: none; }
+.rig-auto-connection input:not([type=checkbox]), .rig-auto-connection select { display: block; box-sizing: border-box; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px; border: 1px solid #47758b; border-radius: 6px; background: #102a3d; color: #e4f5fb; }
+.rig-auto-connection .rig-auto-local { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.rig-auto-connection .rig-auto-local[hidden] { display: none; }
+.rig-auto-connection input[type=checkbox] { width: 20px; height: 20px; }
+.rig-auto-direct p, .rig-auto-settings-note { font-size: 12px; color: #adc7d5; }

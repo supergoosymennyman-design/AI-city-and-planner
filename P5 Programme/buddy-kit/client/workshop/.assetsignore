@@ -1,0 +1,8 @@
+# Not static assets: the Worker BUNDLES this code (cloudflare/README.md); server internals and
+# env files must never be publicly served. serve.cjs + docs are host-side files, not page assets.
+cloudflare
+buddy/server
+buddy/worker
+**/node_modules
+**/.env
+serve.cjs

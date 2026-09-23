@@ -1,0 +1,177 @@
+/* client/mock-project.css — the Reflex-Wiring mock host page: a presentable "future project app"
+   course editor, shown to the team as the second proof that BuddyChat/BuddyWidget drop into any
+   project screen. Shares styles.css's dark palette (loaded FIRST — see mock-project.html's <link>
+   order) so this page and the buddy widget panel read as ONE product, not two mismatched skins.
+   New tokens are uniquely named `--rw-*` so they can never shadow styles.css's --bg/--card/--ink/
+   --accent at :root, nor the buddy's own `--buddy-*` set in buddy-theme.css (all declare their own
+   blocks; same-named vars would collide, with the LAST-loaded stylesheet silently winning everywhere,
+   including inside the mounted widget). */
+:root {
+  --rw-wall: #8b95a1; --rw-wall-dark: #4d5560;
+  --rw-mud: #a06a3d; --rw-mud-dark: #5b3a20;
+  --rw-gap: #2a1030; --rw-gap-glow: #7c3aed;
+  --rw-dark: #0a1024; --rw-star: #cfe0ea;
+  --rw-muted: #9db2c4; --rw-dim: #7f95a8;
+  --rw-shadow: 0 18px 40px rgba(0, 0, 0, .35);
+  --rw-border: #2a3a49;
+}
+
+body {
+  background: radial-gradient(1200px 800px at 12% -10%, #17324a 0%, transparent 60%), var(--bg, #0f1720);
+  min-height: 100vh;
+}
+
+#rw-app { min-height: 100vh; display: flex; justify-content: center; padding: clamp(1rem, 3vw, 2.5rem); }
+.rw-shell { width: 100%; max-width: 960px; display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 6rem; }
+
+.rw-header { padding: .5rem 0 .25rem; }
+.rw-header h1 { margin: 0 0 .35rem; font-size: clamp(1.6rem, 3vw, 2.2rem); letter-spacing: .01em; }
+.rw-tagline { margin: 0; color: var(--rw-muted, #9db2c4); font-size: 1rem; max-width: 46ch; }
+
+.rw-main { display: grid; grid-template-columns: 1.3fr 1fr; gap: 1.25rem; align-items: start; }
+
+.rw-course,
+.rw-panel {
+  background: var(--card, #18232e);
+  border: 1px solid var(--rw-border);
+  border-radius: 1.1rem;
+  padding: 1.25rem 1.4rem;
+  box-shadow: var(--rw-shadow);
+}
+/* Course strip + the Try-course action bar both span the full shell width, bracketing the
+   rules|speed row in between — keeps the bottom-right corner (where the buddy bubble floats)
+   clear of any single card's tallest edge (see mock-project's Task-6 smoke composition note). */
+.rw-course, .rw-run { grid-column: 1 / -1; }
+.rw-panel { display: flex; flex-direction: column; min-width: 0; }
+
+.rw-course h2,
+.rw-panel h2,
+.rw-speed-label {
+  display: block;
+  margin: 0 0 .9rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink, #eaf2f8);
+}
+
+/* ── Course strip: 4 static CSS-art hazard tiles (no raster, no emoji) ─────────────────────────── */
+.rw-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.rw-tile { display: flex; flex-direction: column; align-items: center; gap: .55rem; min-width: 0; }
+.rw-tile-art {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: .8rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 8px 18px rgba(0, 0, 0, .3);
+}
+.rw-tile-label {
+  font-size: .8rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--rw-muted, #9db2c4);
+}
+
+/* Wall — stone-block courses via stacked repeating-linear-gradients, with a soft top highlight
+   (first layer) for a bevelled, lit-from-above feel. */
+.rw-tile-wall .rw-tile-art {
+  background-color: var(--rw-wall-dark);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .12), transparent 45%),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .35) 0 3px, transparent 3px 29px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .35) 0 3px, var(--rw-wall) 3px 68px);
+}
+
+/* Mud — soft brown splatter via layered radial-gradients. */
+.rw-tile-mud .rw-tile-art {
+  background-color: var(--rw-mud-dark);
+  background-image:
+    radial-gradient(ellipse 42% 32% at 24% 30%, var(--rw-mud) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 42% at 72% 68%, #6e441f 0%, transparent 70%),
+    radial-gradient(ellipse 30% 26% at 82% 18%, var(--rw-mud) 0%, transparent 70%);
+}
+
+/* Gap — a void with a hazard-stripe edge (no floor to stand on). */
+.rw-tile-gap .rw-tile-art {
+  background: radial-gradient(ellipse 72% 62% at 50% 58%, #000 0%, var(--rw-gap) 55%, #3b1a52 100%);
+}
+.rw-tile-gap .rw-tile-art::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 8px;
+  background: repeating-linear-gradient(45deg, var(--rw-gap-glow) 0 8px, #1a0d22 8px 16px);
+  opacity: .85;
+}
+
+/* Dark — a night sky; stars are box-shadow dots, never an image or glyph. */
+.rw-tile-dark .rw-tile-art { background: linear-gradient(180deg, var(--rw-dark), #050810); }
+.rw-tile-dark .rw-tile-art::before {
+  content: ''; position: absolute; width: 2px; height: 2px; border-radius: 50%;
+  background: var(--rw-star); top: 18%; left: 22%; opacity: .9;
+  box-shadow:
+    12px 8px 0 0 var(--rw-star), 26px 20px 0 0 var(--rw-star), 42px 4px 0 0 var(--rw-star),
+    58px 16px 0 0 var(--rw-star), 16px 32px 0 0 var(--rw-star), 48px 28px 0 0 var(--rw-star),
+    4px 40px 0 0 var(--rw-star);
+}
+
+/* ── Reaction-speed slider ──────────────────────────────────────────────────────────────────────── */
+.rw-speed-row { display: flex; align-items: center; gap: 1rem; }
+.rw-speed-input {
+  flex: 1; height: 1.6rem; accent-color: var(--accent, #39d98a);
+  /* Reset styles.css's blanket `input{...}` box look (padding/border/background) — those read as a
+     broken boxy track on a native range input; this control draws its own track via accent-color. */
+  padding: 0; border: 0; background: transparent;
+}
+.rw-speed-value {
+  font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.2ch; text-align: right;
+  color: var(--accent, #39d98a); font-size: 1.05rem;
+}
+.rw-hint { margin: .7rem 0 0; color: var(--rw-dim, #7f95a8); font-size: .82rem; }
+
+/* ── Rules list ─────────────────────────────────────────────────────────────────────────────────── */
+.rw-rules-list {
+  list-style: none; margin: 0 0 .8rem; padding: 0; display: flex; flex-direction: column; gap: .5rem;
+  max-height: 14rem; overflow: auto;
+}
+.rw-rule {
+  display: flex; align-items: center; gap: .6rem; background: #0c141b; border: 1px solid var(--rw-border);
+  border-radius: .65rem; padding: .55rem .7rem;
+}
+.rw-rule-text { flex: 1; font-size: .92rem; word-break: break-word; min-width: 0; }
+.rw-rule-remove {
+  /* 2.75rem = 44px at 16px root — the tablet tap-target floor (was 1.8rem, flagged in review). */
+  flex: none; width: 2.75rem; height: 2.75rem; border-radius: 50%; padding: 0;
+  background: transparent; border: 1px solid #3a4d5e; color: var(--rw-muted, #9db2c4);
+  font-size: 1rem; line-height: 1; display: grid; place-items: center;
+}
+.rw-rule-remove:hover { border-color: #e5687a; color: #e5687a; }
+.rw-rule-empty { color: var(--rw-dim, #7f95a8); font-style: italic; font-size: .88rem; padding: .4rem .1rem; }
+
+.rw-add-form { display: flex; gap: .55rem; margin-top: auto; }
+.rw-add-input { flex: 1; min-width: 0; }
+.rw-add-button { flex: none; }
+/* Apply-feedback line under the form ("already have that reflex" / failed-apply). min-height
+   reserves the row so a message appearing never shifts the layout under the child's finger. */
+.rw-form-status { margin: .4rem 0 0; min-height: 1.2em; font-size: .9rem; color: var(--rw-muted); }
+
+/* ── Try-course action bar (full width) + result ───────────────────────────────────────────────── */
+/* Both children cluster at the LEFT on purpose (not space-between): the buddy bubble is fixed to
+   the viewport's bottom-right corner, and this is the last/lowest card on the page — keeping its
+   own content left-anchored means the bubble only ever floats over this bar's empty right-hand
+   background, never over the button or the result text (see Task-6 smoke composition note). */
+.rw-run {
+  flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap;
+  gap: .9rem 2rem;
+}
+.rw-try-button { flex: none; font-size: 1.05rem; padding: .75rem 1.6rem; }
+.rw-run-result { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.rw-result-label {
+  display: block; font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--rw-dim, #7f95a8);
+}
+.rw-result { margin: .2rem 0 0; font-size: 1.35rem; font-weight: 700; }
+.rw-result[data-tier="idle"] { color: var(--rw-muted, #9db2c4); }
+.rw-result[data-tier="low"] { color: #e5687a; }
+.rw-result[data-tier="ok"] { color: #e6a94a; }
+.rw-result[data-tier="great"] { color: var(--accent, #39d98a); }
+
+@media (max-width: 760px) {
+  .rw-main { grid-template-columns: 1fr; }
+  .rw-track { grid-template-columns: repeat(2, 1fr); }
+}

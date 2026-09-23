@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Animal Sorter — minimal buddy host</title>
+<!-- The host's OWN sheet. It stays exactly where it is: buddy-boot.js inserts buddy-core.css and
+     buddy-theme.css AHEAD of this link, so these overrides win with no !important. -->
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+  <main>
+    <h1>Animal Sorter</h1>
+    <p>A fake project, wired to the buddy in one script tag. Tap the launcher, bottom right.</p>
+    <pre id="state"></pre>
+  </main>
+  <!-- THIS is the integration. Point it at your gateway; everything else loads from there. -->
+  <script src="/buddy-boot.js"></script>
+  <script src="host.js"></script>
+</body></html>

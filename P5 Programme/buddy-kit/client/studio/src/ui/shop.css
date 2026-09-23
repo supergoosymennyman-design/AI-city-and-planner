@@ -1,0 +1,751 @@
+.shop-demo-note { font-size: 12px; padding: 0 12px; color: var(--text); }
+#shop-sidebar.collapsed .shop-demo-note { display: none; }
+#shop-preview { height: 170px; width: 100%; min-height: 0; flex: 0 0 auto; }
+@media (max-width: 1180px) {
+  #shop-sidebar:not(.user-expanded) .shop-demo-note { display: none; }
+}
+/* ---- Model Shop (left sidebar) ----
+   FIRST child of #main, before #viewport. Reuses #sidebar's panel gradient,
+   border, radius and glow so it reads as the same dark-neon material. Selectors
+   are prefixed with #shop-sidebar to outrank the generic #sidebar section rules. */
+#shop-sidebar {
+  /* Resizable: shop-resize.js writes the `--shop-w` custom property on this
+     element (never an inline width). The collapsed and <1180px rail rules below
+     intentionally hard-pin 56px/240px so the property never leaks into the rail. */
+  position: relative;
+  width: var(--shop-w, 240px);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid #15506e;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.1), inset 0 1px 0 rgba(0, 229, 255, 0.1);
+}
+
+#shop-sidebar .shop-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid #15506e;
+  flex-shrink: 0;
+}
+
+#shop-sidebar .shop-head h2 {
+  margin: 0;
+  flex: 1 1 100%;
+  min-width: 0;
+  font-family: var(--font-head);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--teal);
+  text-shadow: 0 0 8px var(--glow);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#shop-sidebar .shop-wallet {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+#shop-sidebar .shop-wallet span {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid #1b4a66;
+  border-radius: 999px;
+  background: #081422;
+  color: #9ff1ff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+#shop-sidebar #shop-toggle {
+  width: 30px;
+  min-height: 30px;
+  flex-shrink: 0;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+#shop-sidebar #shop-status {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 12px;
+  color: #ffb4c8;
+  background: rgba(255, 90, 130, 0.12);
+  border-bottom: 1px solid rgba(255, 90, 130, 0.35);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+#shop-sidebar #shop-status:empty {
+  display: none;
+}
+
+#shop-sidebar #shop-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Model cards rendered into #shop-body by ShopPanel (Task 12). */
+#shop-sidebar .shop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #1b4a66;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #0b1b2e, #091624);
+  box-shadow: inset 0 1px 0 rgba(0, 229, 255, 0.06);
+}
+
+#shop-sidebar .shop-card .shop-card-name {
+  font-family: var(--font-head);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+
+#shop-sidebar .shop-card .shop-badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px solid #1b4a66;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+#shop-sidebar .shop-card.is-locked {
+  opacity: 0.72;
+  border-style: dashed;
+}
+
+#shop-sidebar .shop-card.is-locked .shop-badge {
+  color: #ffc857;
+  border-color: rgba(255, 200, 87, 0.5);
+}
+
+#shop-sidebar .shop-card .shop-action {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+#shop-sidebar .shop-card [data-action="place"] {
+  border-color: #1f7a63;
+  color: #7dffd4;
+}
+
+#shop-sidebar .shop-card [data-action="buy"] {
+  border-color: #7a5a1f;
+  color: #ffd27d;
+}
+
+#shop-sidebar .shop-card [data-action="place"]:disabled,
+#shop-sidebar .shop-card [data-action="buy"]:disabled {
+  border-color: #1b4a66;
+  color: var(--muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ---- Model-card preview region (Task 7) ----
+   Each shop card leads with a `.shop-card-preview` media box: a FIXED 4:3 frame
+   that CLIPS its media so a tall/wide thumbnail can never stretch the card. The
+   thumbnail is letterboxed inside it (`object-fit: contain`), and a missing
+   thumbnail falls back to a neutral CSS-drawn plate — never a blank gap and never
+   an emoji. Border/radius/background ramp mirror the `.shop-card` rule above so
+   the media box and the card read as one object. */
+#shop-sidebar .shop-card-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid #1b4a66;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #081422, #050d18);
+  box-shadow:
+    inset 0 1px 0 rgba(0, 229, 255, 0.05),
+    inset 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+#shop-sidebar .shop-card-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Thumbnail fallback: a centred "no render yet" plate drawn entirely from
+   gradients + one pseudo-element (no asset, no emoji). It fills the 4:3 region
+   so a missing thumbnail still reads as a deliberate placeholder, not a void. */
+#shop-sidebar .shop-card-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(95, 134, 163, 0.08) 0 6px,
+      transparent 6px 12px
+    ),
+    linear-gradient(180deg, rgba(21, 80, 110, 0.16), rgba(4, 12, 24, 0.35));
+}
+
+#shop-sidebar .shop-card-thumb-placeholder::before {
+  content: "";
+  width: 34%;
+  aspect-ratio: 1 / 1;
+  border: 2px solid rgba(95, 134, 163, 0.5);
+  border-radius: 6px;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(95, 134, 163, 0.55) 0 20%, transparent 22%),
+    linear-gradient(180deg, transparent 60%, rgba(95, 134, 163, 0.4) 60% 100%);
+}
+
+/* P3: an empty preview host collapses out of layout entirely. `display: none`
+   pulls it from the `.shop-tools` flex column, so it consumes ZERO height AND
+   zero flex gap (the container's `gap: 8px` can no longer double-count an empty
+   box). Removed again the moment a model is actually previewed. */
+#shop-sidebar #shop-preview.is-empty {
+  display: none;
+}
+
+/* Developer tools strip (clearly labelled, pinned below the scrolling body). */
+#shop-sidebar #shop-debug {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid #15506e;
+  background: rgba(4, 12, 24, 0.6);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+#shop-sidebar #shop-debug button {
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-color: #1b4a66;
+  color: var(--muted);
+  background: #081422;
+  text-transform: none;
+  letter-spacing: 0.2px;
+}
+
+#shop-sidebar #shop-debug button:hover {
+  color: #bff3ff;
+  border-color: var(--teal);
+}
+
+/* ---- Model Shop toolbar (Wave A) ----
+   Persistent search + category toolbar, OUTSIDE #shop-body so a card re-render
+   never rebuilds it (that is how focus survives typing). Same tokens/borders as
+   the rest of the panel. */
+#shop-sidebar .shop-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #15506e;
+  flex-shrink: 0;
+  background: rgba(4, 12, 24, 0.35);
+}
+
+#shop-sidebar #shop-search {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #1b4a66;
+  border-radius: var(--radius);
+  background: #081422;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  text-transform: none;
+}
+
+#shop-sidebar #shop-search::placeholder {
+  color: var(--muted);
+  text-transform: none;
+}
+
+#shop-sidebar #shop-search:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 10px var(--glow);
+}
+
+#shop-sidebar #shop-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#shop-sidebar .shop-cat-chip {
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid #1b4a66;
+  border-radius: 999px;
+  background: #081422;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#shop-sidebar .shop-cat-chip:hover {
+  color: #bff3ff;
+  border-color: var(--teal);
+  box-shadow: none;
+  transform: none;
+}
+
+/* Authored category icon: a CSS marker fed by `data-icon`, so the chip's LABEL
+   text stays exactly the taxonomy label (never "icon + label"). */
+#shop-sidebar .shop-cat-chip[data-icon]::before {
+  content: attr(data-icon);
+  margin-right: 5px;
+  font-size: 13px;
+  line-height: 1;
+  vertical-align: -1px;
+}
+
+/* Mirrors `.clay-mirror-opt.active` (the studio's segmented-control look). */
+#shop-sidebar .shop-cat-chip.active {
+  background: linear-gradient(180deg, #00e5ff, #00b3d1);
+  border-color: #00e5ff;
+  color: #04121f;
+  box-shadow: 0 0 10px var(--glow);
+}
+
+/* Category heading rendered into #shop-body by the panel ("hands", "feet", …). */
+#shop-sidebar .shop-category {
+  margin: 6px 0 0;
+  padding-bottom: 4px;
+  font-family: var(--font-head);
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid #15506e;
+}
+
+#shop-sidebar .shop-category:first-child {
+  margin-top: 0;
+}
+
+/* Shown when a search/category filter matches no model. */
+#shop-sidebar .shop-empty {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+/* Drag handle on unlocked cards. `touch-action:none` is what lets a tablet
+   pointerdown-drag beat the browser's pan gesture. */
+#shop-sidebar .shop-drag-handle {
+  align-self: flex-start;
+  cursor: grab;
+  padding: 2px 8px;
+  min-height: 22px;
+  border: 1px dashed #1f7a63;
+  border-radius: 999px;
+  background: transparent;
+  color: #7dffd4;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  touch-action: none;
+  user-select: none;
+}
+
+#shop-sidebar .shop-drag-handle:hover {
+  border-color: var(--teal);
+  color: #bff3ff;
+  box-shadow: 0 0 8px var(--glow);
+}
+
+#shop-sidebar .shop-drag-handle:active,
+#shop-sidebar .shop-drag-handle.dragging {
+  cursor: grabbing;
+  border-style: solid;
+  border-color: var(--teal);
+  color: #ffffff;
+}
+
+/* Wallet icons: ::before ONLY, so #shop-coins/#shop-level keep their text. */
+#shop-sidebar .shop-wallet [data-role="coins"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border: 2px solid #ffd76a;
+  border-radius: 50%;
+  margin-right: 4px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+#shop-sidebar .shop-wallet [data-role="level"]::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--teal);
+  transform: rotate(45deg);
+  margin-right: 4px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Resize strip on the sidebar's right edge; mirrors #splitter's hover/drag
+   highlight. Rendered only when the sidebar is expanded (hidden in the rail). */
+#shop-sidebar #shop-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  z-index: 2;
+  cursor: col-resize;
+  background: #0a1a2c;
+  border-left: 1px solid #15506e;
+  touch-action: none;
+}
+
+#shop-sidebar #shop-resize:hover,
+#shop-sidebar #shop-resize.dragging {
+  background: rgba(0, 229, 255, 0.25);
+}
+
+/* ---- Skill tree + Shop⇄Tree toggle (Wave B) ----
+   The toggle mirrors the studio's `.clay-mirror-seg` segmented control (same
+   tokens/borders as the rest of the panel). The tree itself is a positioned
+   `.skill-tree-canvas` holding one absolutely-positioned `.skill-branch` lane
+   per non-empty branch, with a decorative `svg.skill-tree-edges` layer UNDER
+   the nodes drawing straight centre-to-centre parent→child lines.
+   Node state is carried by `[data-state]`; the unlock highlight is a
+   SINGLE-iteration animation — the flash-safety rule allows at most 3
+   flashes/second, so nothing here loops. */
+#shop-sidebar #shop-view-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid #1b4a66;
+  border-radius: 999px;
+  background: #081422;
+}
+
+#shop-sidebar .shop-view-opt {
+  flex: 1 1 0;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  line-height: 20px;
+}
+
+#shop-sidebar .shop-view-opt:hover {
+  color: #ffffff;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Active view: mirrors `.clay-mirror-opt.active`; the class and the aria-pressed
+   attribute are both covered so the panel can drive either one. */
+#shop-sidebar .shop-view-opt.active,
+#shop-sidebar .shop-view-opt[aria-pressed="true"] {
+  background: linear-gradient(180deg, #00e5ff, #00b3d1);
+  color: #04121f;
+  box-shadow: 0 0 10px var(--glow);
+}
+
+/* Tree scroll box: a plain scroll container for the absolutely-positioned
+   canvas. Its OWN padding is zero — the layout engine supplies ALL internal
+   spacing via its `padding` option, so the deepest node sits exactly
+   `layout.padding` from the content edge and there is no top void. */
+#shop-sidebar #shop-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: block;
+  position: relative;
+  overflow: auto;
+  padding: 0;
+  list-style: none;
+}
+
+/* The positioned canvas the layout engine measured: explicit width/height,
+   an SVG edge layer underneath, and one absolutely-placed lane per branch. */
+#shop-sidebar .skill-tree-canvas {
+  position: relative;
+}
+
+/* Edge layer: a decorative SVG UNDER the lanes (z-index 0) that never eats
+   pointer events. Every line is a straight parent-top -> child-bottom segment. */
+#shop-sidebar .skill-tree-edges {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Edges are dim by default and light up when the CHILD node is achieved.
+   `stroke-dasharray: 1` pairs with the `pathLength="1"` the panel sets, so the
+   one-shot fill below has exactly one dash-unit to reveal. */
+#shop-sidebar .skill-tree-edges line {
+  stroke: #15506e;
+  stroke-width: 2;
+  stroke-dasharray: 1;
+}
+
+#shop-sidebar .skill-tree-edges line[data-state="lit"] {
+  stroke: var(--teal);
+  filter: drop-shadow(0 0 4px var(--glow));
+}
+
+/* One-shot fill: dashoffset 1 -> 0 reveals the line once. NEVER `infinite`. */
+#shop-sidebar .skill-tree-edges line.is-filling {
+  animation: edge-fill 700ms linear 1 both;
+}
+
+@keyframes edge-fill {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* One lane per NON-EMPTY branch, absolutely placed at its column's centre. It
+   is the coordinate frame for its nodes (all at left 0), so every node in a
+   branch shares one centerX; the node carries the depth-derived `top`. */
+#shop-sidebar .skill-branch {
+  position: absolute;
+  top: 0;
+  list-style: none;
+}
+
+#shop-sidebar #shop-tree[hidden] {
+  display: none;
+}
+
+#shop-sidebar .skill-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 10px 7px 22px;
+  border: 1px solid #1b4a66;
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: rgba(8, 20, 34, 0.85);
+  color: var(--text);
+  list-style: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+#shop-sidebar .skill-node-name {
+  font-family: var(--font-head);
+  font-size: 11px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* State dot: a CSS-only marker on the name, never an emoji in element text. */
+#shop-sidebar .skill-node-name::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+  vertical-align: 1px;
+}
+
+#shop-sidebar .skill-node-reward {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: #9cb9cc;
+}
+
+#shop-sidebar .skill-node[data-state="locked"] {
+  opacity: 1;
+  border-color: #123a52;
+  border-left-color: #1b4a66;
+  color: #9cb9cc;
+}
+
+#shop-sidebar .skill-node[data-state="locked"] .skill-node-name::before {
+  opacity: 0.5;
+}
+
+#shop-sidebar .skill-node[data-state="available"] {
+  border-color: #1b4a66;
+  border-left-color: var(--teal);
+  color: #bff3ff;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.16);
+}
+
+#shop-sidebar .skill-node[data-state="available"] .skill-node-name::before {
+  border-color: var(--teal);
+}
+
+#shop-sidebar .skill-node[data-state="achieved"] {
+  border-color: #1f7a63;
+  border-left-color: var(--rig);
+  background: rgba(0, 255, 157, 0.08);
+  color: #d9ffe9;
+  box-shadow: 0 0 10px rgba(0, 255, 157, 0.22);
+}
+
+#shop-sidebar .skill-node[data-state="achieved"] .skill-node-name::before {
+  border-color: var(--rig);
+  background: var(--rig);
+}
+
+#shop-sidebar .skill-node[data-state="achieved"] .skill-node-reward {
+  color: #9ff1c9;
+}
+
+/* Newly unlocked node: a SINGLE pulse (one iteration, fill-forwards). No
+   `infinite`/looping motion — the highlight is applied then removed by the
+   panel once the animation ends, so it can never flash repeatedly. */
+#shop-sidebar .skill-node.is-newly-achieved {
+  animation: skill-node-unlock 0.9s ease-out 1 both;
+}
+
+@keyframes skill-node-unlock {
+  0% {
+    border-color: #00ff9d;
+    background-color: rgba(0, 255, 157, 0.08);
+    box-shadow: 0 0 0 rgba(0, 255, 157, 0);
+  }
+  45% {
+    border-color: #7dffd4;
+    background-color: rgba(0, 255, 157, 0.22);
+    box-shadow: 0 0 18px rgba(0, 255, 157, 0.75);
+  }
+  100% {
+    border-color: #1f7a63;
+    background-color: rgba(0, 255, 157, 0.08);
+    box-shadow: 0 0 10px rgba(0, 255, 157, 0.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #shop-sidebar .skill-node.is-newly-achieved,
+  #shop-sidebar .skill-tree-edges line.is-filling {
+    animation: none;
+  }
+}
+
+/* Collapsed rail: only the header (and its toggle) stays visible. */
+#shop-sidebar.collapsed {
+  width: 56px;
+}
+
+#shop-sidebar.collapsed .shop-head {
+  justify-content: center;
+  padding: 8px;
+}
+
+#shop-sidebar.collapsed .shop-head h2,
+#shop-sidebar.collapsed .shop-wallet,
+#shop-sidebar.collapsed .shop-tools,
+#shop-sidebar.collapsed #shop-view-toggle,
+#shop-sidebar.collapsed #shop-status,
+#shop-sidebar.collapsed #shop-body,
+#shop-sidebar.collapsed #shop-tree,
+#shop-sidebar.collapsed #shop-debug,
+#shop-sidebar.collapsed #shop-resize {
+  display: none;
+}
+
+/* A failed catalog is invisible while the panel is a rail, so the toggle itself
+   carries the error state. */
+#shop-sidebar.has-error #shop-toggle {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+  box-shadow: 0 0 10px rgba(255, 107, 107, 0.45);
+}
+
+#shop-sidebar.has-error #shop-toggle::after {
+  content: '!';
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+/* Below 1180px the shop defaults to a 56px rail, which leaves the 1024x768 viewport
+   608px wide (the original design floor was >= 444px). A user can still force it open
+   (`.user-expanded`, wired in Task 16): the 240px sidebar then leaves 424px. */
+@media (max-width: 1180px) {
+  #shop-sidebar {
+    width: 56px;
+  }
+
+  #shop-sidebar.user-expanded {
+    width: 240px;
+  }
+
+  #shop-sidebar:not(.user-expanded) .shop-head {
+    justify-content: center;
+    padding: 8px;
+  }
+
+  #shop-sidebar:not(.user-expanded) .shop-head h2,
+  #shop-sidebar:not(.user-expanded) .shop-wallet,
+  #shop-sidebar:not(.user-expanded) .shop-tools,
+  #shop-sidebar:not(.user-expanded) #shop-view-toggle,
+  #shop-sidebar:not(.user-expanded) #shop-status,
+  #shop-sidebar:not(.user-expanded) #shop-body,
+  #shop-sidebar:not(.user-expanded) #shop-tree,
+  #shop-sidebar:not(.user-expanded) #shop-debug,
+  #shop-sidebar:not(.user-expanded) #shop-resize {
+    display: none;
+  }
+}

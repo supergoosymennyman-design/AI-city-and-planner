@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Look — four views of a model</title>
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin: 0; height: 100%; background: #5c6169; font: 14px/1.4 system-ui, sans-serif; color: #eee; }
+  #sheet { display: block; width: min(100vw, 100vh); height: auto; margin: 0 auto; }
+  #hud { position: fixed; left: 12px; top: 12px; background: rgba(20, 22, 26, .82); padding: 10px 12px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div id="hud">Loading…</div>
+<img id="sheet" alt="four views">
+<script type="module" src="./look.js"></script>
+</body>
+</html>

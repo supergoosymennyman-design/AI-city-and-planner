@@ -1,0 +1,256 @@
+/* client/buddy-theme.css — the buddy's DEFAULT SKIN, and the whole of its restyle contract.
+   Loads AFTER buddy-core.css (structure) and BEFORE the host's own sheet: a consumer inserts both
+   links ahead of any stylesheet already in the host's <head>, so a host override never needs
+   !important. web/project/p5-01-recycle-eye/game.js's mountBuddy() does exactly that today; the
+   integration kit's own loader (client/buddy-boot.js) generalises it.
+
+   A host restyles the buddy in one of two ways, and nothing else:
+     1. override the custom properties below (usually four or five of them), or
+     2. replace this whole file (BuddyBoot.mount({theme:false}) and ship your own).
+   Re-authoring buddy-core.css is NOT one of them: every layout bug of 2026-07-27 lived in structure
+   (a flex item shrinking below its content, a vh cap inside a transformed containing block, a
+   percentage height ignoring a sibling header), and a host that copies structure inherits all of them
+   and fixes them alone. See INTEGRATION.md.
+
+   No emoji anywhere: the launcher's face is CSS shapes (see the .bw-bot* art below), never a glyph. */
+.buddy-app, .bw-bubble, .bw-panel {
+  --buddy-surface: #18232e;        /* panels, cards, chat surface */
+  --buddy-surface-2: #0c141b;      /* recessed: inputs, picker rows, palette, meter track */
+  --buddy-ink: #eaf2f8;            /* primary text */
+  --buddy-ink-dim: #9db2c4;        /* labels, notes, secondary text */
+  --buddy-ink-faint: #7f95a8;      /* command echo, model ids, section headers */
+  --buddy-accent: #39d98a;         /* affirmative actions, current selection, meter fill */
+  --buddy-accent-ink: #04110a;     /* text ON the accent */
+  --buddy-accent-wash: #132b22;    /* accent-tinted surface (current row, action card) */
+  --buddy-me: #2b6cb0;             /* the CHILD's chat bubble */
+  --buddy-buddy-bubble: #20303d;   /* the BUDDY's chat bubble */
+  --buddy-line: #33475a;           /* borders, dividers */
+  --buddy-danger: #e5687a;         /* inline validation ("that doesn't look like a model id") */
+  --buddy-radius: 1rem;            /* panels, cards, bubbles */
+  --buddy-radius-sm: .6rem;        /* inputs, buttons, rows */
+  --buddy-font: inherit;           /* proportional text — see the .buddy-app rule below for WHY inherit */
+  --buddy-font-mono: ui-monospace, monospace;
+  --buddy-shadow: 0 28px 64px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.25);
+  --buddy-launcher-bg: radial-gradient(circle at 32% 28%, #4be3a0 0%, #22b271 55%, #14895a 100%);
+  --buddy-launcher-ring: rgba(86,230,166,.35);
+}
+
+/* SUPPORTING TINTS — the second tier of the same contract. A host CAN override these, and almost
+   never needs to; they exist because the split's rule is "no colour literal outside a variable", and
+   these are the one-off values the names above could not honestly absorb without CHANGING what the
+   buddy looks like today. Overriding the block above alone leaves a coherent skin. */
+.buddy-app, .bw-bubble, .bw-panel {
+  --buddy-focus: #eaf2f8;                 /* focus ring; read by buddy-core.css's :focus-visible rules */
+  --buddy-ink-muted: #8aa0b2;             /* a skipped tool line — quieter than --buddy-ink-dim */
+  --buddy-hover: #1c2b38;                 /* hovered / keyboard-focused palette row */
+  --buddy-line-strong: #5a6d80;           /* a locked model row on hover */
+  --buddy-scrim: rgba(3,8,12,.6);         /* the dimmed backdrop behind the picker + key sheet */
+  --buddy-code-bg: rgba(255,255,255,.08); /* `inline code` inside a chat bubble */
+  --buddy-tool: #c7b56a;                  /* a running tool line */
+  --buddy-tool-bg: rgba(199,181,106,.06);
+  --buddy-accent-faint: rgba(57,217,138,.08); /* a finished tool line */
+  --buddy-memory-bg: #161a2e;             /* the rememberUser card — deliberately NOT the accent wash,
+                                             so "shall I remember this?" never looks like [Do it] */
+  --buddy-memory-line: #6c7bff;
+  --buddy-shadow-up: 0 -6px 18px rgba(0,0,0,.35); /* the palette floats UP out of the composer */
+  --buddy-head-ink: #f2f7fb;              /* the panel header's name tag + minimise bar */
+  --buddy-head-bg: rgba(0,0,0,.18);
+  --buddy-head-line: rgba(255,255,255,.08);
+  --buddy-chip-bg: rgba(255,255,255,.1);  /* the minimise button */
+  --buddy-chip-bg-hover: rgba(255,255,255,.2);
+  --buddy-launcher-shadow: 0 10px 26px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.25);
+  --buddy-launcher-shadow-open: 0 10px 24px rgba(0,0,0,.4);
+}
+
+/* The buddy's proportional typeface, and the reason --buddy-font defaults to `inherit` rather than to
+   a real stack. The buddy has never set a font-family — its text has always inherited the host page's
+   — so shipping `system-ui, sans-serif` as the default here would have SILENTLY restyled every host
+   that uses anything else. Measured in Chromium: with `inherit`, `.buddy-app`'s computed fontFamily is
+   byte-identical before and after this rule on both hosts ("system-ui, sans-serif" on
+   client/mock-project.html, '"Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif' on
+   web/project/p5-01-recycle-eye) — while `--buddy-font: Georgia, serif` from the host makes the chat,
+   the bubbles AND the panel's name tag follow, with the host page's own font untouched.
+
+   Mechanically: `inherit` on a custom property means "take the parent's --buddy-font", and no parent
+   declares one, so the value is guaranteed-invalid; `font-family: var(--buddy-font)` is then invalid
+   at computed-value time, and font-family is an INHERITED property, so it falls back to the inherited
+   value. That is the specified behaviour, not a happy accident. `.bw-panel` is included so the name tag
+   (which lives outside .buddy-app) follows the same knob. */
+.buddy-app, .bw-panel { font-family: var(--buddy-font); }
+
+/* ── chat core: name gate + form controls ────────────────────────────────────────────────────────
+   `:where(.buddy-app)` and not `.buddy-app`: these two rules replace the BARE `input {}` / `button {}`
+   that used to restyle every control on the host's page, and `:where()` contributes ZERO specificity —
+   so they stay exactly as weak as the element rules they replace. `.buddy-app button` would be (0,1,1)
+   and would start BEATING the single-class rules it must lose to (.picker-row, .model-chip,
+   .sheet-primary, and every host skin rule), painting the model rows as accent-filled buttons. */
+:where(.buddy-app) input { font-size:1.1rem; border-color:var(--buddy-line); background:var(--buddy-surface-2); color:var(--buddy-ink); }
+:where(.buddy-app) button { font-size:1rem; background:var(--buddy-accent); color:var(--buddy-accent-ink); font-weight:700; }
+:where(.buddy-app) button.ghost { background:transparent; color:var(--buddy-ink); border-color:var(--buddy-line); }
+
+/* ── chat core: HUD + memory meter ─────────────────────────────────────────────────────────────── */
+.buddy-hud { background:var(--buddy-surface); }
+.meter-label { font-weight:700; color:var(--buddy-ink-dim); }
+.meter-track { background:var(--buddy-surface-2); border-color:var(--buddy-line); }
+.meter-fill { background:var(--buddy-accent); }
+.meter-stats { font-variant-numeric:tabular-nums; color:var(--buddy-ink-dim); font-size:.9rem; }
+
+/* ── chat core: log + bubbles ──────────────────────────────────────────────────────────────────── */
+.buddy-chat { background:var(--buddy-surface); }
+.bubble.me { background:var(--buddy-me); }
+.bubble.buddy { background:var(--buddy-buddy-bubble); }
+/* Rendered markdown INSIDE a chat bubble (buddy.js renderRich) — only the typographic half lives
+   here; the margin reset that keeps page-level spacing out of the bubble is structure (core). */
+.bubble h4 { font-size:1em; }
+.bubble code { font-family:var(--buddy-font-mono); font-size:.95em; background:var(--buddy-code-bg); }
+.bubble strong { font-weight:700; }
+/* The thinking dots take the bubble's own text colour, so they follow whatever the skin made it. */
+.bubble.thinking span { background:currentColor; }
+
+/* ── chat core: action / memory cards ──────────────────────────────────────────────────────────── */
+.actions { background:var(--buddy-accent-wash); border-color:var(--buddy-accent); }
+.actions.memory-card { background:var(--buddy-memory-bg); border-color:var(--buddy-memory-line); }
+/* Weight the "Remember: <note>" line like a label, not body copy (its wrap behaviour is in core). */
+.action-label { font-weight:700; }
+
+/* ── chat core: agent console (command echo, tool lines, palette, model chip) ───────────────────── */
+.cmd-echo { font-family:var(--buddy-font-mono); font-size:.85rem; color:var(--buddy-ink-faint); }
+.tool-line { font-family:var(--buddy-font-mono); font-size:.85rem; color:var(--buddy-tool); background:var(--buddy-tool-bg); }
+.tool-line.done { color:var(--buddy-accent); background:var(--buddy-accent-faint); }
+.tool-line.skipped { color:var(--buddy-ink-muted); background:transparent; text-decoration:line-through; }
+.palette { background:var(--buddy-surface-2); border-color:var(--buddy-line); box-shadow:var(--buddy-shadow-up); }
+.palette-item:hover, .palette-item.focused { background:var(--buddy-hover); }
+.palette-name { font-family:var(--buddy-font-mono); font-weight:700; color:var(--buddy-accent); }
+.palette-desc { color:var(--buddy-ink-dim); font-size:.9rem; }
+.model-chip { font-family:var(--buddy-font-mono); font-size:.85rem; font-weight:700; background:var(--buddy-surface-2); color:var(--buddy-ink-dim); border-color:var(--buddy-line); }
+.model-chip:hover { color:var(--buddy-ink); border-color:var(--buddy-accent); }
+
+/* ── chat core: model picker ───────────────────────────────────────────────────────────────────── */
+.model-picker { background:var(--buddy-scrim); }
+.picker-panel { background:var(--buddy-surface); border-color:var(--buddy-line); }
+.picker-title { font-size:1.15rem; }
+.picker-row { background:var(--buddy-surface-2); color:var(--buddy-ink); border-color:var(--buddy-line); font-weight:400; }
+.picker-row:hover { border-color:var(--buddy-accent); }
+.picker-row.current { border-color:var(--buddy-accent); background:var(--buddy-accent-wash); }
+.picker-label { font-weight:700; font-size:1.05rem; }
+.picker-id { font-family:var(--buddy-font-mono); font-size:.8rem; color:var(--buddy-ink-faint); }
+.picker-note { color:var(--buddy-ink-dim); font-size:.9rem; }
+.picker-current { font-size:.75rem; font-weight:700; color:var(--buddy-accent); text-transform:uppercase; letter-spacing:.03em; }
+/* "made by <company> · via <provider>" — the AI-literacy line. Its full-width GRID placement is in
+   core (it is what keeps a row one line inside the ~400px panel); only its type scale is skin. */
+.picker-maker { font-size:.78rem; color:var(--buddy-ink-dim); }
+
+/* ── chat core: BYOK (locked rows, key sheet, "Your keys" / "Add any model") ─────────────────────
+   No lock GLYPH — the repo's one hard art rule is zero emoji, and a hand-drawn CSS padlock would be
+   a decoration doing the italic note's job twice. Dim + desaturate the row instead (still clearly
+   tappable — see .picker-row.locked:hover) and let the existing `.picker-note` span (already reused
+   for the "needs a key · <provider>" line — see buddy.js openPicker) carry the meaning in words. */
+.picker-row.locked { opacity:.62; filter:grayscale(.5); }
+.picker-row.locked:hover { opacity:.85; filter:none; border-color:var(--buddy-line-strong); }
+.picker-row.locked .picker-note { font-style:italic; }
+/* Small muted section header ("needs a key — tap to add yours") above the locked rows — quieter
+   than .picker-title (the sheet's own h2) so it reads as a subsection, not a second dialog title. */
+.picker-locked-header { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--buddy-ink-faint); }
+/* Key-sheet explainer paragraph ("GPT is served by OpenRouter…") — plain readable body text, no
+   list/grid role like .picker-note (which is always a one-line label attached to a row). */
+.key-sheet-body { color:var(--buddy-ink); font-size:.95rem; line-height:1.5; }
+/* Keys and model ids are ID-like strings a teacher proof-reads character by character — monospace
+   both. Their full-width sizing is core; only the face is skin. */
+.key-input, .custom-id { font-family:var(--buddy-font-mono); }
+.key-toggle { font-size:.8rem; }
+/* `.sheet-primary` is the accent-filled affirmative action — without it an unclassed <button>
+   inherits nothing from a host stylesheet that only styles `button.ghost`, so the most important
+   control on the panel rendered as bare text (seen live). Its ink is --buddy-accent-ink, the same
+   token every other on-accent label uses, so a host that recolours the accent recolours this too. */
+.sheet-primary { font-weight:700; border-color:var(--buddy-accent); background:var(--buddy-accent); color:var(--buddy-accent-ink); }
+.sheet-primary:hover { filter:brightness(1.08); }
+.key-row .picker-label { font-size:.95rem; }
+/* Provider <select> for "Add any model" — the bare UA control renders LIGHT-themed by default even
+   inside this dark panel; matched to the same dark surface as the buddy's inputs, with
+   `color-scheme:dark` so the OS-drawn dropdown list (which CSS can't otherwise touch) follows. */
+.custom-provider { font:inherit; font-size:1rem; background:var(--buddy-surface-2); color:var(--buddy-ink); border-color:var(--buddy-line); color-scheme:dark; }
+/* Inline validation line under the typed-id field ("That doesn't look like a model id."). */
+.custom-error { color:var(--buddy-danger); font-size:.85rem; }
+/* Picker-panel footer actions ("Your keys…", "Add any model…") — ghost buttons already read as
+   secondary; this just quiets them further so they sit BELOW the model rows instead of competing. */
+.picker-footer { font-size:.85rem; }
+
+/* ── widget chrome: the bubble launcher ─────────────────────────────────────────────────────────
+   The button carries NO visible text: its accessible label is the sr-only `.bw-sr` span
+   (buddy-widget.js), and the face is the .bw-bot* art below. `font-size:0` / `color:transparent`
+   are belt-and-braces so any fallback text a future edit adds can never paint over that art. */
+.bw-bubble {
+  font-size: 0;
+  color: transparent;
+  background: var(--buddy-launcher-bg);
+  box-shadow: var(--buddy-launcher-shadow);
+}
+/* `.open` marks the launcher while the panel shows. A calm glow ring (its scale-down is core — no
+   rotate either way: a robot listing sideways reads as broken). */
+.bw-bubble.open { box-shadow: 0 0 0 4px var(--buddy-launcher-ring), var(--buddy-launcher-shadow-open); }
+
+/* ============================ the chat-bubble helper-bot ============================
+   ONE inline SVG (buddy-widget.js botMarkup): the head IS a speech bubble — rounded shell with a
+   tail — wearing a glass visor with two blinking glow eyes and a pulsing antenna tip. The block
+   lives in the THEME, geometry included, because the art's geometry IS the art — a host that
+   replaces this file replaces the robot with it; the button and its .bw-sr label stay core.
+   Tintable: a host skin (e.g. the p5-01 workshop) overrides these four vars on `.bw-bubble` to
+   recolor the whole mark without touching the art. All SOLID colors now — the old --bot-metal
+   took a gradient, which an SVG fill cannot: dimension comes from the fixed alpha-gradient sheen
+   overlay instead, so ONE hue pair reads dimensional on any palette.
+   Every fill carries the default as a var() FALLBACK, so the panel header's name-tag avatar
+   (`.bw-id .bw-bot`, outside .bw-bubble where the vars live) renders the friendly steel-and-mint
+   default instead of the unstyled dark blob the old span art degraded to there. */
+.bw-bubble {
+  --bot-shell: #dbe7f0;
+  --bot-shell-deep: #9fb4c4;
+  --bot-visor: #0e1c26;
+  --bot-glow: #56e6a6;
+}
+
+.bw-bot { position: absolute; inset: 0; animation: bw-bob 3.4s ease-in-out infinite; }
+.bw-bot-svg { width: 100%; height: 100%; display: block; }
+/* the bubble-shell and its underside tail (drawn behind the shell, so only the tail shows deep) */
+.bw-svg-shell { fill: var(--bot-shell, #dbe7f0); }
+.bw-svg-tail { fill: var(--bot-shell-deep, #9fb4c4); }
+/* fixed alpha sheen over the shell — the dimension pass, palette-independent by construction */
+.bw-svg-sheen { fill: url(#bwBotSheen); }
+.bw-svg-visor { fill: var(--bot-visor, #0e1c26); stroke: rgba(0, 0, 0, .35); stroke-width: 1; }
+/* two glowing eyes that blink together (transform-box so scaleY squints in place, not around the
+   SVG origin) */
+.bw-svg-eye {
+  fill: var(--bot-glow, #56e6a6);
+  filter: drop-shadow(0 0 3px var(--bot-glow, #56e6a6));
+  animation: bw-blink 5s ease-in-out infinite;
+  transform-box: fill-box; transform-origin: center;
+}
+/* antenna: quiet stem, pulsing tip */
+.bw-svg-stem { fill: var(--bot-shell-deep, #9fb4c4); }
+.bw-svg-tip {
+  fill: var(--bot-glow, #56e6a6);
+  filter: drop-shadow(0 0 4px var(--bot-glow, #56e6a6));
+  animation: bw-antenna 2.6s ease-in-out infinite;
+  transform-box: fill-box; transform-origin: center;
+}
+/* the name-tag avatar: the SAME svg, scaled by its viewBox into a 34px chip */
+.bw-id .bw-bot { position: relative; width: 34px; height: 34px; flex: 0 0 auto; animation-duration: 3.8s; }
+
+@keyframes bw-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
+@keyframes bw-antenna { 0%, 100% { transform: scale(.8); opacity: .65; } 50% { transform: scale(1.15); opacity: 1; } }
+/* Open ~95% of the cycle; a single quick blink each ~5s — well under any flash-safety limit. */
+@keyframes bw-blink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Freeze the robot's idle life (bob/tip-pulse/blink) for motion-sensitive users — the bot still
+     renders, just still. The panel/launcher transitions are guarded in buddy-core.css, which owns
+     them; this guard travels with the art it silences. */
+  .bw-bot, .bw-svg-eye, .bw-svg-tip { animation: none; }
+}
+
+/* ── widget chrome: panel header + panel ───────────────────────────────────────────────────────── */
+.bw-head { background: var(--buddy-head-bg); border-bottom-color: var(--buddy-head-line); }
+.bw-name { font-weight: 800; font-size: 15px; color: var(--buddy-head-ink); letter-spacing: .01em; }
+.bw-min { background: var(--buddy-chip-bg); }
+.bw-min:hover { background: var(--buddy-chip-bg-hover); }
+.bw-min-bar { background: var(--buddy-head-ink); }
+.bw-panel { background: var(--buddy-surface); box-shadow: var(--buddy-shadow); }

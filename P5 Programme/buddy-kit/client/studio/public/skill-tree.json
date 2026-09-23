@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "ml-foundations",
+      "label": "ML Foundations",
+      "icon": "",
+      "order": 0
+    },
+    {
+      "id": "optimization",
+      "label": "Optimization",
+      "icon": "",
+      "order": 1
+    },
+    {
+      "id": "unsupervised",
+      "label": "Unsupervised Learning",
+      "icon": "",
+      "order": 2
+    }
+  ],
+  "branches": [
+    {
+      "id": "regression-basics",
+      "name": "Regression & Model Fitting",
+      "nodes": [
+        {
+          "id": "lr-concept",
+          "name": "Linear Regression Concept",
+          "levelReward": 1,
+          "coinReward": 10,
+          "parent": null
+        },
+        {
+          "id": "lr-cost-function",
+          "name": "MSE Cost Function",
+          "levelReward": 1,
+          "coinReward": 15,
+          "parent": "lr-concept"
+        },
+        {
+          "id": "lr-closed-form",
+          "name": "Normal Equation (Closed Form)",
+          "levelReward": 2,
+          "coinReward": 25,
+          "parent": "lr-cost-function"
+        }
+      ]
+    },
+    {
+      "id": "gradient-descent-path",
+      "name": "Gradient Descent Mastery",
+      "nodes": [
+        {
+          "id": "gd-intuition",
+          "name": "Gradient Descent Intuition",
+          "levelReward": 1,
+          "coinReward": 10,
+          "parent": null
+        },
+        {
+          "id": "gd-learning-rate",
+          "name": "Learning Rate & Convergence",
+          "levelReward": 2,
+          "coinReward": 20,
+          "parent": "gd-intuition"
+        },
+        {
+          "id": "gd-batch-variants",
+          "name": "Batch vs SGD vs Mini-Batch",
+          "levelReward": 3,
+          "coinReward": 40,
+          "parent": "gd-learning-rate"
+        },
+        {
+          "id": "gd-lr-application",
+          "name": "Applying GD to Linear Regression",
+          "levelReward": 3,
+          "coinReward": 50,
+          "parent": "gd-batch-variants"
+        }
+      ]
+    },
+    {
+      "id": "clustering-path",
+      "name": "Clustering Algorithms",
+      "nodes": [
+        {
+          "id": "km-concept",
+          "name": "K-Means Clustering Concept",
+          "levelReward": 1,
+          "coinReward": 10,
+          "parent": null
+        },
+        {
+          "id": "km-algorithm-steps",
+          "name": "Assignment & Update Steps",
+          "levelReward": 2,
+          "coinReward": 25,
+          "parent": "km-concept"
+        },
+        {
+          "id": "km-elbow-method",
+          "name": "Choosing K (Elbow Method)",
+          "levelReward": 2,
+          "coinReward": 30,
+          "parent": "km-algorithm-steps"
+        },
+        {
+          "id": "km-limitations",
+          "name": "K-Means Limitations & Alternatives",
+          "levelReward": 3,
+          "coinReward": 45,
+          "parent": "km-elbow-method"
+        }
+      ]
+    }
+  ]
+}

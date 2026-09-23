@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import * as THREE from '../P5 Programme/buddy-kit/client/studio/node_modules/three/build/three.module.js';
+import { StudioScene } from '../P5 Programme/buddy-kit/client/studio/src/scene.js';
+import { takeSnapshot, restoreSnapshot } from '../P5 Programme/buddy-kit/client/studio/src/edit/snapshot.js';
+import { FitController } from '../P5 Programme/buddy-kit/client/studio/src/fit/fit-controller.js';
+import { addTubeShape, chainUpTube, bindNow } from '../P5 Programme/buddy-kit/client/studio/src/rig/tests/fixtures.js';
+import { encodeProject, decodeProject } from '../P5 Programme/buddy-kit/client/studio/src/champion.js';
+if(!globalThis.FileReader) globalThis.FileReader=class {readAsArrayBuffer(blob){blob.arrayBuffer().then(v=>{this.result=v;this.onloadend?.();});}};
+const studio=new StudioScene();addTubeShape(studio);const rig=studio.ensureRig();chainUpTube(rig);bindNow(studio);
+const fc=new FitController(studio,{detach(){}},{show(){},error(){}});
+const gear=new THREE.Group();gear.name='Synthetic demo hat';gear.add(new THREE.Mesh(new THREE.BoxGeometry(.2,.2,.2),new THREE.MeshStandardMaterial({color:0xff9900})));fc.addGear(gear);
+const snapshot=takeSnapshot(studio),wardrobe=await fc.serializeWardrobe();assert.equal(wardrobe.length,1);
+const encoded=encodeProject(snapshot,wardrobe),restored=decodeProject(JSON.parse(JSON.stringify(encoded)));assert.deepEqual(restored.snapshot,snapshot);assert.deepEqual(restored.wardrobe,wardrobe);
+const next=new StudioScene();restoreSnapshot(next,restored.snapshot);assert.equal(next.shapes.length,studio.shapes.filter(s=>!s.userData.isGear).length);assert.equal(next.rig.graph.size,studio.rig.graph.size);
+const nextFit=new FitController(next,{detach(){}},{show(){},error(){}});await nextFit.restoreWardrobePieces(restored.wardrobe);assert.equal(nextFit.wardrobe.length,1);assert.equal(nextFit.wardrobe[0].name,'Synthetic demo hat');
+assert.throws(()=>decodeProject({...encoded,version:2}));assert.throws(()=>decodeProject({...encoded,data:ChampionSession.encode({snapshot:{objects:[{kind:'custom',transform:{p:[0,0,0],r:[0,0,0],s:[1,1,1]},geo:{positions:[]}}]},wardrobe:[]})}));
+console.log('PASS Real Studio geometry, rig, typed arrays, appearance and fitted GLB survive Champion File JSON transport and restore.');

@@ -1,0 +1,11 @@
+{
+  "name": "p5-buddy-bundled",
+  "private": true,
+  "type": "commonjs",
+  "description": "AI Coding Buddy bundled into a lesson-project distributable by scripts/pack-project.mjs. `type:commonjs` lets server/gateway.js (ESM, its own package.json) import named exports from logic/*.js; the deps here serve both the Node gateway and the Cloudflare Worker build.",
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "1.0.46",
+    "ai": "5.0.216",
+    "zod": "3.25.76"
+  }
+}

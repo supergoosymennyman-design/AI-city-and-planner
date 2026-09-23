@@ -10,8 +10,8 @@ test('project hub uses root-relative workspace routes and keeps both City choice
   assert.ok(html.includes('href="/planner/"'));
   for (const id of ['studio-action', 'workshop-action']) assert.match(html, new RegExp(`id="${id}"[^>]*target="_blank"[^>]*rel="noopener noreferrer"`));
   assert.match(html, /href="\/city-builder\/\?example=1"/);
-  assert.match(html, />Start in Planner </);
-  assert.match(html, />Explore the example city</);
+  assert.match(html, /id="new-city-action" href="\/planner\/\?new=1">Start a new city/);
+  assert.match(html, />Explore the example city <span/);
   assert.doesNotMatch(html, /<a[^>]+href="(?:\.\/|\.\.\/)/);
 });
 

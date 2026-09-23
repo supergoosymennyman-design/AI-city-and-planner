@@ -1,0 +1,24 @@
+.motion-dialog { box-sizing: border-box; width: min(360px, 90vw); max-height: calc(100dvh - 32px); margin: 16px 16px 16px auto; overflow-y: auto; background: #0b1c2b; color: #d9eaf2; border: 1px solid #176079; border-radius: 14px; padding: 20px; }
+.motion-dialog::backdrop { background: #020a1320; }
+.motion-dialog h2 { color: #7eeafa; margin-top: 0; }
+.motion-dialog p { line-height: 1.4; }
+.motion-dialog label { display: block; margin: 12px 0; }
+.motion-dialog select, .motion-dialog input:not([type=checkbox]) { width: 100%; box-sizing: border-box; min-height: 40px; background: #102a3d; color: #e4f5fb; border: 1px solid #47758b; border-radius: 5px; padding: 6px; }
+.motion-legs { max-height: 180px; overflow-y: auto; }
+.motion-leg { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.motion-leg label { min-height: 44px; display: flex; align-items: center; gap: 8px; margin: 0; }
+.motion-leg input { width: 20px; height: 20px; }
+.motion-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.motion-dialog button { min-height: 44px; }
+.motion-dialog summary { min-height: 44px; cursor: pointer; }
+.motion-dialog[open] { display: flex; flex-direction: column; overflow: hidden; }
+.motion-content { min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; padding-right: 8px; }
+.motion-content select, .motion-content input { min-width: 0; max-width: 100%; }
+.motion-leg { flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid #244451; }
+.motion-leg select { width: 80px; }
+.motion-knee-options { width: 100%; padding: 0 4px 10px; }
+.motion-knee-options[hidden] { display: none; }
+.motion-knee-options label { display: block; }
+.motion-knee-options select { width: 100%; }
+.motion-dialog h2, .motion-actions, .motion-status { flex-shrink: 0; }
+.motion-status { max-height: 95px; overflow-y: auto; }

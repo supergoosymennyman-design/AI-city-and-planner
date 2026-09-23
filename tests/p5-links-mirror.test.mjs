@@ -11,16 +11,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const RE = /export const (\w+) = '([^']*)'/g;
-const parse = (rel) => Object.fromEntries(
-  [...readFileSync(new URL('../' + rel, import.meta.url), 'utf8').matchAll(RE)].map((m) => [m[1], m[2]]),
-);
+import vm from 'node:vm';
+const parse = (rel, hostname) => vm.runInNewContext(
+  readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/export /g, '')
+    + ';({HOME_URL,CITY_SIM_URL,WORKSHOP_URL,FIT_STUDIO_URL})', { location: { hostname } });
 
-test('home/links.js mirrors shared/links.js (drift guard)', () => {
-  const shared = parse('P5 Programme/buddy-kit/client/shared/links.js');
-  const home = parse('P5 Programme/buddy-kit/client/home/links.js');
-  for (const k of ['HOME_URL', 'CITY_SIM_URL', 'WORKSHOP_URL', 'FIT_STUDIO_URL']) {
-    assert.ok(shared[k], `shared/links.js is missing ${k}`);
-    assert.equal(home[k], shared[k], `${k} drifted between shared/links.js and home/links.js`);
-  }
-});
+for (const hostname of ['localhost','127.0.0.1','p5-home.clover-marquis.workers.dev']) {
+  test('home/links.js mirrors shared/links.js on ' + hostname, () => {
+    const shared = parse('P5 Programme/buddy-kit/client/shared/links.js', hostname);
+    const home = parse('P5 Programme/buddy-kit/client/home/links.js', hostname);
+    for (const k of ['HOME_URL', 'CITY_SIM_URL', 'WORKSHOP_URL', 'FIT_STUDIO_URL']) {
+      assert.ok(shared[k], `shared/links.js is missing ${k}`);
+      assert.equal(home[k], shared[k], `${k} drifted between shared/links.js and home/links.js`);
+    }
+    if (hostname === 'localhost') { assert.equal(shared.WORKSHOP_URL, '/workshop/'); assert.equal(shared.FIT_STUDIO_URL, '/studio/'); }
+    else if (hostname.endsWith('.dev')) assert.match(shared.WORKSHOP_URL, /^https:/);
+  });
+}

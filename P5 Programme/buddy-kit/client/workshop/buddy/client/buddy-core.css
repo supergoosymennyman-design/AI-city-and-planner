@@ -1,0 +1,400 @@
+/* client/buddy-core.css — the buddy's STRUCTURE. Every host loads this file; NO host should ever
+   re-author it. Layout, sizing, scroll containment, focus outlines, [hidden] state machinery,
+   reduced-motion guards, and the 44px tap floor on the chat surface's inputs and buttons (`.bw-min`
+   is a documented 36px exception — see its own comment). Deliberately carries NO colors, NO fonts,
+   NO shadows and NO gradients — those are buddy-theme.css's job, which is what makes "restyle by
+   overriding variables" possible without forking layout.
+
+   The tap floor is deliberately a FLOOR, not a ceiling: it is written with `:where()` so any
+   single-class host rule outranks it, because a host that has measured its own panel may justify a
+   smaller secondary control. What core guarantees is that a host which writes NOTHING cannot ship a
+   29px tap target. Until 2026-07-28 core carried no floor at all while claiming to, and the gateway's
+   own demo page was shipping a 29.2px model chip and 33px footer buttons on a tablet viewport.
+
+   The comments on individual rules below are not decoration: several of them record a bug that was
+   MEASURED in a live browser (a <button> flex item with no min-content floor; a vh cap inside a
+   transformed containing block; a percentage height that ignored a sibling header). Keep them.
+
+   Two idioms recur, both deliberate:
+   - A `var(--buddy-*)` reference whose value lives in buddy-theme.css. Where the property is COSMETIC
+     (`border-radius: var(--buddy-radius)`) there is no fallback: a themeless page renders square
+     rather than wrongly LAID OUT, and square is an acceptable degradation. Where the property is an
+     A11Y FLOOR (`outline`) there IS a fallback — `var(--buddy-focus, currentColor)`. An outline is a
+     shorthand, so an unresolvable var() makes every longhand `unset`, and `outline-style` is not
+     inherited: it would compute to `none` and the keyboard ring would VANISH, not degrade. The floor
+     is assigned to this file precisely so a host cannot theme it away, and `currentColor` is a
+     keyword, not a literal, so core stays colour-free.
+   - `border-width`/`border-style` here, `border-color` in the theme. A border occupies space (that is
+     structure) but its colour is skin, and splitting the longhand keeps the two apart cleanly. */
+
+/* Every box inside the buddy is border-box. Both of today's hosts already set this page-wide, so this
+   changes nothing for them — it is here so a host WITHOUT a global reset does not get a widget whose
+   `width:100%` inputs and padded panels overflow their own containers. */
+.buddy-app, .bw-bubble, .bw-panel,
+.buddy-app *, .bw-bubble *, .bw-panel * { box-sizing: border-box; }
+
+/* ── chat core: name gate, form controls ─────────────────────────────────────────────────────────
+   .buddy-app .gate/.buddy-lab both set their own `display`, which — same-or-higher CSS specificity,
+   author origin — overrides the browser default `[hidden]{display:none}`. Without this, toggling the
+   `hidden` IDL property (buddy.js's name-first → lab swap) leaves the "hidden" section visually in flow. */
+.buddy-app .gate[hidden], .buddy-lab[hidden] { display: none; }
+/* HOST WARNING — `place-content:center` STRETCHES the gate's controls. The implicit grid column is
+   auto-sized to the widest child (usually the heading), and grid items default to
+   `justify-self:stretch`, so the name input and the submit button grow to that width instead of
+   hugging their content. Measured on p5-01's 420px panel: the input went 246px -> 345px and its button
+   170px -> 345px when it stopped overriding this. Correct for a full-page host; if your skin wants
+   shrink-wrapped controls, override `display` (a column flex box with `align-items:center` does it, and
+   `justify-content:center` from this rule still supplies the vertical centring). */
+/* `min-height:100%` — NOT `100vh`, for the same reason `.picker-panel`'s cap below is a percentage.
+   `place-content:center` centres this grid's content inside THIS box, so the box's height decides
+   where the child's name field and its "Meet my buddy" button land. In the floating panel that box
+   lives inside a 640px `.bw-panel` with `overflow:hidden` and no scroll container, so a viewport-tall
+   box pushed the gate's content clean out of the panel on any viewport taller than ~1018px (measured
+   2026-07-28: the button sat 9px past the panel bottom at 768x1024, 37px at 810x1080 and 180px on an
+   iPad Pro portrait — an empty panel with NO WAY to name the buddy, which is the first-run screen).
+   A percentage resolves against whatever box this host actually gave `.buddy-app`: ~580px inside the
+   panel, and on a full-page host `.buddy-app` is a stretched item of a `height:100vh` grid, so 100%
+   is that grid's row height there. One declaration, correct in both. Measured after the fix, at every
+   viewport from 1024x768 to 1024x1366: the button sits 165px inside the panel on the gateway's widget
+   page, 191px on the kit's example host and 214px in p5-01 — the SAME offset at every height, which is
+   the point, and 214px is what p5-01's own pre-migration `height:100%` produced. */
+.buddy-app .gate { min-height:100%; display:grid; place-content:center; gap:1rem; text-align:center; padding:2rem; }
+/* `:where(.buddy-app)` and not `.buddy-app`: these replace the BARE `input {}` / `button {}` rules
+   that used to restyle every control on the host's page, and `:where()` contributes ZERO specificity —
+   so they stay exactly as weak as the element rules they replace. `.buddy-app button` would be (0,1,1)
+   and would start BEATING the single-class rules it must lose to (.picker-row, .model-chip,
+   .sheet-primary, and every host skin rule), painting the model rows as accent-filled buttons. */
+:where(.buddy-app) input { padding:.6rem .8rem; border-radius:var(--buddy-radius-sm); border-width:1px; border-style:solid; }
+:where(.buddy-app) button { padding:.55rem 1rem; border-radius:var(--buddy-radius-sm); border:0; cursor:pointer; }
+:where(.buddy-app) button.ghost { border-width:1px; border-style:solid; }
+/* Kid-tablet tap law: a control a child taps is at least 44px on its short axis. This lives in CORE,
+   not the theme, because it is an a11y FLOOR — a host that replaces the skin must not be able to lose
+   it. Applied to the chat surface's own controls; the launcher and the minimise button carry their own
+   sizes below.
+   `:where()` keeps this at (0,0,1) like the two rules above, so it is a FLOOR and not a ceiling: any
+   single-class skin rule still wins, deliberately — a host that has measured its own panel may sit a
+   secondary control below 44px on purpose (p5-01's `.model-chip` is 32px, its `button.ghost` 36px), and
+   that judgement is the host's to make and to justify. What this rule guarantees is that a host which
+   says NOTHING never silently ships a 29px tap target, which is what the gateway's own page did. */
+:where(.buddy-app) input,
+:where(.buddy-app) select,
+:where(.buddy-app) textarea,
+:where(.buddy-app) button { min-height: 44px; }
+
+/* The buddy's own internal stack: HUD bar above the chat area, filling whatever height its host cell
+   hands it (the demo page's `#page` grid cell, or `.bw-panel`'s body inside the floating widget). */
+.buddy-lab { display:grid; grid-template-rows: auto 1fr; gap:1rem; height:100%; min-height:0; }
+
+/* ── chat core: HUD + memory meter ───────────────────────────────────────────────────────────────
+   Ambient Memory Meter + Fresh Start/Tidy Up — the buddy's own top row, above its own chat. */
+.buddy-hud { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; border-radius:var(--buddy-radius); padding:.75rem 1rem; }
+.meter { display:flex; align-items:center; gap:.6rem; flex:1; min-width:220px; }
+.meter-label { white-space:nowrap; }
+.meter-track { flex:1; min-width:80px; height:.5rem; border-radius:.3rem; border-width:1px; border-style:solid; overflow:hidden; }
+.meter-track[hidden] { display:none; }
+.meter-fill { height:100%; width:100%; transform-origin:left center; transform:scaleX(0); transition:transform .3s ease; }
+.meter-stats { white-space:nowrap; }
+.memory-controls { display:flex; gap:.5rem; }
+
+/* ── chat core: log + bubbles ──────────────────────────────────────────────────────────────────── */
+.buddy-chat { border-radius:var(--buddy-radius); padding:1rem; display:flex; flex-direction:column; min-height:0; }
+.buddy-log { flex:1; overflow:auto; display:flex; flex-direction:column; gap:.5rem; }
+/* ---- ONE styled scrollbar for every scroll surface in the widget (owner, 2026-08-11: the chat
+   was wearing the raw OS bar inside a themed panel). NOT hidden — the bar is the only signal
+   there is more above the fold in a long chat. `::-webkit-scrollbar*` ONLY, deliberately:
+   setting the standard `scrollbar-width`/`scrollbar-color` makes Chrome IGNORE these
+   pseudo-elements entirely, so the two systems cannot be combined (the lesson a sibling app
+   in this repo learned when its bar shipped unstyled). Firefox keeps its thin overlay bar.
+   Colors are neutral translucents so the bar sits quietly on ANY host theme. */
+.buddy-log::-webkit-scrollbar,
+.palette::-webkit-scrollbar,
+.picker-panel::-webkit-scrollbar { width: 9px; height: 9px; }
+.buddy-log::-webkit-scrollbar-track,
+.palette::-webkit-scrollbar-track,
+.picker-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 5px;
+}
+.buddy-log::-webkit-scrollbar-thumb,
+.palette::-webkit-scrollbar-thumb,
+.picker-panel::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.55);
+  border-radius: 5px;
+}
+.buddy-log::-webkit-scrollbar-thumb:hover,
+.palette::-webkit-scrollbar-thumb:hover,
+.picker-panel::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.8); }
+/* Chrome draws its legacy arrow buttons the moment any scrollbar pseudo-element is styled —
+   remove them explicitly; nobody nudges a chat one line at a time with a fingertip. */
+.buddy-log::-webkit-scrollbar-button,
+.palette::-webkit-scrollbar-button,
+.picker-panel::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.bubble { max-width:80%; padding:.6rem .8rem; border-radius:var(--buddy-radius); }
+.bubble.me { align-self:flex-end; }
+/* A message typed while the buddy was still answering: kept, visibly WAITING (dimmed), sent at
+   the turn boundary — buddy.js removes the class the moment its turn actually fires. */
+.bubble.me.queued { opacity: .55; }
+.bubble.buddy { align-self:flex-start; }
+/* Rendered markdown INSIDE a chat bubble (buddy.js renderRich) — reset block-level margins so
+   paragraphs/headings/lists sit naturally inside the bubble's own padding, never inheriting
+   page-level spacing. */
+.bubble p { margin: 0 0 .5em; }
+.bubble p:last-child { margin-bottom: 0; }
+.bubble h4 { margin: .2em 0 .35em; }
+.bubble ul, .bubble ol { margin: .25em 0 .5em; padding-left: 1.25em; }
+.bubble li { margin: .15em 0; }
+.bubble code { padding: 0 .2em; border-radius: 3px; }
+
+/* Thinking dots — shown instantly on send(), before the first delta frame arrives (buddy.js
+   addThinking). Period is 1.2s per dot (well under the 3-flashes/sec flash-safety cap) and the
+   whole animation is disabled under prefers-reduced-motion, per AGENTS.md flash-safety + a11y.
+   `opacity` stays here with the animation that drives it — it is motion state, not a skin tint;
+   moving it to the theme would let the theme's unconditional value beat the guard below. */
+.bubble.thinking { display: inline-flex; gap: .35rem; align-items: center; }
+.bubble.thinking span { width: .5rem; height: .5rem; border-radius: 50%; opacity: .3;
+  animation: buddy-think 1.2s ease-in-out infinite; }
+.bubble.thinking span:nth-child(2) { animation-delay: .2s; }
+.bubble.thinking span:nth-child(3) { animation-delay: .4s; }
+@keyframes buddy-think { 0%, 100% { opacity: .3; } 50% { opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { .bubble.thinking span { animation: none; opacity: .6; } }
+
+/* ── chat core: action / memory cards ──────────────────────────────────────────────────────────── */
+.actions { align-self:flex-start; border-radius:var(--buddy-radius); padding:.6rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; border-width:1px; border-style:solid; }
+/* A ctx.settle() followUp offer (Keep/Rewind, host-augment brief Task 2) is the SAME [label][yes][no]
+   flex row as .actions — it is a proposal card too, just one the HOST raised after its own slow work
+   finished rather than the buddy raising it mid-turn. The only structural difference is spacing: it
+   always lands right after a settle note bubble, so a little breathing room keeps it reading as its
+   own beat instead of crowding straight up against that bubble's text. */
+.actions.follow-up { margin-top:.35rem; }
+/* The memory card's "Remember: <note>" line — the card is a flex row of [label][Do it][No thanks],
+   so the label needs its own min-width:0 to be allowed to wrap instead of forcing the buttons out of
+   the card (the same shrink trap the picker rows hit: a flex item's content is its floor until told
+   otherwise). */
+.action-label { flex:1 1 auto; min-width:0; }
+/* Host-authored per-card caution line (opts.cardNote, host-augment brief Task 2) — e.g. "Metal and
+   Foil already look alike." `flex:1 1 100%` forces it onto its OWN full-width row inside .actions'
+   wrapping flex line (same trick as the label's min-width:0 fix above solves the opposite problem):
+   without a 100% basis it would try to share the label's row and squeeze either the label or the
+   [Do it]/[No thanks] buttons on a narrow tablet width. Smaller + quieter than the label on purpose —
+   it is a caution, not the headline; no new --buddy-* var, `opacity` reads whatever ink color the
+   label already resolved to. */
+.action-note { flex:1 1 100%; font-size:.85em; opacity:.75; }
+
+/* ── chat core: composer + command palette ───────────────────────────────────────────────────────
+   The palette floats directly above the composer, no layout shift (the composer is positioned). */
+.buddy-chat form { display:flex; gap:.5rem; margin-top:.5rem; }
+.buddy-chat form input { flex:1; }
+.composer { position:relative; }
+.palette { position:absolute; left:0; right:0; bottom:100%; margin-bottom:.4rem; border-radius:var(--buddy-radius-sm); border-width:1px; border-style:solid; padding:.3rem; display:flex; flex-direction:column; gap:.15rem; max-height:14rem; overflow:auto; z-index:5; }
+.palette[hidden] { display:none; }
+.palette-item { display:flex; align-items:baseline; gap:.6rem; padding:.55rem .7rem; border-radius:.45rem; cursor:pointer; }
+/* The keyboard-focused row must be legible without colour — the ring is the non-colour half of that
+   signal, so it is structure (the tint beside it is skin). `currentColor` fallback: see the file
+   header — a themeless page must still show a ring, because an unresolvable var() in this SHORTHAND
+   would compute `outline-style` to `none` and remove the ring entirely. */
+.palette-item.focused { outline:1px solid var(--buddy-accent, currentColor); }
+
+/* ── chat core: command echo + live tool lines ───────────────────────────────────────────────────
+   `.cmd-echo` is a dimmed echo of a typed/tapped command AND of system lines (e.g. a model switch);
+   `.tool-line` is `● op(summary) — waiting…`, flipping to done/skipped in place. */
+.cmd-echo { align-self:flex-start; padding:.1rem .2rem; }
+.tool-line { align-self:flex-start; padding:.2rem .55rem; border-radius:.3rem; }
+/* Pending-action WORKING state (ctx.settle, host-augment brief Task 2) — a claimed line whose slow
+   apply() returned {pending:true} and has not settled yet. The same gentle pulse `.bubble.thinking`
+   uses (shared `buddy-think` keyframes, same flash-safety floor: well under 3 flashes/sec, same
+   reduced-motion guard) is the STRUCTURAL signal that something is genuinely still running — distinct
+   in KIND, not just colour, from the static .done/.skipped end states. Which accent colour paints it
+   is buddy-theme.css's job, same split as everywhere else in this file. */
+/* `:not(.done):not(.skipped)` matters: flipEntry ADDS its end-state class without ever removing
+   `working` (the line was claimed once, flipped once — there is no reason for the JS to also track
+   "is it still working" as a THIRD flag just to un-set a CSS hook), so a settled line carries BOTH
+   classes together (`tool-line working done`). Without this guard the pulse would keep animating
+   forever on every finished slow action instead of stopping the instant it settles. */
+.tool-line.working:not(.done):not(.skipped) { animation: buddy-think 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .tool-line.working:not(.done):not(.skipped) { animation: none; opacity: .75; } }
+
+/* ── chat core: model chip + picker ─────────────────────────────────────────────────────────────
+   The chip is ambient in the HUD; tap to open the picker, a centered dialog over a dimmed backdrop,
+   DOM-built each open. */
+.model-chip { padding:.35rem .7rem; border-radius:var(--buddy-radius-sm); border-width:1px; border-style:solid; white-space:nowrap; }
+.model-chip[hidden] { display:none; }
+.model-picker { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:1.5rem; z-index:20; }
+.model-picker[hidden] { display:none; }
+/* `max-height:100%` — NOT `85vh`. When this widget is mounted in the floating panel (`.bw-panel`,
+   below), that panel carries a `transform`, which makes it the containing block for `position:fixed`
+   descendants — so this overlay's box is the 420x640 PANEL, not the viewport, and a `vh` cap
+   overshoots it (measured: a 598px panel inside a 561px box, clipped by the panel's own
+   `overflow:hidden`). A percentage resolves against whatever box the overlay actually got, so it
+   fits BOTH hosts with no host-specific override. */
+.picker-panel { border-radius:var(--buddy-radius); border-width:1px; border-style:solid; padding:1rem; width:min(30rem,100%); max-height:100%; overflow:auto; display:flex; flex-direction:column; gap:.6rem; }
+/* Rows must NEVER shrink. This is a column flex container with a bounded height, so its children
+   default to `flex-shrink:1` — and a <button> flex item does NOT get the automatic min-content floor
+   a plain <div> would, so once the list is taller than the panel every row collapses (to its
+   min-height, or to nothing) while its text keeps its natural size and paints straight over the next
+   row. That is exactly what shipped when BYOK added the locked section: 13 rows past the panel
+   height, every row 42px tall holding 112-157px of text. `flex:0 0 auto` keeps every child its own
+   content height and lets `overflow:auto` above do the scrolling, which is what it is for. */
+.picker-panel > * { flex:0 0 auto; }
+.picker-title { margin:0 0 .3rem; }
+.picker-row { display:grid; grid-template-columns:1fr auto; grid-auto-rows:auto; gap:.15rem .6rem; text-align:left; padding:.7rem .8rem; border-radius:.7rem; border-width:1px; border-style:solid; cursor:pointer; }
+.picker-label { grid-column:1; }
+.picker-id { grid-column:1; }
+.picker-note { grid-column:1; }
+.picker-current { grid-column:2; grid-row:1; align-self:center; }
+/* "made by <company> · via <provider>" — its OWN full-width line under the note, not the narrow
+   right-hand column. It used to auto-place beside the name (`grid-column:2`), which is fine on a wide
+   page but wraps to two or three lines inside the ~400px floating panel, stretching a row to 157px and
+   pushing the list far past the panel height. Full width keeps it one line at every width; the
+   `.picker-current` badge still owns column 2 of row 1 alone, so the two can no longer collide (the
+   old sibling row-2 workaround for that collision is therefore gone). */
+.picker-maker { grid-column:1 / -1; justify-self:start; }
+
+/* ── chat core: BYOK key sheet ("Your keys" / "Add any model") ──────────────────────────────────── */
+.picker-locked-header { margin:.5rem 0 -.15rem; }
+.key-sheet-body { margin:0; }
+/* The pasted-key field and the typed model-id field: same full-width treatment (both hold ID-like
+   strings), kept two classes because only `.custom-id` is validated inline (see `.custom-error`). */
+.key-input, .custom-id { width:100%; min-width:0; }
+/* The paste field and its show/hide toggle on ONE line — the toggle reveals THIS field, so it belongs
+   against it rather than stacked below as a third full-width button competing with the real choices. */
+.key-field { display:flex; gap:.5rem; align-items:stretch; }
+.key-field .key-input { flex:1; }
+.key-toggle { flex:0 0 auto; padding:.4rem .6rem; }
+/* Sheet footer: the affirmative action beside the way out. */
+.sheet-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.2rem; }
+.sheet-primary { padding:.55rem 1.1rem; border-radius:var(--buddy-radius-sm); border-width:1px; border-style:solid; }
+/* One held key (or typed model) + its Remove, on a single line. It is NOT a choice like the model
+   rows above it — the row itself does nothing, so it must not invite a tap. */
+.key-row { align-items:center; cursor:default; }
+.custom-provider { width:100%; padding:.6rem .8rem; border-radius:var(--buddy-radius-sm); border-width:1px; border-style:solid; }
+.custom-error { margin:0; }
+/* Footer actions sit BELOW the model rows instead of competing with them for attention. */
+.picker-footer { padding:.5rem .7rem; }
+
+/* ══════════════════════════ widget chrome: the bubble launcher ══════════════════════════════════ */
+.bw-bubble {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2147483000;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  /* transform-only transition (compositor path, never layout) — flash-safety is moot for a single
+     on-open state change, but this keeps the one-shot move cheap regardless. */
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.bw-bubble:hover { transform: scale(1.05); }
+.bw-bubble:active { transform: scale(.96); }
+/* `currentColor` fallback, not decoration: a host that REPLACES buddy-theme.css (the kit advertises
+   that path) leaves --buddy-focus unresolvable, and an unresolvable var() in the `outline` SHORTHAND
+   makes every longhand `unset` — `outline-style` does not inherit, so it computes to `none` and the
+   keyboard ring is GONE, not merely off-palette. See the file header. */
+.bw-bubble:focus-visible { outline: 3px solid var(--buddy-focus, currentColor); outline-offset: 3px; }
+/* `.open` marks the launcher while the panel shows (it stays clickable — a second click closes,
+   alongside the header's minimise + Escape). A calm scale, no rotate — a robot listing sideways
+   reads as broken. */
+.bw-bubble.open { transform: scale(.94); }
+/* Draggable launcher (opts.drag): the cursor says "you can move me"; while a drag is live the
+   hover/press scale transition is off so the bubble tracks the finger without a wobble. Position is
+   set inline (left/top) by buddy-widget.js — never here, never via transform. */
+.bw-bubble.bw-drag { cursor: grab; }
+.bw-bubble.bw-dragging { cursor: grabbing; transition: none; transform: none; }
+/* Screen-reader-only fallback text (no-CSS a11y) — the launcher's only text node. */
+.bw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ============================ panel header: name tag + minimise ============================ */
+.bw-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; flex: 0 0 auto;
+  border-bottom-width: 1px; border-bottom-style: solid;
+}
+.bw-id { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bw-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 36px is a KNOWN, DELIBERATE exception to the 44px tap floor above, not an oversight. It is a
+   secondary "tuck this away" control sitting in a 57px header beside the buddy's name, with two other
+   ways to do the same thing (tap the launcher again, or press Escape), and both shipped hosts have
+   this header laid out around 36px today — growing it would move p5-01's live panel. Revisit only with
+   a measurement of both headers. */
+.bw-min {
+  flex: 0 0 auto; width: 36px; height: 36px; border: 0; border-radius: 10px; cursor: pointer;
+  display: grid; place-items: center; transition: background .15s ease;
+}
+.bw-min:focus-visible { outline: 3px solid var(--buddy-focus, currentColor); outline-offset: 2px; }
+.bw-min-bar { width: 16px; height: 3px; border-radius: 2px; }
+
+/* ============================ the slide-up panel ============================ */
+.bw-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 104px; /* 24px bubble inset + 64px bubble + 16px gap */
+  z-index: 2147483000;
+  width: min(420px, calc(100vw - 32px));
+  height: min(640px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
+  overflow: hidden;
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  visibility: visible;
+  transition: transform .32s cubic-bezier(.22, 1, .36, 1), opacity .22s ease, visibility 0s linear 0s;
+}
+/* Closed state: the UA default for [hidden] is `display:none`, which cannot be transitioned (an
+   element outside the render tree has no "from" box to animate). Overriding `display` back to
+   `flex` here (same deliberate-override idiom as the `.buddy-app .gate[hidden]` comment above)
+   keeps the panel rendered THROUGHOUT the slide; `visibility:hidden` (delayed until the transform/
+   opacity animation finishes, via its own 0-duration transition) is what actually removes it from
+   the accessibility tree + tab order once closed, and `pointer-events:none` keeps it inert while
+   mid-close. Opening removes `hidden` outright, so the delay is skipped (visible immediately) and
+   the slide plays from these values back to the base rule's above.
+*/
+.bw-panel[hidden] {
+  display: flex;
+  transform: translateY(28px) scale(.96);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform .26s cubic-bezier(.4, 0, 1, 1), opacity .18s ease, visibility 0s linear .26s;
+}
+/* The mounted chat core (buddy.js's `.buddy-app` root) fills the space the header LEAVES.
+   `height: 100%` did not do that: this panel is a column flex container whose first child is the
+   name-tag header, and a percentage height on a flex item resolves against the CONTAINER's height —
+   the full 640px — not against what is left after a 57px header. So the chat core hung 54px past the
+   bottom of the panel and `overflow: hidden` above silently ate the end of it: the composer (the input
+   the child types into) was clipped off the bottom edge, which is what the owner hit live. `flex: 1`
+   claims exactly the leftover space instead, and `min-height: 0` lets it be SMALLER than its content
+   so the log inside can scroll rather than push the composer out again. */
+.bw-panel .buddy-app { flex: 1; min-height: 0; }
+/* The rules above size `.buddy-lab`'s HUD/chat rows for a WIDE host (the demo page's `#page` grid
+   hands `.buddy-app` several hundred extra px) — they never needed a `min-width` override.
+   Grid/flex items default to `min-width: auto` (their CONTENT's min-content size), so inside this
+   ~420px-wide panel the composer row's natural content forces `.buddy-lab`'s single shared grid
+   column wider than the panel, and `.bw-panel`'s `overflow: hidden` then silently clips the
+   overflow (the Send button's edge, part of the input) instead of shrinking to fit. Scoped to the
+   widget only, so a wide full-page host is untouched. */
+.bw-panel .buddy-chat,
+.bw-panel .buddy-hud,
+.bw-panel .buddy-chat form,
+.bw-panel .buddy-chat form input {
+  min-width: 0;
+}
+/* The meter takes the HUD's whole first line inside the panel. On the wide full-page host the meter,
+   the model chip and the Tidy Up / Fresh Start buttons share one row comfortably; at ~400px they do
+   not, and the meter loses — `.meter-stats` is `white-space: nowrap`, so its "1900 tokens · 14% ·
+   $0.0000" reading does not wrap or shrink, it OVERFLOWS the meter's box and paints straight across
+   the chip sitting beside it (seen live). Giving the meter its own line lets the chip and the buttons
+   wrap underneath (`.buddy-hud` is already `flex-wrap: wrap`), so nothing overlaps and every reading
+   stays legible. */
+.bw-panel .meter { flex: 1 1 100%; min-width: 0; }
+
+/* Core owns every transition in the buddy, so core owns the guard over ALL of them — including the
+   meter's fill sweep and the minimise button's hover fade, which predate this file and were never
+   guarded. This is the sheet every host copies forever; an unguarded transition here becomes their
+   unguarded transition too. */
+@media (prefers-reduced-motion: reduce) {
+  .bw-bubble, .bw-panel, .bw-panel[hidden], .meter-fill, .bw-min { transition: none; }
+}

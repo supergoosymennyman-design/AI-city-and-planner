@@ -12,7 +12,7 @@
     "preflight:commercial-vehicles": "cd \"P5 Programme\" && node scripts/commercial-vehicle-preflight.mjs",
     "test:imports": "cd \"P5 Programme\" && node scripts/check-imports.mjs",
     "preview:city": "node \"P5 Programme/tests/e2e/static-server.mjs\" 8377",
-    "demo:prepare": "bash \"P5 Programme/deploy/scripts/deploy-city-apps.sh\" --build-only --city-sim",
+    "demo:prepare": "bash \"P5 Programme/deploy/scripts/deploy-city-apps.sh\" --build-only --city-sim && npm run demo:tools",
     "demo:start": "node \"P5 Programme/scripts/demo-server.mjs\"",
     "demo": "npm run demo:prepare && npm run demo:start",
     "demo:reset": "node \"P5 Programme/scripts/demo-server.mjs\" --reset-only",
@@ -22,7 +22,10 @@
     "test:e2e:built": "E2E_DOCROOT=\"P5 Programme/deploy/city-sim\" node \"P5 Programme/tests/e2e/run-sharded.mjs\"",
     "deploy:city:built": "bash \"P5 Programme/deploy/scripts/deploy-city-apps.sh\" --deploy-only --city-sim",
     "test:all": "npm run test:unit && npm run test:library && npm run test:e2e:source && npm run test:imports",
-    "release:city": "npm run test:all && npm run build:city && npm run test:unit && npm run test:library && npm run test:e2e:built && npm run deploy:city:built"
+    "release:city": "npm run test:all && npm run build:city && npm run test:unit && npm run test:library && npm run test:e2e:built && npm run deploy:city:built",
+    "demo:tools": "node \"P5 Programme/scripts/package-workshop-studio.mjs\"",
+    "test:demo": "node --test tests/workshop-economy.test.cjs tests/workshop-context.test.mjs && node tests/studio-champion-roundtrip.mjs && node tests/champion-storage-browser.mjs && node tests/workshop-studio-demo.mjs && node tests/champion-future-ui.mjs",
+    "test:studio": "npm test --prefix \"P5 Programme/buddy-kit/client/studio\""
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
