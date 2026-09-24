@@ -7,7 +7,7 @@ const text = path => readFile(new URL(path, root), 'utf8');
 
 test('global project navigation exposes every presenter workspace', async () => {
   const bar = await text('buddy-kit/client/city-common/project-bar.js');
-  for (const route of ['../hub/', '../pregame/', '../planner/', '../city-builder/', '../studio/', '../workshop/']) {
+  for (const route of ['../hub/', '../pregame/', '../planner/', '../city-builder/', '../market/', '../studio/', '../workshop/']) {
     assert.match(bar, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
   const academy = await text('buddy-kit/client/city-pregame/index.html');

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Champion Market · My AI City</title>
+<link rel="stylesheet" href="./market.css" />
+</head>
+<body>
+<header class="mkt-head">
+  <a class="mkt-back" href="../hub/">← Hub</a>
+  <h1 id="mkt-title">Champion Market</h1>
+  <div class="mkt-wallet" aria-live="polite">
+    <span class="mkt-coin" aria-hidden="true">◎</span>
+    <strong id="mkt-balance">0</strong>
+    <span id="mkt-credits">credits</span>
+  </div>
+  <button id="mkt-lang" class="mkt-lang" type="button">中文</button>
+</header>
+<p id="mkt-note" class="mkt-note" role="status"></p>
+<main id="mkt-grid" class="mkt-grid" aria-live="polite"></main>
+<script type="module" src="./market.js"></script>
+</body>
+</html>

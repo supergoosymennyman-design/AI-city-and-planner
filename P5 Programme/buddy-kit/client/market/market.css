@@ -1,0 +1,56 @@
+:root {
+  --ink: #0b1220;
+  --paper: #f5f7fb;
+  --card: #ffffff;
+  --line: #d9e0ec;
+  --brand: #0e7c66;
+  --brand-ink: #ffffff;
+  --warn: #b45309;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+.mkt-head {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: max(12px, env(safe-area-inset-top)) 20px 12px;
+  background: var(--ink); color: #fff;
+}
+.mkt-back { color: #cfe9e2; text-decoration: none; font-weight: 600; }
+.mkt-back:hover { text-decoration: underline; }
+.mkt-head h1 { font-size: 20px; margin: 0; flex: 1 1 auto; }
+.mkt-wallet {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #ffffff1a; padding: 8px 14px; border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+.mkt-coin { color: #ffd166; font-size: 18px; }
+.mkt-lang {
+  background: #ffffff1a; color: #fff; border: 1px solid #ffffff33;
+  border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer;
+}
+.mkt-lang:hover { background: #ffffff2e; }
+.mkt-note { margin: 16px 20px 0; min-height: 22px; color: var(--warn); }
+.mkt-grid {
+  display: grid; gap: 16px; padding: 16px 20px 40px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.mkt-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.mkt-card h2 { font-size: 17px; margin: 0; }
+.mkt-zh { color: #5b667a; font-size: 13px; }
+.mkt-collection { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #5b667a; }
+.mkt-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+.mkt-buy {
+  margin-top: auto; min-height: 48px; border: 0; border-radius: 10px;
+  background: var(--brand); color: var(--brand-ink); font: inherit; font-weight: 600; cursor: pointer;
+}
+.mkt-buy:hover { filter: brightness(1.08); }
+.mkt-buy:disabled { background: #cbd5e1; color: #475569; cursor: default; }
+.mkt-owned { background: #e8f5f0; color: #0e7c66; }

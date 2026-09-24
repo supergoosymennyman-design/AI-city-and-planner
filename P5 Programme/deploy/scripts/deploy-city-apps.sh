@@ -85,7 +85,7 @@ build_city_sim() {
   rm -rf city-sim/city-builder city-sim/city-common city-sim/champion-city \
          city-sim/hong-kong-real city-sim/vendor city-sim/logic city-sim/buddy \
          city-sim/library city-sim/shared city-sim/planner city-sim/pregame \
-         city-sim/studio city-sim/workshop \
+         city-sim/studio city-sim/workshop city-sim/market \
          city-sim/hub city-sim/home city-sim/demo \
          city-sim/project \
          city-sim/buddy-boot.js city-sim/buddy-core.css city-sim/buddy-theme.css \
@@ -105,15 +105,23 @@ build_city_sim() {
   mkdir -p city-sim/home
   cp "$KIT/client/home/fonts.css"         city-sim/home/fonts.css
   cp -r "$KIT/client/home/fonts"          city-sim/home/fonts
-  # Studio is same-origin with City so its validated GLB + document revision can
-  # be handed over atomically through IndexedDB. Workshop remains bridged while
-  # its separately deployed editor is adopted.
-  mkdir -p city-sim/studio city-sim/workshop
-  rsync -a --exclude '.DS_Store' --exclude '*-t2-stamped.glb' \
-    --exclude 'rover-leg-final-shrunk (1).glb' --exclude 'README.txt' \
-    "$ROOT/Fit Studio/" city-sim/studio/
-  cp "$KIT/client/project-shell/index.html" city-sim/workshop/index.html
-  cp "$KIT/client/project-shell/shell.js" city-sim/workshop/shell.js
+  # Same-origin tools: the CANONICAL Workshop source and the built Studio dist
+  # ship INSIDE the City bundle, replacing the old iframe placeholder and the
+  # legacy Fit Studio copy. One origin means the shared wallet, capabilities and
+  # Champion identity travel without a cross-site hop. Fall back to the legacy
+  # Fit Studio build only when a Studio dist has not been produced locally.
+  mkdir -p city-sim/studio city-sim/workshop city-sim/market
+  rsync -a --exclude 'node_modules' --exclude '.DS_Store' \
+    "$KIT/client/workshop/" city-sim/workshop/
+  if [ -f "$KIT/client/studio/dist/index.html" ]; then
+    rsync -a --exclude '.DS_Store' "$KIT/client/studio/dist/" city-sim/studio/
+  else
+    echo "  ⚠ client/studio/dist is missing — falling back to the legacy Fit Studio build."
+    rsync -a --exclude '.DS_Store' --exclude '*-t2-stamped.glb' \
+      --exclude 'rover-leg-final-shrunk (1).glb' --exclude 'README.txt' \
+      "$ROOT/Fit Studio/" city-sim/studio/
+  fi
+  rsync -a --exclude '.DS_Store' "$KIT/client/market/" city-sim/market/
   cp -r "$KIT/logic"                    city-sim/logic
   cp "$KIT/client/crash-guard.js"       city-sim/crash-guard.js
   cp "$KIT/client/buddy-boot.js"        city-sim/buddy-boot.js

@@ -9,6 +9,7 @@ export async function mountProjectBar({ workspace = 'city' } = {}) {
     ['academy', '../pregame/', 'Academy'],
     ['planner', '../planner/', 'Planner'],
     ['city', '../city-builder/', 'City'],
+    ['market', '../market/', 'Market'],
     ['studio', '../studio/', 'Studio'],
     ['workshop', '../workshop/', 'Workshop'],
   ];

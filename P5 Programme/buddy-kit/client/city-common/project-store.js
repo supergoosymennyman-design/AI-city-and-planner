@@ -5,6 +5,7 @@
 // future fields. Media is never collected here: callers must only pass the
 // reviewed, persistable representation of a machine or model.
 import { CF_KEYS, collectState, writeState, composeChampionFile, sanitizeChampionFile } from './champion-file.js';
+import { emptyEconomy, normalizeEconomy, applyTransaction, purchaseItem as ledgerPurchaseItem, recordLearningEvent as ledgerRecordEvent } from './ledger.js';
 
 export const PROJECT_KIND = 'passiona-project';
 export const PROJECT_VERSION = 1;
@@ -25,6 +26,7 @@ export function createProject(label = 'My AI City') {
     kind: PROJECT_KIND, version: PROJECT_VERSION, id: id(), name: String(label || 'My AI City').slice(0, 80),
     createdAt, updatedAt: createdAt, revision: 0,
     champion: {}, projects: { city: {}, workshop: {}, studio: {}, planner: {} },
+    economy: emptyEconomy(),
     capabilities: {}, installations: {}, assets: {}, progress: {}, unknown: {},
   };
 }
@@ -58,6 +60,33 @@ export function migrateChampionFile(file) {
   const project = createProject(checked.file.label);
   project.projects.city = { legacyState: clone(checked.file.state) };
   return { ok: true, project };
+}
+
+/** Give an older envelope the economy book without disturbing its other sections. */
+export function normalizeProject(project) {
+  if (!project || typeof project !== 'object') return project;
+  if (!project.economy) project.economy = emptyEconomy();
+  else project.economy = normalizeEconomy(project.economy);
+  project.capabilities ||= {}; project.installations ||= {};
+  return project;
+}
+
+/**
+ * Import the shipped Workshop/Studio economy into an envelope EXACTLY ONCE.
+ * Never sums duplicate copies: an established envelope wallet wins, and the
+ * import is recorded so a second call is a no-op.
+ */
+export function migrateEconomyFromChampion(project, championEconomy) {
+  normalizeProject(project);
+  project.progress ||= {};
+  if (project.progress.economyMigrated) return { ok: true, migrated: false, reason: 'already-migrated' };
+  const incoming = normalizeEconomy(championEconomy);
+  if (incoming.balance > 0 || incoming.owned.length > 0 || incoming.transactions.length > 0) {
+    project.economy = incoming;
+  }
+  project.progress.economyMigrated = true;
+  project.progress.economyMigratedAt = now();
+  return { ok: true, migrated: true, economy: clone(project.economy) };
 }
 
 export function exportProjectEnvelope(project) {
@@ -140,24 +169,120 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
   async function openActiveProject() {
     const requested = storage?.getItem(ACTIVE_PROJECT_KEY); let project = requested && await read(requested);
     if (!project) { project = migrateLegacyCity(storage); await write(project, 'migration:legacy-city'); try { storage?.setItem(ACTIVE_PROJECT_KEY, project.id); } catch {} }
-    active = project; return clone(active);
+    active = normalizeProject(project); return clone(active);
   }
   async function createAndOpen(name) { active = createProject(name); await write(active, 'created'); try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch {} emit({ type: 'opened', projectId: active.id }); return clone(active); }
-  async function commitSection(section, patch, expectedRevision = active?.revision) {
+
+  /**
+   * Read-modify-write the active project INSIDE one IndexedDB transaction. The
+   * revision is compared against the record actually read from storage, so two
+   * tabs can never both win. `change(project)` returns:
+   *   • a project object   → commit it (revision bumps),
+   *   • null / undefined   → no-op, nothing is written,
+   *   • { conflict: true } → reject without writing (a concurrent change).
+   * `versioned:false` skips the recovery snapshot for high-frequency ledgers.
+   */
+  async function mutate(change, { reason = 'mutate', versioned = true } = {}) {
     if (!active) await openActiveProject();
-    if (expectedRevision !== active.revision) return { ok: false, conflict: true, project: clone(active) };
-    if (!section || typeof section !== 'string' || !patch || typeof patch !== 'object') return { ok: false, error: 'Invalid project section.' };
-    const before = clone(active); const next = clone(active); next.projects[section] = { ...(next.projects[section] || {}), ...clone(patch) }; next.revision++; next.updatedAt = now();
-    next.progress ||= {}; next.progress.lastWorkspace = section; next.progress.lastWorkspaceAt = next.updatedAt;
-    if (!await write(next, `edit:${section}`)) return { ok: false, storageFull: true, project: before };
-    active = next; emit({ type: 'changed', projectId: active.id, section, revision: active.revision }); return { ok: true, project: clone(active) };
+    const d = await db();
+    if (!d) return { ok: false, storageUnavailable: true, project: clone(active) };
+    const projectId = active.id;
+    return new Promise(resolve => {
+      const tx = d.transaction(['projects', 'versions'], 'readwrite');
+      const store = tx.objectStore('projects');
+      const req = store.get(projectId);
+      let outcome = null, conflict = false, failure = null;
+      req.onsuccess = () => {
+        const current = req.result;
+        if (!current) { failure = Error('The active project was not found.'); tx.abort(); return; }
+        try {
+          const result = change(clone(current));
+          if (result && result.conflict) { conflict = true; outcome = result.project || current; return; }
+          if (result == null) { outcome = current; return; }
+          const next = result;
+          next.id = current.id; next.kind = current.kind; next.version = current.version;
+          next.createdAt = current.createdAt;
+          next.revision = current.revision + 1; next.updatedAt = now();
+          store.put(next);
+          if (versioned) tx.objectStore('versions').put({ key: `${next.id}:${next.revision}`, projectId: next.id, reason, savedAt: now(), project: clone(next) });
+          outcome = next;
+        } catch (e) { failure = e; tx.abort(); }
+      };
+      req.onerror = () => { failure = Error('The project could not be read.'); tx.abort(); };
+      tx.oncomplete = () => {
+        active = outcome || active;
+        if (conflict) { resolve({ ok: false, conflict: true, project: clone(active) }); return; }
+        resolve({ ok: true, project: clone(active) });
+      };
+      tx.onabort = tx.onerror = () => resolve({ ok: false, error: String(failure?.message || failure || 'Project storage failed; nothing was committed.'), project: clone(active) });
+    });
   }
+
+  async function commitSection(section, patch, expectedRevision = active?.revision) {
+    if (!section || typeof section !== 'string' || !patch || typeof patch !== 'object') return { ok: false, error: 'Invalid project section.' };
+    const result = await mutate(current => {
+      if (expectedRevision !== current.revision) return { conflict: true, project: current };
+      const next = clone(current);
+      next.projects[section] = { ...(next.projects[section] || {}), ...clone(patch) };
+      next.progress ||= {}; next.progress.lastWorkspace = section; next.progress.lastWorkspaceAt = now();
+      return next;
+    }, { reason: `edit:${section}` });
+    if (result.conflict) return result;
+    if (!result.ok) return { ok: false, storageFull: true, project: result.project, error: result.error };
+    emit({ type: 'changed', projectId: active.id, section, revision: active.revision });
+    return { ok: true, project: result.project };
+  }
+
+  async function readEconomy() { if (!active) await openActiveProject(); return clone(normalizeProject(active).economy); }
+
+  /** Shared-wallet mutations. All commit atomically; none can deepen a debit. */
+  async function transact(op) {
+    if (!op || op.type === 'award') return { ok: false, error: 'Teacher unlock required.' };
+    return economyMutation(current => applyTransaction(current.economy, op), `transact:${op?.type || '?'}`);
+  }
+  async function award(op) { return economyMutation(current => applyTransaction(current.economy, { ...op, type: 'award' }), 'teacher-award'); }
+  async function purchase(itemId, transactionId, catalogue, { at } = {}) {
+    let purchased = false;
+    const out = await economyMutation(current => {
+      const result = ledgerPurchaseItem(current.economy, catalogue, itemId, transactionId, { at });
+      if (!result.ok) throw Error(result.error);
+      purchased = result.purchased; return result.economy;
+    }, 'purchase');
+    return { ...out, purchased };
+  }
+  async function recordLearningEvent(event, config) {
+    let claimed = false, amount = 0;
+    const out = await economyMutation(current => {
+      const result = ledgerRecordEvent(current.economy, event, config ? { config } : undefined);
+      if (!result.ok) throw Error(result.error);
+      claimed = result.claimed; amount = result.amount || 0; return result.economy;
+    }, `learn:${event?.type || '?'}`);
+    return { ...out, claimed, amount };
+  }
+  async function economyMutation(nextEconomy, reason) {
+    let error = null;
+    const result = await mutate(current => {
+      normalizeProject(current);
+      try { current.economy = nextEconomy(current); return current; }
+      catch (e) { error = String(e.message || e); return null; }
+    }, { reason, versioned: false });
+    if (error) return { ok: false, error, project: result.project, economy: clone(result.project?.economy) };
+    return { ...result, economy: clone(result.project.economy) };
+  }
+
   async function checkpoint(reason = 'manual') { if (!active) await openActiveProject(); const ok = await write(active, reason); return { ok, project: clone(active) }; }
   async function exportProject() { if (!active) await openActiveProject(); return exportProjectEnvelope(active); }
-  async function importProject(archive) { const parsed = importProjectEnvelope(archive); if (!parsed.ok) return parsed; if (active) await write(active, 'before-import'); active = parsed.project; active.revision++; active.updatedAt = now(); const ok = await write(active, 'import'); if (!ok) return { ok: false, storageFull: true }; try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch {} emit({ type: 'imported', projectId: active.id }); return { ok: true, project: clone(active) }; }
+  async function importProject(archive) { const parsed = importProjectEnvelope(archive); if (!parsed.ok) return parsed; if (active) await write(active, 'before-import'); active = normalizeProject(parsed.project); active.revision++; active.updatedAt = now(); const ok = await write(active, 'import'); if (!ok) return { ok: false, storageFull: true }; try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch {} emit({ type: 'imported', projectId: active.id }); return { ok: true, project: clone(active) }; }
   async function restoreLegacyCity() { if (!active) await openActiveProject(); const state = active.projects.city?.legacyState; if (!state) return { ok: false, error: 'This project has no City data.' }; return writeState(state, storage); }
   async function restoreRevision(revision) { if (!active) await openActiveProject(); const found = (await versions(active.id)).find(v => v.project.revision === revision); if (!found) return { ok: false, error: 'That revision is not available.' }; await write(active, 'before-revision-restore'); active = clone(found.project); active.revision++; active.updatedAt = now(); const ok = await write(active, 'revision-restored'); if (ok) emit({ type: 'restored', projectId: active.id, revision: active.revision }); return { ok, project: clone(active) }; }
-  return { openActiveProject, createProject: createAndOpen, readSection: async section => { if (!active) await openActiveProject(); return clone(active.projects[section] || {}); }, commitSection, checkpoint, listVersions: versions, restoreRevision, flush: checkpoint, syncStatus: () => ({ state: 'local', label: 'Saved on this device' }), exportProject, importProject, restoreLegacyCity };
+  return {
+    openActiveProject, createProject: createAndOpen, mutate,
+    readSection: async section => { if (!active) await openActiveProject(); return clone(active.projects[section] || {}); },
+    commitSection, checkpoint, listVersions: versions, restoreRevision, flush: checkpoint,
+    syncStatus: () => ({ state: 'local', label: 'Saved on this device' }), exportProject, importProject, restoreLegacyCity,
+    readEconomy, transact, award, purchase, recordLearningEvent,
+    readCapabilities: async () => { if (!active) await openActiveProject(); return clone(normalizeProject(active).capabilities || {}); },
+  };
 }
 
 function safeStorage() { try { return globalThis.localStorage || null; } catch { return null; } }

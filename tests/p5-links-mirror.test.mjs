@@ -14,13 +14,13 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const parse = (rel, hostname) => vm.runInNewContext(
   readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/export /g, '')
-    + ';({HOME_URL,CITY_SIM_URL,WORKSHOP_URL,FIT_STUDIO_URL,citySim})', { location: { hostname } });
+    + ';({HOME_URL,CITY_SIM_URL,WORKSHOP_URL,FIT_STUDIO_URL,MARKET_URL,citySim})', { location: { hostname } });
 
 for (const hostname of ['localhost','127.0.0.1','p5-home.clover-marquis.workers.dev']) {
   test('home/links.js mirrors shared/links.js on ' + hostname, () => {
     const shared = parse('P5 Programme/buddy-kit/client/shared/links.js', hostname);
     const home = parse('P5 Programme/buddy-kit/client/home/links.js', hostname);
-    for (const k of ['HOME_URL', 'CITY_SIM_URL', 'WORKSHOP_URL', 'FIT_STUDIO_URL']) {
+    for (const k of ['HOME_URL', 'CITY_SIM_URL', 'WORKSHOP_URL', 'FIT_STUDIO_URL', 'MARKET_URL']) {
       assert.ok(shared[k], `shared/links.js is missing ${k}`);
       assert.equal(home[k], shared[k], `${k} drifted between shared/links.js and home/links.js`);
     }

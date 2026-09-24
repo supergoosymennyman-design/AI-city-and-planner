@@ -16,7 +16,7 @@ for (const [folder, dependency] of [['studio','three'], ['workshop/buddy','ai']]
  catch { run(['ci','--no-audit','--no-fund'],cwd); }
 }
 run(['run','build'],path.join(source,'studio'));
-for (const [name,from] of [['workshop','workshop'],['studio','studio/dist']]) {
+for (const [name,from] of [['workshop','workshop'],['studio','studio/dist'],['market','market']]) {
  const dest=path.join(root,'deploy/city-sim',name);
  await rm(dest,{recursive:true,force:true}); await mkdir(dest,{recursive:true});
  await cp(path.join(source,from),dest,{recursive:true,filter:p=>!p.split(path.sep).includes('node_modules')});

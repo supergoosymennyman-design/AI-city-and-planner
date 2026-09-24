@@ -50,7 +50,9 @@ test('one protected Workshop and Fit Studio flagship load with stable routes and
   spots.forEach((p, i) => expect(gatewayLotClear(layout, p.x, p.z, spots.slice(0, i))).toBe(true));
 
   const workshopUrl = new URL(snapshot.states.workshop.route);
-  expect(workshopUrl.origin + workshopUrl.pathname).toBe('https://workshop.ai-education.workers.dev/');
+  // The Workshop is now a SAME-ORIGIN route of the unified city-sim worker.
+  expect(workshopUrl.origin).toBe(new URL(page.url()).origin);
+  expect(workshopUrl.pathname).toBe('/workshop/');
   expect(workshopUrl.searchParams.has('returnTo')).toBe(true);
   expect(workshopUrl.pathname).not.toContain('recycl');
   const studioUrl = new URL(snapshot.states.studio.route);
@@ -85,7 +87,8 @@ test('one protected Workshop and Fit Studio flagship load with stable routes and
   await page.waitForFunction(() => window.__scene?.getObjectByName('permanent-learning-gateways')?.children.length === 2, null, { timeout:60000 });
   expect((await page.evaluate(gatewaySnapshot)).mountNames.sort()).toEqual(['passiona-studio-gateway', 'passiona-workshop-gateway']);
 
-  await page.route('https://workshop.ai-education.workers.dev/**', route => route.fulfill({
+  // The Workshop is same-origin now; stub only that route so the test stays fast.
+  await page.route('**/workshop/**', route => route.fulfill({
     status: 200, contentType: 'text/html', body: '<!doctype html><title>AI Workshop</title>',
   }));
   await page.evaluate(() => {
@@ -94,7 +97,7 @@ test('one protected Workshop and Fit Studio flagship load with stable routes and
   });
   await expect(page.locator('#quest-prompt-btn')).toContainText('AI 工坊', { timeout: 10000 });
   await page.locator('#quest-prompt-btn').click();
-  await expect(page).toHaveURL(/^https:\/\/workshop\.ai-education\.workers\.dev\/\?returnTo=/);
+  await expect(page).toHaveURL(/\/workshop\/\?returnTo=/);
   const workshopReturn = new URL(page.url()).searchParams.get('returnTo');
   expect(workshopReturn).toBeTruthy();
   await page.goto(workshopReturn, { waitUntil:'load' });
