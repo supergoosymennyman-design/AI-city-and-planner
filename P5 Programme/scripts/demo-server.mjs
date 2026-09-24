@@ -8,6 +8,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
 import { checkBuddyTurn } from './demo-preflight.mjs';
+import { assetCacheHeaders, assetNotModified } from './demo-asset-cache.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const P5_ROOT = resolve(HERE, '..');
@@ -75,9 +76,10 @@ async function assetResponse(request) {
     if (info.isDirectory()) { file = join(file, 'index.html'); info = await stat(file); }
     const headers = new Headers({
       'content-type': MIME[extname(file).toLowerCase()] || 'application/octet-stream',
-      'cache-control': 'no-cache, no-store, must-revalidate',
+      ...assetCacheHeaders(file, info),
       'accept-ranges': 'bytes',
     });
+    if (assetNotModified(request, headers)) return new Response(null, { status: 304, headers });
     let start = 0, end = info.size - 1, status = 200;
     const range = request.headers.get('range')?.match(/^bytes=(\d*)-(\d*)$/);
     if (range) {
@@ -134,8 +136,10 @@ async function nodeRequest(req) {
   return new Request(`http://localhost:${PORT}${req.url}`, init);
 }
 
-async function send(res, response) {
-  res.writeHead(response.status, Object.fromEntries(response.headers));
+async function send(res, response, noStore = false) {
+  const headers = Object.fromEntries(response.headers);
+  if (noStore) headers['cache-control'] = 'no-store';
+  res.writeHead(response.status, headers);
   if (!response.body) return res.end();
   Readable.fromWeb(response.body).on('error', () => res.destroy()).pipe(res);
 }
@@ -161,9 +165,9 @@ const server = createServer(async (req, res) => {
     const request = await nodeRequest(req);
     if (req.url.startsWith('/workshop/buddy/api/') && workshopWorker) {
       const url = new URL(request.url); url.pathname = url.pathname.replace('/workshop/buddy', '');
-      return send(res, await workshopWorker.fetch(new Request(url, request), env));
+      return send(res, await workshopWorker.fetch(new Request(url, request), env), true);
     }
-    await send(res, await worker.fetch(request, env));
+    await send(res, await worker.fetch(request, env), new URL(request.url).pathname.startsWith('/api/'));
   } catch (error) {
     const status = Number(error?.status) || 500;
     console.error('[demo]', error?.stack || error);

@@ -101,6 +101,15 @@ import { WORKSHOP_URL } from '../shared/links.js';
 import { createBootOwner, createLoadQueue, withDeadline } from './loading-lifecycle.js';
 import { createLearningVisuals } from './learning-visuals.js';
 import { environmentQuality, loadEnvironmentHDRI } from './environment-assets.js';
+import { createFrameClock, createDemoResolutionGovernor, resizeCityRenderer, scaleBloomResolution } from './demo-performance.js';
+
+const DEMO_PERF = new URLSearchParams(window.location.search).get('demoPerf') === '1';
+const frameClock = createFrameClock(DEMO_PERF ? 30 : 0);
+const demoGovernor = createDemoResolutionGovernor();
+document.addEventListener('visibilitychange', () => {
+  frameClock.reset(performance.now());
+  demoGovernor.reset();
+});
 
 const ASSET_BASE = '../champion-city/assets/';
 const STORAGE_KEY = 'p5_city_planner_layout_v1';
@@ -172,7 +181,7 @@ const ENV_QUALITY = environmentQuality({ mobile: IS_MOBILE, lowEnd: LOW_END });
 // down if sustained FPS drops, back up with hysteresis when it recovers.
 const MAX_PIXELS = IS_WEBKIT ? (IS_MOBILE ? 1.5e6 : 3.2e6) : (LOW_END ? 1.6e6 : (IS_MOBILE ? 2.6e6 : 5e6));
 let resScale = 1;                    // 0.5..1 adaptive multiplier
-let govAcc = 0, govFrames = 0, govFps = 60;
+let govFps = DEMO_PERF ? 30 : 60;
 
 function applyResolution() {
   if (!renderer) return;
@@ -180,12 +189,15 @@ function applyResolution() {
   const basePr = Math.min(window.devicePixelRatio, IS_WEBKIT ? (IS_MOBILE ? 1 : 1.5) : (LOW_END ? 1 : (IS_MOBILE ? 1.25 : 2)));
   const scale = Math.min(1, Math.sqrt(MAX_PIXELS / Math.max(1, w * h * basePr * basePr)));
   const pr = Math.max(0.5, basePr * resScale * scale);
-  renderer.setPixelRatio(pr);
-  renderer.setSize(w, h);
-  if (composer) composer.setSize(w, h);
+  resizeCityRenderer(renderer, composer, w, h, pr);
 }
 
-function adaptQuality(fps) {
+function adaptQuality(fps, sample, now) {
+  if (DEMO_PERF) {
+    const next = demoGovernor.sample(sample, now);
+    if (next !== resScale) { resScale = next; applyResolution(); }
+    return;
+  }
   if (fps < 26 && citizens?.reduceAnimationBudget?.()) return;
   if (fps < 26 && resScale > 0.5) { resScale = Math.max(0.5, resScale - 0.15); applyResolution(); }
   else if (fps > 55 && resScale < 1) { resScale = Math.min(1, resScale + 0.15); applyResolution(); }
@@ -892,7 +904,9 @@ function setupScene(owner) {
   camera.position.set(focusX + focusSpan * 0.32, Math.max(120, focusSpan * 0.48), focusZ + focusSpan * 0.42);
   camera.lookAt(focusX, 10, focusZ);
 
-  renderer = new THREE.WebGLRenderer({ antialias: !IS_WEBKIT });
+  renderer = new THREE.WebGLRenderer({ antialias: !IS_WEBKIT, powerPreference: 'high-performance' });
+  resScale = 1;
+  demoGovernor.reset(1);
   applyResolution();
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -924,7 +938,7 @@ function setupScene(owner) {
     retryLabel: t('context.retry'), returnLabel: t('context.planner'),
     recoveryMs: window.__CITY_CONTEXT_RECOVERY_MS__ ?? 12000,
     onLost: () => { _contextPaused = true; clearInput(); },
-    onRestored: () => { _contextPaused = false; lastT = performance.now(); },
+    onRestored: () => { _contextPaused = false; frameClock.reset(performance.now()); demoGovernor.reset(); },
     onRetry: () => { _contextPaused = false; boot(); },
     onReturn: () => { window.location.href = '/planner/'; },
   });
@@ -954,7 +968,7 @@ function setupScene(owner) {
     bloom.threshold = 0.70;
     bloom.strength = IS_MOBILE ? DUSK.mobileBloom : DUSK.bloom;
     _bloomPass = bloom;
-    composer.addPass(bloom);
+    composer.addPass(DEMO_PERF ? scaleBloomResolution(bloom, 0.75) : bloom);
     const sat = { uniforms: { tDiffuse: { value: null }, amount: { value: 1.025 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
       fragmentShader: 'uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv; const vec3 LUMA=vec3(0.2126,0.7152,0.0722); void main(){ vec4 c=texture2D(tDiffuse,vUv); float luma=dot(c.rgb,LUMA); c.rgb=mix(vec3(luma),c.rgb,amount); gl_FragColor=c; }' };
@@ -977,7 +991,8 @@ function setupScene(owner) {
   const sun = new THREE.DirectionalLight(DUSK.sun, 2.0);
   sun.position.set(1000, 1600, 1200);
   sun.castShadow = !LOW_END;
-  sun.shadow.mapSize.set(IS_MOBILE ? 1024 : 2048, IS_MOBILE ? 1024 : 2048);
+  const shadowSize = IS_MOBILE ? 1024 : (DEMO_PERF ? 1536 : 2048);
+  sun.shadow.mapSize.set(shadowSize, shadowSize);
   // City-covering frustum (low tier has shadows off entirely). A tight
   // champion-following shadow frustum is a Phase-2 refinement, not worth
   // risking the current working setup for now.
@@ -4160,16 +4175,18 @@ function mountSkins(owner) {
 }
 
 // ─── Main loop ────────────────────────────────────────────────────────────
-let lastT = performance.now();
 function startLoop(owner) {
  const loop = (now) => {
   if (!owner.active || owner.generation !== _bootGen) return;
   owner.raf(loop);
-  const dt = Math.min(0.05, (now - lastT) / 1000);
-  lastT = now;
+  // Hidden tabs/context loss must not count as slow rendering or catch-up time.
+  if(document.hidden || _contextPaused || renderer?.getContext().isContextLost()) {
+    frameClock.reset(now); demoGovernor.reset(); return;
+  }
+  const frame = frameClock.tick(now);
+  if (!frame) return;
+  const dt = Math.min(0.05, frame.elapsed);
   const tNow = now / 1000;
-  // Keep RAF alive for recovery, but do not compile shaders against a lost GPU context.
-  if(document.hidden || _contextPaused || renderer?.getContext().isContextLost())return;
 
   timeOfDay?.update(dt);
   placementDust?.update(dt);
@@ -4311,12 +4328,14 @@ function startLoop(owner) {
   // Adaptive quality governor — watch sustained FPS and step resolution down
   // (with hysteresis) so a struggling tablet degrades gracefully instead of
   // sputtering.
-  govAcc += dt; govFrames++;
-  if (govAcc >= 2) {
-    govFps = govFrames / govAcc;
-    govAcc = 0; govFrames = 0;
-    adaptQuality(govFps);
+  if (frame.sample) {
+    govFps = frame.sample.fps;
+    adaptQuality(govFps, frame.sample, now);
   }
+  city.performance = { demo: DEMO_PERF, fps: govFps, resolutionScale: resScale,
+    pixelRatio: renderer.getPixelRatio(), composerPixelRatio: composer?._pixelRatio ?? null,
+    frameMs: frame.elapsed * 1000 };
+
 
   // Road + facade LOD — uniforms driven from camera height once per frame
   // (cheap sets; keeps the marking fade window + asphalt normal detail + window
@@ -4365,7 +4384,8 @@ function updateRoadLod(cam) {
     _bloomPass.strength = base * (1 - 0.55 * smooth01(camY, 120, 450));
   }
  };
- lastT = performance.now();
+ frameClock.reset(performance.now());
+ demoGovernor.reset();
  owner.raf(loop);
 }
 /** 0→1 smoothstep between two world heights. */

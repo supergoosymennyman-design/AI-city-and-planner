@@ -18,3 +18,20 @@ remains queued; do not demonstrate it as complete.
 The verification server may already be running on 8378. Do not stop unrelated
 servers on other ports. `npm run demo:reset` only clears local cloud-code saves;
 it is not a recovery command for browser IndexedDB or Champion Files.
+
+For a slower demo computer, open
+http://localhost:8378/city-builder/?example=1&demoPerf=1 (use your server's port).
+For a saved planner city, use `/city-builder/?demoPerf=1`. This optional mode
+targets 30 FPS, uses slightly smaller shadow and bloom buffers, and limits
+adaptive resolution reduction to 10% per dimension. Models, textures, sky assets,
+population and lighting colours are preserved. Remove `demoPerf=1` to return
+to normal rendering; the option is not part of the student's save file.
+
+Rebuild with `npm run demo:prepare` and restart your demo server after updating.
+Visit the city once and wait for streaming to finish before presenting. Static
+assets now revalidate against the local server, so unchanged files can be reused
+on later visits while changed files are fetched again. HTML and API/save replies
+remain uncached. This helps repeat loading; rendering still runs on each device.
+For diagnostics, `window.__city.performance` reports measured FPS, resolution
+scale and canvas/composer pixel ratios. Verify on a slower computer before the
+demo; a 30 FPS cap cannot make a machine already below 30 FPS reach that target.
