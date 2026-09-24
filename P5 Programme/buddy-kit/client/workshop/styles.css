@@ -2162,3 +2162,23 @@ body.staged .bw-bubble, body.staged .bw-panel { display: none !important; }
 /* Geometry cues stay on the socket even while a finger holds the button. */
 .tutorial-anchor, .tutorial-anchor:active,
 .tutorial-slot, .tutorial-slot:active { transform: none; transition: none; touch-action: none; }
+
+/* Stage 4 (recycling): the City's publish bridge banner. Appears only when the page is
+   opened by the City's sorter host (?publishTarget=city); every other visit never sees it. */
+.workshop-publish-bar {
+  position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 12px; background: var(--iron, #171d29);
+  border: 1px solid var(--ice-deep, #2b7f8c); box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  color: var(--chalk, #f2f6fa); font-size: 15px;
+}
+.workshop-publish-bar .wpb-note { max-width: 42ch; }
+.workshop-publish-bar .wpb-go {
+  min-height: 48px; padding: 0 18px; border: 0; border-radius: 10px; cursor: pointer;
+  background: var(--ice, #5fe3dc); color: var(--oil, #0b0d12); font-weight: 700; font-size: 15px;
+}
+.workshop-publish-bar .wpb-go:disabled { opacity: .6; cursor: default; }
+.workshop-publish-bar .wpb-back { color: var(--ice-bright, #b6fff8); text-decoration: underline; }
+@media (prefers-reduced-motion: no-preference) {
+  .workshop-publish-bar { transition: opacity .2s ease; }
+}

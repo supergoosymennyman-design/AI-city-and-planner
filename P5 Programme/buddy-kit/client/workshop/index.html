@@ -156,5 +156,11 @@
        on purpose, same idiom, same neighbours. -->
   <script src="brick-panel.js"></script>
   <script src="floor.js"></script>
+  <!-- Stage 4 (recycling): the PUBLISH bridge to the City. A module so it can import the
+       shared capability contract + project store under ../city-common/ — the same files the
+       City runs, so a published bundle can never drift from the runtime. It only acts when the
+       City's sorter host opens this page with ?publishTarget=city&hostInstanceId=…&returnTo=…;
+       otherwise it does nothing. It never auto-publishes: the child presses the button. -->
+  <script type="module" src="publish-capability.js"></script>
 </body>
 </html>

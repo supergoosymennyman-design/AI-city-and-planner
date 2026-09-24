@@ -24,6 +24,13 @@ export const CAP_ALGORITHM_V2 = 'knn-unit-majority-v2';
 export const CAP_ALGORITHMS = [CAP_ALGORITHM_V1, CAP_ALGORITHM_V2];
 export const CAP_SPEC_VERSIONS = [CAP_SPEC_VERSION, CAP_SPEC_VERSION_2];
 export const CAP_ABSTAIN = '__abstain';
+// v2 input kinds. `vector` = named numeric fields (the original contract).
+// `image` = ONE pinned feature-extractor vector (the recycling station): the event
+// carries `{ vector: [...] }` and the bundle names its preprocessing identity so an
+// incompatible extractor is rejected rather than silently compared.
+export const CAP_INPUT_VECTOR = 'vector';
+export const CAP_INPUT_IMAGE = 'image';
+export const CAP_IMAGE_DIMENSION = 1024;
 
 /** Structural parse + validate. Never throws. @returns {{ok:true, capability}|{ok:false,error}} */
 export function parseCapability(raw) {
@@ -51,6 +58,17 @@ export function parseCapability(raw) {
   if (obj.output?.kind !== 'label' || !Array.isArray(obj.output.labels) || obj.output.labels.length === 0) {
     return { ok: false, error: 'The capability needs an output label set.' };
   }
+  const inputKind = obj.input?.kind || CAP_INPUT_VECTOR;
+  if (inputKind === CAP_INPUT_IMAGE) {
+    if (typeof obj.input?.preprocessing !== 'string' || !obj.input.preprocessing) {
+      return { ok: false, error: 'An image capability must name the feature extractor it expects.' };
+    }
+    if (!Number.isInteger(obj.input?.dimension) || obj.input.dimension < 1) {
+      return { ok: false, error: 'An image capability needs a positive feature dimension.' };
+    }
+  } else if (inputKind !== CAP_INPUT_VECTOR) {
+    return { ok: false, error: `Input kind "${inputKind}" is not supported yet (this build: ${CAP_INPUT_VECTOR}, ${CAP_INPUT_IMAGE}).` };
+  }
   const alg = obj.model?.algorithm;
   if (!CAP_ALGORITHMS.includes(alg)) {
     return { ok: false, error: `Algorithm "${alg ?? '?'}" is not supported yet (this build: ${CAP_ALGORITHMS.join(', ')}).` };
@@ -68,12 +86,18 @@ export function parseCapability(raw) {
 export function capabilityDescriptor(cap) {
   const ev = cap.evaluation || {};
   const scores = ev.scores || {};
+  const image = (cap.input?.kind || CAP_INPUT_VECTOR) === CAP_INPUT_IMAGE;
   return {
     id: cap.id,
     revision: cap.revision || 1,
     name: cap.name,
     algorithm: cap.model?.algorithm,
-    inputFields: (cap.input?.fields || []).map((f) => f.name),
+    inputKind: image ? CAP_INPUT_IMAGE : CAP_INPUT_VECTOR,
+    preprocessing: image ? cap.input?.preprocessing || null : null,
+    dimension: image ? cap.input?.dimension || null : null,
+    inputFields: image
+      ? [`image ×${cap.input?.dimension || CAP_IMAGE_DIMENSION}`]
+      : (cap.input?.fields || []).map((f) => f.name),
     labels: cap.output?.labels || [],
     threshold: cap.model?.threshold,
     abstain: cap.output?.abstainLabel || CAP_ABSTAIN,
@@ -231,23 +255,39 @@ export function runInference(cap, event, opts = {}) {
  * so the pod can show exactly what the model did.
  */
 export function runInferenceUnit(cap, event, opts = {}) {
-  const fields = cap.input?.fields || [];
   const labels = cap.output?.labels || [];
   const model = cap.model || {};
-  const raw = [];
-  for (const f of fields) {
-    const v = event ? event[f.name] : undefined;
-    if (typeof v !== 'number' || !Number.isFinite(v)) return abstainResult('missing-fields');
-    raw.push(v);
-  }
-  const bias = Number.isFinite(model.plusConstant) ? model.plusConstant : 0;
-  if (bias) raw.push(bias);
-  if (!raw.length) return abstainResult('missing-fields');
-  const input = unitVec(raw);
+  const isImage = (cap.input?.kind || CAP_INPUT_VECTOR) === CAP_INPUT_IMAGE;
   const vec = decodeFloat32(model.vectors?.data_b64, model.vectors?.count, model.vectors?.dim);
   const lab = decodeUint16(model.labels?.data_b64, model.labels?.count);
   if (!vec || !lab || vec.length !== lab.length || !labels.length) return abstainResult('invalid-model');
+
+  let raw;
+  if (isImage) {
+    // The event is the pinned extractor's vector — either a bare array or { vector }.
+    // `studyIndex` lets a compact self-test case re-run one stored study example.
+    let v = Array.isArray(event) ? event : (event && Array.isArray(event.vector) ? event.vector : null);
+    if (!v && event && Number.isInteger(event.studyIndex)) v = vec[event.studyIndex] || null;
+    if (!v) return abstainResult('missing-fields');
+    const dimension = cap.input?.dimension || CAP_IMAGE_DIMENSION;
+    if (v.length !== dimension || (model.vectors?.dim != null && model.vectors.dim !== v.length)) return abstainResult('invalid-model');
+    if (!v.every((n) => typeof n === 'number' && Number.isFinite(n))) return abstainResult('missing-fields');
+    raw = v;
+  } else {
+    const fields = cap.input?.fields || [];
+    raw = [];
+    for (const f of fields) {
+      const v = event ? event[f.name] : undefined;
+      if (typeof v !== 'number' || !Number.isFinite(v)) return abstainResult('missing-fields');
+      raw.push(v);
+    }
+    const bias = Number.isFinite(model.plusConstant) ? model.plusConstant : 0;
+    if (bias) raw.push(bias);
+  }
+  if (!raw.length) return abstainResult('missing-fields');
+  const input = unitVec(raw);
   if (model.vectors?.dim != null && model.vectors.dim !== input.length) return abstainResult('invalid-model');
+
   const brain = createBrain();
   for (let i = 0; i < vec.length; i++) addExample(brain, labels[lab[i]] != null ? labels[lab[i]] : String(lab[i]), vec[i], null, i);
   const res = knnClassify(brain, input, model.k);

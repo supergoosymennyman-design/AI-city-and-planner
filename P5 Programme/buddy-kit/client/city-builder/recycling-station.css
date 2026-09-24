@@ -1,0 +1,80 @@
+/* recycling-station.css — Stage 4: the conveyor evidence surface.
+   Self-contained (no dependence on other app variables) so it renders the same in the
+   City regardless of which app's tokens happen to be loaded. Touch targets >= 48px. */
+
+.recycle-modal {
+  position: fixed; inset: 0; z-index: 400;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(4, 8, 14, .72);
+}
+.recycle-card {
+  width: min(760px, 100%); max-height: min(88vh, 900px); overflow: auto;
+  background: #101725; color: #eaf2f8; border: 1px solid #2b3f57; border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55); padding: 18px;
+}
+.recycle-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.recycle-head h2 { margin: 0; font-size: 21px; letter-spacing: .2px; }
+.recycle-sub { margin: 4px 0 0; color: #9fb2c4; font-size: 14px; }
+.recycle-close {
+  min-width: 48px; min-height: 48px; border: 0; border-radius: 10px; cursor: pointer;
+  background: #1c2a3d; color: #eaf2f8; font-size: 18px;
+}
+.recycle-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0 6px; }
+.recycle-controls label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #b9cbdb; }
+.recycle-controls select,
+.recycle-controls button,
+.recycle-controls a {
+  min-height: 48px; padding: 0 14px; border-radius: 10px; font-size: 15px;
+  border: 1px solid #33485f; background: #172234; color: #eaf2f8; cursor: pointer;
+  display: inline-flex; align-items: center; text-decoration: none;
+}
+.recycle-run { background: #1fb7a8 !important; border-color: #1fb7a8 !important; color: #06231f !important; font-weight: 700; }
+.recycle-run:disabled { opacity: .55; cursor: default; }
+.recycle-improve { border-style: dashed !important; }
+.recycle-status { min-height: 20px; margin: 6px 0 12px; color: #9fb2c4; font-size: 14px; }
+
+.recycle-belt {
+  display: flex; flex-wrap: wrap; gap: 8px; min-height: 62px; align-items: center;
+  padding: 10px; border-radius: 12px; background: #0b1220; border: 1px dashed #2b3f57;
+}
+.recycle-chip {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px;
+  background: #16233a; border: 1px solid #2f4a68; opacity: .35; transform: translateY(0);
+}
+.recycle-chip img { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; }
+.recycle-chip .recycle-chip-bin { font-size: 13px; color: #cfe0ee; }
+.recycle-chip.recycle-chip-land { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .recycle-chip { transition: opacity .22s ease, transform .22s ease; }
+  .recycle-chip.recycle-chip-land { transform: translateY(-3px); }
+}
+
+.recycle-bins { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; margin: 14px 0; }
+.recycle-bin {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px;
+  border-radius: 12px; background: #131d2e; border: 1px solid #2b3f57; text-align: center;
+}
+.recycle-bin-tray { border-color: #b9791f; background: #1e1707; }
+.recycle-bin-emoji { font-size: 22px; }
+.recycle-bin-label { font-size: 12px; color: #b9cbdb; }
+.recycle-bin-count { font-size: 18px; font-weight: 700; }
+
+.recycle-evidence { border-top: 1px solid #24344a; padding-top: 12px; }
+.recycle-evidence-main { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.recycle-item-img { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; border: 1px solid #2b3f57; }
+.recycle-evidence dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; font-size: 14px; }
+.recycle-evidence dt { color: #9fb2c4; }
+.recycle-evidence dd { margin: 0; }
+.recycle-nearest-title { margin: 12px 0 6px; color: #9fb2c4; font-size: 13px; }
+.recycle-nearest-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.recycle-nearest { margin: 0; text-align: center; font-size: 11px; color: #9fb2c4; width: 64px; }
+.recycle-nearest-img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #2b3f57; }
+
+.recycle-score { margin-top: 14px; padding-top: 12px; border-top: 1px solid #24344a; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.recycle-score-note { color: #9fb2c4; font-size: 12px; }
+.recycle-score-line b { font-size: 16px; }
+
+@media (max-width: 520px) {
+  .recycle-card { padding: 14px; }
+  .recycle-evidence-main { gap: 10px; }
+}

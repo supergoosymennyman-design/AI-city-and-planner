@@ -6838,6 +6838,36 @@
     return text.length > FRAME_CAPTION_MAX ? text.slice(0, FRAME_CAPTION_MAX - 1) + '…' : text;
   }
 
+  // Stage 4 host seam (recycling station): the student's trained IMAGE classifier as plain
+  // DATA, ready to publish. Walks a table for a placed library photo model (TrashNet k-NN) and
+  // returns { id, name, dataset, labels, k, examples:[{label,vector,source}] } or null. Reads
+  // only the shipped curated photos — private/uploaded examples are never included, so a
+  // published capability cannot carry a child's own camera data. `table` defaults to the live
+  // table but is overridable so a node test can drive the EXACT rule without a DOM.
+  function publishImageModel(modelId, table) {
+    // `state` lives in the DOM shell below the headless return, so in node it is an
+    // uninitialized binding — read it defensively rather than throwing a TDZ error.
+    let live = null;
+    if (!table) { try { live = (state && state.table) || null; } catch (e) { live = null; } }
+    const source = table || live;
+    const pieces = (source && source.pieces) || [];
+    const photo = pieces.filter((p) => p && p.type === 'sense' && p.libraryModel
+      && Library.preprocessing(p.libraryModel.dataset) === Library.PHOTO_FEATURES);
+    const piece = modelId ? photo.find((p) => p.libraryModel.id === modelId) : photo[0];
+    if (!piece) return null;
+    const m = piece.libraryModel;
+    const examples = [];
+    for (const label of Object.keys(m.state.shelves || {})) {
+      for (const ex of (m.state.shelves[label] || [])) {
+        const vec = (Array.isArray(ex.vec) && ex.vec.length) ? ex.vec : (ex.ref ? Library.refVector(ex.ref) : null);
+        if (Array.isArray(vec) && vec.length) examples.push({ label, vector: vec, source: { id: ex.id, display: ex.display || null } });
+      }
+    }
+    if (!examples.length) return null;
+    return { id: m.id, name: m.name || 'My sorter', dataset: m.dataset,
+      labels: Library.labels(m.dataset), k: (m.options && m.options.k) || 3, examples };
+  }
+
   const api = {
     LESSON_SHOTS, LESSON_DIR, demoMode, devMode, firstSentence, noteLead, machinesFrom, mergeMachines, mergeBricks, floorPos, faceStamps, trailWalk, litPath,
     STRINGS, t, LANGS, getLang, setLang, parseContents, feederItems, SENSES, SENSE_REGISTRY, modelEntry, makeIndependent, learningPiece, connectionImpact, sensesForEngine, applyTeachEffect, teachTargetError, resetBeltLearning,
@@ -6849,6 +6879,8 @@
     knowsText, validStudiedDatasets,
     // plan 2026-09-16: what the shared brains save (hoisted from the DOM shell; reads the registry only).
     brainsOut,
+    // Stage 4 (recycling): a placed library photo model as plain publish data.
+    publishImageModel,
     // task D (bring-your-own-data) + task E (sources are machines): the pure decisions behind
     // a committed table's schema, wherever it lives — a legacy feeder or a Files block.
     TableImport, feederSource, feedSchema, filesFeedFor, feederDealsBoth, dispName, feedSourceResetsShelves,

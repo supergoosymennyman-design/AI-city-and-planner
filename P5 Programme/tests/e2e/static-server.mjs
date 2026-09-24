@@ -58,8 +58,18 @@ const server = createServer(async (req, res) => {
       pathname = pathname
         .replace(/^\/planner(?=\/|$)/, '/city-planner')
         .replace(/^\/pregame(?=\/|$)/, '/city-pregame')
-        .replace(/^\/hub(?=\/|$)/, '/project-hub')
-        .replace(/^\/workshop(?=\/|$)/, '/project-shell');
+        .replace(/^\/hub(?=\/|$)/, '/project-hub');
+      // The bare Workshop route is the external-embed stub (project-shell) for previews,
+      // but Stage 1 packaged the CANONICAL Workshop into the City build — so every asset,
+      // module and the City's publish deep link (?publishTarget=city) must resolve to the
+      // real workshop/ source, exactly as the deploy bundle serves it.
+      if (/^\/workshop(?=\/|$)/.test(pathname)) {
+        const rest = pathname.slice('/workshop'.length);
+        const isIndex = rest === '' || rest === '/' || rest === '/index.html';
+        const wantsPublish = new URL(req.url, 'http://x').searchParams.has('publishTarget');
+        if (isIndex && !wantsPublish) pathname = '/project-shell/index.html';
+        // otherwise leave /workshop/... to resolve from the canonical workshop/ dir.
+      }
       // The deployed bundle includes Fit Studio at /studio/. Mirror that one
       // route in source previews without widening the normal client docroot.
       if (/^\/studio(?=\/|$)/.test(pathname)) {

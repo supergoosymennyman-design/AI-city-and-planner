@@ -71,6 +71,7 @@ import { createStreetFurniture } from './street-furniture.js';
 import { createMinimap } from './minimap.js';
 import { mountCityBuddy } from './buddy.js';
 import { mountCityAiNodes } from './ai-nodes.js';
+import { openRecyclingStation } from './recycling-station.js';
 import { createLabelRenderer, updateLabels } from '../champion-city/labels.js';
 import { mountSkinSidebar, equipCustomDefault, skinLabel } from '../champion-city/skins.js';
 import { preloadAccessories } from '../champion-city/accessories.js';
@@ -4959,6 +4960,9 @@ function mountBadgeUi() {
 // ── Planted machines: Capability Panel (Stage 1 — display only, honest) ──────
 const CAPS_KEY = CF_KEYS.caps;       // single source of truth (was a duplicated literal)
 const CAP_MAX_BYTES = 200 * 1024; // a numeric .cap is KBs; guard against bloat
+// An IMAGE .cap carries 1024 float32 per studied photo (~5.5 KB each before base64), so a
+// genuinely useful sorter is legitimately hundreds of KB. The plan's own bound, not a placeholder.
+const CAP_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
 // Last "Try my machine" verdict per planted machine id — lets the cap card and
 // the Coding Buddy talk about what the machine last decided.
 const CAP_LAST_DEC_KEY = 'p5_city_cap_lastdec_v1';
@@ -4994,7 +4998,18 @@ function renderCapPanel() {
   const caps = readPlantedCaps();
   const lastDec = readLastDecisions();
   const cards = caps.map((cap) => {
-    if (!cap || typeof cap !== 'object' || !Array.isArray(cap.input?.fields) || !Array.isArray(cap.output?.labels)) return `<p>${t('work.unreadableCap')}</p>`;
+    if (!cap || typeof cap !== 'object' || !Array.isArray(cap.output?.labels)) return `<p>${t('work.unreadableCap')}</p>`;
+    // Stage 4: an IMAGE model is not display-only — its prediction routes a real conveyor.
+    if (cap.input?.kind === 'image') {
+      const d = capabilityDescriptor(cap);
+      return `<div class="cap-card cap-card-image">
+        <div class="cap-name">♻ ${esc(d.name)}</div>
+        <div class="cap-meta">${esc(d.algorithm)} · ${zh ? '影像模型' : 'image model'} · ${esc(d.dimension)} ${zh ? '特徵' : 'features'} · ${d.labels.length} labels · threshold ${esc(d.threshold)}</div>
+        <div class="cap-note">${zh ? '預測決定回收箱；不確定會送到人手檢查盤。' : 'The prediction picks the bin; “not sure” goes to the human-check tray.'}</div>
+        <button class="cap-try" data-recycle-cap="${esc(d.id)}">♻ ${zh ? '運行回收分類站' : 'Run the recycling station'}</button>
+      </div>`;
+    }
+    if (!Array.isArray(cap.input?.fields)) return `<p>${t('work.unreadableCap')}</p>`;
     const d = capabilityDescriptor(cap);
     const s = d.scores;
     const scoreLine = `study ${s.study ?? '—'} · check ${s.check ?? '—'} · sealed ${s.sealed ?? '—'}`;
@@ -5015,10 +5030,13 @@ function renderCapPanel() {
     + cards
     + `<div class="cap-actions">
          <button id="cap-plant-btn">📦 ${zh ? '種入機器檔案 (.cap)' : 'Plant a machine file (.cap)'}</button>
+         <button id="cap-recycle-btn">♻ ${zh ? '回收分類站' : 'Recycling station'}</button>
        </div>
        <div id="cap-err" class="cap-error" aria-live="polite"></div>`;
   const plant = document.getElementById('cap-plant-btn');
   if (plant) plant.addEventListener('click', () => document.getElementById('cap-file').click());
+  const recycle = document.getElementById('cap-recycle-btn');
+  if (recycle) recycle.addEventListener('click', () => { close(); openRecyclingStation(); });
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -5043,6 +5061,8 @@ function mountCapabilityUi() {
 
   // Cards and outdoor nodes inspect the same Stage-1 evidence.
   document.addEventListener('click', (e) => {
+    const rec = e.target.closest('[data-recycle-cap]');
+    if (rec) { close(); openRecyclingStation(); return; }
     const t = e.target.closest('[data-try-cap]');
     if (!t) return;
     const caps = readPlantedCaps();
@@ -5052,13 +5072,13 @@ function mountCapabilityUi() {
 
   const plant = (raw) => {
     if (!raw) return;
-    if (new TextEncoder().encode(raw).length > CAP_MAX_BYTES) {
-      const err = document.getElementById('cap-err');
+    const r = parseCapability(raw);
+    const err = document.getElementById('cap-err');
+    const limit = r.ok && r.capability?.input?.kind === 'image' ? CAP_IMAGE_MAX_BYTES : CAP_MAX_BYTES;
+    if (new TextEncoder().encode(raw).length > limit) {
       if (err) err.textContent = zh ? '⚠️ 這個檔案太大（.cap 應為小 JSON）。' : '⚠️ That bundle is too large (.cap should be a small JSON).';
       return;
     }
-    const r = parseCapability(raw);
-    const err = document.getElementById('cap-err');
     if (!r.ok) {
       if (err) err.textContent = t('ui.capInvalid');
       return;
