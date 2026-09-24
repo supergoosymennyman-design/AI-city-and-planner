@@ -2,8 +2,10 @@
 
 ## Run the demo
 
-**[Open the Passiona AI City demo](https://p5-city-sim.clover-marquis.workers.dev/demo/)** — no installation needed.
-It opens the current populated example city automatically, with the conservative
+**Cloudflare demo URL:** https://p5-city-sim.clover-marquis.workers.dev/demo/
+
+Publication is currently pending renewed Cloudflare account authorization; use
+localhost below until the deployment is complete. The demo opens the current populated example city automatically, with the conservative
 presentation performance settings. The city is labelled **Passiona Demo**.
 
 To run the same demo on localhost, clone the demo branch and run:
