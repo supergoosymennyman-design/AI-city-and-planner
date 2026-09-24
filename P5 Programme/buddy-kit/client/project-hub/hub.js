@@ -2,7 +2,7 @@ import { attachArchiveAsset, createProjectStore, importProjectEnvelope } from '.
 import { CF_KEYS, collectState, writeState } from '../city-common/champion-file.js';
 import { loadCustomSkinBlob, loadCustomSkinMetadata, saveCustomSkin } from '../champion-city/custom-skin.js';
 import { parseCityLayout, projectHubView } from './hub-state.js';
-import { FIT_STUDIO_URL, WORKSHOP_URL } from '../shared/links.js';
+import { FIT_STUDIO_URL, WORKSHOP_URL, MARKET_URL } from '../shared/links.js';
 import { resetNewCityDraft } from '../city-common/new-city-draft.js';
 
 const $ = selector => document.querySelector(selector);
@@ -201,5 +201,8 @@ $('#new-city-action').addEventListener('click', event => {
 
 $('#studio-action').href = FIT_STUDIO_URL;
 $('#workshop-action').href = WORKSHOP_URL;
+$('#market-action').href = MARKET_URL;
+// Show the shared balance on the Market card (the wallet lives in the envelope).
+store.readEconomy().then(economy => { $('#market-balance').textContent = `${economy.balance} credits earned`; }).catch(() => {});
 
 openProject();

@@ -124,16 +124,45 @@ function buildBackpack() {
 // Bone names verified from the actual GLB export: this Mixamo pipeline names
 // bones WITHOUT the colon (mixamorigHead, mixamorigSpine2, …).
 // Items use `build` placeholder procedural geometry.
+// --- Market items (purchasable in the Champion Market; tags ['market']) -----
+function buildAntenna() {
+  const steel = stdMat(0x6b7280, { metalness: 0.7, roughness: 0.3 });
+  const glow = stdMat(0x00f2fe, { emissive: 0x00f2fe, emissiveIntensity: 0.9, roughness: 0.2 });
+  const parts = [];
+  parts.push(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.34, 8), steel, 0, 0.5, 0));
+  parts.push(mesh(new THREE.SphereGeometry(0.05, 12, 10), glow, 0, 0.68, 0));
+  parts.push(mesh(new THREE.CylinderGeometry(0.12, 0.13, 0.03, 12), stdMat(0x1f2937), 0, 0.34, 0));
+  return group(...parts);
+}
+function buildShoulderOrnament() {
+  const gold = stdMat(0xffd166, { metalness: 0.85, roughness: 0.28, emissive: 0x6b4a00, emissiveIntensity: 0.25 });
+  const parts = [];
+  parts.push(mesh(new THREE.BoxGeometry(0.16, 0.06, 0.22), gold, -0.26, 0.12, 0));
+  parts.push(mesh(new THREE.BoxGeometry(0.16, 0.06, 0.22), gold, 0.26, 0.12, 0));
+  return group(...parts);
+}
+function buildBadgePin() {
+  const rim = stdMat(0xffd166, { metalness: 0.9, roughness: 0.25 });
+  const face = stdMat(0x0e7c66, { emissive: 0x0e7c66, emissiveIntensity: 0.35, roughness: 0.3 });
+  const parts = [];
+  parts.push(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.015, 16), rim, -0.09, 0.2, 0.09));
+  parts.push(mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.02, 16), face, -0.09, 0.2, 0.095));
+  return group(...parts);
+}
+
 export const ACCESSORIES = [
   { id: 'head_crown',    name: 'Royal Crown',    nameKey: 'acc.head_crown',    slot: 'head', bone: 'mixamorigHead',   off: [0, 0.35, 0],      tags: ['lesson1'], build: buildCrown },
   { id: 'head_vr',       name: 'VR Headset',     nameKey: 'acc.head_vr',       slot: 'head', bone: 'mixamorigHead',   off: [0, 0.22, 0],      tags: ['lesson3'], build: buildVRHeadset },
-  { id: 'head_hardhat',  name: 'Smart Hard Hat', nameKey: 'acc.head_hardhat',  slot: 'head', bone: 'mixamorigHead',   off: [0, 0.28, 0],      tags: [],          build: buildHardHat },
+  { id: 'head_hardhat',  name: 'Smart Hard Hat', nameKey: 'acc.head_hardhat',  slot: 'head', bone: 'mixamorigHead',   off: [0, 0.28, 0],      tags: [],          build: buildHardHat, marketId: 'acc-cap' },
   { id: 'face_glasses',  name: 'Smart Glasses',  nameKey: 'acc.face_glasses',  slot: 'face', bone: 'mixamorigHead',   off: [0, 0.24, 0.06],   tags: ['lesson5'], build: buildGlasses },
   { id: 'face_monocle',  name: 'Gold Monocle',   nameKey: 'acc.face_monocle',  slot: 'face', bone: 'mixamorigHead',   off: [0.12, 0.22, 0.06], tags: [],          build: buildMonocle },
-  { id: 'face_visor',    name: 'Holo Visor',     nameKey: 'acc.face_visor',    slot: 'face', bone: 'mixamorigHead',   off: [0, 0.24, 0.06],   tags: ['lesson3'], build: buildVisor },
+  { id: 'face_visor',    name: 'Holo Visor',     nameKey: 'acc.face_visor',    slot: 'face', bone: 'mixamorigHead',   off: [0, 0.24, 0.06],   tags: ['lesson3'], build: buildVisor, marketId: 'acc-visor' },
   { id: 'back_wings',    name: 'Cyber Wings',    nameKey: 'acc.back_wings',    slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.15, -0.05],  tags: [],          build: buildWings },
   { id: 'back_jetpack',  name: 'Rocket Pack',    nameKey: 'acc.back_jetpack',  slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.12, -0.1],   tags: ['lesson7'], build: buildJetpack },
-  { id: 'back_backpack', name: 'Tech Backpack',  nameKey: 'acc.back_backpack', slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.15, -0.12],  tags: [],          build: buildBackpack },
+  { id: 'back_backpack', name: 'Tech Backpack',  nameKey: 'acc.back_backpack', slot: 'back', bone: 'mixamorigSpine2', off: [0, 0.15, -0.12],  tags: [],          build: buildBackpack, marketId: 'acc-backpack' },
+  { id: 'head_antenna',   name: 'Antenna Topper',  nameKey: 'acc.head_antenna',   slot: 'head',  bone: 'mixamorigHead',   off: [0, 0.28, 0],     tags: ['market'], build: buildAntenna, marketId: 'acc-antenna' },
+  { id: 'chest_shoulder', name: 'Shoulder Ornament', nameKey: 'acc.chest_shoulder', slot: 'chest', bone: 'mixamorigSpine2', off: [0, 0.12, 0],     tags: ['market'], build: buildShoulderOrnament, marketId: 'acc-shoulder' },
+  { id: 'chest_badge',    name: 'Badge Pin',         nameKey: 'acc.chest_badge',    slot: 'chest', bone: 'mixamorigSpine2', off: [0, 0.06, 0.16],  tags: ['market'], build: buildBadgePin, marketId: 'acc-badge-pin' },
 ];
 
 export function accessoriesForSlot(slot) { return ACCESSORIES.filter(a => a.slot === slot); }

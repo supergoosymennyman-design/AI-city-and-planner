@@ -3,24 +3,31 @@
 // The wallet is the SHARED envelope economy (city-common/project-store.js),
 // never a private counter. Prices come from the catalogue, the store commits
 // the debit + ownership in one IndexedDB transaction, and a duplicate purchase
-// can never charge twice (ledger.js).
+// can never charge twice (ledger.js). Owned accessories can be equipped on the
+// Champion right here; owned decorations hand off to the City to place.
 import { createProjectStore } from '../city-common/project-store.js';
-import { MARKET_CATALOGUE, MARKET_COLLECTIONS, marketItems } from '../city-common/market-catalogue.js';
+import { MARKET_CATALOGUE, MARKET_COLLECTIONS, marketItems, marketItem, marketAction } from '../city-common/market-catalogue.js';
+
+// The Champion runtime reads this key on load, so equipping here dresses the
+// Champion in the City with no extra plumbing (same-origin localStorage).
+const CHAMPION_ACCESSORY_KEY = 'hk_ai_city_accessories_v1';
 
 const STR = {
   en: {
     title: 'Champion Market', credits: 'credits', hub: '← Hub',
-    buy: 'Buy', owned: 'Owned', equip: 'Equip in City', place: 'Place in City',
-    noFunds: 'Not enough credits yet — prove a skill in the Workshop to earn more.',
-    bought: 'Added to your collection.', failed: 'That purchase could not be completed.',
-    empty: 'The market is loading…',
+    buy: 'Buy', equip: 'Equip', place: 'Place in City',
+    equipped: 'Equipped on your Champion — see it in the City.',
+    noFunds: 'Not enough credits yet — prove a skill in the Workshop or Academy to earn more.',
+    bought: 'Added to your collection.', failed: 'That could not be completed.',
+    placeHint: 'Opening the City to place this…',
   },
   'zh-Hant': {
     title: '冠軍市集', credits: '學分', hub: '← 主頁',
-    buy: '購買', owned: '已擁有', equip: '在城市裝備', place: '放置於城市',
-    noFunds: '學分不足 —— 到工作坊展示技能即可賺取更多。',
-    bought: '已加入你的收藏。', failed: '無法完成交易。',
-    empty: '市集載入中…',
+    buy: '購買', equip: '裝備', place: '放置於城市',
+    equipped: '已裝備在冠軍身上 —— 到城市看看。',
+    noFunds: '學分不足 —— 到工作坊或學院展示技能即可賺取更多。',
+    bought: '已加入你的收藏。', failed: '無法完成。',
+    placeHint: '正在開啟城市放置…',
   },
 };
 
@@ -49,18 +56,17 @@ function render() {
   const grid = $('mkt-grid');
   grid.textContent = '';
   for (const entry of marketItems()) {
-    const isOwned = owned.includes(entry.id);
+    const action = marketAction(entry.id, owned);
+    const collection = MARKET_COLLECTIONS[entry.collection];
     const card = document.createElement('article');
     card.className = 'mkt-card';
-    const collection = MARKET_COLLECTIONS[entry.collection];
     card.innerHTML = `
       <span class="mkt-collection">${(collection && (lang === 'zh-Hant' ? collection.zh : collection.en)) || entry.collection}</span>
       <h2>${lang === 'zh-Hant' ? entry.nameZh : entry.name}</h2>
       <span class="mkt-zh">${lang === 'zh-Hant' ? entry.name : entry.nameZh}</span>
       <span class="mkt-price">◎ ${fmt(entry.price)}</span>
-      <button class="mkt-buy${isOwned ? ' mkt-owned' : ''}" type="button" data-id="${entry.id}"${isOwned ? ' disabled' : ''}>
-        ${isOwned ? t('owned') : t('buy')}
-      </button>`;
+      <button class="mkt-buy${action !== 'buy' ? ' mkt-owned' : ''}" type="button"
+        data-id="${entry.id}" data-action="${action}">${t(action)}</button>`;
     grid.append(card);
   }
 }
@@ -76,18 +82,33 @@ async function buy(button) {
     const result = await store.purchase(id, transactionId, MARKET_CATALOGUE);
     if (!result.ok) {
       $('mkt-note').textContent = /credits/i.test(result.error || '') ? t('noFunds') : (result.error || t('failed'));
-    } else {
-      economy = result.economy;
-      $('mkt-note').textContent = result.purchased ? t('bought') : '';
-      render();
       return;
     }
+    economy = result.economy;
+    $('mkt-note').textContent = result.purchased ? t('bought') : '';
+    render();
   } catch {
     $('mkt-note').textContent = t('failed');
   } finally {
     pending.delete(id);
-    button.disabled = false;
+    if (button.isConnected) button.disabled = false;
   }
+}
+
+function equip(entry) {
+  if (!entry?.championAccessory || !entry.slot) return;
+  try {
+    const map = JSON.parse(localStorage.getItem(CHAMPION_ACCESSORY_KEY) || '{}');
+    map[entry.slot] = entry.championAccessory;
+    localStorage.setItem(CHAMPION_ACCESSORY_KEY, JSON.stringify(map));
+    $('mkt-note').textContent = t('equipped');
+  } catch { $('mkt-note').textContent = t('failed'); }
+}
+
+function place(entry) {
+  // Owned decorations are placed in the City's own placement tool.
+  $('mkt-note').textContent = t('placeHint');
+  location.href = `../city-builder/?place=${encodeURIComponent(entry.id)}`;
 }
 
 $('mkt-lang').addEventListener('click', () => {
@@ -98,8 +119,13 @@ $('mkt-lang').addEventListener('click', () => {
 });
 
 $('mkt-grid').addEventListener('click', (event) => {
-  const button = event.target.closest('.mkt-buy');
-  if (button && !button.disabled) buy(button);
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  const entry = marketItem(button.dataset.id);
+  if (!entry) return;
+  if (button.dataset.action === 'buy') buy(button);
+  else if (button.dataset.action === 'equip') equip(entry);
+  else if (button.dataset.action === 'place') place(entry);
 });
 
 (async function boot() {
@@ -111,9 +137,6 @@ $('mkt-grid').addEventListener('click', (event) => {
   } catch {
     economy = null;
   }
-  if (!economy) {
-    $('mkt-note').textContent = t('failed');
-    return;
-  }
+  if (!economy) { $('mkt-note').textContent = t('failed'); return; }
   render();
 })();

@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { MARKET_CATALOGUE, MARKET_COLLECTIONS, marketItems, marketItem, marketAction } from '../P5 Programme/buddy-kit/client/city-common/market-catalogue.js';
 import { emptyEconomy, applyTransaction, purchaseItem, priceOf } from '../P5 Programme/buddy-kit/client/city-common/ledger.js';
+
+// The Champion registry imports three.js, so read it as text (as the links
+// mirror test does) and assert every purchasable accessory really equips.
+const accessoriesSource = readFileSync(new URL('../P5 Programme/buddy-kit/client/champion-city/accessories.js', import.meta.url), 'utf8');
+const accessoryEntries = [...accessoriesSource.matchAll(/\{ id: '([a-z_]+)',[\s\S]*?slot: '([a-z]+)'/g)]
+  .map(m => ({ id: m[1], slot: m[2] }));
 
 test('the launch market ships 18 items across the four collections', () => {
   const items = marketItems();
@@ -39,6 +46,16 @@ test('the ledger reads prices straight from the market catalogue', () => {
   assert.equal(bought.purchased, true);
   assert.equal(bought.economy.balance, 20);
   assert.deepEqual(bought.economy.owned, ['pre-host-a']);
+});
+
+test('every purchasable accessory maps to a real Champion accessory with the right slot', () => {
+  const byId = new Map(accessoryEntries.map(e => [e.id, e.slot]));
+  assert.ok(byId.size >= 6, 'the accessory registry should parse');
+  for (const entry of marketItems().filter(i => i.kind === 'accessory')) {
+    assert.ok(entry.championAccessory, `${entry.id} must name a champion accessory`);
+    assert.ok(byId.has(entry.championAccessory), `${entry.championAccessory} is not in the Champion registry`);
+    assert.equal(byId.get(entry.championAccessory), entry.slot, `${entry.id} slot must match ${entry.championAccessory}`);
+  }
 });
 
 test('a card action is Buy, then Equip or Place once owned', () => {

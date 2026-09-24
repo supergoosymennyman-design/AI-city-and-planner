@@ -21,6 +21,7 @@ import { WEIGHT_LAB, weightLabTotal, DIJKSTRA_LESSON, DIJKSTRA_BUS_DIST, dijkstr
 import { initI18n, currentLang, t, tf, applyStatic, mountLangToggle } from './i18n.js';
 import { collectState, composeChampionFile, championFilename } from '../city-common/champion-file.js';
 import { parseProgress, mergeProgress } from '../city-common/pregame-progress.js';
+import { award } from '../city-common/learning-events.js';
 
 initI18n();
 
@@ -165,6 +166,10 @@ function completeRoom(room) {
   state.completed[room] = true;
   state.currentRoom = null;
   saveProgress();
+  // A finished room is a practical task: report it to the shared wallet. The
+  // event is scoped per room and idempotent, so replaying a room never re-earns.
+  // Fire-and-forget — a wallet that is unavailable never blocks the lesson.
+  try { award('tutorial-task', `academy-room-${room}`, { room, title: ROOMS[room]?.title || '' }).catch(() => {}); } catch { /* ignore */ }
   updateNav();
   toast(tf('pg.room.complete', { title: ROOMS[room].title }));
   const nav = document.getElementById('room-next-nav');

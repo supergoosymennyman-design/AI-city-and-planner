@@ -21,12 +21,12 @@ export const MARKET_CATALOGUE = Object.freeze({
   version: MARKET_VERSION,
   items: {
     // ── Champion accessories — equip on the Champion (champion-city) ─────────
-    'acc-visor':      item('acc-visor', 'Holo Visor', '全息護目鏡', 20, 'champion-accessory', { kind: 'accessory', slot: 'face' }),
-    'acc-antenna':    item('acc-antenna', 'Antenna Topper', '天線帽飾', 20, 'champion-accessory', { kind: 'accessory', slot: 'head' }),
-    'acc-cap':        item('acc-cap', 'Engineer Cap', '工程師帽', 40, 'champion-accessory', { kind: 'accessory', slot: 'head' }),
-    'acc-backpack':   item('acc-backpack', 'Tech Backpack', '科技背包', 40, 'champion-accessory', { kind: 'accessory', slot: 'back' }),
-    'acc-shoulder':   item('acc-shoulder', 'Shoulder Ornament', '肩章', 60, 'champion-accessory', { kind: 'accessory', slot: 'chest' }),
-    'acc-badge-pin':  item('acc-badge-pin', 'Badge Pin', '徽章別針', 60, 'champion-accessory', { kind: 'accessory', slot: 'chest' }),
+    'acc-visor':      item('acc-visor', 'Holo Visor', '全息護目鏡', 20, 'champion-accessory', { kind: 'accessory', slot: 'face' , championAccessory: 'face_visor' }),
+    'acc-antenna':    item('acc-antenna', 'Antenna Topper', '天線帽飾', 20, 'champion-accessory', { kind: 'accessory', slot: 'head' , championAccessory: 'head_antenna' }),
+    'acc-cap':        item('acc-cap', 'Engineer Cap', '工程師帽', 40, 'champion-accessory', { kind: 'accessory', slot: 'head' , championAccessory: 'head_hardhat' }),
+    'acc-backpack':   item('acc-backpack', 'Tech Backpack', '科技背包', 40, 'champion-accessory', { kind: 'accessory', slot: 'back' , championAccessory: 'back_backpack' }),
+    'acc-shoulder':   item('acc-shoulder', 'Shoulder Ornament', '肩章', 60, 'champion-accessory', { kind: 'accessory', slot: 'chest' , championAccessory: 'chest_shoulder' }),
+    'acc-badge-pin':  item('acc-badge-pin', 'Badge Pin', '徽章別針', 60, 'champion-accessory', { kind: 'accessory', slot: 'chest' , championAccessory: 'chest_badge' }),
 
     // ── City decorations — place in the City (repeatable) ────────────────────
     'dec-planter':    item('dec-planter', 'Street Planter', '街頭花槽', 30, 'city-decoration', { kind: 'decoration', place: 'prop' }),
