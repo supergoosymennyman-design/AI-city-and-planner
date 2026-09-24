@@ -34,6 +34,9 @@
        reads window.WorkshopHistory at closure-build time, so this must load before game.js. -->
   <script src="logic/history.js"></script>
   <script src="logic/layout.js"></script>
+  <!-- Stage 5 (driving): the sensor-situation table's author — loaded BEFORE datasets.js,
+       whose `drive` entry delegates to it at module-eval time. -->
+  <script src="logic/drive-data.js"></script>
   <script src="logic/datasets.js"></script>
   <script src="assets/library/catalogue.js"></script>
   <script src="assets/library/models.js"></script>
@@ -121,6 +124,8 @@
        tutorial works over file:// with zero fetches; must load before tutorial-panel.js and
        game.js, both of which read window.WorkshopTutorialScript eagerly at use time. -->
   <script src="logic/car-examples.js"></script>
+  <!-- Stage 5 (driving): the sensor-data starter machine ("drive-v1"). -->
+  <script src="logic/drive-examples.js"></script>
   <script src="logic/tutorial-script.js"></script>
   <!-- logic/tutorial-score.js (car-gallery tutorial, task 2): the PURE topological matcher + scorer
        (topology/classify/score) T10's completion match reads. Same classic-script, zero-fetch idiom

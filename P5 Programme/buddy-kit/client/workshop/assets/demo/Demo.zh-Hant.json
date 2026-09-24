@@ -6812,6 +6812,246 @@
           ],
           "brains": {}
         },
+        "drive-v1": {
+          "v": 1,
+          "seed": 42,
+          "name": "駕駛",
+          "gallery": "drive-v1",
+          "note": "汽車應該怎樣做？\n\n這部機器會讀取汽車的感應器數據，並預測五個動作之一：前進、左轉、右轉、減速或停車。檔案積木存放駕駛資料表；分流器把它分成訓練、驗證和測試三疊。按「運行」，然後依次使用三個按鈕：「教它」會把訓練那疊逐一歸檔而不是猜測；「考它學過的」會再次派出同樣的情況讓模型猜；「考它新的」會派出留起的資料——兩個數字之間的差距就是這一課。模型戴上數字感應器和 k-NN 大腦：它會按最相近的已見情況預測動作。滿意之後，把它發佈到你的城市，測試汽車就會用同一個模型行駛。",
+          "pieces": [
+            {
+              "id": "dv_src",
+              "type": "files",
+              "x": 30,
+              "y": 40,
+              "rate": 120,
+              "dataset": "drive"
+            },
+            {
+              "id": "dv_split",
+              "type": "splitter",
+              "x": 220,
+              "y": 322,
+              "training": 60,
+              "validation": 20
+            },
+            {
+              "id": "dv_feed",
+              "type": "feeder",
+              "x": 30,
+              "y": 322,
+              "rate": 120,
+              "items": []
+            },
+            {
+              "id": "dv_t1",
+              "type": "track",
+              "x": 200,
+              "y": 604,
+              "speed": 2
+            },
+            {
+              "id": "dv_model",
+              "type": "sense",
+              "x": 400,
+              "y": 40,
+              "senseId": "num",
+              "brainId": "knn",
+              "k": 3,
+              "sure": 0.5,
+              "penalty": 0,
+              "degree": 1,
+              "watchPiece": "dv_t1",
+              "files": false,
+              "name": "Driving Model",
+              "learning": {}
+            },
+            {
+              "id": "dv_check",
+              "type": "checker",
+              "x": 560,
+              "y": 592,
+              "name": "Evaluator",
+              "kind": "labels"
+            },
+            {
+              "id": "dv_guess",
+              "type": "sign",
+              "x": 700,
+              "y": 40,
+              "mode": "label",
+              "name": "Action"
+            },
+            {
+              "id": "dv_done",
+              "type": "sign",
+              "x": 960,
+              "y": 40,
+              "mode": "value",
+              "name": "Rows in the last act"
+            },
+            {
+              "id": "dv_cnt",
+              "type": "counter",
+              "x": 960,
+              "y": 300,
+              "n": 3
+            },
+            {
+              "id": "dv_lamp",
+              "type": "lamp",
+              "x": 1120,
+              "y": 300,
+              "colour": "green",
+              "seconds": 2
+            },
+            {
+              "id": "dv_btnTeach",
+              "type": "button",
+              "x": 120,
+              "y": 704,
+              "name": "Teach it"
+            },
+            {
+              "id": "dv_btnQuizA",
+              "type": "button",
+              "x": 320,
+              "y": 704,
+              "name": "Test what it studied"
+            },
+            {
+              "id": "dv_btnQuizB",
+              "type": "button",
+              "x": 540,
+              "y": 1004,
+              "name": "Test on new"
+            }
+          ],
+          "snaps": [
+            {
+              "from": {
+                "piece": "dv_feed",
+                "end": "out"
+              },
+              "to": {
+                "piece": "dv_t1",
+                "end": "in"
+              }
+            },
+            {
+              "from": {
+                "piece": "dv_t1",
+                "end": "out"
+              },
+              "to": {
+                "piece": "dv_check",
+                "end": "in"
+              }
+            }
+          ],
+          "wires": [
+            {
+              "from": {
+                "block": "dv_src",
+                "port": "row"
+              },
+              "to": {
+                "block": "dv_split",
+                "port": "in"
+              }
+            },
+            {
+              "from": {
+                "block": "dv_split",
+                "port": "row"
+              },
+              "to": {
+                "block": "dv_feed",
+                "port": "drop"
+              }
+            },
+            {
+              "from": {
+                "block": "dv_btnTeach",
+                "port": "pressed"
+              },
+              "to": {
+                "block": "dv_split",
+                "port": "teach"
+              }
+            },
+            {
+              "from": {
+                "block": "dv_btnTeach",
+                "port": "pressed"
+              },
+              "to": {
+                "block": "dv_cnt",
+                "port": "reset"
+              }
+            },
+            {
+              "from": {
+                "block": "dv_btnQuizA",
+                "port": "pressed"
+              },
+              "to": {
+                "block": "dv_split",
+                "port": "releaseTraining"
+              }
+            },
+            {
+              "from": {
+                "block": "dv_btnQuizB",
+                "port": "pressed"
+              },
+              "to": {
+                "block": "dv_split",
+                "port": "releaseValidation"
+              }
+            },
+            {
+              "from": {
+                "block": "dv_model",
+                "port": "reading"
+              },
+              "to": {
+                "block": "dv_guess",
+                "port": "show"
+              }
+            },
+            {
+              "from": {
+                "block": "dv_check",
+                "port": "right"
+              },
+              "to": {
+                "block": "dv_cnt",
+                "port": "plus"
+              }
+            },
+            {
+              "from": {
+                "block": "dv_cnt",
+                "port": "atN"
+              },
+              "to": {
+                "block": "dv_lamp",
+                "port": "on"
+              }
+            },
+            {
+              "from": {
+                "block": "dv_split",
+                "port": "done"
+              },
+              "to": {
+                "block": "dv_done",
+                "port": "show"
+              }
+            }
+          ]
+        },
         "garagedoor": {
           "v": 1,
           "seed": 42,

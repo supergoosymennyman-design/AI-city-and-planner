@@ -254,6 +254,18 @@ window.WORKSHOP_STRINGS['zh-Hant'] = {
   "feature.route": "路線",
   "feature.temp": "氣溫",
   "feature.weekend": "週末",
+  "dataset.drive.name": "駕駛——汽車應該怎樣做？",
+  "dataset.drive.story": "汽車報告感應器看到的情況：左邊、正前方、右邊的障礙物距離；偏離行車線多遠；車頭指向哪邊；車速；交通燈；以及前面有沒有轉彎。謹慎的司機應該怎樣做：前進、左轉、右轉、減速，還是停車？",
+  "dataset.drive.teaches": "用感應器資料做五選一的判斷。換上記憶大腦（k-NN），教它安全的動作，再用新情況測試——計分表會數出正確、錯誤和不確定。把它發佈到城市，你的汽車就會用同一個模型行駛測試賽道。",
+  "feature.drive.left": "左",
+  "feature.drive.center": "前方",
+  "feature.drive.right": "右",
+  "feature.drive.laneOffset": "偏離行車線",
+  "feature.drive.headingError": "車頭角度",
+  "feature.drive.speed": "車速",
+  "feature.drive.trafficLight": "交通燈",
+  "feature.drive.turnIntent": "將要轉彎",
+  "answer.action": "動作",
   "answer.thirsty": "口渴",
   "answer.late": "遲到",
   "answer.cups": "杯數",
@@ -1499,5 +1511,8 @@ window.WORKSHOP_STRINGS['zh-Hant'] = {
   "tutorial.example.icecreamBoard": "次數圖板",
   "tutorial.example.icecreamTeach": "教它",
   "tutorial.example.icecreamQuizA": "考它學過的",
-  "tutorial.example.icecreamQuizB": "考它新的"
+  "tutorial.example.icecreamQuizB": "考它新的",
+  "tutorial.example.driveModel": "駕駛模型",
+  "tutorial.example.driveEvaluator": "評估器",
+  "tutorial.example.driveAction": "動作"
 };

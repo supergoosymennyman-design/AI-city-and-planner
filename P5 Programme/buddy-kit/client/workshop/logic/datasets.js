@@ -24,6 +24,9 @@
  * Determinism: logic/rng.js only. Pure; no DOM. window.WorkshopDatasets + module.exports.
  */
 const Rng = (typeof require === 'function') ? require('./rng.js') : window.WorkshopRng;
+// Stage 5 (driving): the sensor-situation table's author. Loaded as a classic
+// script ahead of this one; required directly under node.
+const DriveData = (typeof require === 'function') ? require('./drive-data.js') : window.WorkshopDriveData;
 
 /** L2-normalise. */
 function unit(v) {
@@ -162,8 +165,18 @@ const DATASETS = {
       return [{ features: { temp, weekend }, answer: String(cups), value: cups }, st];
     },
   },
+  // Stage 5 (driving): a car's sensor readings, labelled by what a careful
+  // driver would do. `kind: 'labels'` is the multi-class label path the Evaluator
+  // already grades (right/wrong/unsure) — five actions, no numeric answer.
+  drive: {
+    id: 'drive', kind: 'labels', size: 200, studyDefault: 0.6,
+    nameKey: 'dataset.drive.name', storyKey: 'dataset.drive.story', teachesKey: 'dataset.drive.teaches',
+    features: DriveData.FEATURES.map((f) => ({ id: f.id, nameKey: 'feature.drive.' + f.id, min: f.min, max: f.max })),
+    answer: { nameKey: 'answer.action', labels: [...DriveData.ACTIONS] },
+    gen: (st) => DriveData.gen(st),
+  },
 };
-const ORDER = ['plants', 'buses', 'icecream', 'icecream-tiny'];
+const ORDER = ['plants', 'buses', 'icecream', 'icecream-tiny', 'drive'];
 
 /**
  * Loud on an unknown dataset id — a save from a future build must not silently feed nothing.

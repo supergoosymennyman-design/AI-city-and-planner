@@ -72,6 +72,8 @@ import { createMinimap } from './minimap.js';
 import { mountCityBuddy } from './buddy.js';
 import { mountCityAiNodes } from './ai-nodes.js';
 import { openRecyclingStation } from './recycling-station.js';
+import { openTestTrack, setCitySource } from './test-track.js';
+import { checkDriveCompatibility } from '../city-common/driving.js';
 import { createLabelRenderer, updateLabels } from '../champion-city/labels.js';
 import { mountSkinSidebar, equipCustomDefault, skinLabel } from '../champion-city/skins.js';
 import { preloadAccessories } from '../champion-city/accessories.js';
@@ -692,6 +694,8 @@ let city = {};            // object passed to champion/buddy (scene/camera/rende
 let champion = null;
 let sim = null;
 let layout = null;
+// Stage 5: the test track reads the child's road network READ-ONLY for "Try in my city".
+setCitySource({ getRoads: () => (layout && Array.isArray(layout.roads)) ? layout.roads : [] });
 let _bootGen = 0;         // bumped on every boot; stale loops cancel themselves
 let _bootOwner = null;     // owns this boot's RAFs, listeners, timers and deferred work
 let _bootWatchdog = 0;    // boot-hang guard (see bootInner)
@@ -5010,6 +5014,16 @@ function renderCapPanel() {
       </div>`;
     }
     if (!Array.isArray(cap.input?.fields)) return `<p>${t('work.unreadableCap')}</p>`;
+    // Stage 5: a DRIVE model is not display-only — its action controls the test car.
+    if (checkDriveCompatibility(cap).ok) {
+      const d = capabilityDescriptor(cap);
+      return `<div class="cap-card cap-card-drive">
+        <div class="cap-name">🚗 ${esc(d.name)}</div>
+        <div class="cap-meta">${esc(d.algorithm)} · ${zh ? '駕駛模型' : 'driving model'} · ${esc(d.inputFields.join(' · '))} · ${d.labels.length} ${zh ? '動作' : 'actions'} · threshold ${esc(d.threshold)}</div>
+        <div class="cap-note">${zh ? '模型的動作會直接控制測試汽車；不確定時汽車會停下。' : 'The model’s action drives the test car; “not sure” stops it.'}</div>
+        <button class="cap-try" data-drive-cap="${esc(d.id)}">🚗 ${zh ? '駕駛測試賽道' : 'Driving test track'}</button>
+      </div>`;
+    }
     const d = capabilityDescriptor(cap);
     const s = d.scores;
     const scoreLine = `study ${s.study ?? '—'} · check ${s.check ?? '—'} · sealed ${s.sealed ?? '—'}`;
@@ -5031,12 +5045,15 @@ function renderCapPanel() {
     + `<div class="cap-actions">
          <button id="cap-plant-btn">📦 ${zh ? '種入機器檔案 (.cap)' : 'Plant a machine file (.cap)'}</button>
          <button id="cap-recycle-btn">♻ ${zh ? '回收分類站' : 'Recycling station'}</button>
+         <button id="cap-drive-btn">🚗 ${zh ? '駕駛測試賽道' : 'Driving test track'}</button>
        </div>
        <div id="cap-err" class="cap-error" aria-live="polite"></div>`;
   const plant = document.getElementById('cap-plant-btn');
   if (plant) plant.addEventListener('click', () => document.getElementById('cap-file').click());
   const recycle = document.getElementById('cap-recycle-btn');
   if (recycle) recycle.addEventListener('click', () => { close(); openRecyclingStation(); });
+  const drive = document.getElementById('cap-drive-btn');
+  if (drive) drive.addEventListener('click', () => { close(); openTestTrack(); });
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -5063,6 +5080,8 @@ function mountCapabilityUi() {
   document.addEventListener('click', (e) => {
     const rec = e.target.closest('[data-recycle-cap]');
     if (rec) { close(); openRecyclingStation(); return; }
+    const drv = e.target.closest('[data-drive-cap]');
+    if (drv) { close(); openTestTrack(); return; }
     const t = e.target.closest('[data-try-cap]');
     if (!t) return;
     const caps = readPlantedCaps();

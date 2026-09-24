@@ -236,3 +236,63 @@ supported families, it **stays in the Workshop** — honesty beats universal pla
 
 *To the Workshop team:* this is the export contract. Ship the JSON bundle above;
 we will run it. Questions / drift → update this doc's version and bump `specVersion`.
+
+---
+
+## 11. V2 — what actually shipped (S3–S5)
+
+`specVersion: 2` supersedes v1 for new bundles; **v1 stays read-only and unchanged**.
+The City's `city-common/cap-runtime.js` parses both and dispatches inference.
+
+One algorithm family covers every v2 capability: **`knn-unit-majority-v2`**.
+
+```
+raw event → declared input fields (or the pinned extractor's vector)
+          → optional bias constant (model.plusConstant)
+          → unit-normalize
+          → the SHARED k-NN (knn-vector.js: majority vote, distance ties by id)
+          → sure line 1 − d²/2  vs  model.threshold
+          → abstain (__abstain)
+```
+
+This is a byte-for-byte mirror of the Workshop's own `logic/brain.js` classify
+rules — proven by `tests/knn-vector-parity.test.mjs` over a seeded grid (ordinary
+cases, distance ties, vote ties). `city-common/knn-vector.js` is the one shared
+implementation; the City's older v1 minmax/inverse-distance path remains for v1
+bundles only.
+
+**Input kinds**
+
+| `input.kind` | Event payload | Used by |
+|---|---|---|
+| `vector` (numeric, default) | `{ field: number, … }` for every declared field | S3 gate/watcher; **S5 driving** |
+| `image` | `{ vector: number[] }` (the pinned extractor's unit vector) | S4 recycling |
+
+An `image` bundle MUST name `input.preprocessing` and `input.dimension`;
+`parseCapability` refuses one that does not, and the City refuses features from an
+extractor it does not hold.
+
+**Host kinds.** `city.hostTypes` declares which host kinds may run a capability;
+`installSkill` refuses a mismatch. Shipped hosts: `sorter` (image) and `driver`
+(numeric driving).
+
+**The driving contract (S5).** Numeric fields, in order:
+`left, center, right, laneOffset, headingError, speed, trafficLight, turnIntent` →
+`forward | left | right | slow | stop`; `model.plusConstant = 10` (the Workshop
+number sense's bias). The exact field order is the order the Workshop number sense
+extracts off a sensor sticker, so `numberVec(...)` on the belt and the City runtime
+compute the same vector.
+
+**Builders.** `capability-export.js`:
+`buildCapabilityV2` (numeric), `buildImageCapabilityV2` (image),
+`buildDriveCapability` (driving). Each gates publishing on a self-test that is
+actually re-run through the runtime; a reproducible abstention is a valid case.
+
+**Publish → install → run.** `skill-registry.js` over the envelope's
+`capabilities` / `installations`: `publishCapability` (immutable per revision, self-test
+gate), `installSkill` (host-kind check, idempotent per host instance),
+`runSkill` (returns the real decision, bounded 200-decision log),
+`updateAvailable` (surfaces a revision; **never auto-replaces**). Revisions never
+update an installed machine automatically.
+
+**No code in a bundle.** All of the above is data; the City runs its own runtime.

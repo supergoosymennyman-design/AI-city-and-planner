@@ -26,6 +26,9 @@
     "tutorial.example.icecreamDone": "Rows in the last act",
     "tutorial.example.datalabGuess": "Guess",
     "tutorial.example.datalabReader": "Data reader",
+    "tutorial.example.driveModel": "Driving Model",
+    "tutorial.example.driveEvaluator": "Evaluator",
+    "tutorial.example.driveAction": "Action",
     "ml.title": "Learn, check, improve",
     "ml.intro": "Use this sorter to investigate a question: does what it learned work on new photos?",
     "ml.help": "The basic recipe for machine learning",
@@ -590,6 +593,19 @@
     'feature.route': 'route',
     'feature.temp': 'temp',
     'feature.weekend': 'weekend',
+    // Stage 5 (driving): the sensor-situation table and its readings.
+    'dataset.drive.name': 'Driving — what should the car do?',
+    'dataset.drive.story': 'A car reports what its sensors see: distance to an obstacle on the left, straight ahead and on the right; how far off the lane it is; which way it is pointing; its speed; the traffic light; and a turn coming up. What would a careful driver do: forward, left, right, slow or stop?',
+    'dataset.drive.teaches': 'A five-way choice on sensor data. Wear a memory brain (k-NN) and teach it the safe actions, then test on new situations — the Tally counts right, wrong and unsure. Publish it to the City and your car drives the test track with the very same model.',
+    'feature.drive.left': 'left',
+    'feature.drive.center': 'center',
+    'feature.drive.right': 'right',
+    'feature.drive.laneOffset': 'laneOffset',
+    'feature.drive.headingError': 'headingError',
+    'feature.drive.speed': 'speed',
+    'feature.drive.trafficLight': 'trafficLight',
+    'feature.drive.turnIntent': 'turnIntent',
+    'answer.action': 'action',
     'answer.thirsty': 'thirsty',
     'answer.late': 'late',
     'answer.cups': 'cups',
@@ -5107,6 +5123,27 @@
     return raw;
   }
 
+  /**
+   * Stage 5: the `drive-v1` starter — the sensor-data bench (Files → Splitter →
+   * Feeder → Track → Number-sense Model → Evaluator). Built here, beside the car
+   * benches, because it is a gallery machine; the table itself lives in
+   * logic/drive-examples.js.
+   *
+   * The Model keeps its OWN shelves (`learning = {}`) rather than the shared
+   * Number sense's: a child's driving examples must never mix with another
+   * machine's, and `publishDriveModel` reads exactly this bank.
+   */
+  function driveExample(kind) {
+    const factory = typeof require === 'function' ? require('./logic/drive-examples.js') : window.WorkshopDriveExamples;
+    if (!factory) return null;
+    const raw = factory.make(kind, { defaultBlock, t });
+    if (!raw) return null;
+    const model = raw.pieces.find((p) => p.id === 'dv_model');
+    if (model) model.learning = {};
+    raw.pieces = Layout.unoverlap(raw.pieces, p => sizeOf(p, raw));
+    return raw;
+  }
+
   // ================= DEMO MODE: the picture reel ===================================
   // A child's workshop ALWAYS reaches for the real webcam. Demo mode exists for two honest
   // reasons: a lesson has to be filmable (a webcam shows a different room every take), and a
@@ -6868,6 +6905,77 @@
       labels: Library.labels(m.dataset), k: (m.options && m.options.k) || 3, examples };
   }
 
+  // Stage 5 (driving): the student's trained SENSOR model as plain publish DATA.
+  // Walks a table for a placed Model wearing the Number sense (the drive starter's
+  // `dv_model` by preference), reads its own shelves, and returns
+  // { id, name, k, threshold, examples:[{label, values, display}] } or null.
+  // A shelf sticker that does not parse back to the eight sensor numbers, or whose
+  // stored vector is not the number sense's own transform of them, is SKIPPED — a
+  // bundle is never built from an example it could not reproduce.
+  const DRIVE_FIELD_COUNT = 8;   // mirrors city-common/driving.js DRIVE_FIELDS
+  const DRIVE_BIAS = 10;         // mirrors DRIVE_PLUS_CONSTANT / numberVec's constant
+  function driveValuesFromSticker(text) {
+    if (typeof text !== 'string') return null;
+    const nums = text.replace(/,/g, ' ').split(/\s+/).map((w) => Number(w)).filter((n) => Number.isFinite(n));
+    return nums.length === DRIVE_FIELD_COUNT ? nums : null;
+  }
+  function sameVector(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > 1e-6) return false;
+    return true;
+  }
+  function publishDriveModel(modelId, table) {
+    let live = null;
+    if (!table) { try { live = (state && state.table) || null; } catch (e) { live = null; } }
+    const source = table || live;
+    const pieces = (source && source.pieces) || [];
+    const models = pieces.filter((p) => p && p.type === 'sense' && p.senseId === 'num');
+    const piece = modelId
+      ? models.find((p) => p.id === modelId)
+      : (models.find((p) => p.id === 'dv_model') || models[0]);
+    if (!piece) return null;
+    const entry = modelEntry(piece);
+    const brain = entry && entry.brain;
+    if (!brain) return null;
+    const examples = [];
+    for (const label of Object.keys(brain.shelves || {})) {
+      for (const ex of (brain.shelves[label] || [])) {
+        const values = driveValuesFromSticker(ex && ex.display);
+        if (!values) continue;
+        if (!sameVector(unitVec(values.concat([DRIVE_BIAS])), ex.vec)) continue;
+        examples.push({ label, values, display: { id: ex.id, text: ex.display } });
+      }
+    }
+    if (!examples.length) return null;
+    return {
+      id: piece.id, name: piece.name || 'My driving model',
+      k: Number.isFinite(piece.k) ? piece.k : 3,
+      threshold: Number.isFinite(piece.sure) ? piece.sure : 0.5,
+      examples,
+    };
+  }
+  /**
+   * Build the `drive-v1` starter with its Model already trained from the authored
+   * driving table's Training share. Deterministic (seed 42 by default) and used by
+   * the browser integration run and by the publish bridge when the City sends the
+   * student to the driving activity. Filing is HAND-taught (belt:false) so a later
+   * Run never sweeps the child's own work.
+   */
+  function buildDriveTable({ seed = 42, train = true } = {}) {
+    const table = driveExample('drive-v1');
+    if (!table) return null;
+    if (!train) return table;
+    const fraction = Datasets.schema('drive').studyDefault || 0.6;
+    const studied = Datasets.split(Datasets.rows('drive', seed), fraction, seed).filter((r) => r.studied);
+    // File the training pile through the REAL teaching path (applyTeachEffect →
+    // modelEntry → the Number sense's own extractor), exactly as the belt would;
+    // `hand: true` marks it hand-taught so a later Run never sweeps it.
+    for (const row of studied) {
+      applyTeachEffect({ type: 'teach', block: 'dv_model', shelf: row.answer, data: { tag: row.face } }, table.pieces, { hand: true });
+    }
+    return table;
+  }
+
   const api = {
     LESSON_SHOTS, LESSON_DIR, demoMode, devMode, firstSentence, noteLead, machinesFrom, mergeMachines, mergeBricks, floorPos, faceStamps, trailWalk, litPath,
     STRINGS, t, LANGS, getLang, setLang, parseContents, feederItems, SENSES, SENSE_REGISTRY, modelEntry, makeIndependent, learningPiece, connectionImpact, sensesForEngine, applyTeachEffect, teachTargetError, resetBeltLearning,
@@ -6876,6 +6984,8 @@
     unitVec, classifySure, modelsInfo, BRAIN_REGISTRY, BRAIN_LABEL, brainLabel, brainAnswer, DEFAULT_BRAIN, blockManual,
     kindOf, tallyLines, tallyText, hasExam, hasNoKey, tallyCaptions, checkerView, studiedRow, rowPop, gapSentence, datasetContents, checkerKindFor, lineFeedFor, lineReaderFor, lineGuesserFor, feedSplitter, actDrivenSense, actCheckerFor, plateLines, Datasets,
     boardFeedFor, datasetKey, carmakerDials, carmakerSpec, carsBinding, carMystery, carExample,
+    // Stage 5 (driving): the gallery table, its trained variant, and the publish seam.
+    driveExample, buildDriveTable, publishDriveModel,
     knowsText, validStudiedDatasets,
     // plan 2026-09-16: what the shared brains save (hoisted from the DOM shell; reads the registry only).
     brainsOut,
@@ -9325,6 +9435,21 @@
     // exit leads through a multi-piece SENSE-FREE belt run before the bin it feeds, to prove the
     // fix-round-1 belt-run fix without fighting a real drag-and-drop build.
     api.__setTableForTest = (table) => { state.table = table; WireId.ensureWireIds(state.table); state.selected = null; };
+    /**
+     * Stage 5: load a built-in gallery starter by id — the City's "Improve in the
+     * Workshop" link uses this to open the Driving machine (`drive-v1`) so the
+     * student lands on the activity the City sent them to. Only built-in starters
+     * are accepted; the child's own saved machines are opened by the usual file UI.
+     */
+    api.loadGalleryMachine = (id) => {
+      const pristine = id === 'drive-v1' ? driveExample('drive-v1') : null;
+      if (!pristine) return false;
+      if (running()) stopRun();
+      const loaded = restore(Object.assign({ v: 1 }, pristine), id);
+      if (!loaded) setMachine(id, pristine);
+      renderAll();
+      return true;
+    };
     // task P3a (plan §3): a reload is exactly the case where private learning is gone — the
     // machine comes back out of this tablet's autosave holding a handle from the PREVIOUS page
     // load. Say it here, on arrival, instead of letting the Run press be the messenger.

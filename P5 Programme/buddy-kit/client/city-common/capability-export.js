@@ -10,6 +10,7 @@
 // The bundle carries no executable code. Amounts, labels and mappings are data.
 import { CAP_MAGIC, CAP_SPEC_VERSION_2, CAP_ALGORITHM_V2, CAP_ABSTAIN, CAP_INPUT_IMAGE, CAP_IMAGE_DIMENSION, runInference } from './cap-runtime.js';
 import { unitVec } from './knn-vector.js';
+import { DRIVE_FIELDS, DRIVE_ACTIONS, DRIVE_PLUS_CONSTANT, DRIVE_HOST_TYPE } from './driving.js';
 
 const encodeFloat32 = (rows, dim) => {
   const buf = new ArrayBuffer(rows.length * dim * 4);
@@ -98,6 +99,84 @@ export function buildCapabilityV2(spec = {}) {
     selftest: { cases: spec.selftest || [] },
     city: spec.city || {},
   };
+  return { ok: true, capability };
+}
+
+/**
+ * Build a v2 DRIVING bundle from the student's labelled sensor situations.
+ *
+ * The driving path shares the v2 algorithm and the shared k-NN; only the INPUT
+ * differs: eight named numeric sensor fields, appended with the number sense's
+ * own bias constant (`DRIVE_PLUS_CONSTANT = 10`) and unit-normalized. That is
+ * byte-identical to the Workshop number sense's `numberVec(...)`, so a model
+ * trained on the belt and a model rebuilt from its stored examples predict the
+ * same action for the same observation.
+ *
+ * The self-test gate is honest: one stored study example per action (re-run
+ * through the real runtime and kept only when it actually reproduces) plus a
+ * missing-sensor case expecting an abstention — the driving contract's own
+ * "dead sensor means stop" path.
+ *
+ * @param {object} spec
+ * @param {string} spec.id
+ * @param {string} spec.name
+ * @param {Array<{label:string, values:number[], display?:object}>} spec.examples
+ * @param {number} [spec.k]
+ * @param {number} spec.threshold
+ * @param {object} [spec.evaluation]
+ * @param {object} [spec.city]
+ * @param {Array}  [spec.selftest]
+ * @param {object} [spec.workshop]
+ * @param {number} [spec.revision]
+ * @returns {{ok:true, capability}|{ok:false,error}}
+ */
+export function buildDriveCapability(spec = {}) {
+  const { id, name, examples } = spec;
+  if (!id || !name) return { ok: false, error: 'A capability needs an id and a name.' };
+  if (!Array.isArray(examples) || !examples.length) return { ok: false, error: 'A driving capability needs labelled sensor examples.' };
+  for (const ex of examples) {
+    if (!DRIVE_ACTIONS.includes(ex.label)) return { ok: false, error: `Action "${ex.label}" is not one of ${DRIVE_ACTIONS.join(', ')}.` };
+    if (!Array.isArray(ex.values) || ex.values.length !== DRIVE_FIELDS.length || !ex.values.every(Number.isFinite)) {
+      return { ok: false, error: `Every sensor example needs ${DRIVE_FIELDS.length} finite values.` };
+    }
+  }
+  const out = buildCapabilityV2({
+    id, name,
+    fields: DRIVE_FIELDS,
+    labels: DRIVE_ACTIONS,
+    examples: examples.map((ex) => ({ label: ex.label, values: ex.values, display: ex.display || null })),
+    k: spec.k,
+    threshold: spec.threshold,
+    plusConstant: DRIVE_PLUS_CONSTANT,
+    city: Object.assign({ hostTypes: [DRIVE_HOST_TYPE], contract: 'drive-v1' }, spec.city || {}),
+    evaluation: spec.evaluation || { scores: {} },
+    workshop: spec.workshop || {},
+    revision: spec.revision,
+  });
+  if (!out.ok) return out;
+  const capability = out.capability;
+  const fieldValues = (values) => Object.fromEntries(DRIVE_FIELDS.map((f, i) => [f, values[i]]));
+  const candidates = Array.isArray(spec.selftest) && spec.selftest.length ? spec.selftest : (() => {
+    const seen = new Set();
+    const cases = [];
+    for (const ex of examples) {
+      if (seen.has(ex.label)) continue;
+      seen.add(ex.label);
+      cases.push({ name: `${ex.label} study example`, input: fieldValues(ex.values), expect: { decision: ex.label } });
+    }
+    cases.push({ name: 'a dead sensor abstains', input: {}, expect: { decision: CAP_ABSTAIN } });
+    return cases;
+  })();
+  const reproducible = candidates.filter((c) => {
+    const r = runInference(capability, c.input);
+    if (!r) return false;
+    const exp = c.expect || {};
+    if (exp.decision === CAP_ABSTAIN || exp.decision === '__abstain') return !!r.abstained;
+    if (r.abstained) return false;
+    return !exp.decision || r.decision === exp.decision;
+  });
+  if (!reproducible.length) return { ok: false, error: 'The driving capability could not reproduce any self-test case.' };
+  capability.selftest = { cases: reproducible };
   return { ok: true, capability };
 }
 

@@ -1,0 +1,73 @@
+/* test-track.css — Stage 5: the driving test track.
+   Self-contained (no dependence on other app variables) so it renders the same in the
+   City regardless of which app's tokens happen to be loaded. Touch targets >= 48px,
+   reduced-motion aware. */
+
+.tt-modal {
+  position: fixed; inset: 0; z-index: 400;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(4, 8, 14, .72);
+}
+.tt-modal.hidden { display: none; }
+.tt-card {
+  width: min(960px, 100%); max-height: min(92vh, 940px); overflow: auto;
+  background: #101725; color: #eaf2f8; border: 1px solid #2b3f57; border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55); padding: 18px;
+}
+.tt-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.tt-head h2 { margin: 0; font-size: 21px; letter-spacing: .2px; }
+.tt-sub { margin: 4px 0 0; color: #9fb2c4; font-size: 14px; }
+.tt-close {
+  min-width: 48px; min-height: 48px; border: 0; border-radius: 10px; cursor: pointer;
+  background: #1c2a3d; color: #eaf2f8; font-size: 18px;
+}
+.tt-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0 6px; }
+.tt-controls label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #b9cbdb; }
+.tt-controls select,
+.tt-controls button,
+.tt-controls a {
+  min-height: 48px; padding: 0 14px; border-radius: 10px; font-size: 15px;
+  border: 1px solid #33485f; background: #172234; color: #eaf2f8; cursor: pointer;
+  display: inline-flex; align-items: center; text-decoration: none;
+}
+.tt-run { background: #1fb7a8 !important; border-color: #1fb7a8 !important; color: #06231f !important; font-weight: 700; }
+.tt-improve { border-style: dashed !important; }
+.tt-status { min-height: 20px; margin: 6px 0 12px; color: #9fb2c4; font-size: 14px; }
+
+.tt-main { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.tt-canvas {
+  flex: 1 1 380px; min-width: 300px; width: 100%; height: auto;
+  background: #0b1220; border: 1px solid #2b3f57; border-radius: 12px;
+}
+.tt-panel { flex: 0 1 300px; min-width: 260px; }
+.tt-panel h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: .4px; text-transform: uppercase; color: #8fa3b6; }
+.tt-sensors { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0 0 14px; font-size: 14px; }
+.tt-sensors dt { color: #9fb2c4; }
+.tt-sensors dd { margin: 0; font-variant-numeric: tabular-nums; }
+.tt-action {
+  min-height: 48px; display: flex; align-items: center; padding: 0 14px; margin-bottom: 14px;
+  border-radius: 10px; background: #16233a; border: 1px solid #2f4a68; font-size: 18px; font-weight: 700;
+}
+.tt-action[data-action="stop"] { border-color: #b9791f; color: #ffce8a; }
+.tt-action[data-action="abstain"] { border-color: #b9791f; color: #ffce8a; }
+.tt-log { list-style: none; margin: 0; padding: 0; max-height: 190px; overflow: auto; font-size: 13px; }
+.tt-log-row { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid #1c2940; }
+.tt-log-row span { color: #8fa3b6; }
+.tt-log-row .tt-ev { color: #e08b2f; }
+.tt-log-row[data-action="stop"] b { color: #ffce8a; }
+
+.tt-outcome { margin-top: 14px; padding-top: 12px; border-top: 1px solid #24344a; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.tt-verdict { margin: 0; font-size: 16px; font-weight: 700; }
+.tt-verdict.ok { color: #4fd0be; }
+.tt-verdict.warn { color: #ffce8a; }
+.tt-stats { margin: 0; color: #b9cbdb; }
+.tt-iv { margin: 0; color: #e08b2f; }
+
+@media (max-width: 560px) {
+  .tt-card { padding: 14px; }
+  .tt-panel { flex-basis: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-log-row { transition: none; }
+}
