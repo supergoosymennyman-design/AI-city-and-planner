@@ -4,6 +4,26 @@ import { readFileSync } from 'node:fs';
 const names = ['four-legged','six-legged','legless-rig','unrigged'];
 const fixture = name => readFileSync(new URL(`../../docs/workshop-studio-demo/city-export-fixtures/${name}-champion.glb`, import.meta.url));
 
+test('bundled Champion animations keep the bunny at human scale', async ({ page }) => {
+  await page.route('**/city-export-runtime-test', route => route.fulfill({ contentType:'text/html', body:'<script type="importmap">{"imports":{"three":"/vendor/three/three.module.js","three/addons/":"/vendor/three/addons/"}}</script>' }));
+  await page.goto('/city-export-runtime-test');
+  const result = await page.evaluate(async () => {
+    const THREE = await import('three');
+    const { createChampion } = await import('/hong-kong-real/champion-real.js');
+    const champion = await createChampion('/champion-city/assets/', { spawnWorld:new THREE.Vector3(), groundHeightAt:()=>0 }, { targetHeight:1.8 });
+    champion.group.updateMatrixWorld(true);
+    const measure = () => { let height=0;champion.group.updateMatrixWorld(true);champion.group.traverse(mesh=>{if(!mesh.isSkinnedMesh)return;mesh.skeleton.update();mesh.computeBoundingBox();height=Math.max(height,mesh.boundingBox.clone().applyMatrix4(mesh.matrixWorld).getSize(new THREE.Vector3()).y);});return height;};
+    const created=measure();champion.mixer.update(.016);const idle=measure();
+    const pose=name=>{champion.mixer.stopAllAction();const action=champion.mixer._actions.find(a=>a._clip.name===name);action.reset().play();champion.mixer.update(.1);return measure();};
+    const walk=pose('Walking'),run=pose('Fast Run');
+    return {created,idle,walk,run};
+  });
+  for(const mode of ['created','idle','walk','run']){
+    expect(result[mode]).toBeGreaterThan(0.7);
+    expect(result[mode]).toBeLessThan(3);
+  }
+});
+
 test('City runtime keeps each exported movement mode, scale and grounding through model swaps', async ({ page }) => {
   for (const name of names) await page.route(`**/fixture-${name}.glb`, route => route.fulfill({ contentType: 'model/gltf-binary', body: fixture(name) }));
   await page.route('**/fixture-legacy-v1.glb', route => route.fulfill({ contentType: 'model/gltf-binary', body: readFileSync(new URL('../../docs/workshop-studio-demo/city-export-fixtures/legacy-v1-champion.glb', import.meta.url)) }));
@@ -63,4 +83,17 @@ test('City entry keeps the exported unrigged Champion and its metadata after rel
   expect(restored.size).toBe(fixture('unrigged').length);
   expect(restored.metadata.animationMode).toBe('static');
   expect(restored.runtime.animationMode).toBe('static');
+});
+
+test('City loads the fitted Milo demo Champion and keeps its Studio animation after reload', async ({ page }) => {
+  const buffer = readFileSync(new URL('../../docs/workshop-studio-demo/milo-city-champion.glb', import.meta.url));
+  await page.goto('/city-builder/');
+  await page.locator('#skin-input').setInputFiles({ name: 'milo-city-champion.glb', mimeType: 'model/gltf-binary', buffer });
+  await expect(page.locator('#skin-status')).toContainText('milo-city-champion.glb');
+  await page.locator('#entry-local').click();
+  await page.waitForFunction(() => window.__city?.champion?.animationInfo().animationMode === 'studio' && document.querySelector('#loading.done'));
+  expect(await page.evaluate(() => __city.champion.animationInfo().animationMode)).toBe('studio');
+  await page.reload();
+  await page.locator('#entry-local').click();
+  await page.waitForFunction(() => window.__city?.champion?.animationInfo().animationMode === 'studio' && document.querySelector('#loading.done'));
 });

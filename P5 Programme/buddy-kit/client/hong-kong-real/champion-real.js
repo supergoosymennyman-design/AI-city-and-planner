@@ -256,11 +256,21 @@ export async function createChampion(assetBase, city, opts = {}) {
 
   function normalizeModel(m) {
     m.updateMatrixWorld(true);
+    let skinned = false;
+    m.traverse(node => { if (node.isSkinnedMesh) skinned = true; });
     // World-space bounds via Box3: accounts for the armature parent + node
     // transforms (a meter-scale mesh under the Armature is not the same as a
     // tiny bunny mesh that is a sibling of its skeleton). Ground the lowest
     // point and centre X/Z in one pass.
     const box = new THREE.Box3().setFromObject(m);
+    // Three's default Box3 uses the undeformed geometry of a SkinnedMesh.
+    // The bunny stores that mesh at 0.01 scale while its bind pose is ~1.9 m;
+    // the static box made targetHeight multiply the whole Champion by ~300.
+    if (skinned) m.traverse(node => {
+      if (!node.isSkinnedMesh) return;
+      node.computeBoundingBox();
+      box.union(node.boundingBox.clone().applyMatrix4(node.matrixWorld));
+    });
     if (!box.isEmpty()) {
       m.position.x -= (box.min.x + box.max.x) / 2;
       m.position.z -= (box.min.z + box.max.z) / 2;

@@ -15,5 +15,5 @@ export const FIT_STUDIO_URL = localDemo ? '/studio/' : 'https://floral-bread-988
 
 /** Build a city-sim route URL: citySim('planner/') → CITY_SIM_URL + '/planner/'. */
 export function citySim(path) {
-  return CITY_SIM_URL + '/' + String(path).replace(/^\/+/, '');
+  return (localDemo ? '' : CITY_SIM_URL) + '/' + String(path).replace(/^\/+/, '');
 }

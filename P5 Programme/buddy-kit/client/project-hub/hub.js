@@ -9,7 +9,13 @@ const $ = selector => document.querySelector(selector);
 const store = createProjectStore();
 let activeProject = null;
 const CITY_LAYOUT_KEY = CF_KEYS.layout;
-const isLocalDemo = ['localhost', '127.0.0.1'].includes(location.hostname);
+const isLocalDemo = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+if (isLocalDemo) {
+  document.querySelectorAll('.external-tag').forEach(tag => { tag.textContent = 'LOCAL TOOL'; });
+  $('.section-heading > p').textContent = 'City, Planner, Studio, and Workshop are available on this computer.';
+  $('.project-tools > div:first-child p:last-child').textContent = 'Downloads your City project. Save Workshop and Studio work with their shared Champion File.';
+  $('footer').textContent = 'City work stays on this device · Workshop and Studio share a Champion File · Passiona';
+}
 
 function probeIndexedDB() {
   return new Promise(resolve => {
@@ -56,7 +62,7 @@ async function runDemoCheck() {
   panel.classList.toggle('is-ready', failures.length === 0); panel.classList.toggle('has-warning', failures.length > 0);
   result.textContent = failures.length
     ? `${gatewayStatus}; ${buddyStatus}. Needs attention: ${failures.join('; ')}. Camera: ${camera}; microphone: ${microphone}.`
-    : `${gatewayStatus}; ${buddyStatus} from DeepSeek V4 Flash. Local pages, storage, and WebGL are ready. Open Fit Studio and AI Workshop in their own tabs to check the live tools. Camera: ${camera}; microphone: ${microphone}.`;
+    : `${gatewayStatus}; ${buddyStatus} from the configured provider. Local pages, storage, and WebGL are ready. Open Fit Studio and AI Workshop in their own tabs to check both tools. Camera: ${camera}; microphone: ${microphone}.`;
   button.disabled = false; button.textContent = 'Check again';
 }
 

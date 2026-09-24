@@ -8,10 +8,13 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
 import { checkBuddyTurn } from './demo-preflight.mjs';
+import { assetCacheHeaders, assetNotModified } from './demo-asset-cache.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const P5_ROOT = resolve(HERE, '..');
 const DOCROOT = join(P5_ROOT, 'deploy', 'city-sim');
+const WORKSHOP_ROOT = join(P5_ROOT, 'buddy-kit', 'client', 'workshop');
+const STUDIO_ROOT = join(P5_ROOT, 'buddy-kit', 'client', 'studio', 'dist');
 const DATA_ROOT = join(P5_ROOT, '.demo-data');
 const SAVE_ROOT = join(DATA_ROOT, 'saves');
 const PORT = Number(process.env.PASSIONA_DEMO_PORT || 8377);
@@ -42,8 +45,10 @@ if (process.argv.includes('--reset') || process.argv.includes('--reset-only')) {
   if (process.argv.includes('--reset-only')) process.exit(0);
 }
 
-try { await access(join(DOCROOT, 'hub', 'index.html'), fsConstants.R_OK); }
-catch { console.error('[demo] built City bundle is missing. Run `npm run demo:prepare` first.'); process.exit(1); }
+for (const required of [join(DOCROOT, 'hub', 'index.html'), join(WORKSHOP_ROOT, 'game.js'), join(STUDIO_ROOT, 'index.html')]) {
+  try { await access(required, fsConstants.R_OK); }
+  catch { console.error(`[demo] required demo app is missing: ${required}. Run \`npm run demo:prepare\` first.`); process.exit(1); }
+}
 
 await mkdir(SAVE_ROOT, { recursive: true });
 
@@ -56,28 +61,36 @@ const MIME = {
   '.task':'application/octet-stream', '.tflite':'application/octet-stream', '.mp3':'audio/mpeg', '.wav':'audio/wav',
 };
 
-function contained(path) { return path === DOCROOT || path.startsWith(DOCROOT + sep); }
+function contained(path, root) { return path === root || path.startsWith(root + sep); }
 
 async function assetResponse(request) {
   if (!['GET', 'HEAD'].includes(request.method)) return new Response('not found', { status: 404 });
   let pathname;
   try { pathname = decodeURIComponent(new URL(request.url).pathname); }
   catch { return new Response('bad path', { status: 400 }); }
+  if (pathname === '/') return Response.redirect(new URL('/demo/', request.url), 302);
   if (pathname === '/favicon.ico') return new Response(null, { status: 204 });
   if (pathname.startsWith('/workshop/buddy/') && !pathname.includes('/api/')) {
     const relative = pathname.slice('/workshop/buddy/'.length);
     pathname = '/workshop/buddy/' + (relative.startsWith('logic/') ? relative : 'client/' + relative);
   }
-  let file = resolve(DOCROOT, '.' + pathname);
-  if (!contained(file)) return new Response('forbidden', { status: 403 });
+  // City builds can replace deploy/city-sim/workshop and studio with iframe shells.
+  // Serve the real local tools from their source/build directories throughout the demo.
+  const root = pathname.startsWith('/workshop/') ? WORKSHOP_ROOT
+    : pathname.startsWith('/studio/') ? STUDIO_ROOT : DOCROOT;
+  const relative = root === DOCROOT ? pathname
+    : pathname.slice(root === WORKSHOP_ROOT ? '/workshop'.length : '/studio'.length);
+  let file = resolve(root, '.' + relative);
+  if (!contained(file, root)) return new Response('forbidden', { status: 403 });
   try {
     let info = await stat(file);
     if (info.isDirectory()) { file = join(file, 'index.html'); info = await stat(file); }
     const headers = new Headers({
       'content-type': MIME[extname(file).toLowerCase()] || 'application/octet-stream',
-      'cache-control': 'no-cache, no-store, must-revalidate',
+      ...assetCacheHeaders(file, info),
       'accept-ranges': 'bytes',
     });
+    if (assetNotModified(request, headers)) return new Response(null, { status: 304, headers });
     let start = 0, end = info.size - 1, status = 200;
     const range = request.headers.get('range')?.match(/^bytes=(\d*)-(\d*)$/);
     if (range) {
@@ -134,8 +147,10 @@ async function nodeRequest(req) {
   return new Request(`http://localhost:${PORT}${req.url}`, init);
 }
 
-async function send(res, response) {
-  res.writeHead(response.status, Object.fromEntries(response.headers));
+async function send(res, response, noStore = false) {
+  const headers = Object.fromEntries(response.headers);
+  if (noStore) headers['cache-control'] = 'no-store';
+  res.writeHead(response.status, headers);
   if (!response.body) return res.end();
   Readable.fromWeb(response.body).on('error', () => res.destroy()).pipe(res);
 }
@@ -161,9 +176,9 @@ const server = createServer(async (req, res) => {
     const request = await nodeRequest(req);
     if (req.url.startsWith('/workshop/buddy/api/') && workshopWorker) {
       const url = new URL(request.url); url.pathname = url.pathname.replace('/workshop/buddy', '');
-      return send(res, await workshopWorker.fetch(new Request(url, request), env));
+      return send(res, await workshopWorker.fetch(new Request(url, request), env), true);
     }
-    await send(res, await worker.fetch(request, env));
+    await send(res, await worker.fetch(request, env), new URL(request.url).pathname.startsWith('/api/'));
   } catch (error) {
     const status = Number(error?.status) || 500;
     console.error('[demo]', error?.stack || error);
@@ -177,6 +192,6 @@ server.on('error', error => {
   process.exitCode = 1;
 });
 server.listen(PORT, HOST, () => {
-  console.log(`[demo] Passiona is ready at http://localhost:${PORT}/`);
+  console.log(`[demo] Passiona Demo is ready at http://localhost:${PORT}/demo/`);
   console.log(`[demo] local cloud saves: ${SAVE_ROOT}`);
 });

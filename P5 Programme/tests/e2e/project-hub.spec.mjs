@@ -243,12 +243,27 @@ for (const viewport of [{ width:1440, height:900 }, { width:390, height:844 }]) 
     await expect(page.locator('#coach-modal')).toBeHidden();
     await page.locator('.passiona-project-bar').getByRole('link', { name:'Studio' }).click();
     await expect(page).toHaveURL(/\/studio\/$/);
+    if (await page.locator('#welcome-overlay').count()) {
+      await page.locator('#welcome-overlay.show #welcome-go').click();
+      await page.getByRole('button', { name:'Return to Workshop' }).click();
+    } else {
+      // The City-only bundle still contains the legacy Tune Studio with its
+      // own tutorial and project bar; the localhost demo uses the new Studio.
+      if (await page.locator('#tutNo:visible').count()) await page.locator('#tutNo').click();
+      await page.locator('.passiona-project-bar').getByRole('link', { name:'Workshop' }).click();
+    }
+    await expect(page).toHaveURL(/\/workshop\/$/);
+    await page.goBack();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/planner\/$/);
     await page.locator('.passiona-project-bar').getByRole('link', { name:'City', exact:true }).click();
     await expect(page).toHaveURL(/\/city-builder\/$/);
     await page.locator('.entry-workspaces summary').click();
     await page.locator('.entry-workspaces').getByRole('link', { name:'Workshop' }).click();
     await expect(page).toHaveURL(/\/workshop\/$/);
-    await page.getByRole('link', { name:'Return to Hub' }).click();
+    await page.goBack();
+    await page.locator('.entry-workspaces summary').click();
+    await page.locator('.entry-workspaces').getByRole('link', { name:'Hub' }).click();
     await expect(page).toHaveURL(/\/hub\/$/);
   });
 }

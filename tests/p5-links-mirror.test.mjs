@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const parse = (rel, hostname) => vm.runInNewContext(
   readFileSync(new URL('../' + rel, import.meta.url), 'utf8').replace(/export /g, '')
-    + ';({HOME_URL,CITY_SIM_URL,WORKSHOP_URL,FIT_STUDIO_URL})', { location: { hostname } });
+    + ';({HOME_URL,CITY_SIM_URL,WORKSHOP_URL,FIT_STUDIO_URL,citySim})', { location: { hostname } });
 
 for (const hostname of ['localhost','127.0.0.1','p5-home.clover-marquis.workers.dev']) {
   test('home/links.js mirrors shared/links.js on ' + hostname, () => {
@@ -24,6 +24,10 @@ for (const hostname of ['localhost','127.0.0.1','p5-home.clover-marquis.workers.
       assert.ok(shared[k], `shared/links.js is missing ${k}`);
       assert.equal(home[k], shared[k], `${k} drifted between shared/links.js and home/links.js`);
     }
+    assert.equal(home.citySim('planner/'), shared.citySim('planner/'));
+    assert.equal(shared.citySim('planner/'), hostname.endsWith('.dev')
+      ? 'https://p5-city-sim.clover-marquis.workers.dev/planner/'
+      : '/planner/');
     if (hostname === 'localhost') { assert.equal(shared.WORKSHOP_URL, '/workshop/'); assert.equal(shared.FIT_STUDIO_URL, '/studio/'); }
     else if (hostname.endsWith('.dev')) assert.match(shared.WORKSHOP_URL, /^https:/);
   });

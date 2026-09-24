@@ -92,4 +92,17 @@ test('example opens with every assigned building model and both learning buildin
   expect(final.parkBenchCount).toBe(18);
   expect(final.parkTreeCount).toBeGreaterThanOrEqual(22);
   expect(errors, `${testInfo.project.name} page errors:\n${errors.join('\n')}`).toEqual([]);
+  const championHeight = await page.evaluate(async () => {
+    const THREE = await import('three');
+    const heights = [];
+    __city.champion.group.traverse(mesh => {
+      if (!mesh.isSkinnedMesh) return;
+      mesh.computeBoundingBox();
+      heights.push(mesh.boundingBox.clone().applyMatrix4(mesh.matrixWorld).getSize(new THREE.Vector3()).y);
+    });
+    return Math.max(...heights);
+  });
+  expect(championHeight).toBeGreaterThan(1);
+  expect(championHeight).toBeLessThan(5);
+  await page.screenshot({ path:testInfo.outputPath('example-city-rendered.png') });
 });

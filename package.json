@@ -24,7 +24,7 @@
     "test:all": "npm run test:unit && npm run test:library && npm run test:e2e:source && npm run test:imports",
     "release:city": "npm run test:all && npm run build:city && npm run test:unit && npm run test:library && npm run test:e2e:built && npm run deploy:city:built",
     "demo:tools": "node \"P5 Programme/scripts/package-workshop-studio.mjs\"",
-    "test:demo": "node --test tests/workshop-economy.test.cjs tests/workshop-context.test.mjs && node tests/studio-champion-roundtrip.mjs && node tests/champion-storage-browser.mjs && node tests/workshop-studio-demo.mjs && node tests/champion-future-ui.mjs",
+    "test:demo": "node --test tests/workshop-economy.test.cjs tests/workshop-context.test.mjs && node tests/studio-champion-roundtrip.mjs && node tests/champion-storage-browser.mjs && node tests/workshop-studio-demo.mjs && node tests/champion-future-ui.mjs && node tests/demo-hub-navigation.mjs",
     "test:studio": "npm test --prefix \"P5 Programme/buddy-kit/client/studio\""
   },
   "devDependencies": {
