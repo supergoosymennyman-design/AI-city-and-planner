@@ -128,6 +128,34 @@ test('the test track refuses to run without a driving model and offers the Works
   expect(errors).toEqual([]);
 });
 
+test('the same model also drives the bounded route on the child’s own roads', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+
+  // Publish a real driving model, then load the example city (both share the origin).
+  const pub = await publishDriveModel(page, { hostId: 'host-driver-city' });
+  expect(pub.ok, JSON.stringify(pub)).toBe(true);
+  await bootCity(page);
+  await page.waitForFunction(() => !!window.__testTrack, null, { timeout: 60000 });
+
+  const run = await page.evaluate(async () => {
+    await window.__testTrack.open();
+    const c = window.__testTrack.controller;
+    c.reset('city');
+    const routeOk = !!(c.cityRouteNote && c.cityRouteNote.ok);
+    const result = await c.runWhole({ trackId: 'city', maxSteps: 400 });
+    return { routeOk, result };
+  });
+  expect(run.routeOk).toBe(true);
+  expect(run.result.ok, JSON.stringify(run.result)).toBe(true);
+  expect(run.result.decisions.length).toBeGreaterThan(5);
+  for (const d of run.result.decisions) expect(DRIVE_ACTIONS.includes(d.action), JSON.stringify(d)).toBe(true);
+  expect(run.result.progress).toBeGreaterThan(5);
+  // Honest end states only — never an unrecorded "success".
+  expect(['goal', 'collision', 'off-road', 'emergency-stop', 'timeout']).toContain(run.result.outcome);
+  expect(errors).toEqual([]);
+});
+
 test('the Workshop drive starter loads, and an UNTRAINED model publishes nothing (no fake success)', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));

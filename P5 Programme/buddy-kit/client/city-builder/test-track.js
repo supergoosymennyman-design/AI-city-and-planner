@@ -22,7 +22,7 @@ import { createProjectStore } from '../city-common/project-store.js';
 import { parseCapability, runInference } from '../city-common/cap-runtime.js';
 import {
   DRIVE_FIELDS, TRACKS, DRIVE_DT, DRIVE_MAX_STEPS,
-  createCar, sense, advanceStep, checkDriveCompatibility, summarizeTrial, cityRouteTrack,
+  createCar, sense, advanceStep, checkDriveCompatibility, summarizeTrial, cityRouteTrack, runTrial,
 } from '../city-common/driving.js';
 import { currentLang } from './i18n.js';
 
@@ -316,7 +316,15 @@ function renderAll() {
   renderOutcome();
 }
 
-/** One fixed 10 Hz step. Async only because the envelope `runSkill` is async. */
+/**
+ * One fixed 10 Hz step for the interactive Run/Pause/Step controls.
+ *
+ * The decision comes from the SAME immutable installed revision, run through the
+ * in-memory v2 runtime (`runInference`) — never a per-step IndexedDB write, which
+ * would make a 10 Hz loop crawl. For an envelope installation the decision is
+ * ALSO appended to its bounded decision log, throttled (every 10th step and the
+ * terminal step) so the log stays real without becoming the bottleneck.
+ */
 async function stepOnce() {
   const trial = controller.trial;
   if (!trial || trial.done) return;
@@ -330,13 +338,7 @@ async function stepOnce() {
   let inference = null;
   let failure = null;
   try {
-    if (skill.kind === 'installation') {
-      const r = await skill.store.runSkill(skill.installationId, observation);
-      if (!r || !r.ok) failure = r?.error || 'run-failed';
-      else inference = r;
-    } else {
-      inference = runInference(skill.cap, observation);
-    }
+    inference = runInference(skill.cap, observation);
   } catch (e) { failure = String(e?.message || e); }
 
   if (failure) {
@@ -358,21 +360,38 @@ async function stepOnce() {
   else if (ev === 'collision') { trial.done = true; trial.outcome = 'collision'; }
   else if (ev === 'off-road') { trial.done = true; trial.outcome = 'off-road'; }
   else if (ev === 'emergency-stop') { trial.done = true; trial.outcome = 'emergency-stop'; }
+  if (skill.kind === 'installation' && (!trial.done ? i % 10 === 0 : true)) recordDecision(skill, observation);
   renderAll();
 }
 
-/** The whole trial, run to completion (the browser integration run's entry). */
+/** Append one decision to the envelope's bounded log — fire and forget. */
+function recordDecision(skill, observation) {
+  try { Promise.resolve(skill.store.runSkill(skill.installationId, observation)).catch(() => {}); } catch { /* the visual sim never fails on a log write */ }
+}
+
+/**
+ * The whole trial, run to completion with the PURE simulator (no per-step
+ * IndexedDB or repaint), then mirrored into the UI once — the browser
+ * integration run's entry point.
+ */
 async function runWhole({ trackId, maxSteps = DRIVE_MAX_STEPS } = {}) {
   if (trackId && trackId !== controller.trackId) resetTrial(trackId);
   if (!controller.track) return { ok: false, error: 'no-track', route: controller.cityRouteNote || null };
   if (!controller.skill) return { ok: false, error: 'no-model' };
   if (controller.mismatch) return { ok: false, error: 'mismatch' };
-  let guard = 0;
-  while (!controller.trial.done && controller.trial.steps.length < maxSteps && guard++ < maxSteps + 10) {
-    await stepOnce();
-  }
-  const s = summarizeTrial({ outcome: controller.trial.outcome || (controller.trial.done ? 'timeout' : 'timeout'), goalReached: controller.trial.outcome === 'goal', steps: controller.trial.steps, interventions: controller.trial.interventions, actions: controller.trial.actions, progress: controller.trial.progress });
-  return { ok: true, trackId: controller.trackId, ...s, decisions: controller.trial.steps.map((x) => ({ t: x.t, action: x.action, decision: x.decision, abstained: x.abstained, event: x.event })) };
+  const trial = runTrial({ cap: controller.skill.cap, track: controller.track, maxSteps });
+  const last = trial.steps[trial.steps.length - 1];
+  controller.trial = {
+    car: last ? { x: last.pose.x, z: last.pose.z, heading: last.pose.heading, speed: last.pose.speed } : createCar(controller.track),
+    steps: trial.steps, interventions: trial.interventions, actions: trial.actions,
+    done: true, outcome: trial.outcome, progress: trial.progress,
+    lightNow: last && last.observation ? last.observation.trafficLight : 0, reason: trial.reason || null,
+  };
+  controller.paused = true;
+  if (controller.skill.kind === 'installation' && last && last.observation) recordDecision(controller.skill, last.observation);
+  renderAll();
+  const s = summarizeTrial(trial);
+  return { ok: true, trackId: controller.trackId, ...s, decisions: trial.steps.map((x) => ({ t: x.t, action: x.action, decision: x.decision, abstained: x.abstained, event: x.event })) };
 }
 
 function schedule() {

@@ -64,6 +64,12 @@ Date: 2026-09-25 · branch `plan/passiona-deepseek`
   Run/Pause, Step, Reset and Repeat-the-same-trial, with a track picker including
   **Try in my city**. It never fabricates a success: a run that does not finish
   leaves an intervention behind.
+  - Performance note: a 10 Hz loop must NOT write IndexedDB every step. The
+    decision comes from the same immutable installed revision through the in-memory
+    v2 runtime; for an envelope installation the decision is ALSO appended to its
+    bounded log, throttled (every 10th step and the terminal step). The whole-trial
+    helper runs the pure simulator and mirrors the result into the UI once, so a
+    1200-step city-road run is instant and cannot stall on storage.
 - `city-builder/test-track.css` (new): self-contained, ≥48px controls, reduced-motion aware.
 - `city-builder/city-builder.js`: the capability panel recognises a drive bundle
   (not "display-only"), offers "Driving test track", and hands the live layout's
@@ -78,12 +84,14 @@ Date: 2026-09-25 · branch `plan/passiona-deepseek`
   recorded; determinism and 10 Hz; the light cycle; the instructor rule is total;
   a model trained from the real sensor rows drives; **try-in-my-city never mutates
   the roads**.
-- `P5 Programme/tests/e2e/test-track.spec.mjs` (5 tests): the Workshop publishes a
+- `P5 Programme/tests/e2e/test-track.spec.mjs` (6 tests): the Workshop publishes a
   driving model the City test car then drives (through the real `publishSkill` →
   `installSkill` → `runSkill` path); **changing the published model changes the
   vehicle actions on the same track**; no model → an honest "no-model" with the
-  Workshop link; an UNTRAINED model publishes nothing; the capability panel opens
-  the track and "try in my city" finds a bounded route in the real example city.
+  Workshop link; **the same model also drives the bounded route on the child's own
+  roads** (the second environment); an UNTRAINED model publishes nothing; the
+  capability panel opens the track and "try in my city" finds a bounded route in
+  the real example city.
 - Verified: `node --test tests/*.test.mjs` → **518 pass / 0 fail** (was 499);
   `npm run test:imports` OK (151 files, source AND bundle); `npm run test:library`
   PASS; `npm run build:city` OK. The track spec passes in **source** and against
