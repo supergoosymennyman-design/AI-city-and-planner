@@ -821,6 +821,11 @@ function showExampleSessionBanner() {
   const banner = document.getElementById('example-session-banner');
   const back = document.getElementById('example-return');
   if (!banner || !back) return;
+  if (DEMO_PERF) {
+    const label = banner.querySelector('[data-i18n="example.viewing"], [data-i18n="demo.viewing"]');
+    if (label) { label.dataset.i18n = 'demo.viewing'; label.textContent = t('demo.viewing'); }
+    document.title = 'Passiona Demo — AI City';
+  }
   const hasSavedCity = validSavedLayout();
   const key = hasSavedCity ? 'example.backCity' : 'example.backPlanner';
   back.href = hasSavedCity ? '/city-builder/?resume=1' : '/planner/';

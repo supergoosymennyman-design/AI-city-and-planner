@@ -64,6 +64,7 @@ async function assetResponse(request) {
   let pathname;
   try { pathname = decodeURIComponent(new URL(request.url).pathname); }
   catch { return new Response('bad path', { status: 400 }); }
+  if (pathname === '/') return Response.redirect(new URL('/demo/', request.url), 302);
   if (pathname === '/favicon.ico') return new Response(null, { status: 204 });
   if (pathname.startsWith('/workshop/buddy/') && !pathname.includes('/api/')) {
     const relative = pathname.slice('/workshop/buddy/'.length);
@@ -181,6 +182,6 @@ server.on('error', error => {
   process.exitCode = 1;
 });
 server.listen(PORT, HOST, () => {
-  console.log(`[demo] Passiona is ready at http://localhost:${PORT}/`);
+  console.log(`[demo] Passiona Demo is ready at http://localhost:${PORT}/demo/`);
   console.log(`[demo] local cloud saves: ${SAVE_ROOT}`);
 });

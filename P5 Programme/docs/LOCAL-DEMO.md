@@ -19,8 +19,11 @@ The verification server may already be running on 8378. Do not stop unrelated
 servers on other ports. `npm run demo:reset` only clears local cloud-code saves;
 it is not a recovery command for browser IndexedDB or Champion Files.
 
-For a slower demo computer, open
-http://localhost:8378/city-builder/?example=1&demoPerf=1 (use your server's port).
+For the clearly labelled, populated example demo, open
+http://localhost:8378/demo/ (use your server's port), or share
+https://p5-city-sim.clover-marquis.workers.dev/demo/. Both open the existing
+example city automatically with `example=1&demoPerf=1`, even when a saved planner
+city is empty. The localhost root also directs visitors to this demo.
 For a saved planner city, use `/city-builder/?demoPerf=1`. This optional mode
 targets 30 FPS, uses slightly smaller shadow and bloom buffers, and limits
 adaptive resolution reduction to 10% per dimension. Models, textures, sky assets,

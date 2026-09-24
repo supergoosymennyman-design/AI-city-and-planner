@@ -4,7 +4,10 @@ test('demo preserves example models and sky, bounds resolution, and resizes effe
   test.setTimeout(300000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/city-builder/?example=1&demoPerf=1');
+  const emptyPlan = JSON.stringify({ version: 2, scaleMeters: 2000, roads: [], buildings: [], parks: [] });
+  await page.addInitScript(value => localStorage.setItem('p5_city_planner_layout_v1', value), emptyPlan);
+  await page.goto('/demo/');
+  await page.waitForURL('**/city-builder/?example=1&demoPerf=1');
   await page.waitForFunction(() => window.__city?.performance && ['complete', 'failed'].includes(window.__city.loading.phase), null, { timeout: 240000 });
   const inspect = () => page.evaluate(() => {
     const city = window.__city;
@@ -22,6 +25,9 @@ test('demo preserves example models and sky, bounds resolution, and resizes effe
   let state = await inspect();
   expect(state.phase, JSON.stringify(state.failures)).toBe('complete');
   expect(state.demo).toBe(true);
+  await expect(page).toHaveTitle('Passiona Demo — AI City');
+  await expect(page.locator('#example-session-banner [data-i18n="demo.viewing"]')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('p5_city_planner_layout_v1'))).toBe(emptyPlan);
   expect(state.lots).toBe(119);
   expect(state.fallback).toBe(0);
   expect(state.gateways).toEqual(['loaded', 'loaded']);

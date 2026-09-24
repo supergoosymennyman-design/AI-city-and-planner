@@ -86,12 +86,13 @@ build_city_sim() {
          city-sim/hong-kong-real city-sim/vendor city-sim/logic city-sim/buddy \
          city-sim/library city-sim/shared city-sim/planner city-sim/pregame \
          city-sim/studio city-sim/workshop \
-         city-sim/hub city-sim/home \
+         city-sim/hub city-sim/home city-sim/demo \
          city-sim/project \
          city-sim/buddy-boot.js city-sim/buddy-core.css city-sim/buddy-theme.css \
          city-sim/buddy-widget.css city-sim/buddy-widget.js city-sim/buddy.js \
          city-sim/crash-guard.js
   cp -r "$KIT/client/city-builder"      city-sim/city-builder
+  cp -r "$KIT/client/demo"              city-sim/demo
   cp -r "$KIT/client/city-common"       city-sim/city-common
   cp -r "$KIT/client/champion-city"     city-sim/champion-city
   cp -r "$KIT/client/hong-kong-real"    city-sim/hong-kong-real

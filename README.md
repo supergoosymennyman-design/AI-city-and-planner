@@ -1,5 +1,32 @@
 # Passiona — AI for Primary 1 & Primary 5
 
+## Run the demo
+
+**[Open the Passiona AI City demo](https://p5-city-sim.clover-marquis.workers.dev/demo/)** — no installation needed.
+It opens the current populated example city automatically, with the conservative
+presentation performance settings. The city is labelled **Passiona Demo**.
+
+To run the same demo on localhost, clone the demo branch and run:
+
+```bash
+git clone --branch kai-update https://github.com/supergoosymennyman-design/AI-city-and-planner.git
+cd AI-city-and-planner
+npm install
+npm run demo
+```
+
+Then open **[localhost:8377/demo/](http://localhost:8377/demo/)**. Use a current
+Node.js LTS release and a Bash shell (macOS/Linux, or WSL on Windows). The first
+build downloads dependencies; wait for the server's ready message. Later starts
+can use `npm run demo:start`. The City demo needs no provider credentials;
+Buddy chat requires the separately configured provider. See the
+[local demo runbook](P5%20Programme/docs/LOCAL-DEMO.md) for setup and alternate ports.
+
+The demo always selects the existing example rather than a saved empty plan.
+Normal student entry remains available at `/hub/`.
+
+## Programme
+
 Passiona teaches AI literacy in Hong Kong primary schools. There are **two
 programmes**, each 20 lessons, built on four connected tools — the **AI
 Workshop** (build an AI machine), the **Fit Studio** (dress your AI Champion),
