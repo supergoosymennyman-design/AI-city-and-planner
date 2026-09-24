@@ -11,9 +11,18 @@
 //   Stage 2 (next): runInference() for knn-vector-classifier + selftest gate.
 //
 // Pure + sync so node:test can exercise it exactly as the browser will.
+import { createBrain, addExample, classify as knnClassify, unitVec, surenessOf } from './knn-vector.js';
+
 export const CAP_MAGIC = 'passiona.capability';
 export const CAP_SPEC_VERSION = 1;
-export const CAP_ALGORITHMS = ['knn-vector-classifier'];
+export const CAP_SPEC_VERSION_2 = 2;
+// v1 = the City's original minmax + inverse-distance k-NN (kept for old bundles).
+// v2 = the SHARED Workshop k-NN (unit vectors, majority vote, sure-line abstain),
+//      so a student's Workshop model behaves identically in the City.
+export const CAP_ALGORITHM_V1 = 'knn-vector-classifier';
+export const CAP_ALGORITHM_V2 = 'knn-unit-majority-v2';
+export const CAP_ALGORITHMS = [CAP_ALGORITHM_V1, CAP_ALGORITHM_V2];
+export const CAP_SPEC_VERSIONS = [CAP_SPEC_VERSION, CAP_SPEC_VERSION_2];
 export const CAP_ABSTAIN = '__abstain';
 
 /** Structural parse + validate. Never throws. @returns {{ok:true, capability}|{ok:false,error}} */
@@ -30,12 +39,12 @@ export function parseCapability(raw) {
   if (obj.magic !== CAP_MAGIC) {
     return { ok: false, error: 'That does not look like a Passiona capability (.cap).' };
   }
-  if (obj.specVersion !== CAP_SPEC_VERSION) {
-    return { ok: false, error: `This capability is spec version ${obj.specVersion ?? '?'} — this app knows version ${CAP_SPEC_VERSION}.` };
+  if (!CAP_SPEC_VERSIONS.includes(obj.specVersion)) {
+    return { ok: false, error: `This capability is spec version ${obj.specVersion ?? '?'} — this app knows version ${CAP_SPEC_VERSIONS.join(' and ')}.` };
   }
   if (!obj.id || !obj.name) return { ok: false, error: 'The capability has no id or name.' };
 
-  // v1 supports label classifiers over numeric vectors only.
+  // Label classifiers over numeric vectors only.
   if (obj.kind !== 'classifier') {
     return { ok: false, error: `Capability kind "${obj.kind ?? '?'}" is not supported yet (this build: classifier).` };
   }
@@ -158,6 +167,9 @@ function abstainResult(reason, confidence = 0, evidence = []) {
  * @returns {{decision, confidence, abstained, abstainReason, evidence}}
  */
 export function runInference(cap, event, opts = {}) {
+  if (cap?.specVersion === CAP_SPEC_VERSION_2 || cap?.model?.algorithm === CAP_ALGORITHM_V2) {
+    return runInferenceUnit(cap, event, opts);
+  }
   const fields = cap.input?.fields || [];
   const norm = cap.input?.normalization || { type: 'minmax', epsilon: 1e-6, min: [], max: [] };
   const labels = cap.output?.labels || [];
@@ -205,6 +217,54 @@ export function runInference(cap, event, opts = {}) {
   if (model.maxNearestDistance != null && neighbours[0].d > model.maxNearestDistance) return abstainResult('too-far', confidence, neighbours.slice(0, opts.topK || 3));
   if ((model.tiePolicy || 'abstain') === 'abstain' && (topScore - secondScore) < (model.tieEpsilon || 0.05)) return abstainResult('tie', confidence, neighbours.slice(0, opts.topK || 3));
   return resultOf(top, confidence, false, null, neighbours.slice(0, opts.topK || 3).map((n) => ({ exampleIndex: n.index, label: n.labelName, distance: round3(n.d) })));
+}
+
+/**
+ * v2 headless inference — the Workshop's k-NN behaviour, run independently.
+ *
+ * Event → raw field vector → (optional bias constant) → unit normalize → the
+ * SHARED knn-vector classify (majority vote, distance ties by id) → the sure
+ * line (`1 − d²/2`) compared to the bundle's threshold → maybe abstain.
+ *
+ * `confidence` here is the SURE-LINE similarity (the number the threshold
+ * compares); `voteShare` is the winning share of the k votes. Both are reported
+ * so the pod can show exactly what the model did.
+ */
+export function runInferenceUnit(cap, event, opts = {}) {
+  const fields = cap.input?.fields || [];
+  const labels = cap.output?.labels || [];
+  const model = cap.model || {};
+  const raw = [];
+  for (const f of fields) {
+    const v = event ? event[f.name] : undefined;
+    if (typeof v !== 'number' || !Number.isFinite(v)) return abstainResult('missing-fields');
+    raw.push(v);
+  }
+  const bias = Number.isFinite(model.plusConstant) ? model.plusConstant : 0;
+  if (bias) raw.push(bias);
+  if (!raw.length) return abstainResult('missing-fields');
+  const input = unitVec(raw);
+  const vec = decodeFloat32(model.vectors?.data_b64, model.vectors?.count, model.vectors?.dim);
+  const lab = decodeUint16(model.labels?.data_b64, model.labels?.count);
+  if (!vec || !lab || vec.length !== lab.length || !labels.length) return abstainResult('invalid-model');
+  if (model.vectors?.dim != null && model.vectors.dim !== input.length) return abstainResult('invalid-model');
+  const brain = createBrain();
+  for (let i = 0; i < vec.length; i++) addExample(brain, labels[lab[i]] != null ? labels[lab[i]] : String(lab[i]), vec[i], null, i);
+  const res = knnClassify(brain, input, model.k);
+  if (!res) return abstainResult('no-neighbours');
+  const sim = surenessOf(res);
+  const threshold = model.threshold != null ? model.threshold : 0.5;
+  const evidence = res.evidence.slice(0, opts.topK || 3).map(v => ({ exampleId: v.id, label: v.label, distance: round3(v.distance) }));
+  const nearestDistance = round3(res.evidence[0].distance);
+  const tail = { confidence: round3(sim), voteShare: round3(res.value), evidence, nearestDistance };
+  if ((model.tiePolicy || 'nearest') === 'abstain') {
+    const tally = {};
+    for (const v of res.evidence) tally[v.label] = (tally[v.label] || 0) + 1;
+    const counts = Object.values(tally).sort((a, b) => b - a);
+    if (counts.length > 1 && counts[0] === counts[1]) return { decision: CAP_ABSTAIN, abstained: true, abstainReason: 'tie', ...tail };
+  }
+  if (Number.isFinite(sim) && sim < threshold) return { decision: CAP_ABSTAIN, abstained: true, abstainReason: 'below-threshold', ...tail };
+  return { decision: res.label, abstained: false, abstainReason: null, ...tail };
 }
 
 /**

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createProjectStore, migrateEconomyFromChampion, normalizeProject, ACTIVE_PROJECT_KEY } from '../P5 Programme/buddy-kit/client/city-common/project-store.js';
+import { buildCapabilityV2 } from '../P5 Programme/buddy-kit/client/city-common/capability-export.js';
 
 // --- A tiny in-memory IndexedDB sufficient for project-store.js --------------
 // Real IDB is exercised in the browser harness; this proves the STORE's own
@@ -138,6 +139,26 @@ test('an envelope imports a legacy wallet exactly once', () => {
   const second = migrateEconomyFromChampion(project, { version: 1, balance: 999, owned: [], transactions: [] });
   assert.equal(second.migrated, false);
   assert.equal(project.economy.balance, 120, 'a second import can never sum duplicate credits');
+});
+
+test('the envelope publishes, installs, and runs a skill through the store', async () => {
+  const { store, restore } = setup();
+  try {
+    const s = store();
+    await s.openActiveProject();
+    const cap = buildCapabilityV2({
+      id: 'cap-drive', name: 'Lane keeper', fields: ['left', 'centre', 'right'], labels: ['forward', 'stop'], k: 3, threshold: 0.5,
+      selftest: [{ name: 'forward', input: { left: 9, centre: 9, right: 9 }, expect: { decision: 'forward' } }],
+      examples: [{ label: 'forward', values: [9, 9, 9] }, { label: 'stop', values: [1, 1, 9] }],
+    }).capability;
+    assert.equal((await s.publishSkill(cap)).ok, true);
+    assert.equal((await s.installSkill('cap-drive@1', 'host-1', { hostType: 'sorter' })).ok, true);
+    const run = await s.runSkill('host-1', { left: 9, centre: 9, right: 9 });
+    assert.equal(run.ok, true);
+    assert.equal(run.decision, 'forward');
+    const installations = await s.readInstallations();
+    assert.equal(installations['host-1'].decisions.length, 1);
+  } finally { restore(); }
 });
 
 test('ACTIVE_PROJECT_KEY is stable', () => {

@@ -6,6 +6,7 @@
 // reviewed, persistable representation of a machine or model.
 import { CF_KEYS, collectState, writeState, composeChampionFile, sanitizeChampionFile } from './champion-file.js';
 import { emptyEconomy, normalizeEconomy, applyTransaction, purchaseItem as ledgerPurchaseItem, recordLearningEvent as ledgerRecordEvent } from './ledger.js';
+import { publishCapability, installSkill as registryInstallSkill, runSkill as registryRunSkill } from './skill-registry.js';
 
 export const PROJECT_KIND = 'passiona-project';
 export const PROJECT_VERSION = 1;
@@ -259,6 +260,44 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     }, `learn:${event?.type || '?'}`);
     return { ...out, claimed, amount };
   }
+  /** Capability contract: publish (immutable, validated) → install → run. */
+  async function publishSkill(capability) {
+    let error = null, published = false, key = null;
+    const result = await skillMutation(current => {
+      const out = publishCapability(current, capability);
+      if (!out.ok) throw Error(out.error);
+      published = out.published; key = out.key;
+    }, 'publish-skill');
+    return error ? { ok: false, error, project: result.project } : { ...result, published, key };
+  }
+  async function installSkill(capabilityRef, hostInstanceId, opts) {
+    let error = null, installation = null;
+    const result = await skillMutation(current => {
+      const out = registryInstallSkill(current, capabilityRef, hostInstanceId, opts);
+      if (!out.ok) throw Error(out.error);
+      installation = out.installation;
+    }, 'install-skill');
+    return error ? { ok: false, error, project: result.project } : { ...result, installation };
+  }
+  async function runSkill(installationId, observation, opts) {
+    let error = null, decision = null;
+    const result = await skillMutation(current => {
+      const out = registryRunSkill(current, installationId, observation, opts);
+      if (!out.ok) throw Error(out.error);
+      decision = { decision: out.decision, confidence: out.confidence, voteShare: out.voteShare, abstained: out.abstained, abstainReason: out.abstainReason, evidence: out.evidence };
+    }, `run-skill:${installationId}`);
+    return error ? { ok: false, error, project: result.project } : { ...result, ...decision };
+  }
+  async function skillMutation(change, reason) {
+    let error = null;
+    const result = await mutate(current => {
+      normalizeProject(current);
+      try { change(current); return current; }
+      catch (e) { error = String(e.message || e); return null; }
+    }, { reason, versioned: false });
+    return { ...result, error: error || undefined };
+  }
+
   async function economyMutation(nextEconomy, reason) {
     let error = null;
     const result = await mutate(current => {
@@ -282,6 +321,8 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     syncStatus: () => ({ state: 'local', label: 'Saved on this device' }), exportProject, importProject, restoreLegacyCity,
     readEconomy, transact, award, purchase, recordLearningEvent,
     readCapabilities: async () => { if (!active) await openActiveProject(); return clone(normalizeProject(active).capabilities || {}); },
+    readInstallations: async () => { if (!active) await openActiveProject(); return clone(normalizeProject(active).installations || {}); },
+    publishSkill, installSkill, runSkill,
   };
 }
 
