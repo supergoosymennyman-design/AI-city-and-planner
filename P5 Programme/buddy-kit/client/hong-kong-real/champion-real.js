@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { createGLTFLoader } from '../shared/gltf.js';
 import { buildAccessoryMesh } from '../champion-city/accessories.js';
+import { readFinish, applyFinishToObject } from '../city-common/champion-finishes.js';
 import { championMetadataFromGLTF, collectRigInfo, validateStudioChampion } from '../city-common/champion-contract.js';
 
 // Legacy world multiplier for callers that do not request an exact target
@@ -525,6 +526,10 @@ export async function createChampion(assetBase, city, opts = {}) {
   if (!model) buildProceduralChampion();
   // Scale the GROUP (not the model) so the skeleton/skinning stays intact.
   applyWorldScale();
+  // A purchased Market finish is a material palette; apply it as soon as a
+  // model exists, and re-apply after every skin swap below.
+  const storedFinish = readFinish();
+  if (storedFinish) applyFinishToObject(group, storedFinish);
 
   // Skin-swap subscribers (fired AFTER a successful loadSkin swaps the model).
   // The taxi subscribes so it can re-capture its boarding-fade material list —
@@ -544,6 +549,7 @@ export async function createChampion(assetBase, city, opts = {}) {
       if (ok) {
         api.skinId = skinId || api.skinId;
         api.reapplyAccessories();
+        applyFinishToObject(group, api._finishId);
         // Notify anything that depends on the champion's MATERIALS (the taxi's
         // boarding-fade capture goes stale when a swap replaces the model).
         for (const fn of [...skinListeners]) { try { fn(); } catch (e) { console.warn('[champion] skin listener error', e); } }
@@ -599,6 +605,16 @@ export async function createChampion(assetBase, city, opts = {}) {
       api._accessories = {};
       for (const item of items) api.equipAccessory(item);
     },
+
+    // ---- Champion finish: a purchased material palette (Market) ----
+    _finishId: storedFinish || null,
+    setFinish(id) {
+      api._finishId = id || null;
+      applyFinishToObject(group, api._finishId);
+      return api._finishId;
+    },
+    getFinish() { return api._finishId; },
+    clearFinish() { return api.setFinish(null); },
 
     setRing(mode) {
       stateRing.material.color.setHex(ringColor[mode] || ringColor.idle);

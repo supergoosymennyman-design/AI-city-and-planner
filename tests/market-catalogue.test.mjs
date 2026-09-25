@@ -1,8 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { MARKET_CATALOGUE, MARKET_COLLECTIONS, marketItems, marketItem, marketAction } from '../P5 Programme/buddy-kit/client/city-common/market-catalogue.js';
+import { MARKET_CATALOGUE, MARKET_COLLECTIONS, marketItems, marketItem, marketAction, marketHandler, HOST_UPGRADE_STORAGE_KEY } from '../P5 Programme/buddy-kit/client/city-common/market-catalogue.js';
 import { emptyEconomy, applyTransaction, purchaseItem, priceOf } from '../P5 Programme/buddy-kit/client/city-common/ledger.js';
+import { CHAMPION_FINISHES } from '../P5 Programme/buddy-kit/client/city-common/champion-finishes.js';
+import { HOST_UPGRADES } from '../P5 Programme/buddy-kit/client/city-common/host-upgrades.js';
+import { LANDMARK_TEMPLATES } from '../P5 Programme/buddy-kit/client/city-builder/landmark-templates.js';
+import { LIBRARY } from '../P5 Programme/buddy-kit/client/city-common/library.js';
+
+const libraryIds = new Set((Array.isArray(LIBRARY) ? LIBRARY : Object.values(LIBRARY)).map((i) => i.id));
 
 // The Champion registry imports three.js, so read it as text (as the links
 // mirror test does) and assert every purchasable accessory really equips.
@@ -58,11 +64,33 @@ test('every purchasable accessory maps to a real Champion accessory with the rig
   }
 });
 
+test('every purchasable item resolves to a real, working action target', () => {
+  for (const entry of marketItems()) {
+    const handler = marketHandler(entry.id);
+    assert.ok(handler, `${entry.id} has no handler — a dead Buy button`);
+    assert.ok(['equip', 'place'].includes(handler.action), `${entry.id} action must be equip or place`);
+    assert.equal(marketAction(entry.id, [entry.id]), handler.action);
+    assert.equal(marketAction(entry.id, []), 'buy');
+    if (handler.kind === 'decoration') {
+      assert.ok(libraryIds.has(handler.propId), `${entry.id} propId ${handler.propId} is not in library.js`);
+    } else if (handler.kind === 'landmark') {
+      assert.ok(LANDMARK_TEMPLATES[handler.templateId], `${entry.id} landmarkTemplate ${handler.templateId} is unknown`);
+    } else if (handler.kind === 'finish') {
+      assert.ok(CHAMPION_FINISHES[handler.finishId], `${entry.id} finish ${handler.finishId} is unknown`);
+    } else if (handler.kind === 'host-upgrade') {
+      assert.ok(HOST_UPGRADES[handler.hostUpgrade], `${entry.id} host upgrade ${handler.hostUpgrade} is unknown`);
+    }
+  }
+  assert.ok(HOST_UPGRADE_STORAGE_KEY, 'the host-upgrade consumer key is exported');
+});
+
 test('a card action is Buy, then Equip or Place once owned', () => {
   assert.equal(marketAction('acc-visor', []), 'buy');
   assert.equal(marketAction('acc-visor', ['acc-visor']), 'equip');
   assert.equal(marketAction('dec-planter', ['dec-planter']), 'place');
   assert.equal(marketAction('pre-landmark-a', ['pre-landmark-a']), 'place');
+  assert.equal(marketAction('fin-palette-a', ['fin-palette-a']), 'equip');
+  assert.equal(marketAction('pre-host-a', ['pre-host-a']), 'equip');
   assert.equal(marketAction('nope', []), null);
   assert.equal(marketItem('acc-visor').kind, 'accessory');
 });

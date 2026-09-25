@@ -1221,6 +1221,30 @@ export function mountPropLibrary(opts) {
       const mod=await landmarkModule(),record=mod.makeLandmarkRecord(templateId,transform);if(!record)return null;
       const before=cloneRecords(),p={uid:_uidSeq++,record:withInstanceId(record),mesh:null};state.placed.push(p);await projectLandmark(p);if(!commitRecords(before)){removeMesh(p);state.placed=state.placed.filter(x=>x!==p);return null;}renderCount();return p.record.instanceId;
     },
+    /**
+     * Place an ordinary library prop programmatically (the Market's purchased
+     * decorations). Landmarks and skill hosts keep their own entry points.
+     * Commits through the same history/persistence path as a hand drop, so the
+     * placed item is movable, exportable, and part of the Champion File.
+     * @returns {Promise<string|null>} the new instance id, or null if it failed
+     */
+    async insertProp(itemId, transform = {}) {
+      if (destroyed || restoreActive) return null;
+      const item = itemFor(itemId);
+      if (!item || item.landmark || item.host) return null;
+      const record = withInstanceId({ id: itemId, x: transform.x || 0, y: transform.y || 0, z: transform.z || 0, yaw: transform.yaw || 0 });
+      if (!validRecord(record)) return null;
+      const before = cloneRecords();
+      const p = { uid: _uidSeq++, record, mesh: null };
+      state.placed.push(p);
+      let model = null;
+      try { model = await loadAny(item); } catch { model = null; }
+      if (!model || destroyed || !state.placed.includes(p)) { state.placed = state.placed.filter((x) => x !== p); return null; }
+      project(p, model);
+      if (!commitRecords(before)) { removeMesh(p); state.placed = state.placed.filter((x) => x !== p); return null; }
+      renderCount();
+      return p.record.instanceId;
+    },
     async updateLandmark(instanceIdValue, config) {
       const p=state.placed.find(e=>e.record?.instanceId===instanceIdValue);if(!p||p.record.locked||!itemFor(p.record.id)?.landmark)return false;
       const mod=await landmarkModule(),checked=mod.validateLandmarkRecord({...p.record,landmark:{...p.record.landmark,config}});if(!checked.ok)return false;

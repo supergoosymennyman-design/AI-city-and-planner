@@ -66,25 +66,66 @@ test('the reward config has stable IDs and the six plan amounts', () => {
   });
 });
 
-test('recordLearningEvent credits once per scope and replays harmlessly', () => {
+test('recordLearningEvent credits once per challenge scope and replays harmlessly', () => {
   let e = emptyEconomy();
-  const event = { type: 'held-out-eval', scopeId: 'ch-recycle', evidence: { heldOut: 0.92, total: 14 } };
+  const event = { type: 'held-out-eval', scopeId: 'image-sorter', evidence: { challengeId: 'image-sorter', batch: 'normal', seed: 1, total: 14 } };
   const first = recordLearningEvent(e, event);
   assert.equal(first.ok, true);
   assert.equal(first.claimed, true);
   assert.equal(first.amount, 30);
   assert.equal(first.economy.balance, 30);
-  assert.deepEqual(first.economy.claimed, ['held-out-eval:ch-recycle']);
-  assert.deepEqual(first.economy.evidence['held-out-eval:ch-recycle'], { heldOut: 0.92, total: 14 });
+  assert.deepEqual(first.economy.claimed, ['held-out-eval:image-sorter']);
+  assert.deepEqual(first.economy.evidence['held-out-eval:image-sorter'], { challengeId: 'image-sorter', batch: 'normal', seed: 1, total: 14 });
   // Replay: harmless, no new credits.
   const replay = recordLearningEvent(first.economy, { ...event, id: 'different-event-id' });
   assert.equal(replay.claimed, false);
   assert.equal(replay.reason, 'already-claimed');
   assert.equal(replay.economy.balance, 30);
-  // A different challenge gets its own reward.
-  const other = recordLearningEvent(first.economy, { ...event, scopeId: 'ch-drive' });
+  // The other REGISTERED challenge gets its own reward.
+  const other = recordLearningEvent(first.economy, { type: 'held-out-eval', scopeId: 'driver', evidence: { challengeId: 'driver', trackId: 'full' } });
   assert.equal(other.claimed, true);
   assert.equal(other.economy.balance, 60);
+});
+
+test('an invented reward scope cannot mint credits', () => {
+  const e = emptyEconomy();
+  for (const scopeId of ['ch-recycle', 'anything-i-invent', 'image-sorter-2', '']) {
+    const result = recordLearningEvent(e, { type: 'held-out-eval', scopeId, evidence: { batch: 'normal', seed: 1 } });
+    assert.equal(result.ok, false, `${scopeId} must be refused`);
+    assert.match(result.error, /registered challenge/i);
+  }
+  assert.equal(e.balance, 0);
+  assert.equal(e.claimed.length, 0);
+});
+
+test('stub evidence cannot mint credits', () => {
+  const e = emptyEconomy();
+  const stubs = [
+    { type: 'skill-saved', scopeId: 'image-sorter', evidence: { x: 1 } },
+    { type: 'city-install', scopeId: 'image-sorter', evidence: { runs: 3 } },
+    { type: 'revision-fixed', scopeId: 'image-sorter', evidence: { fixedIds: [] } },
+    { type: 'abstain-demo', scopeId: 'driver', evidence: {} },
+    { type: 'held-out-eval', scopeId: 'driver', evidence: { batch: 'normal' } },
+    { type: 'held-out-eval', scopeId: 'driver', evidence: { challengeId: 'image-sorter', trackId: 'full' } },
+    { type: 'tutorial-task', scopeId: 'academy-room-9', evidence: { room: 9 } },
+  ];
+  for (const event of stubs) {
+    const result = recordLearningEvent(e, event);
+    assert.equal(result.ok, false, JSON.stringify(event));
+    assert.equal(e.balance, 0);
+  }
+  assert.equal(e.claimed.length, 0);
+});
+
+test('well-formed evidence for a registered scope still credits', () => {
+  const e = emptyEconomy();
+  const result = recordLearningEvent(e, {
+    type: 'skill-saved', scopeId: 'image-sorter',
+    evidence: { capabilityId: 'cap_trashnet', key: 'cap_trashnet@1', revision: 1 },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.claimed, true);
+  assert.equal(result.economy.balance, 20);
 });
 
 test('a learning event cannot name its own credits', () => {
@@ -98,7 +139,7 @@ test('a learning event cannot name its own credits', () => {
 test('a learning event without evidence is refused', () => {
   const e = emptyEconomy();
   for (const evidence of [undefined, null, {}, [], 'text']) {
-    const result = recordLearningEvent(e, { type: 'skill-saved', scopeId: 's', evidence });
+    const result = recordLearningEvent(e, { type: 'skill-saved', scopeId: 'image-sorter', evidence });
     assert.equal(result.ok, false);
     assert.match(result.error, /evidence/i);
   }
@@ -107,14 +148,14 @@ test('a learning event without evidence is refused', () => {
 
 test('a mirrored reward transaction is booked without re-minting', () => {
   const paid = applyTransaction(emptyEconomy(), {
-    id: 'reward:city-install:ch-recycle', type: 'award', amount: 40, title: 'Installed and tested in the City',
+    id: 'reward:city-install:image-sorter', type: 'award', amount: 40, title: 'Installed and tested in the City',
   });
-  const result = recordLearningEvent(paid, { type: 'city-install', scopeId: 'ch-recycle', evidence: { runs: 3 } });
+  const result = recordLearningEvent(paid, { type: 'city-install', scopeId: 'image-sorter', evidence: { installationId: 'host-1' } });
   assert.equal(result.ok, true);
   assert.equal(result.claimed, false);
   assert.equal(result.reason, 'already-paid');
   assert.equal(result.economy.balance, 40, 'the mirrored payment is not credited twice');
-  assert.deepEqual(result.economy.claimed, ['city-install:ch-recycle']);
+  assert.deepEqual(result.economy.claimed, ['city-install:image-sorter']);
 });
 
 test('purchaseItem takes the price from the catalogue, never the caller', () => {

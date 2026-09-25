@@ -87,7 +87,7 @@ test('a new envelope wallet is empty and credits, spends, and books its reward o
     await s.openActiveProject();
     assert.deepEqual(await s.readEconomy(), { version: 1, balance: 0, owned: [], transactions: [], claimed: [], evidence: {} });
 
-    const event = { type: 'held-out-eval', scopeId: 'ch-recycle', evidence: { heldOut: 0.9 } };
+    const event = { type: 'held-out-eval', scopeId: 'image-sorter', evidence: { challengeId: 'image-sorter', batch: 'normal', seed: 1 } };
     const first = await s.recordLearningEvent(event);
     assert.equal(first.ok, true);
     assert.equal(first.claimed, true);

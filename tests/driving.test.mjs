@@ -73,6 +73,20 @@ test('the model controls movement: a forward model travels, a stop model does no
   assert.ok(halt.interventions.some((i) => i.type === 'emergency-stop'), 'a clear-road stop must be recorded as an intervention');
 });
 
+test('a model that stops inside the goal margin is an emergency stop, never a goal', () => {
+  // The finish check must never mask the model's own stop: a car that halts
+  // within GOAL_MARGIN has not arrived, so `goalReached` must stay false.
+  const track = buildTrack({ id: 'short', points: [[0, 0], [0, 20]], width: 12 });
+  // Stop one step before the margin: the braking step coast into the margin is
+  // exactly the case the old finish-first ordering mislabelled as a goal.
+  const decide = (_obs, ctx) => ({ decision: ctx.car.z >= 16 ? 'stop' : 'forward' });
+  const trial = runTrial({ decide, track, maxSteps: 400 });
+  assert.equal(trial.outcome, 'emergency-stop', 'a clear-road stop must not be recorded as a goal');
+  assert.equal(trial.goalReached, false, 'the car stopped short — it did not reach the goal');
+  assert.ok(trial.progress > 16.9 && trial.progress < 20, `car should stop in the goal margin, got ${trial.progress}`);
+  assert.ok(trial.interventions.some((i) => i.type === 'emergency-stop'));
+});
+
 test('a left model and a right model move the car to opposite sides', () => {
   const left = runTrial({ cap: constantCap('left'), track: TRACKS.straight, maxSteps: 60 });
   const right = runTrial({ cap: constantCap('right'), track: TRACKS.straight, maxSteps: 60 });

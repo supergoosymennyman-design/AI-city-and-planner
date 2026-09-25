@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { installCapability } from '../city-common/cap-runtime.js';
+import { readHostUpgrade, applyHostUpgrade } from '../city-common/host-upgrades.js';
 
 export const SKILL_HOST_PREFIX = 'skill-host:';
 export const SKILL_HOSTS = Object.freeze({
@@ -35,7 +36,7 @@ function visual(type) { const g=new THREE.Group();g.name='skill-host-visual'; co
   else {frame(g,0,0,8,7,3.1); add(g,new THREE.CylinderGeometry(1.2,1.55,1.0,18),pale,0,.85,0); add(g,new THREE.CylinderGeometry(3.5,3.5,.15,24),graphite,0,3.05,0); for(const x of[-2.7,2.7])add(g,new THREE.BoxGeometry(1.7,.6,.45),pale,x,.72,1.9); add(g,new THREE.BoxGeometry(.5,1.2,.4),cyan,-3.1,1.1,-1.8); }
  return g; }
 function socket(record, caps, statusOverride) { const state=statusOverride||hostStatus(record,caps); const icon={empty:'○',connected:'●',update:'↻',attention:'!'}[state]; const color={empty:'#91a1a5',connected:'#35d0a8',update:'#f6c553',attention:'#ed7875'}[state]; const el=document.createElement('button'); el.className='skill-socket'; el.type='button'; el.dataset.skillHost=record.instanceId; el.setAttribute('aria-label',`${record.hostType} ${state}`); el.innerHTML=`<span aria-hidden="true">${icon}</span><b>${state==='empty'?'Build or connect a skill':state==='connected'?'Enter my skill':state==='update'?'Update available':'Needs attention'}</b>`; el.style.setProperty('--socket-color',color); return new CSS2DObject(el); }
-export function createSkillHostRoot(record, {capabilities=[],statusOverride=null}={}) { const root=new THREE.Group(), v=visual(record.hostType); root.add(v); const mount=new THREE.Group(); mount.position.set(0,.85,3.05); root.add(mount); const s=socket(record,capabilities,statusOverride); s.position.set(0,1.2,0); mount.add(s); root.userData.skillHost=true;root.userData.skillHostRecord=record;root.userData.status=statusOverride||hostStatus(record,capabilities); root.userData.dispose=()=>s.element.remove(); return root; }
+export function createSkillHostRoot(record, {capabilities=[],statusOverride=null}={}) { const root=new THREE.Group(), v=visual(record.hostType); const upgrade=readHostUpgrade(); if(upgrade)applyHostUpgrade(v,upgrade); root.add(v); const mount=new THREE.Group(); mount.position.set(0,.85,3.05); root.add(mount); const s=socket(record,capabilities,statusOverride); s.position.set(0,1.2,0); mount.add(s); root.userData.skillHost=true;root.userData.skillHostRecord=record;root.userData.status=statusOverride||hostStatus(record,capabilities); root.userData.upgrade=upgrade; root.userData.dispose=()=>s.element.remove(); return root; }
 export function workshopUrl(record) { const url=new URL('../workshop/',location.href); url.searchParams.set('publishTarget','city');url.searchParams.set('hostInstanceId',record.instanceId);url.searchParams.set('returnTo',new URL(`../city-builder/?skillHost=${encodeURIComponent(record.instanceId)}`,location.href).href);return url.href; }
 export function editSkillHostDialog(record, capabilities=[], lang='en', customModels=[]) {
   const zh=lang==='zh-Hant', d=document.createElement('dialog'); d.className='skill-host-dialog';

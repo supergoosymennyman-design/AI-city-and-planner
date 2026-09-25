@@ -117,16 +117,42 @@ export function applyTransaction(economy, operation) {
 
 export const REWARD_VERSION = 1;
 
-export const REWARDS = Object.freeze({
-  'tutorial-task':  { id: 'tutorial-task',   credits: 10, scope: 'tutorial',  title: 'Finished a tutorial task' },
-  'skill-saved':    { id: 'skill-saved',     credits: 20, scope: 'challenge', title: 'Saved a runnable skill' },
-  'held-out-eval':  { id: 'held-out-eval',   credits: 30, scope: 'challenge', title: 'Ran a held-out evaluation' },
-  'city-install':   { id: 'city-install',    credits: 40, scope: 'challenge', title: 'Installed and tested in the City' },
-  'revision-fixed': { id: 'revision-fixed',  credits: 30, scope: 'challenge', title: 'Fixed a recorded failure' },
-  'abstain-demo':   { id: 'abstain-demo',    credits: 20, scope: 'challenge', title: 'Demonstrated “not sure / ask for help”' },
+/**
+ * Where a reward may be claimed. A reward scope is a REGISTERED id, never a
+ * caller's free string: this allow-list is what stops an invented scope from
+ * minting credits (implementation plan §2 / §113 / §216). `challenge` mirrors
+ * `challenges.js` `CHALLENGE_IDS`; `tutorialRooms` mirrors the Academy's
+ * `ROOM_ORDER`. Keep both in sync when a challenge or room is added.
+ */
+export const REWARD_SCOPES = Object.freeze({
+  challenge: Object.freeze(['image-sorter', 'driver']),
+  tutorialRooms: Object.freeze([1, 2, 3, 4]),
 });
 
-export const REWARD_CONFIG = Object.freeze({ version: REWARD_VERSION, rewards: REWARDS });
+/** Evidence field types. Events carry typed REFERENCES, not caller-invented prose. */
+const EVIDENCE_FIELD = Object.freeze({
+  string: (v) => typeof v === 'string' && v.length > 0,
+  number: (v) => Number.isFinite(v),
+  positiveInteger: (v) => Number.isInteger(v) && v > 0,
+  idList: (v) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string' && x.length > 0),
+});
+
+export const REWARDS = Object.freeze({
+  'tutorial-task':  { id: 'tutorial-task',   credits: 10, scope: 'tutorial',  title: 'Finished a tutorial task',
+                      evidence: { room: 'positiveInteger' } },
+  'skill-saved':    { id: 'skill-saved',     credits: 20, scope: 'challenge', title: 'Saved a runnable skill',
+                      evidence: { capabilityId: 'string', key: 'string', revision: 'positiveInteger' } },
+  'held-out-eval':  { id: 'held-out-eval',   credits: 30, scope: 'challenge', title: 'Ran a held-out evaluation',
+                      anyOf: [{ batch: 'string', seed: 'number' }, { trackId: 'string' }] },
+  'city-install':   { id: 'city-install',    credits: 40, scope: 'challenge', title: 'Installed and tested in the City',
+                      evidence: { installationId: 'string' } },
+  'revision-fixed': { id: 'revision-fixed',  credits: 30, scope: 'challenge', title: 'Fixed a recorded failure',
+                      evidence: { fixedIds: 'idList', fromRevision: 'positiveInteger', toRevision: 'positiveInteger' } },
+  'abstain-demo':   { id: 'abstain-demo',    credits: 20, scope: 'challenge', title: 'Demonstrated “not sure / ask for help”',
+                      evidence: { source: 'string' } },
+});
+
+export const REWARD_CONFIG = Object.freeze({ version: REWARD_VERSION, scopes: REWARD_SCOPES, rewards: REWARDS });
 
 /** A stable, device-independent key: one reward per (achievement, scope). */
 export function claimKey(reward, scopeId) {
@@ -134,10 +160,39 @@ export function claimKey(reward, scopeId) {
   return `${reward.id}:${String(scopeId).slice(0, 120)}`;
 }
 
-/** Evidence must be a non-empty object of references — never caller-chosen credits. */
-function validateEvidence(evidence) {
-  if (!object(evidence) || Object.keys(evidence).length === 0) return false;
-  return true;
+function evidenceMatches(spec, evidence) {
+  return Object.entries(spec).every(([field, kind]) => EVIDENCE_FIELD[kind]?.(evidence[field]));
+}
+
+/**
+ * Evidence must be the typed references this reward declares — never a stub.
+ * Any `challengeId` it names must agree with the scope it is claimed under.
+ * Exported so a store can reuse the exact same gate.
+ */
+export function validateRewardEvidence(reward, evidence, scopeId = null) {
+  const error = 'This reward needs evidence before it can be credited.';
+  if (!object(evidence) || Object.keys(evidence).length === 0) return { ok: false, error };
+  if (reward?.evidence && !evidenceMatches(reward.evidence, evidence)) return { ok: false, error };
+  if (reward?.anyOf && !reward.anyOf.some((spec) => evidenceMatches(spec, evidence))) return { ok: false, error };
+  if (evidence.challengeId != null && scopeId != null && evidence.challengeId !== scopeId) {
+    return { ok: false, error: 'This evidence belongs to a different challenge.' };
+  }
+  return { ok: true };
+}
+
+/** A scope must be a registered challenge or a known Academy room — never invented. */
+export function validateRewardScope(reward, scopeId) {
+  if (reward?.scope === 'challenge') {
+    return REWARD_SCOPES.challenge.includes(scopeId)
+      ? { ok: true }
+      : { ok: false, error: 'This reward must be claimed against a registered challenge.' };
+  }
+  if (reward?.scope === 'tutorial') {
+    const match = /^academy-room-(\d+)$/.exec(String(scopeId));
+    if (match && REWARD_SCOPES.tutorialRooms.includes(Number(match[1]))) return { ok: true };
+    return { ok: false, error: 'This reward must be claimed against a registered tutorial.' };
+  }
+  return { ok: false, error: 'This reward has no valid scope.' };
 }
 
 /**
@@ -155,7 +210,10 @@ export function recordLearningEvent(economy, event, { config = REWARD_CONFIG } =
   const type = event && event.type;
   const reward = config?.rewards?.[type];
   if (!reward) return { ok: false, economy: current, claimed: false, error: 'Unknown learning event.' };
-  if (!validateEvidence(event.evidence)) return { ok: false, economy: current, claimed: false, error: 'This reward needs evidence before it can be credited.' };
+  const scope = validateRewardScope(reward, event.scopeId);
+  if (!scope.ok) return { ok: false, economy: current, claimed: false, error: scope.error };
+  const evidenceCheck = validateRewardEvidence(reward, event.evidence, event.scopeId);
+  if (!evidenceCheck.ok) return { ok: false, economy: current, claimed: false, error: evidenceCheck.error };
   let key;
   try { key = claimKey(reward, event.scopeId); }
   catch (error) { return { ok: false, economy: current, claimed: false, error: String(error.message || error) }; }

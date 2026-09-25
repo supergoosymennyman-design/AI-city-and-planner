@@ -32,6 +32,7 @@ import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { createGLTFLoader } from '../shared/gltf.js';
 import { championMetadataFromGLTF, collectRigInfo, validateStudioChampion } from '../city-common/champion-contract.js';
+import { runMarketHandoff, clearPlaceRequest } from './market-handoff.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -5729,6 +5730,23 @@ async function bootInner() {
       getCapabilities: readPlantedCaps,
     });
     rareLandmark?.refresh(propLibrary.getRecords?.() || []);
+    // A Market "Place in City" hand-off arrives as ?place=<marketId>. Ownership
+    // is verified against the shared wallet, the item is committed through the
+    // prop library's own path, and the query param is cleared so a refresh
+    // cannot place a second copy.
+    safe('market-handoff', () => {
+      const at = city.spawnWorld || findSpawn();
+      runMarketHandoff({ propLibrary, position: { x: at.x + 6, z: at.z + 6 } }).then((result) => {
+        window.__marketHandoff = result;
+        if (!result) return;
+        if (result.ok) {
+          showToast(currentLang() === 'zh-Hant' ? '🏙️ 已放置你的市集物品' : '🏙️ Placed your Market item');
+          clearPlaceRequest();
+        } else if (result.error === 'not-owned') {
+          showToast(currentLang() === 'zh-Hant' ? '請先在市集購買才能放置' : 'Buy this in the Market before placing it');
+        }
+      }).catch(() => { /* a failed hand-off must never break boot */ });
+    });
   });
   safe('focused-ui', () => {
     focusedUI?.dispose?.();

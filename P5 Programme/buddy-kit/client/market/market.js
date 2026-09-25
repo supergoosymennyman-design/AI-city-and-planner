@@ -6,7 +6,9 @@
 // can never charge twice (ledger.js). Owned accessories can be equipped on the
 // Champion right here; owned decorations hand off to the City to place.
 import { createProjectStore } from '../city-common/project-store.js';
-import { MARKET_CATALOGUE, MARKET_COLLECTIONS, marketItems, marketItem, marketAction } from '../city-common/market-catalogue.js';
+import { MARKET_CATALOGUE, MARKET_COLLECTIONS, marketItems, marketItem, marketAction, marketHandler } from '../city-common/market-catalogue.js';
+import { writeFinish } from '../city-common/champion-finishes.js';
+import { writeHostUpgrade } from '../city-common/host-upgrades.js';
 
 // The Champion runtime reads this key on load, so equipping here dresses the
 // Champion in the City with no extra plumbing (same-origin localStorage).
@@ -17,16 +19,22 @@ const STR = {
     title: 'Champion Market', credits: 'credits', hub: '← Hub',
     buy: 'Buy', equip: 'Equip', place: 'Place in City',
     equipped: 'Equipped on your Champion — see it in the City.',
+    finishEquipped: 'Finish equipped on your Champion — see it in the City.',
+    hostEquipped: 'Skill-host upgrade equipped — it appears on your skill hosts.',
     noFunds: 'Not enough credits yet — prove a skill in the Workshop or Academy to earn more.',
     bought: 'Added to your collection.', failed: 'That could not be completed.',
+    unavailable: 'This item has no working action yet.',
     placeHint: 'Opening the City to place this…',
   },
   'zh-Hant': {
     title: '冠軍市集', credits: '學分', hub: '← 主頁',
     buy: '購買', equip: '裝備', place: '放置於城市',
     equipped: '已裝備在冠軍身上 —— 到城市看看。',
+    finishEquipped: '已為冠軍裝備塗裝 —— 到城市看看。',
+    hostEquipped: '已裝備技能館升級 —— 將會出現在你的技能館上。',
     noFunds: '學分不足 —— 到工作坊或學院展示技能即可賺取更多。',
     bought: '已加入你的收藏。', failed: '無法完成。',
+    unavailable: '此物品尚未有可用的動作。',
     placeHint: '正在開啟城市放置…',
   },
 };
@@ -95,18 +103,39 @@ async function buy(button) {
   }
 }
 
-function equip(entry) {
-  if (!entry?.championAccessory || !entry.slot) return;
+function unlock(handler) {
   try {
-    const map = JSON.parse(localStorage.getItem(CHAMPION_ACCESSORY_KEY) || '{}');
-    map[entry.slot] = entry.championAccessory;
-    localStorage.setItem(CHAMPION_ACCESSORY_KEY, JSON.stringify(map));
-    $('mkt-note').textContent = t('equipped');
-  } catch { $('mkt-note').textContent = t('failed'); }
+    if (handler.kind === 'accessory') {
+      const map = JSON.parse(localStorage.getItem(CHAMPION_ACCESSORY_KEY) || '{}');
+      map[handler.slot] = handler.accessory;
+      localStorage.setItem(CHAMPION_ACCESSORY_KEY, JSON.stringify(map));
+      $('mkt-note').textContent = t('equipped');
+      return true;
+    }
+    if (handler.kind === 'finish') {
+      if (!writeFinish(handler.finishId)) return false;
+      $('mkt-note').textContent = t('finishEquipped');
+      return true;
+    }
+    if (handler.kind === 'host-upgrade') {
+      if (!writeHostUpgrade(handler.hostUpgrade)) return false;
+      $('mkt-note').textContent = t('hostEquipped');
+      return true;
+    }
+    return false;
+  } catch { return false; }
+}
+
+function equip(entry) {
+  const handler = marketHandler(entry.id);
+  if (!handler || !unlock(handler)) $('mkt-note').textContent = t('unavailable');
 }
 
 function place(entry) {
-  // Owned decorations are placed in the City's own placement tool.
+  // Owned City items are placed in the City's own placement tool, which reads
+  // `?place=<marketId>` and verifies ownership against the shared wallet.
+  const handler = marketHandler(entry.id);
+  if (!handler) { $('mkt-note').textContent = t('unavailable'); return; }
   $('mkt-note').textContent = t('placeHint');
   location.href = `../city-builder/?place=${encodeURIComponent(entry.id)}`;
 }

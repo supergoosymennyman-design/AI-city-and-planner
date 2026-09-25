@@ -311,15 +311,18 @@ export function advanceStep(track, car, inference, { t = 0, dt = DRIVE_DT, step 
   // 2. Off-road.
   const proj = projectToTrack(track, x, z);
   if (!event && Math.abs(proj.lateral) > track.width / 2) event = { type: 'off-road', lateral: round3(proj.lateral) };
-  // 3. Finish.
-  if (!event && proj.s >= track.length - GOAL_MARGIN) event = { type: 'goal' };
-  // 4. The model's own stop: an abstention / missing input / unknown label, or a
+  // 3. The model's own stop: an abstention / missing input / unknown label, or a
   //    deliberate "stop" action with a clear road ahead (an emergency stop).
+  //    This is evaluated BEFORE the finish line on purpose: a car that stops
+  //    inside the goal margin has NOT reached the goal, and reporting it as one
+  //    was a review-found lie. Only a still-moving arrival counts as a goal.
   const wantsStop = decision.stop || decision.action === 'stop';
   if (!event && wantsStop) {
-    const required = observation.trafficLight === LIGHT_RED || observation.center < REQUIRED_STOP_CENTER || proj.s >= track.length - GOAL_MARGIN;
+    const required = observation.trafficLight === LIGHT_RED || observation.center < REQUIRED_STOP_CENTER;
     event = { type: required ? 'stop-required' : 'emergency-stop', reason: decision.reason || (decision.stop ? null : 'the model chose to stop with a clear road') };
   }
+  // 4. Finish — a genuine arrival, never masking a stop/abstention above.
+  if (!event && proj.s >= track.length - GOAL_MARGIN) event = { type: 'goal' };
 
   const record = {
     i: step,
