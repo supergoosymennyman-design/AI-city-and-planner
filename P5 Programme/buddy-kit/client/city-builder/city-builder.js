@@ -96,7 +96,7 @@ import { collectState, composeChampionFile, championFilename, sanitizeChampionFi
 import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
 import { badgeEvidenceHTML } from '../city-common/achievements.js';
 import { statueSectionHTML } from '../city-common/statues.js';
-import { createProjectStore } from '../city-common/project-store.js';
+import { createProjectStore, PROJECT_EVENT } from '../city-common/project-store.js';
 import { readMilestones, milestoneSectionHTML } from '../city-common/milestones.js';
 import { parseCapability, capabilityDescriptor, installCapability, stage1Note } from '../city-common/cap-runtime.js';
 import { mountPropLibrary } from './prop-library.js';
@@ -5012,6 +5012,19 @@ function readPlantedCaps() {
   try { const a = JSON.parse(localStorage.getItem(CAPS_KEY) || '[]'); return Array.isArray(a) ? a : []; }
   catch { return []; }
 }
+
+// Envelope-published skills, cached for the synchronous skill-host sockets. The
+// store is async; a socket asks synchronously at placement time, so this is
+// refreshed at boot and whenever the project changes.
+let _envelopeCaps = [];
+async function refreshEnvelopeCaps() {
+  try {
+    const store = createProjectStore();
+    await store.openActiveProject();
+    _envelopeCaps = Object.values(await store.readCapabilities() || {});
+  } catch { _envelopeCaps = []; }
+  return _envelopeCaps;
+}
 function writePlantedCaps(list) {
   try { localStorage.setItem(CAPS_KEY, JSON.stringify(list)); } catch { /* ignore */ }
 }
@@ -5701,6 +5714,9 @@ async function bootInner() {
   });
 
   safe('chat', () => mountChat(owner));
+  // Published skills are visible to a placed skill-host socket, not just planted files.
+  refreshEnvelopeCaps();
+  window.addEventListener(PROJECT_EVENT, () => { refreshEnvelopeCaps(); });
   safe('badges', mountBadgeUi);
   safe('my-work', () => { myWork?.dispose(); learningVisuals?.destroy?.(); learningVisuals = createLearningVisuals(scene); window.__learningVisuals = learningVisuals; myWork = mountMyWork({
     layout, readPlantedCaps, readLastDecisions, openPlan: openPlanModal,
@@ -5717,6 +5733,9 @@ async function bootInner() {
     replacePropsEnvelope: next => propLibrary?.replaceEnvelope?.(next) || false,
   }); });
   safe('capabilities', mountCapabilityUi);
+  // A Workshop "Improve in the Workshop" round-trip returns with ?batch=: re-open
+  // the station and re-run the SAME fixed-seed batch the child left.
+  if (new URLSearchParams(location.search).has('batch')) safe('resume-recycling', () => { openRecyclingStation(); });
   safe('skins', () => mountSkins(owner));
   safe('ai-nodes', () => { try { if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose(); _aiNodes = mountCityAiNodes(scene, city, layout, {paused:()=>_contextPaused,reducedMotion:()=>reducedMotion.matches}); } catch (e) { console.warn('[city-builder] ai-nodes mount failed', e); } });
   safe('input', wireInput);
@@ -5746,7 +5765,7 @@ async function bootInner() {
       onPlacementEnd: () => { if (grab) grab.clearSelection(); },
       onInspectorClearSelection: () => { if (grab) grab.clearSelection(); },
       onSelectedChange: state => mountResizeSlider().setModelState(state),
-      getCapabilities: readPlantedCaps,
+      getCapabilities: () => readPlantedCaps().concat(_envelopeCaps),
     });
     rareLandmark?.refresh(propLibrary.getRecords?.() || []);
     // A Market "Place in City" hand-off arrives as ?place=<marketId>. Ownership

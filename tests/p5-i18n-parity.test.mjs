@@ -10,6 +10,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DICT as CITY_BUILDER, tf } from '../P5 Programme/buddy-kit/client/city-builder/i18n.js';
 import { DICT as CHAMPION_CITY } from '../P5 Programme/buddy-kit/client/champion-city/i18n.js';
+import { CHALLENGES } from '../P5 Programme/buddy-kit/client/city-common/challenges.js';
+import { SKILL_STAGES } from '../P5 Programme/buddy-kit/client/city-common/skill-stages.js';
+import { STATUES } from '../P5 Programme/buddy-kit/client/city-common/statues.js';
+import { MARKET_COLLECTIONS, marketItems } from '../P5 Programme/buddy-kit/client/city-common/market-catalogue.js';
 
 const LANG_KEY = 'zh-Hant';
 
@@ -60,5 +64,34 @@ test('no dictionary value is an empty string', () => {
         assert.notEqual(v.trim(), '', `${name}.${lang}.${k} must not be empty`);
       }
     }
+  }
+});
+
+// ── Stage 6 surfaces carry their own bilingual copy as data ──────────────────
+const zh = (v) => typeof v === 'string' && v.trim() !== '';
+
+test('challenges, skill stages and statues each carry English and Traditional Chinese', () => {
+  for (const c of Object.values(CHALLENGES)) {
+    assert.ok(zh(c.name), `${c.id} needs an English name`);
+    assert.ok(zh(c.nameZh), `${c.id} needs a Chinese name`);
+    assert.ok(zh(c.blurb) && zh(c.blurbZh), `${c.id} needs bilingual blurbs`);
+  }
+  for (const s of SKILL_STAGES) {
+    assert.ok(zh(s.name) && zh(s.nameZh), `stage ${s.id} needs bilingual names`);
+    assert.ok(zh(s.blurb) && zh(s.blurbZh), `stage ${s.id} needs bilingual blurbs`);
+  }
+  for (const s of Object.values(STATUES)) {
+    assert.ok(zh(s.name) && zh(s.nameZh), `statue ${s.id} needs bilingual names`);
+    assert.ok(zh(s.blurb) && zh(s.blurbZh), `statue ${s.id} needs bilingual blurbs`);
+  }
+});
+
+test('every market item and collection is bilingual', () => {
+  for (const item of marketItems()) {
+    assert.ok(zh(item.name), `${item.id} needs an English name`);
+    assert.ok(zh(item.nameZh), `${item.id} needs a Chinese name`);
+  }
+  for (const [key, c] of Object.entries(MARKET_COLLECTIONS)) {
+    assert.ok(zh(c.en) && zh(c.zh), `collection ${key} needs both languages`);
   }
 });

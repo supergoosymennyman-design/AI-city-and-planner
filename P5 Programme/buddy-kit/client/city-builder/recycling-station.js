@@ -424,14 +424,26 @@ export async function openRecyclingStation() {
   };
   controller.skill = await resolveStationSkill();
   const improve = ensureModal().querySelector('[data-r="improve"]');
-  // "Improve in the Workshop" always points at the publish flow back to this page.
+  // "Improve in the Workshop" always points at the publish flow back to this page,
+  // and carries the current fixed-seed batch so returning re-runs the SAME items
+  // (plan §3 / S4 carry-in). Without a batch yet, there is nothing to carry.
   try {
+    const back = new URL(location.href);
+    if (controller.last) back.searchParams.set('batch', `${controller.last.kind}:${controller.last.seed}`);
     const url = new URL('../workshop/', location.href);
     url.searchParams.set('publishTarget', 'city');
-    url.searchParams.set('returnTo', location.href);
+    url.searchParams.set('returnTo', back.href);
     improve.href = url.href;
   } catch { improve.removeAttribute('href'); }
   open();
+  // A return from the Workshop re-runs the batch the child left (one-shot: the
+  // query is cleared so a refresh does not re-run it again).
+  const requested = new URLSearchParams(location.search).get('batch');
+  if (requested && controller.skill) {
+    const [kind, seedRaw] = requested.split(':');
+    try { history.replaceState(null, '', location.pathname); } catch { /* URL is cosmetic */ }
+    runBatch({ kind: kind || 'normal', seed: Number(seedRaw) || 1 });
+  }
   return controller;
 }
 
