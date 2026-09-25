@@ -867,6 +867,29 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible {
 .logbook-ms .ms-blurb { font-size: 12px; color: #9fb0c7; line-height: 1.45; }
 .logbook-ms.locked .ms-name, .logbook-ms.locked .ms-blurb { opacity: 0.5; }
 
+/* ── Earned statues + badge evidence cards (Stage 6) ── */
+.logbook-statue-intro { margin: 6px 0 10px; font-size: 12px; color: #9fb0c7; line-height: 1.5; }
+.logbook-statue { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; }
+.logbook-statue .statue-medal {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.14); color: #6b7a93;
+}
+.logbook-statue.earned .statue-medal { color: #ffd700; border-color: rgba(255,215,0,0.55); background: rgba(255,215,0,0.12); }
+.logbook-statue .statue-name { font-weight: 700; font-size: 13px; color: #eaf2f8; }
+.logbook-statue .statue-blurb { font-size: 12px; color: #9fb0c7; line-height: 1.45; }
+.logbook-statue.locked .statue-name, .logbook-statue.locked .statue-blurb { opacity: 0.5; }
+.statue-evidence { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.statue-evidence span, .be-fields span {
+  font-size: 11px; color: #cfe3ea; background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 2px 7px;
+}
+.logbook-badge-evidence { padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.logbook-badge-evidence:last-child { border-bottom: none; }
+.logbook-badge-evidence .be-name { font-weight: 700; font-size: 13px; color: #ffd700; }
+.logbook-badge-evidence .be-fields { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
 /* ── Capability panel (planted machines, Stage 1) ── */
 .hud-chip {
   margin-left: 10px; min-width: 44px; min-height: 44px;

@@ -94,6 +94,9 @@ import { readNewCityDraft } from '../city-common/new-city-draft.js';
 import { isRoadVehicle, vehicleTargetLength, vehicleTargetWidth } from '../city-common/vehicle-scale.js';
 import { collectState, composeChampionFile, championFilename, sanitizeChampionFile, rememberSavedAt, lastSavedAt, CF_KEYS } from '../city-common/champion-file.js';
 import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
+import { badgeEvidenceHTML } from '../city-common/achievements.js';
+import { statueSectionHTML } from '../city-common/statues.js';
+import { createProjectStore } from '../city-common/project-store.js';
 import { readMilestones, milestoneSectionHTML } from '../city-common/milestones.js';
 import { parseCapability, capabilityDescriptor, installCapability, stage1Note } from '../city-common/cap-runtime.js';
 import { mountPropLibrary } from './prop-library.js';
@@ -4939,15 +4942,17 @@ function mountBadgeUi() {
   emblem.setAttribute('aria-label', zh ? `檢查員徽章：${tier.nameZh}` : `Inspector badge: ${tier.name}`);
 
   const close = () => modal.classList.add('hidden');
-  emblem.addEventListener('click', () => {
+  const lang = zh ? 'zh-Hant' : 'en';
+  const render = (badgeState, statues) => {
+    const current = tierOf(badgeState);
     const rows = TIERS.map((t) => {
-      const current = t.id === state.tier;
-      const reached = t.order <= tierOf(state).order;
+      const isCurrent = t.id === current.id;
+      const reached = t.order <= current.order;
       const medal = t.order === 1 ? '🏗️' : t.order === 2 ? '🔍' : t.order === 3 ? '🛡️' : '🏛️';
-      return `<div class="logbook-tier ${current ? 'current' : ''} ${reached ? '' : 'locked'}">
+      return `<div class="logbook-tier ${isCurrent ? 'current' : ''} ${reached ? '' : 'locked'}">
         <div class="tier-medal" aria-hidden="true">${medal}</div>
         <div>
-          <div class="tier-name">${zh ? t.nameZh : t.name}${current ? ' ✓' : ''}</div>
+          <div class="tier-name">${zh ? t.nameZh : t.name}${isCurrent ? ' ✓' : ''}</div>
           <div class="tier-blurb">${zh ? t.blurbZh : t.blurb}</div>
         </div>
       </div>`;
@@ -4956,8 +4961,22 @@ function mountBadgeUi() {
       + `<div class="logbook-note">${zh
         ? '你的徽章會在你證明你的機器後亮起 — 用留出的資料測試，並在「不確定」時說出來。'
         : 'Your badges will light up as you prove your machines — test on data they have never seen, and say "not sure" when you should.'}</div>`
-      + milestoneSectionHTML(readMilestones(), zh ? 'zh-Hant' : 'en');
+      + badgeEvidenceHTML(badgeState, lang)
+      + milestoneSectionHTML(readMilestones(), lang)
+      + (statues ? statueSectionHTML(statues, lang) : '');
+    tag.textContent = zh ? current.nameZh : current.name;
+  };
+  emblem.addEventListener('click', () => {
+    // Render immediately from the legacy mirror, then let the authoritative
+    // envelope (which may have richer/restored evidence) refine it.
+    render(readBadges(), null);
     modal.classList.remove('hidden');
+    (async () => {
+      const store = createProjectStore();
+      await store.openActiveProject();
+      const { badges, statues } = await store.readAchievements();
+      render(badges || readBadges(), statues);
+    })().catch(() => { /* keep the local mirror */ });
   });
   modal.querySelectorAll('[data-logbook-close]').forEach((el) => el.addEventListener('click', close));
 }

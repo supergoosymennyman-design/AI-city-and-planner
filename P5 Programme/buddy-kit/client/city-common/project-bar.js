@@ -14,7 +14,27 @@ export async function mountProjectBar({ workspace = 'city' } = {}) {
     ['workshop', '../workshop/', 'Workshop'],
   ];
   const context = routes.find(([key]) => key === workspace)?.[2] || workspace;
-  bar.innerHTML = `<strong class="project-name">${escapeHtml(project.name)}</strong><span class="project-context">${escapeHtml(context)}</span><span class="project-save" aria-live="polite">Saved on this device</span><span class="project-links">${routes.map(([key, href, label]) => `<a${key === workspace ? ' aria-current="page"' : ''} href="${href}">${label}</a>`).join('')}</span><button type="button" class="project-download">Download project</button><label class="project-upload">Open project<input type="file" accept=".passiona,application/json" hidden></label>`;
+  bar.innerHTML = `<strong class="project-name">${escapeHtml(project.name)}</strong><span class="project-context">${escapeHtml(context)}</span><span class="project-save" aria-live="polite">Saved on this device</span><span class="project-links">${routes.map(([key, href, label]) => `<a${key === workspace ? ' aria-current="page"' : ''} href="${href}">${label}</a>`).join('')}</span><select class="project-switch" aria-label="Switch project"></select><button type="button" class="project-copy">Copy project</button><button type="button" class="project-download">Download project</button><label class="project-upload">Open project<input type="file" accept=".passiona,application/json" hidden></label>`;
+
+  // Project switching: swaps the COMPLETE wallet and progress. Copy carries the
+  // same claimed rewards, so it can never re-earn them (plan §2).
+  const select = bar.querySelector('.project-switch');
+  const note = (message) => { bar.querySelector('.project-save').textContent = message; };
+  try {
+    const projects = await store.listProjects();
+    select.innerHTML = projects.map((p) => `<option value="${escapeHtml(p.id)}"${p.active ? ' selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
+    select.addEventListener('change', async () => {
+      const result = await store.switchProject(select.value);
+      if (result.ok) location.reload();
+      else note(result.error || 'That project could not be opened.');
+    });
+  } catch { select.remove(); }
+  bar.querySelector('.project-copy').addEventListener('click', async () => {
+    const result = await store.copyProject(project.id, `${project.name} copy`);
+    if (!result.ok) { note(result.error || 'That project could not be copied.'); return; }
+    await store.switchProject(result.project.id);
+    location.reload();
+  });
   bar.querySelector('.project-download').addEventListener('click', async () => {
     const result = await store.exportProject(); if (!result.ok) return;
     const [champion, metadata] = await Promise.all([loadCustomSkinBlob(), loadCustomSkinMetadata()]);

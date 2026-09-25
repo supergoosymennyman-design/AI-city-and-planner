@@ -165,6 +165,42 @@ test('ACTIVE_PROJECT_KEY is stable', () => {
   assert.equal(ACTIVE_PROJECT_KEY, 'passiona_active_project_v1');
 });
 
+test('projects list, copy without re-earning, and switch the whole wallet', async () => {
+  const { store, restore } = setup();
+  try {
+    const s = store();
+    await s.openActiveProject();
+    const event = { type: 'held-out-eval', scopeId: 'image-sorter', evidence: { challengeId: 'image-sorter', batch: 'normal', seed: 1 } };
+    assert.equal((await s.recordLearningEvent(event)).claimed, true);
+    assert.equal((await s.readEconomy()).balance, 30);
+
+    const before = await s.listProjects();
+    assert.equal(before.length, 1);
+    const originalId = before[0].id;
+    assert.equal(before[0].active, true);
+
+    const copy = await s.copyProject(originalId, 'Copy A');
+    assert.equal(copy.ok, true);
+    assert.notEqual(copy.project.id, originalId);
+    // The copy carries the SAME claimed rewards — so it cannot re-earn them.
+    assert.equal(copy.project.economy.balance, 30);
+    assert.deepEqual(copy.project.economy.claimed, (await s.readEconomy()).claimed);
+    assert.equal((await s.listProjects()).length, 2);
+
+    // Switching swaps the complete wallet and progress.
+    assert.equal((await s.switchProject(copy.project.id)).ok, true);
+    assert.equal((await s.readEconomy()).balance, 30);
+    const replay = await s.recordLearningEvent(event);
+    assert.equal(replay.claimed, false, 'a copied project cannot manufacture reward eligibility');
+    assert.equal((await s.readEconomy()).balance, 30);
+
+    // Switching back to the original keeps ITS wallet intact.
+    assert.equal((await s.switchProject(originalId)).ok, true);
+    assert.equal((await s.readEconomy()).balance, 30);
+    assert.equal((await s.switchProject('does-not-exist')).ok, false);
+  } finally { restore(); }
+});
+
 test('recordChallengeOutcome commits evidence rewards and a revision fix atomically', async () => {
   const { store, restore } = setup();
   try {
@@ -187,6 +223,11 @@ test('recordChallengeOutcome commits evidence rewards and a revision fix atomica
     assert.deepEqual(first.fixedIds, []);
     assert.deepEqual(first.claimed.map((c) => c.type).sort(), ['city-install', 'held-out-eval']);
     assert.equal((await s.readEconomy()).balance, 70); // 30 + 40
+    // Badges are promoted from the same evidence, in the same transaction.
+    assert.equal(first.badgeTier, 'skeptic');
+    const ach = await s.readAchievements();
+    assert.equal(ach.badges.tier, 'skeptic');
+    assert.equal(ach.badges.earned.some((b) => b.id === 'skeptic'), true);
 
     // Replaying the same events and the same revision cannot mint or "fix" again.
     const replay = await s.recordChallengeOutcome('driver',

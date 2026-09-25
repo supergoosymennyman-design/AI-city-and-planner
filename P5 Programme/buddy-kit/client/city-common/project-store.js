@@ -8,6 +8,9 @@ import { CF_KEYS, collectState, writeState, composeChampionFile, sanitizeChampio
 import { emptyEconomy, normalizeEconomy, applyTransaction, purchaseItem as ledgerPurchaseItem, recordLearningEvent as ledgerRecordEvent } from './ledger.js';
 import { publishCapability, installSkill as registryInstallSkill, runSkill as registryRunSkill } from './skill-registry.js';
 import { recordRun as challengeRecordRun, normalizeChallengeRuns, wrongIdsOf, gradedIdsOf } from './challenges.js';
+import { promoteFromEvidence } from './achievements.js';
+import { statueStatus } from './statues.js';
+import { writeBadges } from './badges.js';
 
 export const PROJECT_KIND = 'passiona-project';
 export const PROJECT_VERSION = 1;
@@ -172,10 +175,53 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
   async function openActiveProject() {
     const requested = storage?.getItem(ACTIVE_PROJECT_KEY); let project = requested && await read(requested);
     if (!project) { project = migrateLegacyCity(storage); await write(project, 'migration:legacy-city'); try { storage?.setItem(ACTIVE_PROJECT_KEY, project.id); } catch {} }
-    active = normalizeProject(project); return clone(active);
+    active = normalizeProject(project); mirrorBadges(active); return clone(active);
   }
   async function createAndOpen(name) { active = createProject(name); await write(active, 'created'); try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch {} emit({ type: 'opened', projectId: active.id }); return clone(active); }
 
+  /** Mirror the envelope's authoritative badges to the legacy key the Logbook reads. */
+  function mirrorBadges(project) { try { if (project?.projects?.badges) writeBadges(project.projects.badges, storage); } catch { /* Logbook falls back to its default */ } }
+
+  /** Every project on this device, newest first, with the active one flagged. */
+  async function listProjects() {
+    const d = await db(); if (!d) return [];
+    const rows = await new Promise(resolve => {
+      const r = d.transaction('projects').objectStore('projects').getAll();
+      r.onsuccess = () => resolve(r.result || []);
+      r.onerror = () => resolve([]);
+    });
+    return rows
+      .map(p => ({ id: p.id, name: p.name, revision: p.revision, updatedAt: p.updatedAt, balance: p.economy?.balance ?? 0, active: p.id === active?.id }))
+      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  }
+
+  /** Switch which project every app reads: swaps the complete wallet and progress. */
+  async function switchProject(projectId) {
+    const project = await read(projectId);
+    if (!project) return { ok: false, error: 'That project is not on this device.' };
+    active = normalizeProject(project);
+    try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch { /* private mode */ }
+    mirrorBadges(active);
+    emit({ type: 'switched', projectId: active.id });
+    return { ok: true, project: clone(active) };
+  }
+
+  /**
+   * Copy a project. The copy carries the SAME claimed rewards and achievements,
+   * so it can never re-earn them — copying must not mint eligibility (plan §2).
+   */
+  async function copyProject(projectId, name) {
+    const source = await read(projectId || active?.id);
+    if (!source) return { ok: false, error: 'That project is not on this device.' };
+    const copy = clone(source);
+    copy.id = id();
+    copy.name = String(name || `${source.name || 'My AI City'} (copy)`).slice(0, 80);
+    copy.createdAt = now(); copy.updatedAt = now(); copy.revision = 0;
+    const ok = await write(copy, 'copied');
+    if (!ok) return { ok: false, storageFull: true };
+    emit({ type: 'copied', projectId: copy.id });
+    return { ok: true, project: clone(copy) };
+  }
   /**
    * Read-modify-write the active project INSIDE one IndexedDB transaction. The
    * revision is compared against the record actually read from storage, so two
@@ -291,7 +337,7 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
    * @param {Array<{type:string, evidence:object}>} events
    */
   async function recordChallengeOutcome(challengeId, outcome = {}, events = [], { at = null } = {}) {
-    let claimed = [], fixedIds = [], previousRevision = null;
+    let claimed = [], fixedIds = [], previousRevision = null, badgeTier = null;
     const result = await mutate(current => {
       normalizeProject(current);
       const wrongIds = Array.isArray(outcome.wrongIds) ? outcome.wrongIds : wrongIdsOf(outcome.results);
@@ -317,9 +363,24 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
         const res = ledgerRecordEvent(current.economy, { type: ev.type, scopeId: challengeId, evidence: ev.evidence || {}, at });
         if (res.ok) { current.economy = res.economy; if (res.claimed) claimed.push({ type: ev.type, amount: res.amount }); }
       }
+      // Badges are promoted from the SAME evidence, in the SAME transaction, and
+      // mirrored to the legacy localStorage key so the Logbook and Champion File
+      // keep working unchanged. The envelope copy is authoritative.
+      current.projects ||= {};
+      const promotion = promoteFromEvidence(current, current.projects.badges);
+      current.projects.badges = promotion.state;
+      badgeTier = promotion.ok ? promotion.tier : null;
+      try { writeBadges(promotion.state, storage); } catch { /* the envelope copy stands */ }
       return current;
     }, { reason: `challenge:${challengeId}`, versioned: true });
-    return { ...result, claimed, fixedIds, previousRevision };
+    return { ...result, claimed, fixedIds, previousRevision, badgeTier };
+  }
+
+  /** Badge state + earned statues, derived from the envelope's own evidence. */
+  async function readAchievements() {
+    if (!active) await openActiveProject();
+    const project = normalizeProject(active);
+    return { badges: clone(project.projects?.badges || null), statues: statueStatus(project), economy: clone(project.economy) };
   }
 
   async function runSkill(installationId, observation, opts) {
@@ -354,7 +415,7 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
 
   async function checkpoint(reason = 'manual') { if (!active) await openActiveProject(); const ok = await write(active, reason); return { ok, project: clone(active) }; }
   async function exportProject() { if (!active) await openActiveProject(); return exportProjectEnvelope(active); }
-  async function importProject(archive) { const parsed = importProjectEnvelope(archive); if (!parsed.ok) return parsed; if (active) await write(active, 'before-import'); active = normalizeProject(parsed.project); active.revision++; active.updatedAt = now(); const ok = await write(active, 'import'); if (!ok) return { ok: false, storageFull: true }; try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch {} emit({ type: 'imported', projectId: active.id }); return { ok: true, project: clone(active) }; }
+  async function importProject(archive) { const parsed = importProjectEnvelope(archive); if (!parsed.ok) return parsed; if (active) await write(active, 'before-import'); active = normalizeProject(parsed.project); active.revision++; active.updatedAt = now(); const ok = await write(active, 'import'); if (!ok) return { ok: false, storageFull: true }; try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch {} mirrorBadges(active); emit({ type: 'imported', projectId: active.id }); return { ok: true, project: clone(active) }; }
   async function restoreLegacyCity() { if (!active) await openActiveProject(); const state = active.projects.city?.legacyState; if (!state) return { ok: false, error: 'This project has no City data.' }; return writeState(state, storage); }
   async function restoreRevision(revision) { if (!active) await openActiveProject(); const found = (await versions(active.id)).find(v => v.project.revision === revision); if (!found) return { ok: false, error: 'That revision is not available.' }; await write(active, 'before-revision-restore'); active = clone(found.project); active.revision++; active.updatedAt = now(); const ok = await write(active, 'revision-restored'); if (ok) emit({ type: 'restored', projectId: active.id, revision: active.revision }); return { ok, project: clone(active) }; }
   return {
@@ -366,6 +427,8 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     readCapabilities: async () => { if (!active) await openActiveProject(); return clone(normalizeProject(active).capabilities || {}); },
     readInstallations: async () => { if (!active) await openActiveProject(); return clone(normalizeProject(active).installations || {}); },
     readChallenges: async () => { if (!active) await openActiveProject(); return clone(normalizeProject(active).challenges); },
+    readAchievements,
+    listProjects, switchProject, copyProject,
     publishSkill, installSkill, runSkill, recordChallengeOutcome,
   };
 }
