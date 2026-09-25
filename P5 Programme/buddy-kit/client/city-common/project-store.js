@@ -7,7 +7,7 @@
 import { CF_KEYS, collectState, writeState, composeChampionFile, sanitizeChampionFile } from './champion-file.js';
 import { emptyEconomy, normalizeEconomy, applyTransaction, purchaseItem as ledgerPurchaseItem, recordLearningEvent as ledgerRecordEvent } from './ledger.js';
 import { publishCapability, installSkill as registryInstallSkill, runSkill as registryRunSkill } from './skill-registry.js';
-import { recordRun as challengeRecordRun, normalizeChallengeRuns, wrongIdsOf, gradedIdsOf } from './challenges.js';
+import { recordRun as challengeRecordRun, normalizeChallengeRuns, wrongIdsOf, gradedIdsOf, challengeOfCapability } from './challenges.js';
 import { promoteFromEvidence } from './achievements.js';
 import { statueStatus } from './statues.js';
 import { writeBadges } from './badges.js';
@@ -358,9 +358,26 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
           },
         });
       }
+      // Evidence EXISTENCE is checked here, inside the transaction, not trusted
+      // from the caller: an event only mints when the envelope really holds the
+      // capability, installation, or abstention it points at.
+      const caps = Object.values(current.capabilities || {});
+      const challengeCaps = caps.filter((c) => challengeOfCapability(c) === challengeId);
+      const installs = Object.values(current.installations || {})
+        .filter((i) => current.capabilities?.[i.capabilityRef] && challengeOfCapability(current.capabilities[i.capabilityRef]) === challengeId);
+      const abstained = Number(outcome.abstained) || (Array.isArray(outcome.results) ? outcome.results.filter((r) => r && r.abstained).length : 0);
       for (const ev of list) {
         if (!ev || !ev.type) continue;
-        const res = ledgerRecordEvent(current.economy, { type: ev.type, scopeId: challengeId, evidence: ev.evidence || {}, at });
+        let evidence = ev.evidence || {};
+        if (ev.type === 'held-out-eval') {
+          if (!challengeCaps.length) continue; // no runnable skill => no held-out evaluation
+        } else if (ev.type === 'city-install') {
+          if (!installs.length) continue; // not installed in the City => no City test
+          evidence = { ...evidence, installationId: installs[0].id }; // the REAL installation
+        } else if (ev.type === 'abstain-demo') {
+          if (abstained <= 0) continue; // nothing abstained => nothing to demonstrate
+        }
+        const res = ledgerRecordEvent(current.economy, { type: ev.type, scopeId: challengeId, evidence: { ...evidence, challengeId }, at });
         if (res.ok) { current.economy = res.economy; if (res.claimed) claimed.push({ type: ev.type, amount: res.amount }); }
       }
       // Badges are promoted from the SAME evidence, in the SAME transaction, and

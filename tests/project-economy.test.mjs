@@ -165,6 +165,46 @@ test('ACTIVE_PROJECT_KEY is stable', () => {
   assert.equal(ACTIVE_PROJECT_KEY, 'passiona_active_project_v1');
 });
 
+test('recordChallengeOutcome refuses evidence the envelope cannot back', async () => {
+  const { store, restore } = setup();
+  try {
+    const s = store();
+    await s.openActiveProject();
+    // Nothing published, installed, or abstained: every event is refused.
+    const empty = await s.recordChallengeOutcome('driver',
+      { revision: 1, scenario: { kind: 'track', seed: 'full' }, gradedIds: [], wrongIds: [] },
+      [{ type: 'held-out-eval', evidence: { trackId: 'full' } }, { type: 'city-install', evidence: { installationId: 'made-up' } }, { type: 'abstain-demo', evidence: { source: 'test-track' } }]);
+    assert.deepEqual(empty.claimed, []);
+    assert.equal((await s.readEconomy()).balance, 0);
+
+    // A published (not installed) capability allows held-out-eval, but NOT city-install.
+    const cap = buildDriveCapability({
+      id: 'cap_drive-knn', name: 'Drive', k: 1, threshold: 0.5,
+      examples: [{ label: 'forward', values: [9, 9, 9, 0, 0, 6, 0, 0] }, { label: 'stop', values: [1, 1, 1, 0, 0, 0, 0, 0] }],
+    }).capability;
+    await s.publishSkill(cap);
+    const one = await s.recordChallengeOutcome('driver',
+      { revision: 1, scenario: { kind: 'track', seed: 'full' }, gradedIds: [], wrongIds: [] },
+      [{ type: 'held-out-eval', evidence: { trackId: 'full' } }, { type: 'city-install', evidence: { installationId: 'made-up' } }]);
+    assert.deepEqual(one.claimed.map((c) => c.type), ['held-out-eval']);
+
+    // abstain-demo is refused when the run abstained zero times.
+    const two = await s.recordChallengeOutcome('driver',
+      { revision: 1, scenario: { kind: 'track', seed: 'other' }, gradedIds: [], wrongIds: [], abstained: 0 },
+      [{ type: 'abstain-demo', evidence: { source: 'test-track' } }]);
+    assert.deepEqual(two.claimed, []);
+
+    // Once installed, city-install commits and names the REAL installation.
+    await s.installSkill('cap_drive-knn@1', 'host-car', { hostType: 'driver' });
+    const three = await s.recordChallengeOutcome('driver',
+      { revision: 1, scenario: { kind: 'track', seed: 'full' }, gradedIds: [], wrongIds: [] },
+      [{ type: 'city-install', evidence: { installationId: 'made-up' } }]);
+    assert.deepEqual(three.claimed.map((c) => c.type), ['city-install']);
+    const key = Object.keys((await s.readEconomy()).evidence).find((k) => k.startsWith('city-install:'));
+    assert.equal((await s.readEconomy()).evidence[key].installationId, 'host-car');
+  } finally { restore(); }
+});
+
 test('projects list, copy without re-earning, and switch the whole wallet', async () => {
   const { store, restore } = setup();
   try {

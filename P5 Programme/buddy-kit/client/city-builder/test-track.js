@@ -399,7 +399,7 @@ function reportTrial() {
   const gradedIds = ['goal'];
   const wrongIds = trial.outcome === 'goal' ? [] : ['goal'];
   Promise.resolve()
-    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind: 'track', seed: trackId }, gradedIds, wrongIds }, events))
+    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind: 'track', seed: trackId }, gradedIds, wrongIds, abstained }, events))
     .catch(() => { /* a missing wallet must never break the trial */ });
 }
 

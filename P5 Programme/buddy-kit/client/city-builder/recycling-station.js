@@ -352,7 +352,7 @@ function reportBatch({ kind, seed, results }) {
   if (s.abstained > 0) events.push({ type: 'abstain-demo', evidence: { challengeId, source: 'recycling', batch: kind, seed, abstained: s.abstained } });
   const revision = Number(skill.cap?.revision || 1);
   Promise.resolve()
-    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind, seed }, results }, events))
+    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind, seed }, results, abstained: s.abstained }, events))
     .catch(() => { /* a missing wallet must never break the run */ });
 }
 
