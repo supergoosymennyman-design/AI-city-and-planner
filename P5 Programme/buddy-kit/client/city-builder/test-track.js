@@ -19,6 +19,7 @@
 // EXISTING road network — read-only, never altering the layout. If no usable route
 // exists it says so and offers the guided track.
 import { createProjectStore } from '../city-common/project-store.js';
+import { challengeOfCapability } from '../city-common/challenges.js';
 import { parseCapability, runInference } from '../city-common/cap-runtime.js';
 import {
   DRIVE_FIELDS, TRACKS, DRIVE_DT, DRIVE_MAX_STEPS,
@@ -361,12 +362,45 @@ async function stepOnce() {
   else if (ev === 'off-road') { trial.done = true; trial.outcome = 'off-road'; }
   else if (ev === 'emergency-stop') { trial.done = true; trial.outcome = 'emergency-stop'; }
   if (skill.kind === 'installation' && (!trial.done ? i % 10 === 0 : true)) recordDecision(skill, observation);
+  if (trial.done) reportTrial();
   renderAll();
 }
 
 /** Append one decision to the envelope's bounded log — fire and forget. */
 function recordDecision(skill, observation) {
   try { Promise.resolve(skill.store.runSkill(skill.installationId, observation)).catch(() => {}); } catch { /* the visual sim never fails on a log write */ }
+}
+
+/**
+ * Report a finished trial as evidence (implementation plan §2), once per trial.
+ * The driver has no per-item ground truth, so the goal is the single graded
+ * "item": a revision that reaches the goal on a track it previously failed is
+ * the honest revision-fixed case. The challenge scope — not the car — is the key.
+ */
+function reportTrial() {
+  const skill = controller?.skill;
+  const trial = controller?.trial;
+  if (!skill || !skill.store || typeof skill.store.recordChallengeOutcome !== 'function') return;
+  if (!trial || !trial.done) return;
+  if (controller._reportedTrial === trial) return;
+  controller._reportedTrial = trial;
+  const challengeId = challengeOfCapability(skill.cap);
+  if (!challengeId) return;
+  const steps = trial.steps || [];
+  const abstained = steps.filter((s) => s.abstained).length;
+  const interventions = trial.interventions || [];
+  const trackId = controller.trackId || 'full';
+  const events = [
+    { type: 'held-out-eval', evidence: { challengeId, trackId, outcome: trial.outcome, steps: steps.length, interventions: interventions.length } },
+  ];
+  if (skill.kind === 'installation') events.push({ type: 'city-install', evidence: { challengeId, installationId: skill.installationId, trackId, outcome: trial.outcome } });
+  if (abstained > 0) events.push({ type: 'abstain-demo', evidence: { challengeId, source: 'test-track', trackId, abstained } });
+  const revision = Number(skill.cap?.revision || 1);
+  const gradedIds = ['goal'];
+  const wrongIds = trial.outcome === 'goal' ? [] : ['goal'];
+  Promise.resolve()
+    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind: 'track', seed: trackId }, gradedIds, wrongIds }, events))
+    .catch(() => { /* a missing wallet must never break the trial */ });
 }
 
 /**
@@ -389,6 +423,7 @@ async function runWhole({ trackId, maxSteps = DRIVE_MAX_STEPS } = {}) {
   };
   controller.paused = true;
   if (controller.skill.kind === 'installation' && last && last.observation) recordDecision(controller.skill, last.observation);
+  reportTrial();
   renderAll();
   const s = summarizeTrial(trial);
   return { ok: true, trackId: controller.trackId, ...s, decisions: trial.steps.map((x) => ({ t: x.t, action: x.action, decision: x.decision, abstained: x.abstained, event: x.event })) };

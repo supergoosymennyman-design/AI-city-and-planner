@@ -7,6 +7,7 @@
 import { CF_KEYS, collectState, writeState, composeChampionFile, sanitizeChampionFile } from './champion-file.js';
 import { emptyEconomy, normalizeEconomy, applyTransaction, purchaseItem as ledgerPurchaseItem, recordLearningEvent as ledgerRecordEvent } from './ledger.js';
 import { publishCapability, installSkill as registryInstallSkill, runSkill as registryRunSkill } from './skill-registry.js';
+import { recordRun as challengeRecordRun, normalizeChallengeRuns, wrongIdsOf, gradedIdsOf } from './challenges.js';
 
 export const PROJECT_KIND = 'passiona-project';
 export const PROJECT_VERSION = 1;
@@ -69,6 +70,7 @@ export function normalizeProject(project) {
   if (!project.economy) project.economy = emptyEconomy();
   else project.economy = normalizeEconomy(project.economy);
   project.capabilities ||= {}; project.installations ||= {};
+  project.challenges = normalizeChallengeRuns(project.challenges);
   return project;
 }
 
@@ -279,6 +281,47 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     }, 'install-skill');
     return error ? { ok: false, error, project: result.project } : { ...result, installation };
   }
+  /**
+   * Record one completed City run for a CHALLENGE and, in the SAME transaction,
+   * commit the learning events its evidence supports. The scope is ALWAYS the
+   * challenge id — never a machine id — so a copied machine cannot earn again.
+   * A newer revision that fixes a previously-wrong item on the same scenario
+   * earns `revision-fixed` here, from the recorded comparison itself.
+   * @param {object} outcome {revision, scenario, results | wrongIds, gradedIds}
+   * @param {Array<{type:string, evidence:object}>} events
+   */
+  async function recordChallengeOutcome(challengeId, outcome = {}, events = [], { at = null } = {}) {
+    let claimed = [], fixedIds = [], previousRevision = null;
+    const result = await mutate(current => {
+      normalizeProject(current);
+      const wrongIds = Array.isArray(outcome.wrongIds) ? outcome.wrongIds : wrongIdsOf(outcome.results);
+      const gradedIds = Array.isArray(outcome.gradedIds) ? outcome.gradedIds : gradedIdsOf(outcome.results);
+      const record = challengeRecordRun(current.challenges, {
+        challengeId, revision: outcome.revision, scenario: outcome.scenario, wrongIds, gradedIds,
+      });
+      current.challenges = record.state;
+      fixedIds = record.fixedIds;
+      previousRevision = record.previous ? (Number(record.previous.revision) || 1) : null;
+      const list = Array.isArray(events) ? [...events] : [];
+      if (fixedIds.length) {
+        list.push({
+          type: 'revision-fixed',
+          evidence: {
+            challengeId, scenario: outcome.scenario || null, fixedIds,
+            fromRevision: previousRevision, toRevision: Number(outcome.revision) || 1,
+          },
+        });
+      }
+      for (const ev of list) {
+        if (!ev || !ev.type) continue;
+        const res = ledgerRecordEvent(current.economy, { type: ev.type, scopeId: challengeId, evidence: ev.evidence || {}, at });
+        if (res.ok) { current.economy = res.economy; if (res.claimed) claimed.push({ type: ev.type, amount: res.amount }); }
+      }
+      return current;
+    }, { reason: `challenge:${challengeId}`, versioned: true });
+    return { ...result, claimed, fixedIds, previousRevision };
+  }
+
   async function runSkill(installationId, observation, opts) {
     let error = null, decision = null;
     const result = await skillMutation(current => {
@@ -322,7 +365,8 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     readEconomy, transact, award, purchase, recordLearningEvent,
     readCapabilities: async () => { if (!active) await openActiveProject(); return clone(normalizeProject(active).capabilities || {}); },
     readInstallations: async () => { if (!active) await openActiveProject(); return clone(normalizeProject(active).installations || {}); },
-    publishSkill, installSkill, runSkill,
+    readChallenges: async () => { if (!active) await openActiveProject(); return clone(normalizeProject(active).challenges); },
+    publishSkill, installSkill, runSkill, recordChallengeOutcome,
   };
 }
 

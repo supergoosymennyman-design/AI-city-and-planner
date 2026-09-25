@@ -16,6 +16,7 @@
 // planted image `.cap` is the offline fallback. Both go through the ONE pure
 // `recycling.js` routing rule, so the two paths can never disagree.
 import { createProjectStore } from '../city-common/project-store.js';
+import { challengeOfCapability } from '../city-common/challenges.js';
 import { parseCapability } from '../city-common/cap-runtime.js';
 import { buildImageCapabilityV2 } from '../city-common/capability-export.js';
 import {
@@ -327,7 +328,32 @@ async function runBatch({ kind, seed }) {
   renderScore(results);
   status.textContent = t('rerun');
   controller.last = { kind, seed, results };
+  reportBatch({ kind, seed, results });
   return { ok: true, kind, seed, results, score: scoreRun(results) };
+}
+
+/**
+ * Report a completed batch as evidence (implementation plan §2). Fire-and-forget
+ * and once-per-challenge: the ledger refuses a replay, and the challenge scope —
+ * not the machine — is what a reward is keyed to. `revision-fixed` is decided by
+ * the store from the recorded run itself.
+ */
+function reportBatch({ kind, seed, results }) {
+  const skill = controller?.skill;
+  if (!skill || !skill.store || typeof skill.store.recordChallengeOutcome !== 'function') return;
+  const challengeId = challengeOfCapability(skill.cap);
+  if (!challengeId) return;
+  const s = scoreRun(results);
+  const installed = skill.kind === 'installation';
+  const events = [
+    { type: 'held-out-eval', evidence: { challengeId, batch: kind, seed, total: s.total, correct: s.correct, wrong: s.wrong, abstained: s.abstained } },
+  ];
+  if (installed) events.push({ type: 'city-install', evidence: { challengeId, installationId: skill.installationId, batch: kind, seed } });
+  if (s.abstained > 0) events.push({ type: 'abstain-demo', evidence: { challengeId, source: 'recycling', batch: kind, seed, abstained: s.abstained } });
+  const revision = Number(skill.cap?.revision || 1);
+  Promise.resolve()
+    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind, seed }, results }, events))
+    .catch(() => { /* a missing wallet must never break the run */ });
 }
 
 /**

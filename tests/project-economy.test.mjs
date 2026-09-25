@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createProjectStore, migrateEconomyFromChampion, normalizeProject, ACTIVE_PROJECT_KEY } from '../P5 Programme/buddy-kit/client/city-common/project-store.js';
-import { buildCapabilityV2 } from '../P5 Programme/buddy-kit/client/city-common/capability-export.js';
+import { buildCapabilityV2, buildDriveCapability } from '../P5 Programme/buddy-kit/client/city-common/capability-export.js';
 
 // --- A tiny in-memory IndexedDB sufficient for project-store.js --------------
 // Real IDB is exercised in the browser harness; this proves the STORE's own
@@ -163,4 +163,48 @@ test('the envelope publishes, installs, and runs a skill through the store', asy
 
 test('ACTIVE_PROJECT_KEY is stable', () => {
   assert.equal(ACTIVE_PROJECT_KEY, 'passiona_active_project_v1');
+});
+
+test('recordChallengeOutcome commits evidence rewards and a revision fix atomically', async () => {
+  const { store, restore } = setup();
+  try {
+    const s = store();
+    await s.openActiveProject();
+    const cap = buildDriveCapability({
+      id: 'cap_drive-knn', name: 'Driving Model', k: 1, threshold: 0.5, revision: 1,
+      examples: [{ label: 'forward', values: [9, 9, 9, 0, 0, 6, 0, 0] }, { label: 'stop', values: [1, 1, 1, 0, 0, 0, 0, 0] }],
+    }).capability;
+    await s.publishSkill(cap);
+    await s.installSkill('cap_drive-knn@1', 'host-car', { hostType: 'driver' });
+
+    const events = [
+      { type: 'held-out-eval', evidence: { trackId: 'full' } },
+      { type: 'city-install', evidence: { installationId: 'host-car' } },
+    ];
+    const first = await s.recordChallengeOutcome('driver',
+      { revision: 1, scenario: { kind: 'track', seed: 'full' }, gradedIds: ['goal'], wrongIds: ['goal'] }, events);
+    assert.equal(first.ok, true);
+    assert.deepEqual(first.fixedIds, []);
+    assert.deepEqual(first.claimed.map((c) => c.type).sort(), ['city-install', 'held-out-eval']);
+    assert.equal((await s.readEconomy()).balance, 70); // 30 + 40
+
+    // Replaying the same events and the same revision cannot mint or "fix" again.
+    const replay = await s.recordChallengeOutcome('driver',
+      { revision: 1, scenario: { kind: 'track', seed: 'full' }, gradedIds: ['goal'], wrongIds: ['goal'] }, events);
+    assert.deepEqual(replay.claimed, []);
+    assert.deepEqual(replay.fixedIds, []);
+    assert.equal((await s.readEconomy()).balance, 70);
+
+    // A newer revision reaches the goal on the SAME track: the recorded failure is fixed.
+    const second = await s.recordChallengeOutcome('driver',
+      { revision: 2, scenario: { kind: 'track', seed: 'full' }, gradedIds: ['goal'], wrongIds: [] }, events);
+    assert.deepEqual(second.fixedIds, ['goal']);
+    const eco = await s.readEconomy();
+    assert.equal(eco.balance, 100); // + 30
+    const key = Object.keys(eco.evidence).find((k) => k.startsWith('revision-fixed:'));
+    assert.ok(key, 'the fix records its evidence');
+    assert.deepEqual(eco.evidence[key].fixedIds, ['goal']);
+    assert.equal(eco.evidence[key].fromRevision, 1);
+    assert.equal(eco.evidence[key].toRevision, 2);
+  } finally { restore(); }
 });
