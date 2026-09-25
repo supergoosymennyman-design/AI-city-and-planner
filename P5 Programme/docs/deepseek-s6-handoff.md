@@ -8,10 +8,10 @@ handoff material required by plan §4.
 
 ## Status
 
-Stage 6's core is implemented, tested, and committed. Exit condition (plan §4):
-*complete both challenges, customise, save, and restore on a fresh browser* —
-each leg is proven by an automated check (below); the single combined
-fresh-browser mega-run is the one item explicitly re-deferred.
+Stage 6 is complete and committed. Exit condition (plan §4): *complete both
+challenges, customise, save, and restore on a fresh browser* — proven end to end
+by `full-journey.spec.mjs` in a second, empty browser context, and per-leg by the
+dedicated specs below.
 
 Commits landed on top of the Stage-5 head (`9bfd239`), plus the S6 continuation
 prompt (`d7f46c5`):
@@ -23,6 +23,8 @@ prompt (`d7f46c5`):
 | `87911b8` | `feat(platform): earned statues, evidence-promoted badges, project switching (S6b)` |
 | `3f33f60` | `feat(platform): verify learning-event evidence exists before it mints (S6c)` |
 | `c511e96` | `feat(platform): skill-host socket bridge, batch returnTo, i18n coverage (S6c)` |
+| `61174fc` | `docs: stage 6 handoff (final, GPT Sol material)` |
+| `780aea9` | `feat(platform): envelope AI nodes, socket installs, full-journey spec (S6c)` |
 
 ## Changed areas
 
@@ -84,12 +86,17 @@ scope/typed-evidence tests and the bounded i18n parity extension
 (`tests/p5-i18n-parity.test.mjs`).
 
 Browser (source and built), all passing:
-`recycling.spec.mjs`, `test-track.spec.mjs`, `wallet.spec.mjs`,
-`market-actions.spec.mjs`, `project-hub.spec.mjs`, `city-smoke.spec.mjs`,
-`badges-capabilities.spec.mjs`, `picker.spec.mjs`, `prop-persistence.spec.mjs`.
+`full-journey.spec.mjs`, `recycling.spec.mjs`, `test-track.spec.mjs`,
+`wallet.spec.mjs`, `market-actions.spec.mjs`, `project-hub.spec.mjs`,
+`city-smoke.spec.mjs`, `badges-capabilities.spec.mjs`, `picker.spec.mjs`,
+`prop-persistence.spec.mjs`.
 
 ## Journey evidence (per leg)
 
+- **The whole journey in one run:** `full-journey.spec.mjs` — a fresh browser
+  earns through the real recycling path (build → install → run), buys an
+  accessory off the credits, exports the project, then a SECOND empty browser
+  restores it and the wallet, ownership, badge and earned statue all return.
 - **Tutorial → credits:** `wallet.spec.mjs` — a learning event funds the market.
 - **Build a skill:** `recycling.spec.mjs` — the Workshop publishes a `.cap` the
   City installs and runs; `test-track.spec.mjs` for the driving model.
@@ -97,8 +104,9 @@ Browser (source and built), all passing:
   different model changes sorting / vehicle actions.
 - **Customise:** `market-actions.spec.mjs` — every purchasable type has a working
   action; a bought decoration really places and clears the request.
-- **Save / restore:** `save-restore.spec.mjs` — Champion File round-trip;
-  `project-hub.spec.mjs` — import hydrates City state before resume.
+- **Save / restore:** `full-journey.spec.mjs` (fresh browser, store round-trip);
+  `save-restore.spec.mjs` — Champion File round-trip; `project-hub.spec.mjs` —
+  import hydrates City state before resume.
 
 ## Model-parity evidence
 
@@ -120,28 +128,24 @@ Browser (source and built), all passing:
 - Skill-stage derivation is pure and cheap (no clock/storage); badges are
   promoted once per run inside an existing transaction.
 
-## Remaining issues / explicitly deferred
+## Remaining issues
 
-1. **`ai-nodes.js` for envelope installations.** Still planted-file only
-   (`readCaps()` reads `p5_city_capabilities_v1`). Bridging needs an
-   `opts.getInstallations` cache (the same pattern used for the skill-host
-   socket bridge) and a node per installation with its last decision.
-2. **One combined fresh-browser mega-spec.** Each leg is covered by its own
-   passing spec (above), but there is no single `full-journey.spec.mjs` that
-   walks tutorial → both skills → customise → save → restore in a fresh context
-   in one run. Recommended first task.
-3. **Skill-socket write path.** Sockets READ envelope skills now; "Save
-   connection" still writes the prop record's `capabilityRef`, not an envelope
-   `installation`. Wiring the socket's save to `store.installSkill` (and reading
-   `hostStatus` from installations) is the honest completion.
-4. **S5 carry-ins (unchanged):** the City drive deep link still switches the
+1. **S5 carry-ins (unchanged):** the City drive deep link still switches the
    active Workshop machine; the test track still has no dead-sensor UI control.
-5. **Studio wallet adapter** — the Workshop/Studio credit UI still reads
+2. **Studio wallet adapter** — the Workshop/Studio credit UI still reads
    `champion-session.js`. (`publish-capability.js` already awards through the
    envelope `learning-events.js`.)
-6. **Interpretation note:** the review-remediation doc states "`skill-hosts.js`
+3. **Interpretation note:** the review-remediation doc states "`skill-hosts.js`
    is still orphaned". It is NOT — `prop-library.js` mounts it with sockets. The
-   real gap was envelope awareness, now bridged for reads (item 3 above).
+   real gap was envelope awareness, now bridged for both reads (sockets see
+   envelope skills) and writes (Save connection creates a real installation).
+4. **Milestones stay planner-driven.** Badges cover skill evidence; the milestone
+   taxonomy remains the planner's layout recognition, so milestones are not
+   mirrored into the envelope. Acceptable, but a future stage could unify them.
+
+Resolved since the first draft of this handoff: the ai-node bridge for envelope
+installations, the skill-socket write path, and the one combined fresh-browser
+journey spec (`full-journey.spec.mjs`).
 
 ## GPT Sol handoff (plan §4 checklist)
 
@@ -158,7 +162,7 @@ Browser (source and built), all passing:
 - **Model-parity evidence:** shared k-NN parity, image routing by prediction,
   driving action control + honest stops.
 - **Performance:** 10 Hz loop off IndexedDB; ≥44px/48px controls; reduced-motion aware.
-- **Remaining issues:** the six items above.
+- **Remaining issues:** the four items above.
 
 ## How to verify
 
@@ -166,11 +170,11 @@ Browser (source and built), all passing:
 cd /Users/kai/Documents/AI-education-shrink
 node --test tests/*.test.mjs && npm run test:imports && npm run test:library && npm run build:city
 E2E_PORT=8397 npx playwright test --config "P5 Programme/tests/e2e/playwright.config.mjs" \
-  --project=chromium recycling.spec.mjs test-track.spec.mjs wallet.spec.mjs \
+  --project=chromium full-journey.spec.mjs recycling.spec.mjs test-track.spec.mjs wallet.spec.mjs \
   market-actions.spec.mjs project-hub.spec.mjs badges-capabilities.spec.mjs
 # built bundle
 E2E_DOCROOT="P5 Programme/deploy/city-sim" E2E_PORT=8398 npx playwright test \
-  --config "P5 Programme/tests/e2e/playwright.config.mjs" --project=chromium market-actions.spec.mjs wallet.spec.mjs
+  --config "P5 Programme/tests/e2e/playwright.config.mjs" --project=chromium full-journey.spec.mjs market-actions.spec.mjs wallet.spec.mjs
 ```
 
 Note: the bare `/workshop/` route is the legacy embed stub; add any query string
