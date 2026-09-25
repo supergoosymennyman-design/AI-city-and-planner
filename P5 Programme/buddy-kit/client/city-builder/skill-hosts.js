@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { installCapability } from '../city-common/cap-runtime.js';
+import { createProjectStore } from '../city-common/project-store.js';
 import { readHostUpgrade, applyHostUpgrade } from '../city-common/host-upgrades.js';
 
 export const SKILL_HOST_PREFIX = 'skill-host:';
@@ -38,6 +39,22 @@ function visual(type) { const g=new THREE.Group();g.name='skill-host-visual'; co
 function socket(record, caps, statusOverride) { const state=statusOverride||hostStatus(record,caps); const icon={empty:'○',connected:'●',update:'↻',attention:'!'}[state]; const color={empty:'#91a1a5',connected:'#35d0a8',update:'#f6c553',attention:'#ed7875'}[state]; const el=document.createElement('button'); el.className='skill-socket'; el.type='button'; el.dataset.skillHost=record.instanceId; el.setAttribute('aria-label',`${record.hostType} ${state}`); el.innerHTML=`<span aria-hidden="true">${icon}</span><b>${state==='empty'?'Build or connect a skill':state==='connected'?'Enter my skill':state==='update'?'Update available':'Needs attention'}</b>`; el.style.setProperty('--socket-color',color); return new CSS2DObject(el); }
 export function createSkillHostRoot(record, {capabilities=[],statusOverride=null}={}) { const root=new THREE.Group(), v=visual(record.hostType); const upgrade=readHostUpgrade(); if(upgrade)applyHostUpgrade(v,upgrade); root.add(v); const mount=new THREE.Group(); mount.position.set(0,.85,3.05); root.add(mount); const s=socket(record,capabilities,statusOverride); s.position.set(0,1.2,0); mount.add(s); root.userData.skillHost=true;root.userData.skillHostRecord=record;root.userData.status=statusOverride||hostStatus(record,capabilities); root.userData.upgrade=upgrade; root.userData.dispose=()=>s.element.remove(); return root; }
 export function workshopUrl(record) { const url=new URL('../workshop/',location.href); url.searchParams.set('publishTarget','city');url.searchParams.set('hostInstanceId',record.instanceId);url.searchParams.set('returnTo',new URL(`../city-builder/?skillHost=${encodeURIComponent(record.instanceId)}`,location.href).href);return url.href; }
+
+/**
+ * Persist a socket connection as a REAL envelope installation, so a skill the
+ * child connects here is the same installation the City runs (plan §3). Fire and
+ * forget: connection always succeeds locally; a refused/missing store just
+ * leaves the socket at "needs attention" instead of lying.
+ */
+export function connectHostInstall(hostInstanceId, ref, hostType) {
+  if (!hostInstanceId || !ref) return;
+  try {
+    const store = createProjectStore();
+    store.openActiveProject()
+      .then(() => store.installSkill(`${ref.capabilityId}@${Number(ref.revision || 1)}`, hostInstanceId, { hostType }))
+      .catch(() => { /* the socket stays "needs attention" */ });
+  } catch { /* no store — the local record still shows the connection */ }
+}
 export function editSkillHostDialog(record, capabilities=[], lang='en', customModels=[]) {
   const zh=lang==='zh-Hant', d=document.createElement('dialog'); d.className='skill-host-dialog';
   const choices=capabilities.map(c=>`<option value="${String(c.id).replace(/\"/g,'&quot;')}@${Number(c.revision||1)}">${String(c.name||c.id)} · r${Number(c.revision||1)}</option>`).join('');
@@ -45,5 +62,5 @@ export function editSkillHostDialog(record, capabilities=[], lang='en', customMo
   const models=customModels.map(m=>`<option value="custom:${String(m.id).replace(/\"/g,'&quot;')}">${String(m.name)}</option>`).join('');
   d.innerHTML=`<form method="dialog"><h2>${zh?'技能插座':'Skill Socket'}</h2><p>${zh?'外觀可更換；已安裝的技能版本不會自動改變。':'Appearance can change; the installed skill revision never changes by itself.'}</p><p class="skill-host-state">${status==='empty'?(zh?'○ 尚未連接':'○ No skill connected'):status==='connected'?(zh?'● 已連接':'● Connected'):status==='update'?(zh?'↻ 有更新可用':'↻ Update available'):(zh?'! 需要處理':'! Needs attention')}</p><label>${zh?'已發佈技能':'Published skill'}<select name="cap"><option value="">${zh?'尚未連接':'No skill connected'}</option>${choices}</select></label><label>${zh?'外觀':'Appearance'}<select name="visual"><option value="library">${zh?'旗艦模型':'Flagship model'}</option>${models}</select></label><menu><button value="cancel">${zh?'取消':'Cancel'}</button><button value="workshop" class="secondary">${zh?'前往工作坊':'Open Workshop'}</button><button value="save" class="primary">${zh?'儲存連接':'Save connection'}</button></menu></form>`;
   document.body.append(d);d.querySelector('[name=cap]').value=current;d.querySelector('[name=visual]').value=record.visualSource?.kind==='custom'?`custom:${record.visualSource.modelId}`:'library';d.showModal();
-  return new Promise(resolve=>d.addEventListener('close',()=>{const fd=new FormData(d.querySelector('form'));const selected=String(fd.get('cap')||''),visual=String(fd.get('visual')||'library');const cap=capabilities.find(c=>`${c.id}@${Number(c.revision||1)}`===selected);const value=d.returnValue==='save'?{...record,capabilityRef:cap?{projectId:cap.projectId||cap.id,capabilityId:cap.id,revision:Number(cap.revision||1),verificationState:installCapability(cap).installation?.selftest?.ok?'verified':'failed'}:null,visualSource:visual.startsWith('custom:')?{kind:'custom',modelId:visual.slice(7)}:{kind:'library'}}:null;const open=d.returnValue==='workshop';d.remove();resolve({value,openWorkshop:open});},{once:true}));
+  return new Promise(resolve=>d.addEventListener('close',()=>{const fd=new FormData(d.querySelector('form'));const selected=String(fd.get('cap')||''),visual=String(fd.get('visual')||'library');const cap=capabilities.find(c=>`${c.id}@${Number(c.revision||1)}`===selected);const value=d.returnValue==='save'?{...record,capabilityRef:cap?{projectId:cap.projectId||cap.id,capabilityId:cap.id,revision:Number(cap.revision||1),verificationState:installCapability(cap).installation?.selftest?.ok?'verified':'failed'}:null,visualSource:visual.startsWith('custom:')?{kind:'custom',modelId:visual.slice(7)}:{kind:'library'}}:null;if(value&&value.capabilityRef)connectHostInstall(record.instanceId,value.capabilityRef,record.hostType);const open=d.returnValue==='workshop';d.remove();resolve({value,openWorkshop:open});},{once:true}));
 }

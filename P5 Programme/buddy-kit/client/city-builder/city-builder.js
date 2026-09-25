@@ -5016,13 +5016,15 @@ function readPlantedCaps() {
 // Envelope-published skills, cached for the synchronous skill-host sockets. The
 // store is async; a socket asks synchronously at placement time, so this is
 // refreshed at boot and whenever the project changes.
-let _envelopeCaps = [];
+let _envelopeCaps = [], _envelopeInstalls = [];
 async function refreshEnvelopeCaps() {
   try {
     const store = createProjectStore();
     await store.openActiveProject();
-    _envelopeCaps = Object.values(await store.readCapabilities() || {});
-  } catch { _envelopeCaps = []; }
+    const [caps, installs] = await Promise.all([store.readCapabilities(), store.readInstallations()]);
+    _envelopeCaps = Object.values(caps || {});
+    _envelopeInstalls = Object.values(installs || {});
+  } catch { _envelopeCaps = []; _envelopeInstalls = []; }
   return _envelopeCaps;
 }
 function writePlantedCaps(list) {
@@ -5714,8 +5716,15 @@ async function bootInner() {
   });
 
   safe('chat', () => mountChat(owner));
-  // Published skills are visible to a placed skill-host socket, not just planted files.
-  refreshEnvelopeCaps();
+  // Published skills are visible to a placed skill-host socket, not just planted
+  // files; once the envelope has been read, in-world AI nodes can include them.
+  refreshEnvelopeCaps().then(() => {
+    if (!_envelopeInstalls.length) return;
+    safe('ai-nodes-envelope', () => {
+      try { if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose(); _aiNodes = mountCityAiNodes(scene, city, layout, { paused:()=>_contextPaused, reducedMotion:()=>reducedMotion.matches, getInstallations:()=>_envelopeInstalls }); }
+      catch (e) { console.warn('[city-builder] ai-nodes (envelope) failed', e); }
+    });
+  });
   window.addEventListener(PROJECT_EVENT, () => { refreshEnvelopeCaps(); });
   safe('badges', mountBadgeUi);
   safe('my-work', () => { myWork?.dispose(); learningVisuals?.destroy?.(); learningVisuals = createLearningVisuals(scene); window.__learningVisuals = learningVisuals; myWork = mountMyWork({
@@ -5737,7 +5746,7 @@ async function bootInner() {
   // the station and re-run the SAME fixed-seed batch the child left.
   if (new URLSearchParams(location.search).has('batch')) safe('resume-recycling', () => { openRecyclingStation(); });
   safe('skins', () => mountSkins(owner));
-  safe('ai-nodes', () => { try { if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose(); _aiNodes = mountCityAiNodes(scene, city, layout, {paused:()=>_contextPaused,reducedMotion:()=>reducedMotion.matches}); } catch (e) { console.warn('[city-builder] ai-nodes mount failed', e); } });
+  safe('ai-nodes', () => { try { if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose(); _aiNodes = mountCityAiNodes(scene, city, layout, {paused:()=>_contextPaused,reducedMotion:()=>reducedMotion.matches,getInstallations:()=>_envelopeInstalls}); } catch (e) { console.warn('[city-builder] ai-nodes mount failed', e); } });
   safe('input', wireInput);
   safe('quest-prompt', wireQuestPrompt);
 

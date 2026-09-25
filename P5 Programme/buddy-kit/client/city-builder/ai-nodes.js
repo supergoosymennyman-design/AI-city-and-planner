@@ -138,7 +138,14 @@ function setColor(group, hex) {
   });
 }
 
-function colorFor(id, dec) {
+function colorFor(id, dec, installation) {
+  // An envelope installation carries its own bounded decision log.
+  if (installation) {
+    const log = Array.isArray(installation.decisions) ? installation.decisions : [];
+    const last = log[log.length - 1];
+    if (!last) return COLORS.idle;
+    return last.abstained ? COLORS.abstain : COLORS.decided;
+  }
   if (!dec[id]) return COLORS.idle;
   return String(dec[id].label).indexOf('🤔') !== -1 ? COLORS.abstain : COLORS.decided;
 }
@@ -149,7 +156,15 @@ function colorFor(id, dec) {
  */
 export function mountCityAiNodes(scene, city, layout, opts = {}) {
   if (!scene || !city) return null;
-  const caps = readCaps();
+  const planted = readCaps();
+  // Envelope installations get a node too, so a skill published from the Workshop
+  // and installed in the City is alive in the world (not just a planted file).
+  const installed = (typeof opts.getInstallations === 'function' ? opts.getInstallations() : []) || [];
+  const caps = planted.concat(installed.map((inst) => ({
+    id: inst.id,
+    name: inst.hostType ? `${inst.hostType} skill` : (inst.capabilityId || 'AI skill'),
+    installation: inst,
+  })));
   if (!caps.length) return null;
 
   const spots = findNodeSpots(city, layout, caps.length);
@@ -159,7 +174,7 @@ export function mountCityAiNodes(scene, city, layout, opts = {}) {
   caps.slice(0, spots.length).forEach((cap, i) => {
     const name = (cap && (cap.name || cap.id)) || 'AI machine';
     const dec = readLastDecisions();
-    const g = buildNode(scene, { ...spots[i], name, color: colorFor(cap.id, dec), capId: cap.id });
+    const g = buildNode(scene, { ...spots[i], name, color: colorFor(cap.id, dec, cap.installation), capId: cap.id });
     nodes.set(cap.id, g);
   });
 
