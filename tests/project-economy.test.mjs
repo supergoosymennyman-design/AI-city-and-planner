@@ -165,6 +165,53 @@ test('ACTIVE_PROJECT_KEY is stable', () => {
   assert.equal(ACTIVE_PROJECT_KEY, 'passiona_active_project_v1');
 });
 
+test('skill-saved and tutorial-task require the envelope to back them', async () => {
+  const { store, restore } = setup();
+  try {
+    const s = store();
+    await s.openActiveProject();
+
+    // A fabricated skill-saved ref cannot mint: nothing is published under it.
+    const fabricated = await s.recordSkillSaved('cap_nope@1');
+    assert.equal(fabricated.ok, false);
+    assert.equal((await s.readEconomy()).balance, 0);
+
+    // An UNCOMPLETED room cannot mint its tutorial task.
+    const early = await s.recordTutorialTask(1);
+    assert.equal(early.ok, false);
+    assert.equal((await s.readEconomy()).balance, 0);
+
+    // Once the room is marked complete in the envelope, the task records once.
+    assert.equal((await s.markTutorialRoom(1)).ok, true);
+    const task = await s.recordTutorialTask(1);
+    assert.equal(task.ok, true);
+    assert.equal(task.claimed, true);
+    assert.equal(task.amount, 10);
+    assert.equal((await s.readEconomy()).balance, 10);
+    const replay = await s.recordTutorialTask(1);
+    assert.equal(replay.claimed, false);
+    assert.equal((await s.readEconomy()).balance, 10);
+
+    // A really published capability backs skill-saved, scoped to its challenge.
+    const cap = buildDriveCapability({
+      id: 'cap_drive-knn', name: 'Drive', k: 1, threshold: 0.5,
+      examples: [{ label: 'forward', values: [9, 9, 9, 0, 0, 6, 0, 0] }, { label: 'stop', values: [1, 1, 1, 0, 0, 0, 0, 0] }],
+    }).capability;
+    await s.publishSkill(cap);
+    const saved = await s.recordSkillSaved('cap_drive-knn@1');
+    assert.equal(saved.ok, true);
+    assert.equal(saved.claimed, true);
+    assert.equal(saved.amount, 20);
+    assert.equal(saved.challengeId, 'driver');
+    assert.equal((await s.readEconomy()).balance, 30);
+
+    const evidence = (await s.readEconomy()).evidence;
+    const key = Object.keys(evidence).find((k) => k.startsWith('skill-saved:'));
+    assert.equal(evidence[key].capabilityId, 'cap_drive-knn');
+    assert.equal(evidence[key].revision, 1);
+  } finally { restore(); }
+});
+
 test('recordChallengeOutcome refuses evidence the envelope cannot back', async () => {
   const { store, restore } = setup();
   try {

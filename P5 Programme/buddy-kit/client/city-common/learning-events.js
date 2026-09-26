@@ -30,6 +30,18 @@ function walletStore() {
  * @returns {Promise<{ok:boolean, claimed?:boolean, amount?:number, reason?:string, error?:string}>}
  */
 export async function awardLearningEvent(event) {
+  // These two rewards are existence-checked against the envelope, so the shared
+  // door routes them at the checked store methods instead of the raw ledger:
+  // `skill-saved` needs a published capability, `tutorial-task` a completed room.
+  if (event?.type === 'skill-saved') {
+    const result = await recordSkillSaved(event?.evidence?.key);
+    announce(result, event); return result;
+  }
+  if (event?.type === 'tutorial-task') {
+    const fromScope = /^academy-room-(\d+)$/.exec(String(event?.scopeId ?? ''))?.[1];
+    const result = await recordTutorialTask(event?.evidence?.room ?? fromScope);
+    announce(result, event); return result;
+  }
   const store = await walletStore();
   if (!store) return { ok: false, error: 'The shared wallet is unavailable.' };
   try {
@@ -44,6 +56,37 @@ export async function awardLearningEvent(event) {
 /** Convenience wrapper: award('tutorial-task', 'academy-room-1', { room: 1 }). */
 export function award(type, scopeId, evidence) {
   return awardLearningEvent({ type, scopeId, evidence });
+}
+
+/**
+ * Save-a-skill reward, existence-checked (a published capability must back it).
+ * @returns {Promise<{ok:boolean, claimed?:boolean, amount?:number, error?:string}>}
+ */
+export async function recordSkillSaved(capabilityKey) {
+  const store = await walletStore();
+  if (!store) return { ok: false, error: 'The shared wallet is unavailable.' };
+  try { return await store.recordSkillSaved(capabilityKey); } catch (error) { return { ok: false, error: String(error?.message || error) }; }
+}
+
+/** Mark an Academy room complete in the envelope (the record the reward reads). */
+export async function markTutorialRoom(room) {
+  const store = await walletStore();
+  if (!store) return { ok: false, error: 'The shared wallet is unavailable.' };
+  try { return await store.markTutorialRoom(room); } catch (error) { return { ok: false, error: String(error?.message || error) }; }
+}
+
+/** Tutorial-task reward, existence-checked (the room must be completed first). */
+export async function recordTutorialTask(room) {
+  const store = await walletStore();
+  if (!store) return { ok: false, error: 'The shared wallet is unavailable.' };
+  try { return await store.recordTutorialTask(room); } catch (error) { return { ok: false, error: String(error?.message || error) }; }
+}
+
+/** The Academy's one call on real completion: mark the room, then record it. */
+export async function completeTutorialRoom(room) {
+  const store = await walletStore();
+  if (!store) return { ok: false, error: 'The shared wallet is unavailable.' };
+  try { await store.markTutorialRoom(room); return await store.recordTutorialTask(room); } catch (error) { return { ok: false, error: String(error?.message || error) }; }
 }
 
 /**

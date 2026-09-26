@@ -17,8 +17,6 @@
 // (plan §2: closing instructions or importing a template does not earn).
 import { buildImageCapabilityV2, buildDriveCapability } from '../city-common/capability-export.js';
 import { createProjectStore } from '../city-common/project-store.js';
-import { award } from '../city-common/learning-events.js';
-import { challengeOfCapability } from '../city-common/challenges.js';
 import { RECYCLING_PREPROCESSING, RECYCLING_DIMENSION } from '../city-common/recycling.js';
 import { DRIVE_HOST_TYPE } from '../city-common/driving.js';
 
@@ -86,13 +84,11 @@ async function commit(capability, hostType) {
     if (!published.ok) return { ok: false, error: published.error };
     key = published.key; revision = capability.revision;
   }
-  // "Saved a runnable, student-edited skill" — the reward is keyed to the
-  // CHALLENGE, never the machine, so improving or copying a machine cannot mint
-  // a second one. Fire-and-forget: a missing wallet never blocks a publish.
-  const challengeId = challengeOfCapability(capability);
-  if (challengeId) {
-    try { award('skill-saved', challengeId, { capabilityId: capability.id, revision, key, skill: SKILL }).catch(() => {}); } catch { /* wallet optional */ }
-  }
+  // "Saved a runnable, student-edited skill" — existence-checked in the store:
+  // the capability must really be published and pass its self-test, and the
+  // reward is keyed to the CHALLENGE, never the machine, so improving or copying
+  // a machine cannot mint a second one. A missing wallet never blocks a publish.
+  try { await store.recordSkillSaved(key); } catch { /* wallet optional */ }
   let installed = false;
   if (HOST_INSTANCE_ID) {
     const res = await store.installSkill(key, HOST_INSTANCE_ID, { hostType });

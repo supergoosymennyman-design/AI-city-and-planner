@@ -6,7 +6,7 @@
 // reviewed, persistable representation of a machine or model.
 import { CF_KEYS, collectState, writeState, composeChampionFile, sanitizeChampionFile } from './champion-file.js';
 import { emptyEconomy, normalizeEconomy, applyTransaction, purchaseItem as ledgerPurchaseItem, recordLearningEvent as ledgerRecordEvent } from './ledger.js';
-import { publishCapability, installSkill as registryInstallSkill, runSkill as registryRunSkill } from './skill-registry.js';
+import { publishCapability, capabilityOfPublished, installSkill as registryInstallSkill, runSkill as registryRunSkill } from './skill-registry.js';
 import { recordRun as challengeRecordRun, normalizeChallengeRuns, wrongIdsOf, gradedIdsOf, challengeOfCapability } from './challenges.js';
 import { promoteFromEvidence } from './achievements.js';
 import { statueStatus } from './statues.js';
@@ -308,6 +308,81 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     }, `learn:${event?.type || '?'}`);
     return { ...out, claimed, amount };
   }
+  /**
+   * Record "saved a runnable skill". The envelope must already hold the published
+   * capability AND its self-test must still pass — a caller cannot mint this by
+   * naming an unpublished key (existence check, inside the transaction). Scoped to
+   * the capability's CHALLENGE, never the machine, so improving or copying a
+   * machine cannot earn a second time.
+   * @param {string} capabilityKey  e.g. "cap_drive-knn@2"
+   */
+  async function recordSkillSaved(capabilityKey) {
+    let claimed = false, amount = 0, challengeId = null;
+    const key = typeof capabilityKey === 'string' ? capabilityKey : null;
+    const result = await mutate(current => {
+      normalizeProject(current);
+      const published = key ? capabilityOfPublished(current, key) : null;
+      if (!published) throw Error('That capability is not published in this project.');
+      if (!published.selftest?.ok) throw Error('The capability fails its self-test.');
+      const challenge = challengeOfCapability(published.capability);
+      if (!challenge) throw Error('That capability belongs to no registered challenge.');
+      challengeId = challenge;
+      const res = ledgerRecordEvent(current.economy, {
+        type: 'skill-saved', scopeId: challenge,
+        evidence: {
+          challengeId: challenge, capabilityId: published.capability.id, key,
+          revision: Number(published.capability.revision) || 1,
+        },
+      });
+      if (!res.ok) throw Error(res.error);
+      current.economy = res.economy; claimed = res.claimed; amount = res.amount || 0;
+      return current;
+    }, { reason: `skill-saved:${key || '?'}`, versioned: false });
+    return { ...result, claimed, amount, challengeId };
+  }
+
+  /**
+   * Mark an Academy room complete in the envelope. This is the RECORD the
+   * tutorial-task existence check reads; only the Academy calls it, on real
+   * completion of the room's challenge. Idempotent — no revision bump on replay.
+   */
+  async function markTutorialRoom(room) {
+    const n = Number(room);
+    const result = await mutate(current => {
+      normalizeProject(current);
+      if (!Number.isInteger(n) || n < 1) throw Error('Invalid Academy room.');
+      current.progress ||= {};
+      current.progress.tutorialRooms ||= {};
+      if (current.progress.tutorialRooms[n] === true) return null;
+      current.progress.tutorialRooms[n] = true;
+      return current;
+    }, { reason: `tutorial-room:${room}`, versioned: false });
+    return { ...result, room: n };
+  }
+
+  /**
+   * Record "finished a tutorial task". Requires the room to be COMPLETED in the
+   * envelope first (`markTutorialRoom`), so a caller cannot mint the reward for a
+   * room the project has no evidence of finishing. Scoped per room; replays are
+   * harmless.
+   */
+  async function recordTutorialTask(room) {
+    let claimed = false, amount = 0;
+    const n = Number(room);
+    const result = await mutate(current => {
+      normalizeProject(current);
+      if (!Number.isInteger(n) || n < 1) throw Error('Invalid Academy room.');
+      if (current.progress?.tutorialRooms?.[n] !== true) throw Error('That Academy room is not completed in this project.');
+      const res = ledgerRecordEvent(current.economy, {
+        type: 'tutorial-task', scopeId: `academy-room-${n}`, evidence: { room: n },
+      });
+      if (!res.ok) throw Error(res.error);
+      current.economy = res.economy; claimed = res.claimed; amount = res.amount || 0;
+      return current;
+    }, { reason: `tutorial-task:${n}`, versioned: false });
+    return { ...result, claimed, amount };
+  }
+
   /** Capability contract: publish (immutable, validated) → install → run. */
   async function publishSkill(capability) {
     let error = null, published = false, key = null;
@@ -447,6 +522,7 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     readAchievements,
     listProjects, switchProject, copyProject,
     publishSkill, installSkill, runSkill, recordChallengeOutcome,
+    recordSkillSaved, markTutorialRoom, recordTutorialTask,
   };
 }
 

@@ -8,9 +8,12 @@ test('learning events fund the market, which buys and equips for real', async ({
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/market/', { waitUntil: 'load' });
 
-  // A replayable learning event credits exactly once.
+  // A replayable learning event credits exactly once. The Academy's real path
+  // marks the room complete in the envelope, then the reward's existence check
+  // lets it mint — a fabricated event without the completion would be refused.
   const earned = await page.evaluate(async () => {
-    const { award, readWallet } = await import('/city-common/learning-events.js');
+    const { award, markTutorialRoom, readWallet } = await import('/city-common/learning-events.js');
+    await markTutorialRoom(1);
     const first = await award('tutorial-task', 'academy-room-1', { room: 1 });
     const replay = await award('tutorial-task', 'academy-room-1', { room: 1 });
     return { first, replay, wallet: await readWallet() };
