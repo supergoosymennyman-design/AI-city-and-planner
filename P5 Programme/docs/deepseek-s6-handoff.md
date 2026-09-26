@@ -25,6 +25,7 @@ prompt (`d7f46c5`):
 | `c511e96` | `feat(platform): skill-host socket bridge, batch returnTo, i18n coverage (S6c)` |
 | `61174fc` | `docs: stage 6 handoff (final, GPT Sol material)` |
 | `780aea9` | `feat(platform): envelope AI nodes, socket installs, full-journey spec (S6c)` |
+| `c8e32ac` | `feat(platform): dead-sensor control on the City test track (S5 carry-in)` |
 
 ## Changed areas
 
@@ -130,8 +131,12 @@ Browser (source and built), all passing:
 
 ## Remaining issues
 
-1. **S5 carry-ins (unchanged):** the City drive deep link still switches the
-   active Workshop machine; the test track still has no dead-sensor UI control.
+1. **Drive deep link switches the active Workshop machine.** The City's
+   `?skill=drive` hand-off deliberately loads the Driving starter and autosaves
+   first, so nothing is lost — but it does replace whatever was on the table.
+   `game.js` exposes no cheap "is this the child's own machine" predicate, so a
+   safe fix needs a small accessor there; left as-is rather than risking that
+   file. (The dead-sensor UI control from S5 is DONE — see below.)
 2. **Studio wallet adapter** — the Workshop/Studio credit UI still reads
    `champion-session.js`. (`publish-capability.js` already awards through the
    envelope `learning-events.js`.)
@@ -144,8 +149,8 @@ Browser (source and built), all passing:
    mirrored into the envelope. Acceptable, but a future stage could unify them.
 
 Resolved since the first draft of this handoff: the ai-node bridge for envelope
-installations, the skill-socket write path, and the one combined fresh-browser
-journey spec (`full-journey.spec.mjs`).
+installations, the skill-socket write path, the one combined fresh-browser
+journey spec (`full-journey.spec.mjs`), and the S5 dead-sensor UI control.
 
 ## GPT Sol handoff (plan §4 checklist)
 
