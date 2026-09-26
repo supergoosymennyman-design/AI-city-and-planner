@@ -3,6 +3,26 @@ installModalOwnership();
 import { displayName } from '../city-common/display-names.js';
 import { MAYORS, defaultGoals, mayorGoals, readGoals, serializeGoals, effectiveGoalWeights, goalToSlider, sliderToGoal } from '../city-common/planner-goals.js';
 import { restoreActive, restoreChampion } from '../city-common/restore-session.js';
+import { createProjectStore } from '../city-common/project-store.js';
+import { bootDurability, mountRestoreOffer } from '../city-common/persistence.js';
+// Durability: ask the browser to keep this origin's storage, and if a returning
+// child's envelope is empty (evicted), point them at the planner's own file /
+// cloud restore controls rather than silently starting from nothing.
+(async () => {
+  try {
+    const store = createProjectStore();
+    await store.openActiveProject();
+    const lang = document.documentElement.lang?.startsWith('zh') ? 'zh-Hant' : 'en';
+    await bootDurability(store, {
+      lang,
+      onNeedsRestore: () => mountRestoreOffer({
+        lang,
+        onFile: () => document.getElementById('import-file-btn')?.click(),
+        onCloud: () => document.getElementById('import-cloud-open')?.click(),
+      }),
+    });
+  } catch { /* durability is best-effort */ }
+})();
 import { MAX_IMPORT_BYTES, withinImportLimit } from '../city-common/champion-file.js';
 /**
  * city-planner/planner.js — 2D AI City Planner

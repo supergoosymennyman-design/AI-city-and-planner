@@ -22,8 +22,12 @@ import { initI18n, currentLang, t, tf, applyStatic, mountLangToggle } from './i1
 import { collectState, composeChampionFile, championFilename } from '../city-common/champion-file.js';
 import { parseProgress, mergeProgress } from '../city-common/pregame-progress.js';
 import { completeTutorialRoom } from '../city-common/learning-events.js';
+import { requestPersistentStorage } from '../city-common/persistence.js';
 
 initI18n();
+// Best-effort: ask the browser to keep this device's storage for the shared
+// envelope. The Champion File / cloud codes remain the real safety net.
+requestPersistentStorage().catch(() => {});
 
 const PROGRESS_KEY = 'p5_pregame_progress';
 

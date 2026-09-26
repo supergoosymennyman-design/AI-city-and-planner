@@ -2,6 +2,11 @@
 // Renders scenario cards with accent-tinted SVG line icons and navigates to
 // each app's own link. The portal is a pure launcher — identity stays per-app.
 import { citySim, FIT_STUDIO_URL, WORKSHOP_URL } from './links.js';
+import { requestPersistentStorage } from '../city-common/persistence.js';
+// Best-effort durability for the whole origin: ask the browser to keep our
+// IndexedDB (iOS evicts after ~7 days). The Champion File + cloud codes remain
+// the real safety net.
+requestPersistentStorage().catch(() => {});
 const ICONS = {
   planner: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>',
   city: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>',

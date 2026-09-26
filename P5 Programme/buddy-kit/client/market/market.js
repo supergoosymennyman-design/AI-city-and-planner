@@ -6,6 +6,7 @@
 // can never charge twice (ledger.js). Owned accessories can be equipped on the
 // Champion right here; owned decorations hand off to the City to place.
 import { createProjectStore } from '../city-common/project-store.js';
+import { requestPersistentStorage } from '../city-common/persistence.js';
 import { MARKET_CATALOGUE, MARKET_COLLECTIONS, marketItems, marketItem, marketAction, marketHandler } from '../city-common/market-catalogue.js';
 import { writeFinish } from '../city-common/champion-finishes.js';
 import { writeHostUpgrade } from '../city-common/host-upgrades.js';
@@ -159,6 +160,9 @@ $('mkt-grid').addEventListener('click', (event) => {
 
 (async function boot() {
   applyChrome();
+  // Best-effort: ask the browser to keep this device's storage (iOS evicts after
+  // ~7 days). The Champion File / cloud codes remain the real safety net.
+  requestPersistentStorage().catch(() => {});
   try {
     store = createProjectStore();
     await store.openActiveProject();

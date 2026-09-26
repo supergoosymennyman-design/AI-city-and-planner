@@ -97,6 +97,7 @@ import { readBadges, tierOf, TIERS } from '../city-common/badges.js';
 import { badgeEvidenceHTML } from '../city-common/achievements.js';
 import { statueSectionHTML } from '../city-common/statues.js';
 import { createProjectStore, PROJECT_EVENT } from '../city-common/project-store.js';
+import { bootDurability, mountRestoreOffer } from '../city-common/persistence.js';
 import { readMilestones, milestoneSectionHTML } from '../city-common/milestones.js';
 import { parseCapability, capabilityDescriptor, installCapability, stage1Note } from '../city-common/cap-runtime.js';
 import { mountPropLibrary } from './prop-library.js';
@@ -5030,6 +5031,25 @@ async function refreshEnvelopeCaps() {
 function writePlantedCaps(list) {
   try { localStorage.setItem(CAPS_KEY, JSON.stringify(list)); } catch { /* ignore */ }
 }
+
+// Durability: ask the browser to keep this device's storage, and if a returning
+// child's envelope is empty (iOS evicted it), offer the Champion File / cloud
+// restore that already lives on the entry screen. Best-effort — never blocks boot.
+(async () => {
+  try {
+    const store = createProjectStore();
+    await store.openActiveProject();
+    const lang = document.documentElement.lang?.startsWith('zh') ? 'zh-Hant' : 'en';
+    await bootDurability(store, {
+      lang,
+      onNeedsRestore: () => mountRestoreOffer({
+        lang,
+        onFile: () => document.getElementById('entry-file')?.click(),
+        onCloud: () => document.getElementById('entry-cloud-open')?.click(),
+      }),
+    });
+  } catch { /* durability is best-effort */ }
+})();
 function renderCapPanel() {
   const body = document.getElementById('cap-body');
   if (!body) return;
