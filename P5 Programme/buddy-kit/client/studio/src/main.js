@@ -1040,15 +1040,27 @@ async function boot() {
   const controls = document.createElement('div'); controls.id = 'champion-file-controls';
   controls.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px;background:#0a1320;color:#d5f0ff;border-bottom:1px solid #23405b';
   const button = (name, click) => { const b = document.createElement('button'); b.textContent = name; b.style.minHeight = '40px'; b.onclick = () => Promise.resolve().then(click).catch(e => toast.show(e.message)); controls.append(b); };
-  button('Credits & Owned Gear', () => ChampionControls.credits(session, { before: () => savePortable(), legacy: () => JSON.parse(localStorage.getItem('studio.shop.v1') || 'null') }));
+  button('Credits & Owned Gear', () => ChampionControls.credits(session, {
+    before: () => savePortable(),
+    legacy: () => JSON.parse(localStorage.getItem('studio.shop.v1') || 'null'),
+    // The shared envelope wallet is authoritative; the session is the fallback.
+    wallet: () => championShop.wallet(),
+    awardTo: (op) => championShop.teacherAward(op),
+    importLegacy: (owned) => championShop.importLegacyOwned(owned),
+  }));
   button('Save Champion File', async () => {
     clearTimeout(championSaveTimer); if (!unsupported) await savePortable();
-    const blob = new Blob([JSON.stringify(session.file)], { type: 'application/json' });
+    const file = session.file;
+    const shared = championShop.walletEconomy();
+    if (shared) file.economy = shared; // carry the shared wallet in the portable file
+    const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
     const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = 'studio.champion.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
   button('Save recovery copy', async () => {
     const file = session.file;
     if (!unsupported) file.projects['3d-studio'] = { ...file.projects['3d-studio'], ...encodeProject(capturePortableSnapshot(), await fitController.serializeWardrobe()) };
+    const shared = championShop.walletEconomy();
+    if (shared) file.economy = shared; // the recovery copy carries the shared wallet too
     const url = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: 'application/json' }));
     const a = document.createElement('a'); a.href = url; a.download = 'studio-recovery.champion.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast.show('Recovery copy saved from this tab. Its balance may be older; opening replaces the snapshot.');
@@ -1076,7 +1088,11 @@ async function boot() {
       candidate.resetDocument();
       if (!window.confirm(`Open ${incoming.champion.name}? This replaces the current champion snapshot.`)) return;
       clearTimeout(championSaveTimer); await pendingSave; restoringChampion = true; shop.invalidate();
-      await session.replace(incoming); location.reload();
+      await session.replace(incoming);
+      // Opening a Champion File is a deliberate full RESTORE: replace the shared
+      // wallet from the file rather than summing it (plan §3 — restore never merges).
+      await championShop.replaceWallet(incoming.economy);
+      location.reload();
     } catch(e) { restoringChampion = false; toast.show(e.message); }
     finally { input.value = ''; }
   };

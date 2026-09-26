@@ -46,6 +46,19 @@ export function award(type, scopeId, evidence) {
   return awardLearningEvent({ type, scopeId, evidence });
 }
 
+/**
+ * A teacher adjustment (plan §2): a deliberate credit grant with a recorded reason,
+ * committed through the SAME envelope economy a learning event uses. This is NOT a
+ * learning reward — the caller keeps the teacher gate (the Workshop's credits panel
+ * verifies the teacher PIN first). Idempotent by transaction id.
+ * @returns {Promise<{ok:boolean, error?:string}>}
+ */
+export async function awardTeacherCredits(op) {
+  const store = await walletStore();
+  if (!store) return { ok: false, error: 'The shared wallet is unavailable.' };
+  try { return await store.award(op); } catch (error) { return { ok: false, error: String(error?.message || error) }; }
+}
+
 export async function readWallet() {
   const store = await walletStore();
   if (!store) return null;
@@ -71,5 +84,6 @@ if (typeof window !== 'undefined') {
     wallet: readWallet,
     rewardFor,
     config: REWARD_CONFIG,
+    teacherAward: awardTeacherCredits,
   });
 }

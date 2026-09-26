@@ -137,9 +137,16 @@ Browser (source and built), all passing:
    `game.js` exposes no cheap "is this the child's own machine" predicate, so a
    safe fix needs a small accessor there; left as-is rather than risking that
    file. (The dead-sensor UI control from S5 is DONE — see below.)
-2. **Studio wallet adapter** — the Workshop/Studio credit UI still reads
-   `champion-session.js`. (`publish-capability.js` already awards through the
-   envelope `learning-events.js`.)
+2. ~~**Studio wallet adapter** — the Workshop/Studio credit UI still reads
+   `champion-session.js`.~~ **RESOLVED (S6c).** The Studio now reads and spends the
+   SHARED envelope wallet: `studio/src/champion.js` is an envelope-first adapter
+   (`shopState()`/`purchase()` go through `project-store.js` + `ledger.js`, with the
+   Studio's pure `unlock.js` kept as the pre-gate and the session economy mirrored as
+   a compatibility adapter). The Workshop/Studio `Credits & Owned Gear` dialog reads
+   the envelope via `window.PassionaLearning.wallet()` (auto-detected) or an explicit
+   provider, and teacher awards route to the envelope with the PIN still verified.
+   `migrateEconomyFromChampion` imports a legacy session wallet exactly once, and
+   `studio/dist` was rebuilt so the bundle matches `src`. See the S6c addendum below.
 3. **Interpretation note:** the review-remediation doc states "`skill-hosts.js`
    is still orphaned". It is NOT — `prop-library.js` mounts it with sockets. The
    real gap was envelope awareness, now bridged for both reads (sockets see
@@ -150,7 +157,60 @@ Browser (source and built), all passing:
 
 Resolved since the first draft of this handoff: the ai-node bridge for envelope
 installations, the skill-socket write path, the one combined fresh-browser
-journey spec (`full-journey.spec.mjs`), and the S5 dead-sensor UI control.
+journey spec (`full-journey.spec.mjs`), the S5 dead-sensor UI control, and the
+Studio/Workshop envelope wallet adapter (S6c — below).
+
+## S6c — Studio/Workshop envelope wallet adapter (follow-up)
+
+Closes remaining-issue item 2 above. The envelope is authoritative; the Champion
+session is a compatibility adapter.
+
+- **`city-common/studio-wallet.js` (new, pure)** — `studioCatalogue(catalog)` maps
+  the Studio model catalogue into the ledger catalogue shape (`price` from
+  `unlock.coins`, `0` for free/level) so `store.purchase` reads the SAME price the
+  Studio showed; `walletOf(economy)` reads the Studio `{coins, owned}` shape.
+  Unit coverage: `tests/studio-wallet.test.mjs` (8 tests, includes a real
+  `purchaseItem` debit + idempotency check).
+- **`studio/src/champion.js`** — on open it connects `project-store.js`, imports the
+  legacy session wallet exactly once (`migrateEconomyFromChampion`), caches
+  `readEconomy()` for the synchronous shop readout, mirrors it into
+  `session.file.economy`, and re-reads on `passiona:project-store-change` and window
+  focus. `shopState()` prefers the envelope; `purchase()` asks the Studio's pure
+  `unlock.js` first (the level gate still holds) then commits through
+  `store.purchase`. No IndexedDB → the original session economy is the wallet,
+  unchanged. Teacher award / legacy-ownership import / deliberate Champion-File
+  restore are routed to the envelope (`teacherAward`, `importLegacyOwned`,
+  `replaceWallet` — restore REPLACES, never merges).
+- **`workshop/toolbox/champion-controls.js`** — the credits dialog reads the shared
+  wallet through an injected async `wallet()` or, automatically, the
+  `window.PassionaLearning` shim; a teacher award routes through `awardTo` (or the
+  shim's new `teacherAward`) after `ChampionSession.verifyPIN`. With no envelope
+  every path is the session, exactly as before.
+- **`champion-session.js`** exports `verifyPIN` (additive); **`learning-events.js`**
+  exposes `teacherAward` on the shim. One-way mirror only — the session economy is
+  never a source of credits.
+
+Build + verification (frozen tree):
+
+```bash
+node --test tests/*.test.mjs       # 561 pass / 0 fail (553 + 8 new)
+npm run test:imports              # OK (168 files)
+npm run test:library              # PASS
+npm run build:city                # OK (studio/dist rebuilt first: cd client/studio && npm run build)
+cd "P5 Programme/buddy-kit/client/studio" && npm test   # 2159 pass / 0 fail
+# source mode
+E2E_PORT=8397 npx playwright test --config "P5 Programme/tests/e2e/playwright.config.mjs" \
+  --project=chromium wallet.spec.mjs market-actions.spec.mjs full-journey.spec.mjs
+# built bundle (Studio + Workshop wallet surfaces)
+E2E_DOCROOT="P5 Programme/deploy/city-sim" E2E_PORT=8398 npx playwright test \
+  --config "P5 Programme/tests/e2e/playwright.config.mjs" --project=chromium \
+  studio-wallet.spec.mjs wallet.spec.mjs market-actions.spec.mjs full-journey.spec.mjs
+```
+
+`studio-wallet.spec.mjs` (built mode): seed the shared wallet → the Studio shows it
+→ buy a 40-credit Studio model → Studio balance falls → the store holds the debit +
+ownership (and a replay cannot charge twice) → the Market reads the same balance;
+then the Workshop credits dialog shows the same envelope balance.
 
 ## GPT Sol handoff (plan §4 checklist)
 

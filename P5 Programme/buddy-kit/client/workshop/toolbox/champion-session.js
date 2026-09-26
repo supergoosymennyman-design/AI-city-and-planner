@@ -202,7 +202,7 @@
     if (node[0] === 'binary') { const bytes = Uint8Array.from(atob(node[2]), c => c.charCodeAt(0)); if (node[1] === 'ArrayBuffer') return bytes.buffer; if (!Object.hasOwn(types, node[1])) throw Error('Unsupported Studio binary type.'); return new types[node[1]](bytes.buffer); }
     throw Error('Unsupported Studio encoding.');
   }
-  const API = { prepare, economy, transact, create, encode, decode, setupPIN, hasPIN: async () => !!await pinRecord(), id };
+  const API = { prepare, economy, transact, create, encode, decode, setupPIN, verifyPIN, hasPIN: async () => !!await pinRecord(), id };
   root.ChampionSession = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
