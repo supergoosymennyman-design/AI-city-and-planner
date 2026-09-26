@@ -156,6 +156,22 @@ test('a bounded decision log alone marks City-connected (an install that really 
   assert.equal(stageOf(project, 'image-sorter').stage, 'city-connected');
 });
 
+test('a capability self-test memo cannot leak between projects that share a key', () => {
+  // Two projects can hold the same id@revision with DIFFERENT content (a project
+  // switch, a copy, or an imported file). The second must not inherit the first's
+  // "Built" verdict through a string-keyed cache.
+  const good = createProject();
+  good.capabilities['cap_drive-knn@1'] = driveCap({ revision: 1 });
+
+  const broken = createProject();
+  const bad = driveCap({ revision: 1 });
+  bad.selftest = { cases: [{ name: 'impossible', input: {}, expect: { decision: 'definitely-not-a-decision' } }] };
+  broken.capabilities['cap_drive-knn@1'] = bad;
+
+  assert.equal(stageOf(good, 'driver').steps.built, true);
+  assert.equal(stageOf(broken, 'driver').steps.built, false, 'the broken project must not inherit the good project’s self-test');
+});
+
 test('stages are labelled in both languages, including the not-started case', () => {
   assert.equal(stageLabel('improved'), 'Improved');
   assert.equal(stageLabel('improved', 'zh-Hant'), '已改良');

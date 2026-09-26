@@ -32,18 +32,23 @@ export const SKILL_STAGES = Object.freeze([
 
 export function stageById(idValue) { return SKILL_STAGES.find((s) => s.id === idValue) || null; }
 
-// A published revision is IMMUTABLE (skill-registry.js), so its self-test result
-// is stable and can be memoised by key. `stageOf` keeps calling installCapability
-// on every render otherwise, which re-decodes vectors each time.
-const selftestMemo = new Map();
-function selfTestOf(key, cap) {
-  if (selftestMemo.has(key)) return selftestMemo.get(key);
+// A published revision is IMMUTABLE, so its self-test result is stable and can
+// be memoised. Keyed by the capability OBJECT, not by its `id@revision` key:
+// capability keys are only unique WITHIN a project, so two projects (a switch, a
+// copy, an imported file) can hold the same key with different content — a
+// string-keyed memo would leak one project's verdict into another.
+const selftestMemo = new WeakMap();
+function selfTestOf(cap) {
+  if (cap && typeof cap === 'object') {
+    const hit = selftestMemo.get(cap);
+    if (hit) return hit;
+  }
   const installed = installCapability(cap);
   const result = {
     ok: !!(installed.ok && installed.installation?.selftest?.ok),
     selftest: installed.ok ? installed.installation.selftest : { ok: false },
   };
-  selftestMemo.set(key, result);
+  if (cap && typeof cap === 'object') selftestMemo.set(cap, result);
   return result;
 }
 
@@ -74,7 +79,7 @@ export function stageOf(project, challengeId) {
   let builtEvidence = null;
   let built = false;
   if (latest) {
-    const testedSelf = selfTestOf(latest.key, latest.cap);
+    const testedSelf = selfTestOf(latest.cap);
     built = testedSelf.ok;
     builtEvidence = { key: latest.key, revision: Number(latest.cap.revision || 1), selftest: built };
   }
