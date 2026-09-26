@@ -72,11 +72,27 @@ test('the intended "not sure" response earns Auditor above Skeptic', () => {
   assert.equal(rows.find((r) => r.id === 'builder').reached, true);
 });
 
-test('architect needs BOTH skills connected to the City', () => {
+test('an abstain demo alone cannot skip the held-out rung', () => {
+  const project = createProject();
+  claim(project, 'abstain-demo', 'image-sorter', { source: 'recycling', abstained: 2 });
+  // Limits without a held-out evaluation to find them in is not a promotion.
+  assert.equal(badgeAchievement(project).tier, null);
+  claim(project, 'held-out-eval', 'image-sorter', { batch: 'unfamiliar', seed: 2, total: 6, abstained: 3 });
+  assert.equal(badgeAchievement(project).tier, 'auditor');
+});
+
+test('architect needs BOTH skills connected AND the whole ladder below it', () => {
   const project = createProject();
   connect(project, imageCap(), 'cap_trashnet-knn@1', 'host-sorter');
-  assert.notEqual(badgeAchievement(project).tier, 'architect');
   connect(project, driveCap(), 'cap_drive-knn@1', 'host-car');
+  // Both wired into the City is NOT enough: nothing has been tested yet.
+  assert.notEqual(badgeAchievement(project).tier, 'architect');
+
+  claim(project, 'held-out-eval', 'image-sorter', { batch: 'normal', seed: 1, total: 8, abstained: 0 });
+  // Tested, but the limits (abstain) rung is still missing.
+  assert.notEqual(badgeAchievement(project).tier, 'architect');
+
+  claim(project, 'abstain-demo', 'image-sorter', { source: 'recycling', abstained: 2 });
   assert.equal(badgeAchievement(project).tier, 'architect');
 });
 

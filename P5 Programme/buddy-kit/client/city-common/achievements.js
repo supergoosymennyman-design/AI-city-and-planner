@@ -35,30 +35,33 @@ function hasClaim(economy, type, challengeId) {
 export function badgeAchievement(project) {
   const economy = project?.economy;
   const connected = CHALLENGE_IDS.filter((id) => installationEntries(project, id).length > 0);
+  const tested = CHALLENGE_IDS.filter((id) => evidenceOf(economy, 'held-out-eval', id));
+  const limits = CHALLENGE_IDS.filter((id) => evidenceOf(economy, 'abstain-demo', id));
 
-  // architect — composed BOTH skills into the City (the top rung, checked first).
-  if (connected.length === CHALLENGE_IDS.length) {
+  // architect — composed BOTH skills into the City, on top of the WHOLE ladder
+  // below it: every rung must already be satisfied (a machine that was tested,
+  // and one whose limits were found). Connected-but-untested cannot jump to the top.
+  if (connected.length === CHALLENGE_IDS.length && tested.length > 0 && limits.length > 0) {
     const total = connected.reduce((n, id) => n + installationEntries(project, id).length, 0);
     return { tier: 'architect', evidence: { heldOut: total, abstainRate: null, threshold: null, challenges: [...connected] } };
   }
 
-  // auditor — demonstrated the honest "not sure / ask for help" response.
-  for (const id of CHALLENGE_IDS) {
+  // auditor — found the limits with an honest "not sure", which only counts once
+  // a held-out evaluation exists to find them in (the rung below).
+  if (limits.length > 0 && tested.length > 0) {
+    const id = limits[0];
     const demo = evidenceOf(economy, 'abstain-demo', id);
-    if (demo) {
-      const abstained = Number(demo.abstained) || 1;
-      return { tier: 'auditor', evidence: { heldOut: abstained, abstainRate: 1, threshold: null, challengeId: id } };
-    }
+    const abstained = Number(demo.abstained) || 1;
+    return { tier: 'auditor', evidence: { heldOut: abstained, abstainRate: 1, threshold: null, challengeId: id } };
   }
 
   // skeptic — ran a held-out evaluation and inspected it.
-  for (const id of CHALLENGE_IDS) {
+  if (tested.length > 0) {
+    const id = tested[0];
     const held = evidenceOf(economy, 'held-out-eval', id);
-    if (held) {
-      const heldOut = Number(held.total) || Number(held.steps) || 1;
-      const abstained = Number(held.abstained) || 0;
-      return { tier: 'skeptic', evidence: { heldOut, abstainRate: heldOut ? Math.round((abstained / heldOut) * 100) / 100 : null, threshold: null, challengeId: id } };
-    }
+    const heldOut = Number(held.total) || Number(held.steps) || 1;
+    const abstained = Number(held.abstained) || 0;
+    return { tier: 'skeptic', evidence: { heldOut, abstainRate: heldOut ? Math.round((abstained / heldOut) * 100) / 100 : null, threshold: null, challengeId: id } };
   }
 
   return { tier: null, evidence: {} };

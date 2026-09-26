@@ -32,6 +32,21 @@ export const SKILL_STAGES = Object.freeze([
 
 export function stageById(idValue) { return SKILL_STAGES.find((s) => s.id === idValue) || null; }
 
+// A published revision is IMMUTABLE (skill-registry.js), so its self-test result
+// is stable and can be memoised by key. `stageOf` keeps calling installCapability
+// on every render otherwise, which re-decodes vectors each time.
+const selftestMemo = new Map();
+function selfTestOf(key, cap) {
+  if (selftestMemo.has(key)) return selftestMemo.get(key);
+  const installed = installCapability(cap);
+  const result = {
+    ok: !!(installed.ok && installed.installation?.selftest?.ok),
+    selftest: installed.ok ? installed.installation.selftest : { ok: false },
+  };
+  selftestMemo.set(key, result);
+  return result;
+}
+
 function claimOf(economy, type, challengeId) {
   const reward = REWARD_CONFIG.rewards[type];
   if (!reward) return null;
@@ -59,8 +74,8 @@ export function stageOf(project, challengeId) {
   let builtEvidence = null;
   let built = false;
   if (latest) {
-    const installed = installCapability(latest.cap);
-    built = !!(installed.ok && installed.installation?.selftest?.ok);
+    const testedSelf = selfTestOf(latest.key, latest.cap);
+    built = testedSelf.ok;
     builtEvidence = { key: latest.key, revision: Number(latest.cap.revision || 1), selftest: built };
   }
 

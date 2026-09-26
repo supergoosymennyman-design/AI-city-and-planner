@@ -220,9 +220,11 @@ export function recordLearningEvent(economy, event, { config = REWARD_CONFIG } =
   if (current.claimed.includes(key)) return { ok: true, economy: current, claimed: false, reason: 'already-claimed' };
   const transactionId = `reward:${key}`;
   if (current.transactions.some(t => t.id === transactionId)) {
-    // A mirrored transaction proves the reward was already paid: book it, don't re-mint.
-    current.claimed.push(key); current.evidence[key] = event.evidence;
-    return { ok: true, economy: current, claimed: false, reason: 'already-paid' };
+    // A mirrored transaction proves the reward was already paid: book it, don't
+    // re-mint. Build a NEW economy (matching the other success paths) instead of
+    // mutating in place.
+    const repaired = { ...current, claimed: [...current.claimed, key], evidence: { ...current.evidence, [key]: event.evidence } };
+    return { ok: true, economy: repaired, claimed: false, reason: 'already-paid' };
   }
   let next;
   try {
