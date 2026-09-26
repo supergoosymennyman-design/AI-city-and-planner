@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clone } from 'three/addons/utils/SkeletonUtils.js';
 import { detectLegs, detectMotionRoles, motionClips } from '../rig/motion.js';
+import { savedMotionSettings } from '../rig/motion-settings.js';
 import { exportGLB } from '../io/gltf.js';
 import './motion-panel.css';
 
@@ -55,7 +56,7 @@ export class MotionPanel {
     this.mixer = new THREE.AnimationMixer(this.preview);
     this.last = null;
     const list = this.dialog.querySelector('.motion-legs'); list.replaceChildren();
-    const saved = rig.graph.motion?.key === rig.graph.structureKey() ? rig.graph.motion.settings : null;
+    const saved = savedMotionSettings(rig);
     if (saved) {
       this.mapping = { key: rig.graph.structureKey(), legs: saved.legs, roles: saved.roles, knees: saved.knees };
       for (const key of ['gait', 'softness', 'forward', 'stride', 'duration']) this.dialog.querySelector(`[data-field=${key}]`).value = saved[key];

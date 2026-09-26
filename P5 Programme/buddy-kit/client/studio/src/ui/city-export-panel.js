@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { bakeCityStatue, buildCityChampion, buildCityPlacement, cityMotionClips, copyForCity, faceCityFront } from '../io/city-champion.js';
 import { downloadGLB } from '../io/gltf.js';
 import { CITY_CHAMPION_HEIGHT } from '../../../city-common/model-scale.js';
+import { savedMotionSettings } from '../rig/motion-settings.js';
 import './motion-panel.css';
 
 /** City export choices and a viewport preview of the same facing and target height. */
@@ -39,7 +40,7 @@ export class CityExportPanel {
     const animated = !!rig?.skinBones?.length;
     this.dialog.querySelector('[data-mode]').value = animated ? 'studio' : 'static';
     this.dialog.querySelector('[data-mode] option[value=studio]').disabled = !animated;
-    const saved = rig?.graph.motion?.key === rig.graph.structureKey() ? rig.graph.motion.settings : null;
+    const saved = savedMotionSettings(rig);
     this.dialog.querySelector('[data-front]').value = saved?.forward || '+z';
     this.originalVisible = this.studio.group.visible;
     this.studio.group.visible = false;

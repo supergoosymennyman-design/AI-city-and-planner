@@ -3,6 +3,7 @@ import { clone as cloneRiggedScene } from 'three/addons/utils/SkeletonUtils.js';
 import { motionClips, detectLegs, detectMotionRoles } from '../rig/motion.js';
 import { buildGLB } from './gltf.js';
 import { validateStudioChampion, collectRigInfo } from '../../../city-common/champion-contract.js';
+import { savedMotionSettings } from '../rig/motion-settings.js';
 
 function hashModel(group, clips) {
   let hash = 2166136261;
@@ -99,7 +100,7 @@ export async function buildCityPlacement(source, { forward = '+z' } = {}) {
 /** City owns travel; Studio clips animate bones in place for any usable rig. */
 export function cityMotionClips(rig, settingsOverride = null) {
   if (!rig?.skinBones?.length) throw new Error('Finish bending the skeleton before exporting animated movement.');
-  const saved = settingsOverride || (rig.graph.motion?.key === rig.graph.structureKey() ? rig.graph.motion.settings : null);
+  const saved = savedMotionSettings(rig, settingsOverride);
   const legs = saved?.legs || detectLegs(rig.graph, id => rig.worldOf(id));
   const settings = saved || { legs, knees: {}, roles: detectMotionRoles(rig), gait: legs.length ? 'step' : 'waddle', softness: .65, stride: 25, duration: 1.2, forward: '+z' };
   let walk, jump, fastWalk;
@@ -141,7 +142,7 @@ function groundContacts(copy, rig, settings, box) {
 
 /** Build an export from a disposable scene copy; no document graph or pose changes. */
 export async function buildCityChampion(source, rig, { championId, studioRevision = 1, forward, animationMode, motionSettings } = {}) {
-  const settings = motionSettings || (rig && rig.graph.motion?.key === rig.graph.structureKey() ? rig.graph.motion.settings : null);
+  const settings = savedMotionSettings(rig, motionSettings);
   const mode = animationMode || (rig?.skinBones?.length ? 'studio' : 'static');
   if (!['studio', 'static'].includes(mode)) throw new Error('Choose a valid movement mode.');
   const front = forward || settings?.forward || '+z';
