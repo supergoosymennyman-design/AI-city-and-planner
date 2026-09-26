@@ -17,6 +17,11 @@
 // (plan §2: closing instructions or importing a template does not earn).
 import { buildImageCapabilityV2, buildDriveCapability } from '../city-common/capability-export.js';
 import { createProjectStore } from '../city-common/project-store.js';
+// Loaded for its SIDE EFFECT: learning-events installs `window.PassionaLearning`,
+// the async shared-wallet shim the Workshop's credits dialog (champion-controls.js)
+// auto-detects. This module is the Workshop's always-loaded ES entry, so removing
+// this import silently reverts the credits UI to the legacy session economy.
+import '../city-common/learning-events.js';
 import { RECYCLING_PREPROCESSING, RECYCLING_DIMENSION } from '../city-common/recycling.js';
 import { DRIVE_HOST_TYPE } from '../city-common/driving.js';
 
