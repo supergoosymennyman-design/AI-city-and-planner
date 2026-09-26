@@ -32,6 +32,8 @@
 }
 .tt-run { background: #1fb7a8 !important; border-color: #1fb7a8 !important; color: #06231f !important; font-weight: 700; }
 .tt-improve { border-style: dashed !important; }
+.tt-dead[aria-pressed="true"] { background: #b3402f !important; border-color: #e0604a !important; color: #fff !important; font-weight: 700; }
+.tt-sensors .tt-noreading { grid-column: 1 / -1; color: #ffb84c; font-weight: 700; }
 .tt-status { min-height: 20px; margin: 6px 0 12px; color: #9fb2c4; font-size: 14px; }
 
 .tt-main { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }

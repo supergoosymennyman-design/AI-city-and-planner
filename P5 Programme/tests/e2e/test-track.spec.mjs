@@ -199,3 +199,28 @@ test('the City capability panel opens the track, and "try in my city" finds a ro
   expect(route.hasTrack).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('the dead-sensor control stops the car honestly (missing input), never a hidden driver', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await bootCity(page);
+  await publishDriveModel(page, { hostId: 'host-dead' });
+  await openTrack(page);
+
+  // Turn the sensor off from the UI, then run the whole trial.
+  await page.click('.tt-dead');
+  await expect(page.locator('.tt-dead')).toHaveAttribute('aria-pressed', 'true');
+  const trial = await page.evaluate(async () => {
+    const res = await window.__testTrack.controller.runWhole({});
+    return { outcome: res.outcome, interventions: (res.interventions || []).map((i) => i.type) };
+  });
+  expect(trial.outcome).toBe('missing-input');
+  expect(trial.interventions).toContain('missing-input');
+
+  // Turning it back on restores a real drive (a fresh trial no longer stops on input).
+  await page.click('.tt-dead');
+  await expect(page.locator('.tt-dead')).toHaveAttribute('aria-pressed', 'false');
+  const back = await page.evaluate(async () => (await window.__testTrack.controller.runWhole({})).outcome);
+  expect(back).not.toBe('missing-input');
+  expect(errors).toEqual([]);
+});

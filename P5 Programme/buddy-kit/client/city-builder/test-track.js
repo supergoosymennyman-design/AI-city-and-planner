@@ -34,6 +34,7 @@ const STR = {
     title: 'Driving test track', subtitle: 'Your model drives this car.',
     track: 'Track', trackFull: 'Guided track', trackStraight: 'Straight', trackCurve: 'Curve', trackObstacle: 'Obstacle', trackLight: 'Traffic light', trackCity: 'Try in my city',
     run: 'Run', pause: 'Pause', step: 'Step', reset: 'Reset', repeat: 'Repeat same trial',
+    dead: 'Dead sensor', noReading: 'No sensor reading — the car must stop.',
     sensors: 'Sensors', action: 'Chosen action', decisions: 'Previous decisions', notSure: 'not sure',
     noModel: 'No driving model yet. Train the Driving machine in the Workshop, then publish it here.',
     openWorkshop: 'Open the Workshop',
@@ -56,6 +57,7 @@ const STR = {
     title: '駕駛測試賽道', subtitle: '你的模型正在駕駛這輛車。',
     track: '賽道', trackFull: '引導賽道', trackStraight: '直路', trackCurve: '彎路', trackObstacle: '障礙物', trackLight: '交通燈', trackCity: '在我的城市試',
     run: '運行', pause: '暫停', step: '單步', reset: '重設', repeat: '重複同一試行',
+    dead: '感應器故障', noReading: '沒有感應讀數 —— 汽車必須停下。',
     sensors: '感應器', action: '模型選擇的動作', decisions: '之前的決定', notSure: '不確定',
     noModel: '還沒有駕駛模型。請在工作坊訓練「駕駛」機器，然後發佈到這裡。',
     openWorkshop: '開啟工作坊',
@@ -137,6 +139,7 @@ function ensureModal() {
         <button class="tt-step" type="button" data-r="step"></button>
         <button class="tt-reset" type="button" data-r="reset"></button>
         <button class="tt-repeat" type="button" data-r="repeat"></button>
+        <button class="tt-dead" type="button" data-r="dead" aria-pressed="false"></button>
         <a class="tt-improve" data-r="improve" hidden></a>
       </div>
       <p class="tt-status" data-r="status" aria-live="polite"></p>
@@ -168,6 +171,8 @@ function paintStatic() {
   q('step').textContent = t('step');
   q('reset').textContent = t('reset');
   q('repeat').textContent = t('repeat');
+  q('dead').textContent = t('dead');
+  q('dead').setAttribute('aria-pressed', String(!!controller?.sensorDead));
   q('sensorsTitle').textContent = t('sensors');
   q('actionTitle').textContent = t('action');
   q('decisionsTitle').textContent = t('decisions');
@@ -178,7 +183,7 @@ const fieldLabel = (f) => t('fieldLabel')[f] || f;
 
 function renderSensors(obs, decision) {
   const dl = modal.querySelector('[data-r="sensors"]');
-  if (!obs) { dl.innerHTML = ''; return; }
+  if (!obs) { dl.innerHTML = `<dt class="tt-noreading">${esc(t('noReading'))}</dt>`; return; }
   const lightName = (v) => t('light')[String(v)] || v;
   dl.innerHTML = DRIVE_FIELDS.map((f) => {
     const v = obs[f];
@@ -334,6 +339,14 @@ async function stepOnce() {
   if (trial.steps.length >= DRIVE_MAX_STEPS) { trial.done = true; trial.outcome = 'timeout'; renderAll(); return; }
   const i = trial.steps.length;
   const time = i * DRIVE_DT;
+  // A dead sensor returns no reading, so the car stops — never a hidden driver.
+  if (controller.sensorDead) {
+    trial.steps.push({ i, t: Math.round(time * 1000) / 1000, observation: null, decision: null, confidence: null, abstained: false, action: 'stop', pose: { x: trial.car.x, z: trial.car.z, heading: trial.car.heading, speed: 0, s: trial.progress, lateral: 0 }, event: 'missing-input', eventDetail: { type: 'missing-input' } });
+    trial.interventions.push({ type: 'missing-input', at: time, reason: 'the sensor returned no reading' });
+    trial.done = true; trial.outcome = 'missing-input'; trial.reason = 'missing-input';
+    reportTrial();
+    renderAll(); return;
+  }
   const { observation } = sense(controller.track, trial.car, time);
   controller.lightNow = observation.trafficLight;
   let inference = null;
@@ -413,7 +426,7 @@ async function runWhole({ trackId, maxSteps = DRIVE_MAX_STEPS } = {}) {
   if (!controller.track) return { ok: false, error: 'no-track', route: controller.cityRouteNote || null };
   if (!controller.skill) return { ok: false, error: 'no-model' };
   if (controller.mismatch) return { ok: false, error: 'mismatch' };
-  const trial = runTrial({ cap: controller.skill.cap, track: controller.track, maxSteps });
+  const trial = runTrial({ cap: controller.skill.cap, track: controller.track, maxSteps, failSensor: !!controller.sensorDead });
   const last = trial.steps[trial.steps.length - 1];
   controller.trial = {
     car: last ? { x: last.pose.x, z: last.pose.z, heading: last.pose.heading, speed: last.pose.speed } : createCar(controller.track),
@@ -453,6 +466,13 @@ function bind() {
   q('reset').addEventListener('click', () => { if (controller.timer) clearTimeout(controller.timer); resetTrial(controller.trackId); });
   q('repeat').addEventListener('click', async () => { if (controller.timer) clearTimeout(controller.timer); resetTrial(controller.trackId); await runWhole({}); });
   q('track').addEventListener('change', (e) => { if (controller.timer) clearTimeout(controller.timer); resetTrial(e.target.value); });
+  // Dead-sensor control: the honest "missing input" stop, now reachable in the UI.
+  q('dead').addEventListener('click', () => {
+    if (controller.timer) { clearTimeout(controller.timer); controller.timer = null; }
+    controller.sensorDead = !controller.sensorDead;
+    q('dead').setAttribute('aria-pressed', String(controller.sensorDead));
+    resetTrial(controller.trackId);
+  });
 }
 
 /**
@@ -463,7 +483,7 @@ export async function openTestTrack() {
   controller = controller || {
     open: () => {}, close: () => {}, runWhole, stepOnce, reset: resetTrial, resolve: async function () { this.skill = await resolveDriveSkill(); this.mismatch = !!(this.skill && !checkDriveCompatibility(this.skill.cap).ok); return this.skill; },
     skill: null, mismatch: false, trackId: 'full', track: TRACKS.full, cityTrack: null, cityRouteNote: null,
-    trial: null, paused: true, timer: null, lightNow: 0,
+    trial: null, paused: true, timer: null, lightNow: 0, sensorDead: false,
   };
   controller.skill = await resolveDriveSkill();
   controller.mismatch = !!(controller.skill && !checkDriveCompatibility(controller.skill.cap).ok);
