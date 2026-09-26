@@ -162,6 +162,38 @@ test('the envelope publishes, installs, and runs a skill through the store', asy
   } finally { restore(); }
 });
 
+test('the raw store learning-event primitive is held to the same existence checks', async () => {
+  const { store, restore } = setup();
+  try {
+    const s = store();
+    await s.openActiveProject();
+
+    // A direct call cannot mint what the dedicated methods refuse.
+    const fabricatedSkill = await s.recordLearningEvent({ type: 'skill-saved', scopeId: 'image-sorter', evidence: { capabilityId: 'cap_nope', key: 'cap_nope@1', revision: 1 } });
+    assert.equal(fabricatedSkill.ok, false);
+    const earlyRoom = await s.recordLearningEvent({ type: 'tutorial-task', scopeId: 'academy-room-1', evidence: { room: 1 } });
+    assert.equal(earlyRoom.ok, false);
+    assert.equal((await s.readEconomy()).balance, 0);
+
+    // With the envelope record present, the primitive records normally.
+    await s.markTutorialRoom(1);
+    const room = await s.recordLearningEvent({ type: 'tutorial-task', scopeId: 'academy-room-1', evidence: { room: 1 } });
+    assert.equal(room.ok, true);
+    assert.equal(room.claimed, true);
+    assert.equal((await s.readEconomy()).balance, 10);
+
+    const cap = buildDriveCapability({
+      id: 'cap_drive-knn', name: 'Drive', k: 1, threshold: 0.5,
+      examples: [{ label: 'forward', values: [9, 9, 9, 0, 0, 6, 0, 0] }, { label: 'stop', values: [1, 1, 1, 0, 0, 0, 0, 0] }],
+    }).capability;
+    await s.publishSkill(cap);
+    const skill = await s.recordLearningEvent({ type: 'skill-saved', scopeId: 'driver', evidence: { capabilityId: 'cap_drive-knn', key: 'cap_drive-knn@1', revision: 1 } });
+    assert.equal(skill.ok, true);
+    assert.equal(skill.claimed, true);
+    assert.equal((await s.readEconomy()).balance, 30);
+  } finally { restore(); }
+});
+
 test('ACTIVE_PROJECT_KEY is stable', () => {
   assert.equal(ACTIVE_PROJECT_KEY, 'passiona_active_project_v1');
 });

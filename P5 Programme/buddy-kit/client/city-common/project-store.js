@@ -386,6 +386,15 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     return { ...out, purchased };
   }
   async function recordLearningEvent(event, config) {
+    // The two existence-checked rewards are delegated here so the raw store
+    // primitive cannot mint what the dedicated methods refuse: a direct
+    // `recordLearningEvent({type:'skill-saved'|'tutorial-task'})` is held to the
+    // same envelope check as the shared `award()` door.
+    if (event?.type === 'skill-saved') return recordSkillSaved(event?.evidence?.key);
+    if (event?.type === 'tutorial-task') {
+      const fromScope = /^academy-room-(\d+)$/.exec(String(event?.scopeId ?? ''))?.[1];
+      return recordTutorialTask(event?.evidence?.room ?? fromScope);
+    }
     let claimed = false, amount = 0;
     const out = await economyMutation(current => {
       const result = ledgerRecordEvent(current.economy, event, config ? { config } : undefined);
