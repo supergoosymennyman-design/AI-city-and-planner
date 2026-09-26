@@ -4563,6 +4563,9 @@ function wireInput() {
   // cycle: enter select mode → tap a model → 🎯 to pick up → tap to place).
   document.getElementById('btn-next').addEventListener('click', () => {
     if (!grab) return;
+    // After placing a model the placement overlay still owns the pointer, so
+    // without leaving placement first this button (and any model tap) looks dead.
+    if (propLibrary?.isPlacing?.()) propLibrary.cancelPlacement?.();
     if (grab.mode !== 'idle') {
       grab.grabOrPlace();           // carrying → drop/place
       return;
@@ -5820,7 +5823,9 @@ async function bootInner() {
     focusedUI = mountFocusedCityUI({ propLibrary, myWork, onModeChange: (mode) => {
       selectMode = mode === 'decorate';
       if (mode === 'decorate') clearInput();
-      if (mode === 'explore') grab?.clearSelection?.();
+      // Leaving Decorate must also end any placement: its overlay owns the
+      // pointer and would otherwise keep swallowing taps in Explore.
+      if (mode === 'explore') { propLibrary?.cancelPlacement?.(); grab?.clearSelection?.(); }
     }});
     window.__focusedCityUI = focusedUI;
   });

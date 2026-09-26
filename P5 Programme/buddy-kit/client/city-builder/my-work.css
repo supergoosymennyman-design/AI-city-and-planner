@@ -140,6 +140,14 @@ body[data-city-mode="decorate"] #prop-toggle::after { content:' Models'; margin-
 body[data-city-mode="decorate"] #btn-next { left:146px !important; }
 body[data-city-mode="decorate"] #btn-next::after { content:' Select / Move'; margin-left:7px; font-weight:800; }
 
+/* The Decorate bar must stay ABOVE the placement overlay (z-index 2147483390),
+   otherwise its controls cannot be tapped while a placement is active and the
+   Select / Move button looks dead after a model is dropped. */
+body[data-city-mode="decorate"] #prop-toggle,
+body[data-city-mode="decorate"] #btn-next {
+  z-index: 2147483480 !important;
+}
+
 #btn-drive { display:none; } /* Nearby drive affordance may reveal this via data-contextual. */
 #btn-drive[data-contextual="true"] { display:flex; }
 #actions-tray { position:relative; }

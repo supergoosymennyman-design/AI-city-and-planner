@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Model Studio — edit for AI City</title>
+    <style>
+      :root{--bg:#0c1622;--panel:#14212e;--line:#2a4a5e;--ink:#eef5f8;--muted:#9fb2c4;--accent:#00c2d1;--jade:#00e0a4}
+      *{box-sizing:border-box}
+      html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,"Segoe UI",sans-serif;overflow:hidden}
+      #view{position:fixed;inset:0}
+      aside{position:fixed;z-index:2;left:16px;top:16px;width:min(360px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;
+        background:rgba(20,33,46,.94);border:1px solid var(--line);border-radius:16px;padding:16px}
+      h1{font-size:18px;margin:0 0 6px}
+      p{margin:0 0 10px;color:var(--muted);font-size:13px}
+      .row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+      button,label.file{min-height:48px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#1b2c3b;color:var(--ink);font:700 15px inherit;cursor:pointer}
+      button:focus-visible,label.file:focus-within{outline:3px solid #ffd23c;outline-offset:2px}
+      button.primary{background:var(--jade);color:#04241c;border-color:var(--jade)}
+      button:disabled{opacity:.5;cursor:not-allowed}
+      input[type=color]{width:48px;height:48px;padding:2px;border-radius:10px;border:1px solid var(--line);background:#0e1b26}
+      #status{display:block;margin-top:10px;font-size:14px;color:#bfe6df;min-height:1.2em}
+      .legend{position:fixed;right:16px;bottom:16px;z-index:2;color:var(--muted);font-size:12px;text-align:right}
+    </style>
+  </head>
+  <body>
+    <div id="view"></div>
+    <aside>
+      <h1 data-t="title">Edit for AI City</h1>
+      <p data-t="intro">Move, tint or add a part, then save it back to your city.</p>
+      <div class="row">
+        <button type="button" data-mode="translate" data-t="move">Move</button>
+        <button type="button" data-mode="rotate" data-t="rotate">Rotate</button>
+        <button type="button" data-mode="scale" data-t="scale">Scale</button>
+      </div>
+      <div class="row">
+        <input id="tint" type="color" value="#00bda8" aria-label="Tint" />
+        <label class="file"><input id="parts" type="file" accept=".glb,model/gltf-binary" hidden /><span data-t="addPart">Add a part</span></label>
+        <button type="button" id="undo" data-t="undo">Undo</button>
+        <button type="button" id="redo" data-t="redo">Redo</button>
+      </div>
+      <div class="row">
+        <button type="button" id="cancel" data-t="cancel">Back to my city</button>
+        <button type="button" id="save" class="primary" data-t="save">Save to my city</button>
+      </div>
+      <span id="status" role="status">Opening your model…</span>
+    </aside>
+    <div class="legend" data-t="legend">Drag to orbit · scroll to zoom · click a part to select</div>
+    <script type="module" src="/src/model-entry.js"></script>
+  </body>
+</html>

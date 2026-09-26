@@ -32,6 +32,7 @@ import { vehicleTargetLength } from '../city-common/vehicle-scale.js';
 import { itemTargetBounds, uniformScaleForBounds } from '../city-common/model-scale.js';
 import { CUSTOM_MODEL_PREFIX, customModelStore, readCustomManifest, writeCustomManifest, validateGLB } from '../city-common/custom-models.js';
 import { newModelTransferId, saveModelTransfer, consumeModelTransfer } from '../city-common/model-transfer.js';
+import { CF_KEYS } from '../city-common/champion-file.js';
 import { createCommandHistory } from '../city-common/command-history.js';
 import { SKILL_HOST_PREFIX, SKILL_HOSTS, skillHostItem, newSkillHostRecord, createSkillHostRoot, editSkillHostDialog, workshopUrl } from './skill-hosts.js';
 
@@ -759,8 +760,18 @@ export function mountPropLibrary(opts) {
     if (action === 'fit-studio') {
       const p=selectedProp(), item=itemFor(p?.record.id); if(!p||!item||p.record.locked||item.landmark)return;
       (async()=>{try{
+        // Return to the SAME city and mode: `mode=decorate` lands back on the
+        // selection bar, `resume`/`example` reopens the layout the child was in
+        // instead of the entry screen.
+        const here=new URL(location.href);
+        here.searchParams.set('mode','decorate');
+        try { if(localStorage.getItem(CF_KEYS.layout)) here.searchParams.set('resume','1'); else here.searchParams.set('example','1'); } catch { /* entry screen is the fallback */ }
         const bytes=await bytesFor(p,item);if(!bytes)throw new Error('missing');
-        const transfer=await saveModelTransfer({id:newModelTransferId(),instanceId:p.record.instanceId,baseId:p.record.id,baseVisualSource:p.record.visualSource||null,sourceBytes:bytes,name:item.name||p.record.id,returnTo:location.href});
+        // Absolute GLB URL (library items may reference external textures); the
+        // Model Studio resolves them from this and embeds them on export.
+        let sourceUrl=null;
+        if(p.record.visualSource?.kind!=='custom'){ try{ sourceUrl=new URL(libraryUrl(item),location.href).href; }catch{ sourceUrl=null; } }
+        const transfer=await saveModelTransfer({id:newModelTransferId(),instanceId:p.record.instanceId,baseId:p.record.id,baseVisualSource:p.record.visualSource||null,sourceBytes:bytes,sourceUrl,name:item.name||p.record.id,returnTo:here.href});
         const u=new URL('../studio/model.html',location.href);u.searchParams.set('transfer',transfer.id);location.assign(u.href);
       }catch{toast('This model is not available on this device yet.',true);}})();return;
     }
@@ -1002,7 +1013,9 @@ export function mountPropLibrary(opts) {
     panel.classList.remove('open');
   }
   button.addEventListener('click', () => {
-    if (state.placing) return;      // toolbar is in charge during placement
+    // While placing, the full-screen overlay sits over this button's siblings and
+    // eats the pointer. Leaving placement first keeps the Models button usable.
+    if (state.placing) exitPlacement();
     if (state.panelOpen) closePanel(); else openPanel();
   });
   clearBtn.addEventListener('click', () => {
@@ -1189,9 +1202,10 @@ export function mountPropLibrary(opts) {
       p.record={...p.record,visualSource:{kind:'custom',modelId},studioHistory:[...(p.record.studioHistory||[]),p.record.visualSource||null].slice(-5)};
       removeMesh(p); const item=itemFor(p.record.id);
       if(item?.host)await projectSkillHost(p);else { const model=await loadCustom(customItem(modelId));if(model)project(p,model); }
+      selectedUid=p.uid;   // keep the edited object selected so its inspector is right there
       commitRecords(before);renderInspector();toast('Saved to this city object. Undo is ready here.');
-      const clean=new URL(location.href);clean.searchParams.delete('studioTransfer');history.replaceState({},'',clean.href);
-    } catch { toast('Your Model Studio draft could not be restored. The original is safe.',true); }
+      const clean=new URL(location.href);clean.searchParams.delete('studioTransfer');window.history.replaceState({},'',clean.href);
+    } catch (e) { console.warn('[prop-library] Model Studio return failed', e); toast('Your Model Studio draft could not be restored. The original is safe.',true); }
   })();
 
   const api = {
@@ -1200,6 +1214,9 @@ export function mountPropLibrary(opts) {
     isOpen: () => state.panelOpen,
     isPlacing: () => state.placing,
     isReadyToPlace: () => !!state.placing && !!state.current?.ghostModel,
+    /** Leave placement mode (the full-screen overlay otherwise owns the pointer,
+     *  which is what made the Decorate bar look dead after a drop). */
+    cancelPlacement: () => exitPlacement(),
     getCount: () => state.placed.length,
     getRecords: () => state.placed.map((p) => ({ ...p.record })),
     getSafetyRepair: () => safetyRepair && { moved: safetyRepair.moved },

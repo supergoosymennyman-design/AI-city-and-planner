@@ -66,6 +66,9 @@ export function mountFocusedCityUI({ propLibrary, myWork, onModeChange = () => {
 
   const onKey = event => {
     if (event.key !== 'Escape') return;
+    // A placement in progress owns Escape first: leave it before closing panels
+    // or dropping out of Decorate (its overlay otherwise keeps the pointer).
+    if (propLibrary?.isPlacing?.()) { propLibrary.cancelPlacement?.(); lastModeButton?.focus?.(); return; }
     if (propLibrary?.isOpen?.() || myWork?.isOpen?.()) {
       closePanel(null); onPanelClose(); lastModeButton?.focus?.(); return;
     }
