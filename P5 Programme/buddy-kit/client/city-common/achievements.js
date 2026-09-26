@@ -34,6 +34,10 @@ function hasClaim(economy, type, challengeId) {
  */
 export function badgeAchievement(project) {
   const economy = project?.economy;
+  // The ladder is TIER-level, not per-challenge: each rung must be evidenced
+  // somewhere in the project before a higher rung is granted. (Owner decision —
+  // a tier is a statement about the child's demonstrated practice, not a
+  // per-machine checklist; don't tighten this to per-challenge without asking.)
   const connected = CHALLENGE_IDS.filter((id) => installationEntries(project, id).length > 0);
   const tested = CHALLENGE_IDS.filter((id) => evidenceOf(economy, 'held-out-eval', id));
   const limits = CHALLENGE_IDS.filter((id) => evidenceOf(economy, 'abstain-demo', id));

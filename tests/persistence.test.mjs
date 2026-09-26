@@ -49,11 +49,28 @@ test('a device seen before is remembered, and an empty envelope is detected', ()
   assert.equal(envelopeIsEmpty(empty, { city: {}, workshop: {} }), true);
   assert.equal(envelopeIsEmpty({ ...empty, balance: 10 }, {}), false);
   assert.equal(envelopeIsEmpty(empty, { city: { legacyState: {} } }), false);
+  // The envelope books count as work too, not just the wallet and sections.
+  assert.equal(envelopeIsEmpty(empty, {}, { capabilities: { 'cap@1': {} } }), false);
+  assert.equal(envelopeIsEmpty(empty, {}, { installations: { host: {} } }), false);
+  assert.equal(envelopeIsEmpty(empty, {}, { challenges: { version: 1, runs: { driver: { a: {} } } } }), false);
+  assert.equal(envelopeIsEmpty(empty, {}, { progress: { tutorialRooms: { 1: true } } }), false);
+  // Bookkeeping-only progress is NOT work.
+  assert.equal(envelopeIsEmpty(empty, {}, { progress: { economyMigrated: true, lastWorkspace: 'city' } }), true);
 });
+
+function projectStore(over = {}) {
+  const project = {
+    economy: { balance: 0, owned: [], claimed: [], transactions: [] },
+    projects: {}, capabilities: {}, installations: {},
+    challenges: { version: 1, runs: {} }, progress: {},
+    ...over,
+  };
+  return { openActiveProject: async () => project };
+}
 
 test('checkEnvelopeHealth offers a restore only on a returning, empty device', async () => {
   const storage = fakeStorage();
-  const emptyStore = { readEconomy: async () => ({ balance: 0, owned: [], claimed: [], transactions: [] }), readSection: async () => ({}) };
+  const emptyStore = projectStore();
 
   // First ever boot: not returning, so no offer.
   assert.deepEqual(await checkEnvelopeHealth(emptyStore, { storage }), { returning: false, empty: true, needsRestore: false });
@@ -62,18 +79,27 @@ test('checkEnvelopeHealth offers a restore only on a returning, empty device', a
   markDeviceSeen(storage);
   assert.deepEqual(await checkEnvelopeHealth(emptyStore, { storage }), { returning: true, empty: true, needsRestore: true });
 
-  // Seen before + real work: no offer.
-  const fullStore = { readEconomy: async () => ({ balance: 30, owned: [], claimed: ['x'], transactions: [] }), readSection: async () => ({}) };
-  assert.deepEqual(await checkEnvelopeHealth(fullStore, { storage }), { returning: true, empty: false, needsRestore: false });
+  // Seen before + real work of ANY kind: no offer.
+  const withWallet = projectStore({ economy: { balance: 30, owned: [], claimed: ['x'], transactions: [] } });
+  assert.deepEqual(await checkEnvelopeHealth(withWallet, { storage }), { returning: true, empty: false, needsRestore: false });
+  const withCap = projectStore({ capabilities: { 'cap@1': {} } });
+  assert.deepEqual(await checkEnvelopeHealth(withCap, { storage }), { returning: true, empty: false, needsRestore: false });
+  const withRoom = projectStore({ progress: { tutorialRooms: { 1: true } } });
+  assert.deepEqual(await checkEnvelopeHealth(withRoom, { storage }), { returning: true, empty: false, needsRestore: false });
+
+  // A store without openActiveProject falls back to the section reads.
+  const legacyStore = { readEconomy: async () => ({ balance: 0, owned: [], claimed: [], transactions: [] }), readSection: async () => ({}) };
+  assert.deepEqual(await checkEnvelopeHealth(legacyStore, { storage }), { returning: true, empty: true, needsRestore: true });
 });
 
 test('bootDurability requests persistence, marks the device, and fires the offer', async () => {
   const storage = fakeStorage();
-  const store = { readEconomy: async () => ({ balance: 0, owned: [], claimed: [], transactions: [] }), readSection: async () => ({}) };
+  const store = projectStore();
   markDeviceSeen(storage);
   let offered = 0;
   const out = await bootDurability(store, { storage, nav: {}, onNeedsRestore: () => { offered += 1; } });
   assert.equal(out.persistence.supported, false);
+  assert.equal(out.storageEstimate, null);
   assert.equal(out.needsRestore, true);
   assert.equal(offered, 1);
 

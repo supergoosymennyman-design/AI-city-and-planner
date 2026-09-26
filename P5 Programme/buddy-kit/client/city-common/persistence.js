@@ -56,15 +56,35 @@ export function isReturningDevice(storage = safeStorage()) {
   catch { return false; }
 }
 
-/** True when there is no wallet activity and no workspace section to lose. */
-export function envelopeIsEmpty(economy, sections = {}) {
+const isNonEmptyObject = (value) => !!value && typeof value === 'object' && Object.keys(value).length > 0;
+
+// `progress` holds bookkeeping flags that are not student work; ignore those so
+// a project that only ran a migration is still "empty".
+const PROGRESS_BOOKKEEPING = new Set(['economyMigrated', 'economyMigratedAt', 'lastWorkspace', 'lastWorkspaceAt']);
+function progressHasWork(progress) {
+  if (!progress || typeof progress !== 'object') return false;
+  if (isNonEmptyObject(progress.tutorialRooms)) return true;
+  return Object.keys(progress).some((key) => !PROGRESS_BOOKKEEPING.has(key));
+}
+
+/**
+ * True when there is no student work to lose — not just no wallet activity, but
+ * no capabilities, installations, challenge runs, tutorial rooms, or workspace
+ * section either. `sections` is the `project.projects` map; `extra` carries the
+ * envelope books a caller has already read.
+ */
+export function envelopeIsEmpty(economy, sections = {}, extra = {}) {
   const hasWallet = !!economy && (
     Number(economy.balance) > 0
     || (economy.owned?.length || 0) > 0
     || (economy.claimed?.length || 0) > 0
     || (economy.transactions?.length || 0) > 0
   );
-  const hasWork = Object.values(sections || {}).some((section) => section && typeof section === 'object' && Object.keys(section).length > 0);
+  const hasWork = Object.values(sections || {}).some(isNonEmptyObject)
+    || isNonEmptyObject(extra.capabilities)
+    || isNonEmptyObject(extra.installations)
+    || isNonEmptyObject(extra.challenges?.runs)
+    || progressHasWork(extra.progress);
   return !hasWallet && !hasWork;
 }
 
@@ -74,20 +94,29 @@ export function envelopeIsEmpty(economy, sections = {}) {
  * @returns {Promise<{returning:boolean, empty:boolean, needsRestore:boolean}>}
  */
 export async function checkEnvelopeHealth(store, { storage = safeStorage() } = {}) {
-  let economy = null, sections = {};
-  try {
-    economy = await store?.readEconomy?.();
-    sections = {
-      city: await store?.readSection?.('city'),
-      workshop: await store?.readSection?.('workshop'),
-      studio: await store?.readSection?.('studio'),
-      planner: await store?.readSection?.('planner'),
-    };
-  } catch {
-    return { returning: isReturningDevice(storage), empty: false, needsRestore: false };
-  }
   const returning = isReturningDevice(storage);
-  const empty = envelopeIsEmpty(economy, sections);
+  let economy = null, sections = {}, extra = {};
+  try {
+    // Prefer the whole project, so capabilities/installations/challenges/progress
+    // count as work too — not only the workspace sections.
+    const project = await store?.openActiveProject?.();
+    if (project) {
+      economy = project.economy;
+      sections = project.projects || {};
+      extra = { capabilities: project.capabilities, installations: project.installations, challenges: project.challenges, progress: project.progress };
+    } else {
+      economy = await store?.readEconomy?.();
+      sections = {
+        city: await store?.readSection?.('city'),
+        workshop: await store?.readSection?.('workshop'),
+        studio: await store?.readSection?.('studio'),
+        planner: await store?.readSection?.('planner'),
+      };
+    }
+  } catch {
+    return { returning, empty: false, needsRestore: false };
+  }
+  const empty = envelopeIsEmpty(economy, sections, extra);
   return { returning, empty, needsRestore: returning && empty };
 }
 
@@ -98,13 +127,15 @@ export async function checkEnvelopeHealth(store, { storage = safeStorage() } = {
  */
 export async function bootDurability(store, { storage = safeStorage(), nav = globalThis.navigator, lang = 'en', onNeedsRestore = null } = {}) {
   const persistence = await requestPersistentStorage(nav);
+  const storageEstimate = await estimateStorage(nav);
   const health = await checkEnvelopeHealth(store, { storage });
   markDeviceSeen(storage);
   if (health.needsRestore) {
-    try { globalThis.dispatchEvent?.(new CustomEvent(ENVELOPE_EMPTY_EVENT, { detail: { lang, health } })); } catch { /* event optional */ }
-    try { await onNeedsRestore?.({ lang, health }); } catch { /* the offer must never block boot */ }
+    const detail = { lang, health, storageEstimate };
+    try { globalThis.dispatchEvent?.(new CustomEvent(ENVELOPE_EMPTY_EVENT, { detail })); } catch { /* event optional */ }
+    try { await onNeedsRestore?.(detail); } catch { /* the offer must never block boot */ }
   }
-  return { persistence, ...health };
+  return { persistence, storageEstimate, ...health };
 }
 
 let styleInjected = false;
@@ -113,7 +144,7 @@ function injectStyle(doc) {
   styleInjected = true;
   const style = doc.createElement('style');
   style.textContent = `
-    .passiona-restore-offer{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:2147483600;
+    .passiona-restore-offer{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:2147483600;
       max-width:min(92vw,520px);padding:14px 16px;border-radius:14px;background:#132433;color:#f8fafc;
       border:1px solid #607184;box-shadow:0 10px 30px rgba(0,0,0,.35);font:600 15px/1.4 system-ui,sans-serif}
     .passiona-restore-offer p{margin:0 0 10px}
