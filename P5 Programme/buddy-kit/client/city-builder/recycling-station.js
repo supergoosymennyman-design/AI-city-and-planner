@@ -351,8 +351,10 @@ function reportBatch({ kind, seed, results }) {
   if (installed) events.push({ type: 'city-install', evidence: { challengeId, installationId: skill.installationId, batch: kind, seed } });
   if (s.abstained > 0) events.push({ type: 'abstain-demo', evidence: { challengeId, source: 'recycling', batch: kind, seed, abstained: s.abstained } });
   const revision = Number(skill.cap?.revision || 1);
+  // `abstain-demo` additionally requires ≥1 CORRECT graded answer in this same
+  // run, so pass the batch's correct count explicitly (not just the abstentions).
   Promise.resolve()
-    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind, seed }, results, abstained: s.abstained }, events))
+    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind, seed }, results, abstained: s.abstained, correctCount: s.correct, gradedCount: s.total - s.abstained }, events))
     .catch(() => { /* a missing wallet must never break the run */ });
 }
 

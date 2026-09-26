@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createProjectStore, migrateEconomyFromChampion, normalizeProject, ACTIVE_PROJECT_KEY } from '../P5 Programme/buddy-kit/client/city-common/project-store.js';
+import { createProjectStore, createProject, migrateEconomyFromChampion, normalizeProject, applyChallengeOutcome, ACTIVE_PROJECT_KEY } from '../P5 Programme/buddy-kit/client/city-common/project-store.js';
 import { buildCapabilityV2, buildDriveCapability } from '../P5 Programme/buddy-kit/client/city-common/capability-export.js';
+import { publishCapability, installSkill } from '../P5 Programme/buddy-kit/client/city-common/skill-registry.js';
 
 // --- A tiny in-memory IndexedDB sufficient for project-store.js --------------
 // Real IDB is exercised in the browser harness; this proves the STORE's own
@@ -163,6 +164,44 @@ test('the envelope publishes, installs, and runs a skill through the store', asy
 
 test('ACTIVE_PROJECT_KEY is stable', () => {
   assert.equal(ACTIVE_PROJECT_KEY, 'passiona_active_project_v1');
+});
+
+test('applyChallengeOutcome is pure, existence-checked, and gates abstain-demo on a correct answer', () => {
+  const project = createProject('Pure');
+  const cap = buildDriveCapability({
+    id: 'cap_drive-knn', name: 'Drive', k: 1, threshold: 0.5,
+    examples: [{ label: 'forward', values: [9, 9, 9, 0, 0, 6, 0, 0] }, { label: 'stop', values: [1, 1, 1, 0, 0, 0, 0, 0] }],
+  }).capability;
+  publishCapability(project, cap);
+  installSkill(project, 'cap_drive-knn@1', 'host-car', { hostType: 'driver' });
+  const snapshot = JSON.stringify(project);
+
+  // Held-out evidence mints, and the input project is never mutated (pure).
+  const held = applyChallengeOutcome(project, 'driver',
+    { revision: 1, scenario: { kind: 'track', seed: 'full' }, gradedIds: ['goal'], wrongIds: [] },
+    [{ type: 'held-out-eval', evidence: { trackId: 'full' } }]);
+  assert.deepEqual(held.claimed.map((c) => c.type), ['held-out-eval']);
+  assert.equal(held.project.economy.balance, 30);
+  assert.equal(JSON.stringify(project), snapshot, 'applyChallengeOutcome must not mutate its input');
+
+  // Abstaining without a single correct answer is not an honest "not sure" demo.
+  const noCorrect = applyChallengeOutcome(project, 'driver',
+    { revision: 1, scenario: { kind: 'track', seed: 'full' }, gradedIds: ['goal'], wrongIds: ['goal'], abstained: 2, correctCount: 0 },
+    [{ type: 'abstain-demo', evidence: { source: 'test-track' } }]);
+  assert.deepEqual(noCorrect.claimed, []);
+
+  // The same abstention WITH a correct answer in the run does mint.
+  const withCorrect = applyChallengeOutcome(project, 'driver',
+    { revision: 2, scenario: { kind: 'track', seed: 'full' }, gradedIds: ['goal'], wrongIds: [], abstained: 1, correctCount: 1 },
+    [{ type: 'abstain-demo', evidence: { source: 'test-track' } }]);
+  assert.deepEqual(withCorrect.claimed.map((c) => c.type), ['abstain-demo']);
+
+  // A recycling-style batch derives its correct count from the results.
+  const derived = applyChallengeOutcome(project, 'driver',
+    { revision: 1, scenario: { kind: 'normal', seed: 1 }, abstained: 1, results: [
+      { id: 'a', decision: 'forward', truth: 'forward' }, { id: 'b', abstained: true } ] },
+    [{ type: 'abstain-demo', evidence: { source: 'recycling' } }]);
+  assert.deepEqual(derived.claimed.map((c) => c.type), ['abstain-demo']);
 });
 
 test('skill-saved and tutorial-task require the envelope to back them', async () => {

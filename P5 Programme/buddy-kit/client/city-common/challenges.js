@@ -105,6 +105,13 @@ export function gradedIdsOf(results) {
     .map((r) => r.id);
 }
 
+/** Items the model ANSWERED CORRECTLY (ground truth known, not abstained, matching). */
+export function correctIdsOf(results) {
+  return (results || [])
+    .filter((r) => r && r.id && !r.abstained && r.truth != null && r.decision === r.truth)
+    .map((r) => r.id);
+}
+
 /**
  * A newer revision that makes a previously-wrong item right on the SAME recorded
  * scenario. Requires the item to be graded again — an item that simply vanished

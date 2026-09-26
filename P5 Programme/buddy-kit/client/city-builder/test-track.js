@@ -411,8 +411,12 @@ function reportTrial() {
   const revision = Number(skill.cap?.revision || 1);
   const gradedIds = ['goal'];
   const wrongIds = trial.outcome === 'goal' ? [] : ['goal'];
+  // The goal is the run's single graded item; `abstain-demo` needs both an
+  // abstention AND a correct graded answer in the same run, so a trial that
+  // never reached the goal cannot demonstrate "I know when I'm unsure".
+  const correctCount = trial.outcome === 'goal' ? 1 : 0;
   Promise.resolve()
-    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind: 'track', seed: trackId }, gradedIds, wrongIds, abstained }, events))
+    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind: 'track', seed: trackId }, gradedIds, wrongIds, abstained, correctCount }, events))
     .catch(() => { /* a missing wallet must never break the trial */ });
 }
 

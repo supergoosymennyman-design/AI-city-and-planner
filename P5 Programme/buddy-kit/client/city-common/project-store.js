@@ -7,7 +7,7 @@
 import { CF_KEYS, collectState, writeState, composeChampionFile, sanitizeChampionFile } from './champion-file.js';
 import { emptyEconomy, normalizeEconomy, applyTransaction, purchaseItem as ledgerPurchaseItem, recordLearningEvent as ledgerRecordEvent } from './ledger.js';
 import { publishCapability, capabilityOfPublished, installSkill as registryInstallSkill, runSkill as registryRunSkill } from './skill-registry.js';
-import { recordRun as challengeRecordRun, normalizeChallengeRuns, wrongIdsOf, gradedIdsOf, challengeOfCapability } from './challenges.js';
+import { recordRun as challengeRecordRun, normalizeChallengeRuns, wrongIdsOf, gradedIdsOf, correctIdsOf, challengeOfCapability } from './challenges.js';
 import { promoteFromEvidence } from './achievements.js';
 import { statueStatus } from './statues.js';
 import { writeBadges } from './badges.js';
@@ -151,6 +151,78 @@ export function simpleHash(text) { let h = 2166136261; for (let i = 0; i < text.
 export function simpleHashBytes(bytes) { let h = 2166136261; for (const byte of bytes) { h ^= byte; h = Math.imul(h, 16777619); } return `fnv1a-${(h >>> 0).toString(16)}`; }
 function bytesToBase64(bytes) { let binary = ''; const step = 0x8000; for (let i = 0; i < bytes.length; i += step) binary += String.fromCharCode(...bytes.subarray(i, i + step)); return typeof btoa === 'function' ? btoa(binary) : Buffer.from(binary, 'binary').toString('base64'); }
 function base64ToBytes(value) { const binary = typeof atob === 'function' ? atob(value || '') : Buffer.from(value || '', 'base64').toString('binary'); const out = new Uint8Array(binary.length); for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i); return out; }
+
+/**
+ * The NON-transactional body of a challenge outcome, extracted so it can be
+ * unit-tested without IndexedDB. PURE: returns a NEW project; the input is never
+ * mutated. The evidence-EXISTENCE checks stay in here, which is why the store
+ * calls this INSIDE its `mutate` transaction (never above it — that would
+ * reintroduce a time-of-check/time-of-use gap).
+ *
+ * @returns {{project:object, claimed:Array, fixedIds:string[], previousRevision:number|null,
+ *   badgeState:object, badgeTier:string|null}}
+ */
+export function applyChallengeOutcome(current, challengeId, outcome = {}, events = [], { at = null } = {}) {
+  const project = clone(current);
+  normalizeProject(project);
+  const wrongIds = Array.isArray(outcome.wrongIds) ? outcome.wrongIds : wrongIdsOf(outcome.results);
+  const gradedIds = Array.isArray(outcome.gradedIds) ? outcome.gradedIds : gradedIdsOf(outcome.results);
+  const record = challengeRecordRun(project.challenges, {
+    challengeId, revision: outcome.revision, scenario: outcome.scenario, wrongIds, gradedIds,
+  });
+  project.challenges = record.state;
+  const fixedIds = record.fixedIds;
+  const previousRevision = record.previous ? (Number(record.previous.revision) || 1) : null;
+  const list = Array.isArray(events) ? events.map((ev) => ({ ...ev })) : [];
+  if (fixedIds.length) {
+    list.push({
+      type: 'revision-fixed',
+      evidence: {
+        challengeId, scenario: outcome.scenario || null, fixedIds,
+        fromRevision: previousRevision, toRevision: Number(outcome.revision) || 1,
+      },
+    });
+  }
+  // Evidence EXISTENCE is checked here, inside the caller's transaction, not
+  // trusted from the caller: an event only mints when the envelope really holds
+  // the capability, installation, or abstention it points at.
+  const caps = Object.values(project.capabilities || {});
+  const challengeCaps = caps.filter((c) => challengeOfCapability(c) === challengeId);
+  const installs = Object.values(project.installations || {})
+    .filter((i) => project.capabilities?.[i.capabilityRef] && challengeOfCapability(project.capabilities[i.capabilityRef]) === challengeId);
+  const abstained = Number(outcome.abstained) || (Array.isArray(outcome.results) ? outcome.results.filter((r) => r && r.abstained).length : 0);
+  // An honest "not sure" demo only counts when the SAME run also got something
+  // right — abstaining on everything is not a demonstration of knowing limits.
+  const correctIds = Array.isArray(outcome.correctIds) ? outcome.correctIds : correctIdsOf(outcome.results);
+  const correctCount = Number.isFinite(outcome.correctCount)
+    ? Number(outcome.correctCount)
+    : (Array.isArray(outcome.correctIds) ? outcome.correctIds.length : correctIds.length);
+  const claimed = [];
+  for (const ev of list) {
+    if (!ev || !ev.type) continue;
+    let evidence = ev.evidence || {};
+    if (ev.type === 'held-out-eval') {
+      if (!challengeCaps.length) continue; // no runnable skill => no held-out evaluation
+    } else if (ev.type === 'city-install') {
+      if (!installs.length) continue; // not installed in the City => no City test
+      evidence = { ...evidence, installationId: installs[0].id }; // the REAL installation
+    } else if (ev.type === 'abstain-demo') {
+      if (abstained <= 0 || correctCount < 1) continue; // needs an abstention AND a correct answer in the same run
+    }
+    const res = ledgerRecordEvent(project.economy, { type: ev.type, scopeId: challengeId, evidence: { ...evidence, challengeId }, at });
+    if (res.ok) { project.economy = res.economy; if (res.claimed) claimed.push({ type: ev.type, amount: res.amount }); }
+  }
+  // Badges are promoted from the SAME evidence, in the SAME call. The envelope
+  // copy is authoritative; the legacy localStorage mirror is written by the
+  // store AFTER the transaction commits.
+  project.projects ||= {};
+  const promotion = promoteFromEvidence(project, project.projects.badges);
+  project.projects.badges = promotion.state;
+  return {
+    project, claimed, fixedIds, previousRevision,
+    badgeState: promotion.state, badgeTier: promotion.ok ? promotion.tier : null,
+  };
+}
 
 export function createProjectStore({ storage = safeStorage(), indexedDB = globalThis.indexedDB, channelName = 'passiona-projects' } = {}) {
   let active = null, dbPromise = null, channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(channelName) : null;
@@ -428,57 +500,12 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
   async function recordChallengeOutcome(challengeId, outcome = {}, events = [], { at = null } = {}) {
     let claimed = [], fixedIds = [], previousRevision = null, badgeTier = null, badgeState = null;
     const result = await mutate(current => {
-      normalizeProject(current);
-      const wrongIds = Array.isArray(outcome.wrongIds) ? outcome.wrongIds : wrongIdsOf(outcome.results);
-      const gradedIds = Array.isArray(outcome.gradedIds) ? outcome.gradedIds : gradedIdsOf(outcome.results);
-      const record = challengeRecordRun(current.challenges, {
-        challengeId, revision: outcome.revision, scenario: outcome.scenario, wrongIds, gradedIds,
-      });
-      current.challenges = record.state;
-      fixedIds = record.fixedIds;
-      previousRevision = record.previous ? (Number(record.previous.revision) || 1) : null;
-      const list = Array.isArray(events) ? [...events] : [];
-      if (fixedIds.length) {
-        list.push({
-          type: 'revision-fixed',
-          evidence: {
-            challengeId, scenario: outcome.scenario || null, fixedIds,
-            fromRevision: previousRevision, toRevision: Number(outcome.revision) || 1,
-          },
-        });
-      }
-      // Evidence EXISTENCE is checked here, inside the transaction, not trusted
-      // from the caller: an event only mints when the envelope really holds the
-      // capability, installation, or abstention it points at.
-      const caps = Object.values(current.capabilities || {});
-      const challengeCaps = caps.filter((c) => challengeOfCapability(c) === challengeId);
-      const installs = Object.values(current.installations || {})
-        .filter((i) => current.capabilities?.[i.capabilityRef] && challengeOfCapability(current.capabilities[i.capabilityRef]) === challengeId);
-      const abstained = Number(outcome.abstained) || (Array.isArray(outcome.results) ? outcome.results.filter((r) => r && r.abstained).length : 0);
-      for (const ev of list) {
-        if (!ev || !ev.type) continue;
-        let evidence = ev.evidence || {};
-        if (ev.type === 'held-out-eval') {
-          if (!challengeCaps.length) continue; // no runnable skill => no held-out evaluation
-        } else if (ev.type === 'city-install') {
-          if (!installs.length) continue; // not installed in the City => no City test
-          evidence = { ...evidence, installationId: installs[0].id }; // the REAL installation
-        } else if (ev.type === 'abstain-demo') {
-          if (abstained <= 0) continue; // nothing abstained => nothing to demonstrate
-        }
-        const res = ledgerRecordEvent(current.economy, { type: ev.type, scopeId: challengeId, evidence: { ...evidence, challengeId }, at });
-        if (res.ok) { current.economy = res.economy; if (res.claimed) claimed.push({ type: ev.type, amount: res.amount }); }
-      }
-      // Badges are promoted from the SAME evidence, in the SAME transaction. The
-      // envelope copy is authoritative; the legacy localStorage MIRROR is written
-      // AFTER the transaction commits (below), so a rolled-back change can never
-      // desync the mirror.
-      current.projects ||= {};
-      const promotion = promoteFromEvidence(current, current.projects.badges);
-      current.projects.badges = promotion.state;
-      badgeState = promotion.state;
-      badgeTier = promotion.ok ? promotion.tier : null;
-      return current;
+      // The pure body runs INSIDE the transaction, so the evidence-existence
+      // checks and the writes they gate are one atomic unit.
+      const applied = applyChallengeOutcome(current, challengeId, outcome, events, { at });
+      claimed = applied.claimed; fixedIds = applied.fixedIds; previousRevision = applied.previousRevision;
+      badgeState = applied.badgeState; badgeTier = applied.badgeTier;
+      return applied.project;
     }, { reason: `challenge:${challengeId}`, versioned: true });
     if (result.ok && badgeState) mirrorBadges({ projects: { badges: badgeState } });
     return { ...result, claimed, fixedIds, previousRevision, badgeTier };
