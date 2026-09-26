@@ -283,6 +283,37 @@ the stricter ladder in `tests/achievements.test.mjs`, and the `migration.spec.mj
 (an older serialized envelope upgrades and still earns) and `two-tab-wallet.spec.mjs`
 (two pages, one context, no lost award and no double-spend) browser specs.
 
+### City → Model Studio → City model editing (follow-up)
+
+- **Decorate Select/Move works during and after placement.** The placement overlay
+  is a full-screen pointer boundary (`z-index: 2147483390`) that covered the
+  Decorate bar, so "Select / Move" and any model tap looked dead after a model was
+  dropped (the child had to find the small "✓ Done" pill). The bar now sits above
+  the overlay, Select/Move leaves placement first (`propLibrary.cancelPlacement`),
+  the Models button does too, Escape leaves a pending placement before it leaves
+  Decorate, and switching to Explore cancels placement.
+- **The same-origin Model Studio page did not exist.** The City's "Edit model in
+  Fit Studio" opened `/studio/model.html?transfer=…`, but the Vite Studio shipped
+  only `index.html` — the working `model.html` lived in the separate Fit Studio
+  origin, which cannot share the same-origin transfer IndexedDB. Added
+  `studio/model.html` + `studio/src/model-entry.js` as a second Vite entry, using
+  the SAME `city-common/model-transfer.js` store the City writes. The City's
+  return half (already built) now runs: it validates the returned GLB, stores it as
+  a device-local custom model, and swaps it onto that one placed object.
+- Return is seamless: the draft's `returnTo` resumes the same city
+  (`?resume=1`/`?example=1&mode=decorate`), the edited object is re-selected so its
+  inspector is right there, and the `studioTransfer` query param is cleaned so a
+  refresh cannot replay.
+- Library GLBs that reference external textures carry an absolute `sourceUrl` in
+  the draft so the Model Studio resolves and EMBEDS them; the saved revision is
+  self-contained.
+- Fixed a latent `history` shadowing bug in the City return handler
+  (`history.replaceState` → `window.history.replaceState`): `history` is the
+  module's command-history object, so the call threw — invisible while the page
+  404'd.
+- Coverage: `P5 Programme/tests/e2e/city-model-edit.spec.mjs` (source: select,
+  resize, delete; built: the full City → Model Studio → City round-trip).
+
 ## GPT Sol handoff (plan §4 checklist)
 
 - **Changed areas:** `city-common/{challenges,skill-stages,achievements,statues,
@@ -308,7 +339,7 @@ node --test tests/*.test.mjs && npm run test:imports && npm run test:library && 
 E2E_PORT=8397 npx playwright test --config "P5 Programme/tests/e2e/playwright.config.mjs" \
   --project=chromium full-journey.spec.mjs recycling.spec.mjs test-track.spec.mjs wallet.spec.mjs \
   market-actions.spec.mjs project-hub.spec.mjs badges-capabilities.spec.mjs \
-  migration.spec.mjs two-tab-wallet.spec.mjs
+  migration.spec.mjs two-tab-wallet.spec.mjs city-model-edit.spec.mjs
 # built bundle
 E2E_DOCROOT="P5 Programme/deploy/city-sim" E2E_PORT=8398 npx playwright test \
   --config "P5 Programme/tests/e2e/playwright.config.mjs" --project=chromium full-journey.spec.mjs market-actions.spec.mjs wallet.spec.mjs
