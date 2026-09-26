@@ -157,8 +157,10 @@ Browser (source and built), all passing:
 
 Resolved since the first draft of this handoff: the ai-node bridge for envelope
 installations, the skill-socket write path, the one combined fresh-browser
-journey spec (`full-journey.spec.mjs`), the S5 dead-sensor UI control, and the
-Studio/Workshop envelope wallet adapter (S6c — below).
+journey spec (`full-journey.spec.mjs`), the S5 dead-sensor UI control, the
+Studio/Workshop envelope wallet adapter (S6c — below), and the full S6c hardening
+round (existence checks, badge ladder, two-tab proof, durability, migration and
+oversized-export proof — below).
 
 ## S6c — Studio/Workshop envelope wallet adapter (follow-up)
 
@@ -212,6 +214,75 @@ E2E_DOCROOT="P5 Programme/deploy/city-sim" E2E_PORT=8398 npx playwright test \
 ownership (and a replay cannot charge twice) → the Market reads the same balance;
 then the Workshop credits dialog shows the same envelope balance.
 
+## S6c hardening — the review findings closed (follow-up)
+
+On top of the adapter, a bounded remediation closed the remaining accepted review
+findings. Each landed as its own verified commit:
+
+| commit | scope |
+|---|---|
+| `4717240` | `feat(platform): existence-check skill-saved and tutorial-task (S6c)` |
+| `53fcb79` | `feat(platform): existence-check remaining rewards + badge ladder + store cleanup (S6c)` |
+| `42e828d` | `test(platform): two-tab concurrency proof for the shared wallet (S6c)` |
+| `7968730` | `feat(platform): storage durability + eviction restore offer (S6c)` |
+| `1eeb194` | `feat(platform): pure challenge-outcome, migration + oversized-export proof (S6c)` |
+
+**Existence checks.** `recordSkillSaved(capabilityKey)` refuses a key the envelope
+does not hold (or whose self-test fails), then mints `skill-saved` scoped to the
+capability's challenge. `recordTutorialTask(room)` refuses a room the project has
+not completed; `markTutorialRoom(room)` is the Academy's record. The shared door
+(`learning-events`) routes both types at these methods, so `award('skill-saved'…)`
+and `award('tutorial-task'…)` can no longer mint from stub evidence.
+
+**Badge ladder.** `badgeAchievement` now returns the highest tier only when the
+whole ladder below it is satisfied: Architect needs BOTH challenges installed AND a
+held-out evaluation AND an abstain demo; Auditor needs the held-out rung too. The
+abstain gate additionally requires ≥1 CORRECT graded answer in the same run (the
+recycling station and the City test track pass their counts explicitly).
+
+**Store hygiene.** `recordChallengeOutcome`'s non-transactional body is now the
+pure `applyChallengeOutcome(current, …)` (unit-tested without IDB); the store calls
+it INSIDE the `mutate` transaction, evidence-existence checks included (no TOCTOU).
+The badge mirror is written AFTER commit with a warning on failure; `readEconomy`,
+`readSection`, `readCapabilities`, `readInstallations`, `readChallenges` and
+`readAchievements` re-read IndexedDB instead of the cached copy; the `already-paid`
+ledger branch builds a NEW economy; `stageOf`'s self-test is memoised (a published
+revision is immutable, so the result is stable).
+
+**Durability.** `city-common/persistence.js` requests `navigator.storage.persist()`
+at boot from every shell (city-builder, planner, pregame, hub, market) and, on a
+returning device whose envelope is empty, offers the Champion File / cloud restore
+rather than silently starting from zero. CAVEAT: `persist()` is only a SUGGESTION —
+a browser may ignore it and iOS Safari can still evict after ~7 days. The Champion
+File (💾) and cloud codes (☁️) remain the real safety net.
+
+**Copy semantics (plan §3).** `copyProject` keeps the FULL clone: wallet, claimed
+rewards, achievements and progress all travel, and a copy is explicitly NOT
+eligible to re-earn (it carries the same `claimed` book). A copy is therefore an
+INDEPENDENT FORK with no single-project advantage — it cannot mint a second
+eligibility for any reward already claimed in the source.
+
+Verification (frozen tree):
+
+```bash
+node --test tests/*.test.mjs      # 572 pass / 0 fail
+npm run test:imports             # OK (171 files)
+npm run test:library             # PASS
+npm run build:city               # OK
+# source browser checks
+E2E_PORT=8397 npx playwright test --config "P5 Programme/tests/e2e/playwright.config.mjs" \
+  --project=chromium full-journey.spec.mjs recycling.spec.mjs test-track.spec.mjs \
+  wallet.spec.mjs market-actions.spec.mjs badges-capabilities.spec.mjs \
+  migration.spec.mjs two-tab-wallet.spec.mjs
+```
+
+New coverage: `tests/persistence.test.mjs` (6), `tests/project-export-oversized.test.mjs`
+(2 — a 24 MB three-model export round-trips every asset and all progress), the pure
+`applyChallengeOutcome` + existence-check tests in `tests/project-economy.test.mjs`,
+the stricter ladder in `tests/achievements.test.mjs`, and the `migration.spec.mjs`
+(an older serialized envelope upgrades and still earns) and `two-tab-wallet.spec.mjs`
+(two pages, one context, no lost award and no double-spend) browser specs.
+
 ## GPT Sol handoff (plan §4 checklist)
 
 - **Changed areas:** `city-common/{challenges,skill-stages,achievements,statues,
@@ -236,7 +307,8 @@ cd /Users/kai/Documents/AI-education-shrink
 node --test tests/*.test.mjs && npm run test:imports && npm run test:library && npm run build:city
 E2E_PORT=8397 npx playwright test --config "P5 Programme/tests/e2e/playwright.config.mjs" \
   --project=chromium full-journey.spec.mjs recycling.spec.mjs test-track.spec.mjs wallet.spec.mjs \
-  market-actions.spec.mjs project-hub.spec.mjs badges-capabilities.spec.mjs
+  market-actions.spec.mjs project-hub.spec.mjs badges-capabilities.spec.mjs \
+  migration.spec.mjs two-tab-wallet.spec.mjs
 # built bundle
 E2E_DOCROOT="P5 Programme/deploy/city-sim" E2E_PORT=8398 npx playwright test \
   --config "P5 Programme/tests/e2e/playwright.config.mjs" --project=chromium full-journey.spec.mjs market-actions.spec.mjs wallet.spec.mjs

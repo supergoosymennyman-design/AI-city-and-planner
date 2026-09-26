@@ -1,5 +1,12 @@
 # Continuation prompt — Passiona Studio/Workshop wallet adapter
 
+> **RETIRED — the job is done.** This document was a checklist for the S6c
+> Studio/Workshop envelope wallet adapter. That work landed as
+> `f704594 feat(platform): Studio/Workshop envelope wallet adapter (S6c)` and was
+> verified by an independent pass (561 unit tests, `studio-wallet.spec.mjs`, the
+> built Studio bundle). Kept for historical context only — do NOT run this prompt
+> again. See the S6c sections of `deepseek-s6-handoff.md` for the shipped result.
+
 Copy the block below into a fresh session. It is self-contained: the new session
 has no memory of the prior conversation.
 
