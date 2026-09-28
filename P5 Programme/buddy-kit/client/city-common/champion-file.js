@@ -30,6 +30,8 @@ export const CF_KEYS = {
   props: 'hk_ai_city_props_citybuilder_v1',
   skin: 'hk_ai_city_skin_v2',
   accessories: 'hk_ai_city_accessories_v1',
+  championFinish: 'hk_ai_city_champion_finish_v1',
+  hostAppearance: 'hk_ai_city_host_upgrade_v1',
   unlockedSkins: 'hk_ai_city_unlocked_skins_v1',
   lang: 'hk_ai_city_lang_v1',
   plannerUnlocked: 'p5_planner_unlocked',

@@ -42,30 +42,27 @@ export function badgeAchievement(project) {
   const tested = CHALLENGE_IDS.filter((id) => evidenceOf(economy, 'held-out-eval', id));
   const limits = CHALLENGE_IDS.filter((id) => evidenceOf(economy, 'abstain-demo', id));
 
-  // architect — composed BOTH skills into the City, on top of the WHOLE ladder
-  // below it: every rung must already be satisfied (a machine that was tested,
-  // and one whose limits were found). Connected-but-untested cannot jump to the top.
+  const measurements = (ids, event = 'held-out-eval') => {
+    const rows = ids.map(id => evidenceOf(economy, event, id)).filter(Boolean);
+    const itemRows = rows.filter(r => Number.isFinite(r.total));
+    const stepRows = rows.filter(r => Number.isFinite(r.steps));
+    const total = rows.reduce((n,r) => n + (Number.isFinite(r.total) ? r.total : Number.isFinite(r.steps) ? r.steps : 0), 0);
+    const measured = rows.length > 0 && rows.every(r => Number.isFinite(r.abstained) && (Number.isFinite(r.total) || Number.isFinite(r.steps)));
+    return {
+      heldOut: itemRows.length ? itemRows.reduce((n,r) => n+r.total,0) : null,
+      steps: stepRows.length ? stepRows.reduce((n,r) => n+r.steps,0) : null,
+      abstainRate: measured && total > 0 ? rows.reduce((n,r) => n+r.abstained,0)/total : null,
+      threshold: null, qualifyingEvidence: true,
+    };
+  };
   if (connected.length === CHALLENGE_IDS.length && tested.length > 0 && limits.length > 0) {
-    const total = connected.reduce((n, id) => n + installationEntries(project, id).length, 0);
-    return { tier: 'architect', evidence: { heldOut: total, abstainRate: null, threshold: null, challenges: [...connected] } };
+    return { tier: 'architect', evidence: { ...measurements(tested), installations: connected.reduce((n,id) => n+installationEntries(project,id).length,0), challenges: [...connected] } };
   }
-
-  // auditor — found the limits with an honest "not sure", which only counts once
-  // a held-out evaluation exists to find them in (the rung below).
   if (limits.length > 0 && tested.length > 0) {
-    const id = limits[0];
-    const demo = evidenceOf(economy, 'abstain-demo', id);
-    const abstained = Number(demo.abstained) || 1;
-    return { tier: 'auditor', evidence: { heldOut: abstained, abstainRate: 1, threshold: null, challengeId: id } };
+    return { tier: 'auditor', evidence: { ...measurements(limits, 'abstain-demo'), challengeId: limits[0] } };
   }
-
-  // skeptic — ran a held-out evaluation and inspected it.
   if (tested.length > 0) {
-    const id = tested[0];
-    const held = evidenceOf(economy, 'held-out-eval', id);
-    const heldOut = Number(held.total) || Number(held.steps) || 1;
-    const abstained = Number(held.abstained) || 0;
-    return { tier: 'skeptic', evidence: { heldOut, abstainRate: heldOut ? Math.round((abstained / heldOut) * 100) / 100 : null, threshold: null, challengeId: id } };
+    return { tier: 'skeptic', evidence: { ...measurements([tested[0]]), challengeId: tested[0] } };
   }
 
   return { tier: null, evidence: {} };
@@ -100,9 +97,9 @@ export function badgeEvidenceHTML(state, lang = 'en') {
     const tier = TIERS.find((t) => t.id === b.id);
     const e = b.evidence || {};
     const fields = [
-      ['held-out items', 'heldOut'], ['not-sure rate', 'abstainRate'], ['challenges', 'challenges'],
-    ].filter(([, k]) => e[k] != null)
-      .map(([label, k]) => `<span>${label}: ${Array.isArray(e[k]) ? e[k].join(', ') : String(e[k])}</span>`).join('');
+      [zh ? '測試例子' : 'held-out items', 'heldOut'], [zh ? '駕駛步數' : 'driving steps', 'steps'], [zh ? '不確定比率' : 'not-sure rate', 'abstainRate'], [zh ? '已安裝技能' : 'installations', 'installations'], [zh ? '挑戰' : 'challenges', 'challenges'],
+    ].filter(([, k]) => e[k] != null || k === 'abstainRate')
+      .map(([label, k]) => `<span>${label}: ${e[k] == null ? (zh ? '未有測量' : 'Not measured') : k === 'abstainRate' ? `${Math.round(e[k]*100)}%` : Array.isArray(e[k]) ? e[k].join(', ') : String(e[k])}</span>`).join('');
     return `<div class="logbook-badge-evidence">
         <div class="be-name">${tier ? (zh ? tier.nameZh : tier.name) : b.id}${b.earnedAt ? ` · ${String(b.earnedAt).slice(0, 10)}` : ''}</div>
         <div class="be-fields">${fields}</div>

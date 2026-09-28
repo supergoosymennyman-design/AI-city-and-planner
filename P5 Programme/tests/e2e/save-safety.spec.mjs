@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 test.beforeEach(({page}) => { page.on('pageerror', error => console.log('PAGE ERROR:', error.stack)); });
 const key = 'p5_city_planner_layout_v1';
 const plan = n => ({ version: 2, scaleMeters: 2000, roads: [], parks: [], buildings: Array.from({length:n}, (_,i) => ({type:'city_central',pos:[500+i*200,500]})) });
@@ -56,13 +56,11 @@ for (const route of ['/planner/', '/city-builder/']) {
     });
     await upload(page, route === '/planner/' ? '#import-file' : '#file-input', champion({layout:JSON.stringify(plan(2)),skin:'crimson',quests:'{"completed":[18]}'}));
     await expect(page.locator('#restore-results')).toBeVisible();
-    await expect(page.locator('#restore-results')).toContainText('City plan: not stored');
-    await expect(page.locator('#restore-results')).toContainText('Champion appearance: not stored');
-    await expect(page.locator('#restore-results')).toContainText('Historical activities: not stored');
+    await expect(page.locator('#restore-results')).toContainText('previous project kept');
     await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
     const before = await download(page,'#restore-recovery');
     const imported = await download(page,'#restore-imported');
-    expect(JSON.parse(before.state.layout).buildings).toHaveLength(1);
+    expect(JSON.parse(before.project.projects.city.legacyState.layout).buildings).toHaveLength(1);
     expect(JSON.parse(imported.state.layout).buildings).toHaveLength(2);
     await page.waitForTimeout(3700);
     await expect(page.locator('#restore-results')).toBeVisible();
@@ -74,7 +72,7 @@ test('Planner immediate edit then download includes unsaved layout even with quo
   await upload(page,'#import-file',plan(2));
   await page.click('#btn-save');
   const file = await download(page,'#save-go');
-  expect(JSON.parse(file.state.layout).buildings).toHaveLength(2);
+  expect(JSON.parse(file.project.projects.city.legacyState.layout).buildings).toHaveLength(2);
 });
 for (const raw of ['{broken', JSON.stringify({version:2,buildings:[null]})]) {
   test(`invalid handoff retains controls: ${raw}`, async ({page}) => {
@@ -99,7 +97,7 @@ test('handoff binds HUD save and renders imported label literally', async ({page
   await page.locator('#plan-modal button[data-plan-close]').first().click();
   await page.click('#btn-save-hud'); await expect(page.locator('#save-modal')).toBeVisible();
   const saved = await download(page,'#save-download');
-  expect(JSON.parse(saved.state.layout)).toEqual(p);
+  expect(JSON.parse(saved.project.projects.city.legacyState.layout)).toEqual(p);
 });
 for (const sample of [true,false]) {
  test(`City ${sample ? 'sample' : 'legacy'} entry exports original plan and ignores repeated starts`, async ({page}) => {
@@ -109,9 +107,9 @@ for (const sample of [true,false]) {
   await page.waitForFunction(() => !!window.__city?.champion && !!window.__scene && document.getElementById('loading').classList.contains('done'));
   await page.click('#btn-save-hud');
   const file = await download(page,'#save-download');
-  expect(JSON.parse(file.state.layout).buildings.length).toBeGreaterThan(0);
-  if (!sample) expect(JSON.parse(file.state.layout)).toEqual(plan(2));
-  else expect(JSON.parse(file.state.layout)).toEqual(await page.evaluate(async () => (await import('/city-common/sample-city.js')).buildSampleCity()));
+  expect(JSON.parse(file.project.projects.city.legacyState.layout).buildings.length).toBeGreaterThan(0);
+  if (!sample) expect(JSON.parse(file.project.projects.city.legacyState.layout)).toEqual(plan(2));
+  else expect(JSON.parse(file.project.projects.city.legacyState.layout)).toEqual(await page.evaluate(async () => (await import('/city-common/sample-city.js')).buildSampleCity()));
  });
 }
 test('failed WebGL start keeps retry and restore controls usable', async ({page}) => {
@@ -130,7 +128,9 @@ for (const route of ['/planner/','/city-builder/']) {
  test(`${route} rejects oversized files before reading`, async ({page}) => {
   await seed(page); await page.goto(route);
   await page.evaluate(() => { window.reads=0; FileReader.prototype.readAsText = () => { window.reads++; }; });
-  await page.setInputFiles(route === '/planner/' ? '#import-file' : '#file-input', {name:'large.json',mimeType:'application/json',buffer:Buffer.alloc(5*1024*1024+1,32)});
+  const oversized = test.info().outputPath('oversized.passiona');
+  writeFileSync(oversized, Buffer.alloc(80*1024*1024+1,32));
+  await page.setInputFiles(route === '/planner/' ? '#import-file' : '#file-input', oversized);
   expect(await page.evaluate(() => window.reads)).toBe(0);
  });
 }
@@ -161,23 +161,21 @@ test('Planner transactional cloud restore keeps the old layout, retries, then re
   await page.waitForTimeout(1400);
   expect(JSON.parse(await page.evaluate(k => localStorage.getItem(k),key)).buildings).toHaveLength(1);
   await page.evaluate(() => { window.quota = false; });
-  await page.click('#restore-retry');
-  await expect(page.locator('#restore-results')).toContainText('Champion appearance: restored');
+  await Promise.all([page.waitForEvent('load'),page.click('#restore-retry')]);
   expect(JSON.parse(await page.evaluate(k => localStorage.getItem(k),key)).buildings).toHaveLength(2);
-  await Promise.all([page.waitForEvent('load'),page.click('#restore-continue')]);
   await upload(page,'#import-file',plan(3));
+  await expect.poll(async()=>JSON.parse(await page.evaluate(k=>localStorage.getItem(k),key)).buildings.length).toBe(3);
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
   expect(JSON.parse(await page.evaluate(k => localStorage.getItem(k),key)).buildings).toHaveLength(3);
 });
-test('absent Champion sections and legacy layout import preserve unrelated raw state', async ({page}) => {
+test('legacy City snapshot opens a new project without unrelated raw state', async ({page}) => {
   await planner(page);
   const history = ' { "completed": [1,18,999], "unlocked": [2,18] } ';
   await page.evaluate(raw => localStorage.setItem('hk_ai_city_quests_v1',raw),history);
   await upload(page,'#import-file',plan(2));
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
   await Promise.all([page.waitForEvent('load'),upload(page,'#import-file',champion({skin:'crimson'}))]);
-  expect(JSON.parse(await page.evaluate(k => localStorage.getItem(k),key)).buildings).toHaveLength(2);
-  expect(await page.evaluate(() => localStorage.getItem('hk_ai_city_quests_v1'))).toBe(history);
+  expect(await page.evaluate(() => localStorage.getItem('hk_ai_city_quests_v1'))).toBeNull();
 });
 for (const route of ['/planner/','/city-builder/']) {
  test(`${route} malformed Champion File cannot fall through as a legacy layout`, async ({page}) => {

@@ -68,6 +68,9 @@ export function checkCompatibility(cap, {
   return { ok: true };
 }
 
+const MATERIAL_ALIASES = Object.freeze({ cardboard:'cardboard', '紙板':'cardboard', '紙皮':'cardboard', glass:'glass', '玻璃':'glass', metal:'metal', '金屬':'metal', paper:'paper', '紙':'paper', '紙張':'paper', plastic:'plastic', '塑膠':'plastic', '塑料':'plastic', trash:'trash', rubbish:'trash', garbage:'trash', '垃圾':'trash' });
+export function materialLabel(value) { return MATERIAL_ALIASES[String(value || '').normalize('NFKC').trim().toLowerCase()] || null; }
+
 /**
  * Route one predicted decision to a bin. The prediction is the ONLY input — the
  * `abstained` flag (or an unknown label) sends the item to the human-check tray.
@@ -75,7 +78,7 @@ export function checkCompatibility(cap, {
  */
 export function routeDecision(decision, abstained, mapping = BIN_FOR_LABEL) {
   const category = (!abstained && decision && decision !== CAP_ABSTAIN) ? decision : CAP_ABSTAIN;
-  const bin = category === CAP_ABSTAIN ? 'human-check' : (mapping[category] || 'human-check');
+  const bin = category === CAP_ABSTAIN ? 'human-check' : (mapping[materialLabel(category) || category] || 'human-check');
   return { category, bin };
 }
 
@@ -98,8 +101,14 @@ export function routeResult(result, item) {
     evidence: Array.isArray(result?.evidence) ? result.evidence : [],
     bin: routed.bin,
     binCategory: routed.category,
-    routedBy: 'prediction',
+    routedBy: result?.routedBy || 'prediction',
   };
+}
+
+/** An item with no usable sorter still travels to the human-check tray. */
+export function humanReviewResult(item) {
+  return routeResult({ decision: CAP_ABSTAIN, abstained: true,
+    abstainReason: 'no-model', routedBy: 'human-review' }, item);
 }
 
 /**
@@ -123,8 +132,8 @@ export function runConveyor(cap, items) {
  */
 export function scoreRun(results) {
   const total = (results || []).length;
-  const correct = results.filter((r) => !r.abstained && r.decision === r.truth).length;
-  const wrong = results.filter((r) => !r.abstained && r.decision !== r.truth).length;
+  const correct = results.filter((r) => !r.abstained && (r.routedBy==='machine' ? r.bin === BIN_FOR_LABEL[materialLabel(r.truth)] : r.decision === r.truth)).length;
+  const wrong = results.filter((r) => !r.abstained).length - correct;
   const abstained = results.filter((r) => r.abstained).length;
   const humanChecked = results.filter((r) => r.bin === 'human-check').length;
   return {
@@ -134,6 +143,7 @@ export function scoreRun(results) {
     abstained,
     humanChecked,
     // Only the model's non-abstained calls can be "right" or "wrong"; an abstention is honest.
+    predictionCorrect: results.filter(r=>materialLabel(r.prediction ?? r.decision) && materialLabel(r.prediction ?? r.decision)===materialLabel(r.truth)).length,
     answered: total - abstained,
     accuracy: total ? Math.round((correct / total) * 1000) / 1000 : 0,
   };
@@ -152,14 +162,17 @@ export function scoreRun(results) {
  */
 export function selectItems(rows, { seed = 1, kind = 'normal', count = 8, modelLabels = null } = {}) {
   if (!Array.isArray(rows) || !rows.length) return [];
-  let pool = rows.filter((r) => r && r.id && r.label);
+  // Never fall back to training rows, including confusing/unfamiliar batches.
+  const trainingObjects = new Set(rows.filter(r => r?.split === 'train').map(r => r.objectId || r.id));
+  const heldOut = rows.filter(r => r?.id && r.label && r.split === 'test' && !trainingObjects.has(r.objectId || r.id));
+  let pool = heldOut;
   if (kind === 'confusing') {
     pool = pool.filter((r) => CONFUSING_LABELS.includes(r.label));
   } else if (kind === 'unfamiliar') {
     const trained = new Set(Array.isArray(modelLabels) && modelLabels.length ? modelLabels : RECYCLING_LABELS);
     const unseen = pool.filter((r) => !trained.has(r.label));
     pool = unseen.length ? unseen : pool.filter((r) => r.label === 'trash');
-    if (!pool.length) pool = rows.filter((r) => r && r.id && r.label);
+    if (!pool.length) pool = heldOut;
   } else {
     const test = pool.filter((r) => r.split === 'test');
     if (test.length) pool = test;

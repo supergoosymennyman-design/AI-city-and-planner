@@ -1,0 +1,49 @@
+import {test,expect} from '@playwright/test';
+import {boot} from './activity-helpers.mjs';
+
+test('mixed school preview, entries, legacy close, missing Audi retry and both languages',async({page})=>{
+ test.setTimeout(180000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await boot(page);
+ await page.waitForFunction(()=>window.__scene.getObjectByName('mixed-driving-school')?.getObjectByName('driving-audi'));
+ const geometry=await page.evaluate(async()=>{const THREE=await import('three'),g=window.__scene.getObjectByName('mixed-driving-school'),car=g.getObjectByName('driving-audi');const size=new THREE.Box3().setFromObject(car).getSize(new THREE.Vector3());return {size:size.toArray(),site:window.__cityActivities.sites.find(s=>s.kind==='driving'),position:car.position.toArray()};});
+ expect(geometry.size[0]).toBeCloseTo(2.05,1);expect(geometry.size[1]).toBeCloseTo(1.43,1);expect(geometry.size[2]).toBeCloseTo(5,1);expect(geometry.site.w).toBeGreaterThan(72);expect(geometry.site.d).toBeGreaterThan(112);
+ // Capture the actual City site with a diagnostic camera; no alternate geometry.
+ await page.evaluate(async()=>{const THREE=await import('three'),root=window.__scene.getObjectByName('mixed-driving-school').parent;const r=new THREE.WebGLRenderer({antialias:true});r.setSize(1000,800);const cam=new THREE.PerspectiveCamera(48,1.25,.1,3000);cam.position.copy(root.position).add(new THREE.Vector3(80,125,110));cam.lookAt(root.position);r.render(window.__scene,cam);const img=document.createElement('img');img.id='site-review';img.src=r.domElement.toDataURL();img.style='position:fixed;inset:0;z-index:99999;width:100%;height:100%;object-fit:contain;background:#dce8e0';document.body.append(img);r.dispose();});
+ await page.screenshot({path:'/private/tmp/materials-city-school.png'});await page.locator('#site-review').evaluate(el=>el.remove());
+ await page.locator('.city-activity-dock button').filter({hasText:'Driving school'}).click();const panel=page.locator('.driving-arena-panel');await expect(panel.locator('[data-drill]')).toHaveValue('mixed');await expect(panel.locator('[data-camera]')).toHaveValue('route');await expect.poll(()=>page.evaluate(()=>window.__drivingArena.state.loaded)).toBe(true);await page.screenshot({path:'/private/tmp/materials-mixed-desktop.png'});
+ await panel.locator('[data-skill]').click();await expect(panel.locator('[data-drill]')).toHaveValue('straight');await panel.locator('[data-close]').click();await page.locator('.city-activity-dock button').filter({hasText:'Driving school'}).click();await expect(panel.locator('[data-drill]')).toHaveValue('mixed');
+ await panel.locator('[data-legacy]').click();await expect(page.locator('.city-activity-panel')).toBeVisible();await page.locator('.city-activity-panel [data-act="close"]').click();await page.waitForFunction(()=>window.__scene.getObjectByName('mixed-driving-school')?.getObjectByName('driving-audi'));
+ await page.route('**/audi-a7.glb',route=>route.abort());await page.locator('.city-activity-dock button').filter({hasText:'Driving school'}).click();await expect(panel.locator('[data-status]')).toContainText('Audi could not load');expect(await page.evaluate(()=>window.__drivingArena.state.loaded)).toBe(false);await page.unroute('**/audi-a7.glb');await panel.locator('[data-repeat]').click();await expect.poll(()=>page.evaluate(()=>window.__drivingArena.state.loaded)).toBe(true);
+ await page.setViewportSize({width:1024,height:768});await page.screenshot({path:'/private/tmp/materials-mixed-tablet-en.png'});
+ await page.evaluate(()=>localStorage.setItem('hk_ai_city_lang_v1','zh-Hant'));await page.goto('/city-builder/?activity=driving');await expect(panel.locator('[data-drill]')).toHaveValue('mixed',{timeout:90000});await expect.poll(()=>page.evaluate(()=>window.__drivingArena.state.loaded)).toBe(true);await page.screenshot({path:'/private/tmp/materials-mixed-tablet-zh.png'});
+ expect(errors).toEqual([]);
+});
+
+test('new materials keep their meshes through wrong bins, old practice, neutral photos and recovery',async({page})=>{
+ test.setTimeout(180000);await boot(page);await page.locator('.city-activity-dock button').filter({hasText:'Recycling'}).click();const panel=page.locator('.city-activity-panel');await expect(panel).toHaveAttribute('data-state','ready');await expect(panel.locator('[data-act="scenario"]')).toHaveValue('materials-v2');
+ expect(await page.evaluate(()=>window.__cityActivities.trial.rows.length)).toBe(12);
+ const result=await page.evaluate(()=>{const a=window.__cityActivities,t=a.trial;t.machineResults=t.rows.map(row=>({id:row.id,truth:row.label,decision:'plastic',bin:'bin-plastic',confidence:1,abstained:false}));t.run();for(let i=0;i<400&&t.state==='running';i++)a.update(.1);const glass=t.rows.find(r=>r.label==='glass'),mesh=window.__scene.getObjectByName('sorted-'+glass.id);return {summary:t.summary(),mesh:mesh?.children[0]?.material?.color.getHex(),objectId:mesh?.userData.objectId};});
+ expect(result.summary.results).toHaveLength(12);expect(result.objectId).toContain('glass');expect(result.mesh).toBe(0xe4f0e9);await page.screenshot({path:'/private/tmp/materials-recycling-wrong-bin.png'});
+ await panel.locator('[data-act="scenario"]').selectOption('batch-1');await expect(panel).toHaveAttribute('data-state','ready');expect(await page.evaluate(()=>window.__cityActivities.trial.rows.length)).toBe(9);
+ await page.evaluate(()=>window.__cityActivities.close());await page.locator('.city-activity-dock button').filter({hasText:'Recycling'}).click();await expect(panel.locator('[data-act="scenario"]')).toHaveValue('batch-1');
+ await panel.locator('[data-act="scenario"]').selectOption('materials-v2');await expect(panel).toHaveAttribute('data-state','ready');await panel.locator('[data-act="step"]').click();await page.screenshot({path:'/private/tmp/materials-recycling-desktop.png'});
+ await page.setViewportSize({width:1024,height:768});await page.screenshot({path:'/private/tmp/materials-recycling-tablet.png'});
+ const personal=await page.evaluate(async()=>{const {createProjectStore}=await import('/city-common/project-store.js'),{writeSorterSession}=await import('/city-common/sorter-session.js');const store=createProjectStore(),p=await store.openActiveProject();const vector=window.__cityActivities.trial.rows[0].vector;writeSorterSession({projectId:p.id,preprocessing:'mobilenet-v3-small-224-squash-f32-unit-v1',batch:[{id:'photo-one',vector},{id:'photo-two',vector}],teaching:[],selection:null});store.close();});
+ await panel.locator('[data-act="scenario"]').selectOption('personal');await expect(panel).toHaveAttribute('data-state','ready');await panel.locator('[data-act="step"]').click();expect(await page.evaluate(()=>{window.__cityActivities.update(0);return window.__scene.getObjectByName('photo-one')?.children[0].material.color.getHex();})).toBe(0x96958d);
+});
+
+test('scanner contact sheet uses the shipped v2 images',async({page})=>{
+ test.skip(!!process.env.E2E_DOCROOT,'The scanner generator is a source-only tool; image hashes are checked separately.');
+ await page.goto('/tools/generate-city-recycling-v2.html');await page.evaluate(async()=>{const s=document.createElement('script');s.src='../workshop/assets/city-recycling-v2/catalogue.js';document.head.append(s);await new Promise(resolve=>s.onload=resolve);document.body.style='margin:20px;background:#e7e7df;font:18px sans-serif;display:grid;grid-template-columns:repeat(8,1fr)';for(const row of window.WorkshopLibraryData.cityRecyclingV2.photos){const figure=document.createElement('figure');figure.style='margin:2px';const img=document.createElement('img');img.src='../workshop/'+row.src;img.style='width:100%';const caption=document.createElement('figcaption');caption.textContent=row.label+' '+row.variant;figure.append(img,caption);document.body.append(figure);}await Promise.all([...document.images].map(img=>img.decode()));});await page.screenshot({path:'/private/tmp/materials-scanner-sheet.png',fullPage:true});
+});
+
+test('new Workshop sorter teaches all four v2 materials and runs twelve held-out objects',async({page})=>{
+ test.setTimeout(120000);await page.goto('/workshop/?tab=recycling');await expect(page.locator('[data-skill="recycling"]')).toBeEnabled();
+ await page.evaluate(()=>WorkshopGame.openCityModel('model'));await expect(page.locator('#libraryDataset')).toHaveValue('city-recycling-v2');
+ await page.locator('#libraryBrain').selectOption('knn');await page.getByRole('button',{name:'Train a new version',exact:true}).click();await expect(page.locator('#libraryModelInfo')).toContainText('20 observations');
+ await page.getByRole('button',{name:'Use this version on the selected Model',exact:true}).click();await page.locator('#modelLibrary').getByRole('button',{name:'Close',exact:true}).click();
+ await page.evaluate(()=>localStorage.setItem('p5_city_planner_layout_v1',JSON.stringify({version:2,scaleMeters:2000,roads:[],buildings:[],parks:[]})));
+ await page.locator('[data-city]').click();await page.locator('#entry-local').click();await page.waitForFunction(()=>window.__cityActivities?.trial&&window.__cityActivities.state==='ready',null,{timeout:90000});
+ const summary=await page.evaluate(()=>{const a=window.__cityActivities;a.trial.run();while(a.trial.state==='running')a.trial.advance();a.update(0);return a.trial.summary();});
+ expect(summary.datasetVersion).toBe('city-recycling-v2');expect(summary.results).toHaveLength(12);for(const material of ['glass','metal','plastic','cardboard'])expect(summary.results.some(r=>r.bin==='bin-'+material)).toBe(true);
+ await page.locator('.city-activity-panel [data-improve]').click();await expect(page.locator('[data-skill="recycling"]')).toBeEnabled();expect(await page.evaluate(()=>WorkshopGame.recyclingDraft().table.pieces.find(p=>p.id==='model').libraryModel.dataset)).toBe('city-recycling-v2');
+});

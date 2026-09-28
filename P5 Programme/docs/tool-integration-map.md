@@ -1,5 +1,7 @@
 # Tool Integration Map — how the Passiona apps interact
 
+Current backup/storage contract: [Project backup and recovery](project-backup-and-recovery.md). The historical stage notes below describe the earlier implementation.
+
 Single source of truth for what is WIRED vs NOT across the Passiona tools (P5 focus).
 "Ours" = this repo's code (`buddy-kit/client`, worker, deploy). The Workshop, Fit
 Studio and the Rigger live on separate origins/teams. Last updated 2026-09.

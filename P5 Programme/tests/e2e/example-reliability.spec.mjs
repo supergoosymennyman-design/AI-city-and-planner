@@ -88,7 +88,11 @@ test('example opens with every assigned building model and both learning buildin
   expect(final.streamingVisible).toBe(false);
   expect(Object.values(final.buildingAssets).filter(asset => asset.state === 'loaded').length).toBeGreaterThan(7);
   expect(final.fallbackTypes).toEqual([]);
-  expect(Object.entries(final.buildingAssets).filter(([id, asset]) => id.startsWith('bld_passiona_') && asset.state === 'loaded').length).toBe(7);
+  // The current presentation uses the assigned Kenney models. Hunyuan
+  // buildings remain in the library but are no longer automatic substitutes.
+  expect(Object.values(final.buildingAssets).every(asset => asset.state === 'loaded')).toBe(true);
+  expect(Object.keys(final.buildingAssets).filter(id => id.startsWith('bld_passiona_'))).toEqual([]);
+  expect(final.colouredVariantRequests).toBe(0);
   expect(final.parkBenchCount).toBe(18);
   expect(final.parkTreeCount).toBeGreaterThanOrEqual(22);
   expect(errors, `${testInfo.project.name} page errors:\n${errors.join('\n')}`).toEqual([]);

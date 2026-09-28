@@ -1,0 +1,32 @@
+{
+  "preprocessing": "mobilenet-v3-small-224-squash-f32-unit-v1",
+  "modelSHA256": "bbbb4c51a55a53905af1daec995ca1aae355046f8839bb8c9f5ce9271394bc40",
+  "images": {
+    "city-metal-0": "52fe9dc595647fe9270c6f698599c9e8d0c4d3f8ec96d4f205ff490eb56ef58f",
+    "city-metal-1": "5a3eb43d5f210038fdc3364d096440fa938ddfd9ee8edf7a15bb007d5c20d268",
+    "city-metal-2": "b792c2fb79628a9c077b8df1b2d62406a8973c91cf3bc4109d618ac807ea1cdf",
+    "city-metal-3": "b14869b6eada258315f614f3d3f098dd092a78beb4c0e3429586111a1a33a2b9",
+    "city-metal-4": "2c88efd8d725d2129b51b3f46756ffefd469199077159280399dcce83725d76a",
+    "city-metal-5": "e42b74445e5869248e1ffa5db403c3a9f5ea15c5cca0d3b29972c72bb14c47e2",
+    "city-metal-6": "2c7de74b3a3c4497cb226724532865880030262f46745421a6f7ca2dad96ca5c",
+    "city-metal-7": "a8bc5d2fb36ae3cba8e0611d4f920877102564422076f721f6cb272f3245b769",
+    "city-plastic-0": "059246fad63aaf772c37845277ec9eac523c8b6db7ec69583cfb6828cf294a57",
+    "city-plastic-1": "f9fd87940f8a0ed477143f4905808ce5e896f081783bbc977c04c55c28d6080c",
+    "city-plastic-2": "e3f157d88e6985a781f8fb5d31de03ced29ae83edc13a16e6beb1f947868b6d0",
+    "city-plastic-3": "6d8dadbad4f7242cb29051b0a8dfd3606c327b55955a80481647d6f6afc1dc6b",
+    "city-plastic-4": "8b2050b634418a77ad922be7596acc5636b4e9a7a9186a3bac911056294156f9",
+    "city-plastic-5": "19ba2582ada1067da925baf27cad85f4c2ad85bf292a89df93ab48e9666b0cd5",
+    "city-plastic-6": "aa9b8a645d77044113b58f56e95e379f637ad7acacfba13343f79d51f4dfa746",
+    "city-plastic-7": "2367cbefceff458edfaa3f1728c7057a1889a33985bb26e7777f9ef6e824b05f",
+    "city-cardboard-0": "3cf66b5e04c844d1f49310801cd17ba3f356833f0f273c2f3e5874ca8cae23b9",
+    "city-cardboard-1": "6090772780f6c5c28af05dab1111154a3a3a610249b4e61077b3b1fe8cd379a6",
+    "city-cardboard-2": "1ac1b12630bbd3b0cc11a079042f519ebbc88e938ca6be2b6e92a54c6f85a2ab",
+    "city-cardboard-3": "a3698f162f613307993d5f52e5e5b16239d31978efdbcf721dca03ba39e387d8",
+    "city-cardboard-4": "21de9e5c4f3324e52f87eb34d64c0b697e9c5d69197f0720ae88ca09d008aee3",
+    "city-cardboard-5": "2ae3b6de7db88cb3cb05473cc69bc3b5dc5602ec2a3fc1328355c3e62cbf5581",
+    "city-cardboard-6": "accb2e3dc29c18f9ceddb8140f51ba7a0767970decba1e5ba0f2354b9daa0a71",
+    "city-cardboard-7": "6230e79aa93faaab4955a005c8646c47f9faebbaf4757d4aa09bfa7a2c163f01"
+  },
+  "geometrySHA256": "17c4d1499d49b22e672285fc1e27edd37e584d016e9de8cee7efaddfc622784c",
+  "scannerSHA256": "ec731f1d5855e8876952c3c8553de06d42de2f2cc264d41945991d98f13bf962"
+}

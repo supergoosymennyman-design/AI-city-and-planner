@@ -81,6 +81,13 @@ build_home() {
 
 # ── City-sim (static app + buddy kit under /buddy/ + /api/* worker) ────────
 build_city_sim() {
+  # Editable Studio/session code is part of the project backup contract. Never
+  # ship an old dist directory after changing its canonical source.
+  echo "▶ Building canonical Studio…"
+  ( cd "$KIT/client/studio"
+    if [ ! -d node_modules/vite ]; then npm ci --no-audit --no-fund; fi
+    npm run build
+  )
   echo "▶ Building city-sim bundle…"
   rm -rf city-sim/city-builder city-sim/city-common city-sim/champion-city \
          city-sim/hong-kong-real city-sim/vendor city-sim/logic city-sim/buddy \
@@ -113,14 +120,7 @@ build_city_sim() {
   mkdir -p city-sim/studio city-sim/workshop city-sim/market
   rsync -a --exclude 'node_modules' --exclude '.DS_Store' \
     "$KIT/client/workshop/" city-sim/workshop/
-  if [ -f "$KIT/client/studio/dist/index.html" ]; then
-    rsync -a --exclude '.DS_Store' "$KIT/client/studio/dist/" city-sim/studio/
-  else
-    echo "  ⚠ client/studio/dist is missing — falling back to the legacy Fit Studio build."
-    rsync -a --exclude '.DS_Store' --exclude '*-t2-stamped.glb' \
-      --exclude 'rover-leg-final-shrunk (1).glb' --exclude 'README.txt' \
-      "$ROOT/Fit Studio/" city-sim/studio/
-  fi
+  rsync -a --exclude '.DS_Store' "$KIT/client/studio/dist/" city-sim/studio/
   rsync -a --exclude '.DS_Store' "$KIT/client/market/" city-sim/market/
   cp -r "$KIT/logic"                    city-sim/logic
   cp "$KIT/client/crash-guard.js"       city-sim/crash-guard.js

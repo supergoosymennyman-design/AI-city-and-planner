@@ -71,9 +71,14 @@ test('tablet park vegetation stays within the instance, draw-call and triangle b
  for(const asset of PARK_VEGETATION_ASSETS){const b=readFileSync(new URL(asset.file.replace('../library/','library/'),client));const json=JSON.parse(b.subarray(20,20+b.readUInt32LE(12)));const per=(json.meshes||[]).flatMap(m=>m.primitives||[]).reduce((n,p)=>n+(json.accessors[p.indices]?.count||json.accessors[p.attributes.POSITION]?.count||0)/3,0);triangles+=per*placements.filter(p=>p.kind===asset.kind).length;}
  assert.ok(triangles<=20000,`${triangles} vegetation triangles`);
 });
-test('the automatic housing, office and tree selection stays below 1.5 MiB including external images',()=>{
- const paths=[...'abcegi'].map(c=>`library/buildings/kenney-suburban-${c}.glb`).concat([...'abc'].map(c=>`library/buildings/kenney-skyscraper-${c}.glb`),['library/nature/kenney-tree_oak.glb','library/nature/kenney-tree_default.glb']);
+test('the automatic housing pool (whole Kenney suburban kit + modular samples), office and tree selection stays under a tablet-safe budget',()=>{
+ const houses=[...'abcdefghijklmnopqrstu'].map(c=>`library/buildings/kenney-suburban-${c}.glb`)
+  .concat([...'abc'].map(c=>`library/buildings/kenney-modular-house-${c}.glb`));
+ const paths=houses.concat([...'abc'].map(c=>`library/buildings/kenney-skyscraper-${c}.glb`),['library/nature/kenney-tree_oak.glb','library/nature/kenney-tree_default.glb']);
  const files=new Set();let total=0;
  for(const path of paths){const url=new URL(path,client);files.add(url.href);const b=readFileSync(url),j=JSON.parse(b.subarray(20,20+b.readUInt32LE(12)));for(const image of j.images||[])if(image.uri&&!image.uri.startsWith('data:'))files.add(new URL(image.uri,url).href);}
- for(const f of files)total+=statSync(new URL(f)).size;assert.ok(total<=1.5*1024*1024,`${total} bytes`);
+ for(const f of files)total+=statSync(new URL(f)).size;
+ // 24 low-poly houses replace the 3 hi-poly Hunyuan residences the example city
+ // used to stream (~15 MB), so a 3 MiB ceiling is still a large net reduction.
+ assert.ok(total<=3*1024*1024,`${total} bytes`);
 });

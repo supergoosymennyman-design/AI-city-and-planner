@@ -1,3 +1,4 @@
+import { projectAssetKey, ownsLegacyAssets, assertWorkspace } from './project-binding.js';
 // Device-local student GLB library.  Champion Files carry this small manifest,
 // never the binary model data (which deliberately stays in IndexedDB).
 export const CUSTOM_MODELS_KEY = 'hk_ai_city_custom_models_v1';
@@ -100,11 +101,22 @@ function openDB() {
     r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
   });
 }
-async function request(mode, fn) { const db = await openDB(); return new Promise((resolve,reject) => { const tx=db.transaction(STORE,mode); const r=fn(tx.objectStore(STORE)); r.onsuccess=()=>resolve(r.result); r.onerror=()=>reject(r.error); tx.oncomplete=()=>db.close(); }); }
+async function request(mode, fn) {
+  const db = await openDB();
+  return new Promise((resolve,reject) => {
+    const tx=db.transaction(STORE,mode); const r=fn(tx.objectStore(STORE));
+    tx.oncomplete=()=>{ db.close(); resolve(r.result); };
+    tx.onerror=tx.onabort=()=>{ db.close(); reject(tx.error || Error('Model storage failed.')); };
+  });
+}
 export const customModelStore = {
-  get: id => request('readonly', s => s.get(id)),
-  put: value => request('readwrite', s => s.put(value)),
-  remove: id => request('readwrite', s => s.delete(id)),
+  get: async (id, projectId) => {
+    const record = await request('readonly', s => s.get(projectAssetKey(id, projectId)));
+    if (record) return {...record, id};
+    return ownsLegacyAssets(projectId) ? request('readonly', s => s.get(id)) : null;
+  },
+  put: (value, projectId) => { if (!projectId) assertWorkspace(); return request('readwrite', s => s.put({...value, id:projectAssetKey(value.id, projectId)})); },
+  remove: (id, projectId) => { if (!projectId) assertWorkspace(); return request('readwrite', s => s.delete(projectAssetKey(id, projectId))); },
   all: () => request('readonly', s => s.getAll()),
 };
 export function readCustomManifest(storage = globalThis.localStorage) { try { return normalizeCustomManifest(storage?.getItem(CUSTOM_MODELS_KEY)); } catch { return normalizeCustomManifest(null); } }

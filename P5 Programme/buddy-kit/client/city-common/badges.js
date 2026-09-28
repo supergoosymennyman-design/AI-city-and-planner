@@ -66,7 +66,7 @@ export function promote(state, targetTierId, evidence = {}) {
   if (!target) return { ok: false, error: 'unknown tier' };
   const current = tierOf(s);
   if (target.order <= current.order) return { ok: false, error: 'not a step up' };
-  if (typeof evidence.heldOut !== 'number' || evidence.heldOut <= 0) {
+  if (evidence.qualifyingEvidence !== true && (typeof evidence.heldOut !== 'number' || evidence.heldOut <= 0)) {
     return { ok: false, error: 'no held-out evidence' };
   }
   const next = { ...s, tier: target.id };
@@ -76,7 +76,8 @@ export function promote(state, targetTierId, evidence = {}) {
       name: target.name,
       earnedAt: new Date().toISOString(),
       evidence: {
-        heldOut: Math.round(evidence.heldOut * 100) / 100,
+        ...evidence,
+        heldOut: evidence.heldOut == null ? null : Math.round(evidence.heldOut * 100) / 100,
         abstainRate: evidence.abstainRate != null ? Math.round(evidence.abstainRate * 100) / 100 : null,
         threshold: evidence.threshold != null ? Math.round(evidence.threshold * 100) / 100 : null,
       },

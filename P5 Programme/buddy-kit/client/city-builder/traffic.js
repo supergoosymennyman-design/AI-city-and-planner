@@ -219,7 +219,7 @@ export function createTraffic(group, roads, opts = {}) {
     rendererDiagnostics.overflow = 0;
     rendererDiagnostics.nonFinite = 0;
     for (const v of flow.vehicles) {
-      if (!v.renderer) continue;
+      if (!v.renderer || v.trialSuspended) continue;
       const slot = used.get(v.renderer) || 0;
       if (slot >= v.renderer.capacity) { rendererDiagnostics.overflow++; continue; }
       if (!Number.isFinite(v.x) || !Number.isFinite(v.z)) { rendererDiagnostics.nonFinite++; continue; }
@@ -278,7 +278,7 @@ export function createTraffic(group, roads, opts = {}) {
   // This object is intentionally public through window.__city.traffic for
   // browser diagnostics: target is the requested moderate fleet, while the
   // live count may be lower if graph admission rejects an unsafe spawn.
-  const trafficDebug = { update, destroy, vehicles: flow.vehicles, network: flow.network,
+  const trafficDebug = { update, destroy, reserveTrialRegion: flow.reserveTrialRegion, vehicles: flow.vehicles, network: flow.network,
     routeCount: flow.routePlan.routes.length,
     componentCoverage: { total: flow.routePlan.componentCount, covered: flow.routePlan.coveredComponents },
     safelyOmittedVehicles: safelyOmitted,

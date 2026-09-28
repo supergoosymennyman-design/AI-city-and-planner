@@ -1,3 +1,4 @@
+import { commitReward } from '../city-common/reward-persistence.js';
 // city-builder/test-track.js — Stage 5: the guided test track where the student's
 // published DRIVING model actually controls a car.
 //
@@ -88,24 +89,14 @@ function readPlantedCaps() {
 }
 
 /** Prefer the authoritative envelope: a drive installation, else a published drive cap; planted fallback. */
-export async function resolveDriveSkill() {
-  try {
-    const store = createProjectStore();
-    await store.openActiveProject();
-    const [caps, installs] = await Promise.all([store.readCapabilities(), store.readInstallations()]);
-    for (const inst of Object.values(installs || {})) {
-      const cap = caps?.[inst.capabilityRef];
-      if (cap && checkDriveCompatibility(cap).ok) return { kind: 'installation', store, installationId: inst.id, cap, origin: t('published') };
-    }
-    const published = Object.values(caps || {}).find((c) => checkDriveCompatibility(c).ok);
-    if (published) return { kind: 'capability', store, cap: published, origin: t('published') };
-  } catch { /* no envelope yet — fall through to a planted file */ }
-  for (const raw of readPlantedCaps()) {
-    const parsed = parseCapability(raw);
-    const cap = parsed.ok ? parsed.capability : raw;
-    if (checkDriveCompatibility(cap).ok) return { kind: 'planted', cap, origin: t('planted') };
-  }
-  return null;
+export async function resolveDriveSkill(siteId) {
+  if (!siteId) return null;
+  const store = createProjectStore();
+  await store.openActiveProject();
+  const [caps, installs] = await Promise.all([store.readCapabilities(), store.readInstallations()]);
+  const inst = Object.values(installs || {}).find(i => i.hostInstanceId === siteId);
+  const cap = caps?.[inst?.capabilityRef];
+  return cap && checkDriveCompatibility(cap).ok ? { kind: 'installation', store, installationId: inst.id, cap, origin: t('published') } : null;
 }
 
 // ── "Try in my city": a bounded route read from the child's own roads ─────────
@@ -370,6 +361,7 @@ async function stepOnce() {
   if (ev === 'emergency-stop') trial.interventions.push({ type: 'emergency-stop', at: advanced.record.t, reason: advanced.record.eventDetail?.reason || 'the model stopped with a clear road' });
   if (ev === 'collision') trial.interventions.push({ type: 'collision', at: advanced.record.t, reason: String(advanced.record.eventDetail?.obstacle || 'obstacle') });
   if (ev === 'off-road') trial.interventions.push({ type: 'off-road', at: advanced.record.t, reason: `lateral ${advanced.record.eventDetail?.lateral}` });
+  if (advanced.done) { trial.done = true; trial.outcome = ev; }
   if (ev === 'goal') { trial.done = true; trial.outcome = 'goal'; }
   else if (ev === 'collision') { trial.done = true; trial.outcome = 'collision'; }
   else if (ev === 'off-road') { trial.done = true; trial.outcome = 'off-road'; }
@@ -404,10 +396,10 @@ function reportTrial() {
   const interventions = trial.interventions || [];
   const trackId = controller.trackId || 'full';
   const events = [
-    { type: 'held-out-eval', evidence: { challengeId, trackId, outcome: trial.outcome, steps: steps.length, interventions: interventions.length } },
+    { type: 'held-out-eval', evidence: { challengeId, trackId, outcome: trial.outcome, steps: steps.length, abstained, interventions: interventions.length } },
   ];
   if (skill.kind === 'installation') events.push({ type: 'city-install', evidence: { challengeId, installationId: skill.installationId, trackId, outcome: trial.outcome } });
-  if (abstained > 0) events.push({ type: 'abstain-demo', evidence: { challengeId, source: 'test-track', trackId, abstained } });
+  if (abstained > 0) events.push({ type: 'abstain-demo', evidence: { challengeId, source: 'test-track', trackId, steps: steps.length, abstained } });
   const revision = Number(skill.cap?.revision || 1);
   const gradedIds = ['goal'];
   const wrongIds = trial.outcome === 'goal' ? [] : ['goal'];
@@ -415,9 +407,7 @@ function reportTrial() {
   // abstention AND a correct graded answer in the same run, so a trial that
   // never reached the goal cannot demonstrate "I know when I'm unsure".
   const correctCount = trial.outcome === 'goal' ? 1 : 0;
-  Promise.resolve()
-    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind: 'track', seed: trackId }, gradedIds, wrongIds, abstained, correctCount }, events))
-    .catch(() => { /* a missing wallet must never break the trial */ });
+  return commitReward(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind: 'track', seed: trackId }, gradedIds, wrongIds, abstained, correctCount }, events));
 }
 
 /**
@@ -440,7 +430,7 @@ async function runWhole({ trackId, maxSteps = DRIVE_MAX_STEPS } = {}) {
   };
   controller.paused = true;
   if (controller.skill.kind === 'installation' && last && last.observation) recordDecision(controller.skill, last.observation);
-  reportTrial();
+  await reportTrial();
   renderAll();
   const s = summarizeTrial(trial);
   return { ok: true, trackId: controller.trackId, ...s, decisions: trial.steps.map((x) => ({ t: x.t, action: x.action, decision: x.decision, abstained: x.abstained, event: x.event })) };
@@ -456,6 +446,7 @@ function schedule() {
 }
 
 function setRunning(run) {
+  if (run && !controller.paused) return;
   controller.paused = !run;
   if (run) { controller.timer = setTimeout(schedule, 0); } else if (controller.timer) { clearTimeout(controller.timer); controller.timer = null; }
   renderAll();
@@ -483,13 +474,14 @@ function bind() {
  * Open the test track. Resolves the student's driving skill first so the UI is
  * honest about what it will run. Returns the controller (for the integration run).
  */
-export async function openTestTrack() {
+export async function openTestTrack(siteId) {
   controller = controller || {
-    open: () => {}, close: () => {}, runWhole, stepOnce, reset: resetTrial, resolve: async function () { this.skill = await resolveDriveSkill(); this.mismatch = !!(this.skill && !checkDriveCompatibility(this.skill.cap).ok); return this.skill; },
+    open: () => {}, close: () => {}, runWhole, stepOnce, reset: resetTrial, resolve: async function () { this.skill = await resolveDriveSkill(controller?.siteId); this.mismatch = !!(this.skill && !checkDriveCompatibility(this.skill.cap).ok); return this.skill; },
     skill: null, mismatch: false, trackId: 'full', track: TRACKS.full, cityTrack: null, cityRouteNote: null,
     trial: null, paused: true, timer: null, lightNow: 0, sensorDead: false,
   };
-  controller.skill = await resolveDriveSkill();
+  controller.siteId = siteId;
+  controller.skill = await resolveDriveSkill(siteId);
   controller.mismatch = !!(controller.skill && !checkDriveCompatibility(controller.skill.cap).ok);
   ensureModal(); paintStatic(); bindOnce();
   const improve = modal.querySelector('[data-r="improve"]');

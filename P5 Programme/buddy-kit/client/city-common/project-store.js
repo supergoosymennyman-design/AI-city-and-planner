@@ -1,3 +1,5 @@
+import { marketHandler, marketItems } from './market-catalogue.js';
+import { bindWorkspace, LEGACY_OWNER_KEY, WORKSPACE_GENERATION_KEY } from './project-binding.js';
 // project-store.js — the offline-first Passiona project envelope.
 //
 // This deliberately stores workspace payloads as opaque data. A workspace can
@@ -19,7 +21,7 @@ export const ARCHIVE_VERSION = 2;
 export const PROJECT_DB = 'passiona-projects-v1';
 export const ACTIVE_PROJECT_KEY = 'passiona_active_project_v1';
 export const PROJECT_EVENT = 'passiona:project-store-change';
-const MAX_ARCHIVE_BYTES = 80 * 1024 * 1024;
+export const MAX_ARCHIVE_BYTES = 80 * 1024 * 1024;
 
 const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
 const now = () => new Date().toISOString();
@@ -74,6 +76,18 @@ export function normalizeProject(project) {
   else project.economy = normalizeEconomy(project.economy);
   project.capabilities ||= {}; project.installations ||= {};
   project.challenges = normalizeChallengeRuns(project.challenges);
+  const state = project.projects?.city?.legacyState;
+  if (state) {
+    let accessories; try { accessories = JSON.parse(state.accessories || '{}'); } catch { accessories = {}; }
+    if (!accessories || typeof accessories !== 'object' || Array.isArray(accessories)) accessories = {};
+    for (const item of marketItems()) {
+      if (project.economy.owned.includes(item.id)) continue;
+      if (item.kind === 'accessory' && accessories[item.slot] === item.championAccessory) delete accessories[item.slot];
+      if (item.kind === 'finish' && state.championFinish === item.finish) delete state.championFinish;
+      if (item.kind === 'host-upgrade' && state.hostAppearance === item.hostUpgrade) delete state.hostAppearance;
+    }
+    if (state.accessories) state.accessories = JSON.stringify(accessories);
+  }
   return project;
 }
 
@@ -87,11 +101,17 @@ export function migrateEconomyFromChampion(project, championEconomy) {
   project.progress ||= {};
   if (project.progress.economyMigrated) return { ok: true, migrated: false, reason: 'already-migrated' };
   const incoming = normalizeEconomy(championEconomy);
-  if (incoming.balance > 0 || incoming.owned.length > 0 || incoming.transactions.length > 0) {
+  if (championEconomy?.projectOwner && championEconomy.projectOwner !== project.id) {
+    project.progress.economyMigrated = true;
+    return { ok: true, migrated: false, reason: 'another-project' };
+  }
+  const established = project.economy.balance !== 0 || project.economy.owned.length || project.economy.transactions.length || project.economy.claimed.length || Object.keys(project.economy.evidence).length;
+  if (!established && (incoming.balance > 0 || incoming.owned.length > 0 || incoming.transactions.length > 0)) {
     project.economy = incoming;
   }
   project.progress.economyMigrated = true;
   project.progress.economyMigratedAt = now();
+  project.progress.economyMigrationSource = championEconomy?.projectOwner || 'legacy-champion';
   return { ok: true, migrated: true, economy: clone(project.economy) };
 }
 
@@ -134,12 +154,21 @@ export function importProjectEnvelope(value) {
     if (new TextEncoder().encode(JSON.stringify(value)).byteLength > MAX_ARCHIVE_BYTES) return { ok: false, error: 'Project archive is too large.' };
     if (value.integrity && value.integrity !== simpleHash(raw)) return { ok: false, error: 'Project archive is damaged.' };
     const valid = validateProject(value.project); if (!valid.ok) return valid;
-    const assets = {};
+    const assets = Object.create(null);
     for (const asset of value.assets || []) {
       const bytes = base64ToBytes(asset.data);
       if (bytes.byteLength !== asset.byteLength || simpleHashBytes(bytes) !== asset.hash) return { ok: false, error: `Project asset “${asset.name || asset.hash}” is damaged.` };
       assets[asset.hash] = { ...asset, bytes: bytes.buffer };
       delete assets[asset.hash].data;
+    }
+    const refs = value.manifest?.assetReferences;
+    if (refs) {
+      if (value.manifest.assetReferencesIntegrity && value.manifest.assetReferencesIntegrity !== simpleHash(JSON.stringify(refs))) return { ok: false, error: 'Project asset references are damaged.' };
+      for (const ref of [...(refs.models || []), ...(refs.champion ? [refs.champion] : [])]) {
+        if (!ref?.hash || !Object.hasOwn(assets, ref.hash)) return { ok: false, error: 'A required model asset is missing from the project archive.' };
+      }
+      const declared = JSON.parse(value.project.projects.city?.legacyState?.customModels || '{"models":[]}');
+      if ((declared.models || []).some(m => !(refs.models || []).some(r => r.id === m.id))) return { ok: false, error: 'A required custom model reference is missing.' };
     }
     return { ok: true, project: clone(value.project), assets };
   } catch { return { ok: false, error: 'Project archive could not be read.' }; }
@@ -190,6 +219,8 @@ export function applyChallengeOutcome(current, challengeId, outcome = {}, events
   const challengeCaps = caps.filter((c) => challengeOfCapability(c) === challengeId);
   const installs = Object.values(project.installations || {})
     .filter((i) => project.capabilities?.[i.capabilityRef] && challengeOfCapability(project.capabilities[i.capabilityRef]) === challengeId);
+  const machine=project.projects?.recyclingMachine;
+  const machineRun=challengeId==='image-sorter'&&machine?.version===1&&machine.sourceMachineId===outcome.machineId&&Number(outcome.revision)>0&&Number(outcome.revision)<=Number(machine.revision);
   const abstained = Number(outcome.abstained) || (Array.isArray(outcome.results) ? outcome.results.filter((r) => r && r.abstained).length : 0);
   // An honest "not sure" demo only counts when the SAME run also got something
   // right — abstaining on everything is not a demonstration of knowing limits.
@@ -202,10 +233,10 @@ export function applyChallengeOutcome(current, challengeId, outcome = {}, events
     if (!ev || !ev.type) continue;
     let evidence = ev.evidence || {};
     if (ev.type === 'held-out-eval') {
-      if (!challengeCaps.length) continue; // no runnable skill => no held-out evaluation
+      if (!challengeCaps.length && !machineRun) continue; // no runnable skill => no held-out evaluation
     } else if (ev.type === 'city-install') {
-      if (!installs.length) continue; // not installed in the City => no City test
-      evidence = { ...evidence, installationId: installs[0].id }; // the REAL installation
+      if (!installs.length && !machineRun) continue; // requires a real installation or saved City machine
+      evidence = { ...evidence, installationId: installs[0]?.id || 'recycling:'+machine.sourceMachineId }; // the REAL installation
     } else if (ev.type === 'abstain-demo') {
       if (abstained <= 0 || correctCount < 1) continue; // needs an abstention AND a correct answer in the same run
     }
@@ -225,6 +256,7 @@ export function applyChallengeOutcome(current, challengeId, outcome = {}, events
 }
 
 export function createProjectStore({ storage = safeStorage(), indexedDB = globalThis.indexedDB, channelName = 'passiona-projects' } = {}) {
+  let generation = 0, workspaceGeneration = storage?.getItem(WORKSPACE_GENERATION_KEY);
   let active = null, dbPromise = null, channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(channelName) : null;
   const emit = detail => { globalThis.dispatchEvent?.(new CustomEvent(PROJECT_EVENT, { detail })); channel?.postMessage(detail); };
   channel && (channel.onmessage = event => globalThis.dispatchEvent?.(new CustomEvent(PROJECT_EVENT, { detail: event.data })));
@@ -238,18 +270,65 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     });
     return dbPromise;
   };
-  async function read(idValue) { const d = await db(); if (!d) return null; return new Promise(resolve => { const r = d.transaction('projects').objectStore('projects').get(idValue); r.onsuccess = () => resolve(r.result || null); r.onerror = () => resolve(null); }); }
-  async function write(project, versionReason) {
+  async function read(idValue) { const d = await db(); if (!d) return null; return new Promise((resolve, reject) => { const r = d.transaction('projects').objectStore('projects').get(idValue); r.onsuccess = () => resolve(r.result || null); r.onerror = () => reject(r.error || Error('Project could not be read.')); }); }
+  async function write(project, versionReason, beforeProjectId) {
     const d = await db(); if (!d) return false;
-    return new Promise(resolve => { const tx = d.transaction(['projects', 'versions'], 'readwrite'); tx.objectStore('projects').put(project); if (versionReason) tx.objectStore('versions').put({ key: `${project.id}:${project.revision}`, projectId: project.id, reason: versionReason, savedAt: now(), project: clone(project) }); tx.oncomplete = () => resolve(true); tx.onerror = tx.onabort = () => resolve(false); });
+    return new Promise(resolve => { const tx = d.transaction(['projects', 'versions'], 'readwrite'); tx.objectStore('projects').put(project); if (beforeProjectId) { const req = tx.objectStore('projects').get(beforeProjectId); req.onsuccess = () => { const prior = req.result; if (prior) tx.objectStore('versions').put({ key: `${prior.id}:${prior.revision}`, projectId: prior.id, reason: 'before-import', savedAt: now(), project: clone(prior) }); }; } if (versionReason) tx.objectStore('versions').put({ key: `${project.id}:${project.revision}`, projectId: project.id, reason: versionReason, savedAt: now(), project: clone(project) }); tx.oncomplete = () => resolve(true); tx.onerror = tx.onabort = () => resolve(false); });
   }
   async function versions(projectId = active?.id) { const d = await db(); if (!d || !projectId) return []; return new Promise(resolve => { const r = d.transaction('versions').objectStore('versions').getAll(); r.onsuccess = () => resolve((r.result || []).filter(v => v.projectId === projectId).sort((a, b) => b.project.revision - a.project.revision)); r.onerror = () => resolve([]); }); }
-  async function openActiveProject() {
+  const openActiveProject = () => globalThis.navigator?.locks?.request
+    ? globalThis.navigator.locks.request('passiona-project-open', openProject) : openProject();
+  async function openProject() {
     const requested = storage?.getItem(ACTIVE_PROJECT_KEY); let project = requested && await read(requested);
-    if (!project) { project = migrateLegacyCity(storage); await write(project, 'migration:legacy-city'); try { storage?.setItem(ACTIVE_PROJECT_KEY, project.id); } catch {} }
-    active = normalizeProject(project); mirrorBadges(active); return clone(active);
+    if (!project) { project = migrateLegacyCity(storage); if (!await write(project, 'migration:legacy-city')) throw Error('Project storage is unavailable. Your previous work was kept.'); storage?.setItem(ACTIVE_PROJECT_KEY, project.id); }
+    if (storage && storage.getItem(ACTIVE_PROJECT_KEY) !== project.id) throw Error('The project changed while opening. Reload before editing.');
+    active = normalizeProject(project); workspaceGeneration = storage?.getItem(WORKSPACE_GENERATION_KEY);
+    if (storage === safeStorage() && typeof window !== 'undefined') {
+      if (!storage.getItem(LEGACY_OWNER_KEY)) storage.setItem(LEGACY_OWNER_KEY, active.id);
+      bindWorkspace(active.id);
+    }
+    mirrorBadges(active); return clone(active);
   }
-  async function createAndOpen(name) { active = createProject(name); await write(active, 'created'); try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch {} emit({ type: 'opened', projectId: active.id }); return clone(active); }
+  function activatePointer(project, activate) {
+    const oldId = storage?.getItem(ACTIVE_PROJECT_KEY), oldGeneration = storage?.getItem(WORKSPACE_GENERATION_KEY);
+    const nextGeneration = id(); let rollback;
+    try {
+      rollback = activate?.(project);
+      storage?.setItem(WORKSPACE_GENERATION_KEY, nextGeneration);
+      storage?.setItem(ACTIVE_PROJECT_KEY, project.id);
+      workspaceGeneration = nextGeneration;
+    } catch (error) {
+      if (storage) {
+        if (oldId == null) storage.removeItem(ACTIVE_PROJECT_KEY); else storage.setItem(ACTIVE_PROJECT_KEY, oldId);
+        if (oldGeneration == null) storage.removeItem(WORKSPACE_GENERATION_KEY); else storage.setItem(WORKSPACE_GENERATION_KEY, oldGeneration);
+      }
+      rollback?.(); throw error;
+    }
+  }
+  async function createAndOpen(name) {
+    if (storage === safeStorage() && typeof window !== 'undefined') {
+      if (!active) await openActiveProject();
+      const project = createProject(name);
+      if (!await write(project, 'created')) throw Error('The new project could not be saved.');
+      const { switchWorkspaceProject } = await import('./backup-coordinator.js');
+      const result = await switchWorkspaceProject(api, project.id);
+      return result.project;
+    }
+    generation++;
+    const project = createProject(name);
+    if (!await write(project, 'created')) throw Error('The project could not be saved.');
+    activatePointer(project);
+    active = project;
+    if (storage === safeStorage() && typeof window !== 'undefined') bindWorkspace(active.id, { rebind: true });
+    emit({ type: 'opened', projectId: active.id }); return clone(active);
+  }
+  function binding() { return { projectId: active?.id, generation }; }
+  function bound(expected) {
+    return expected.generation === generation && expected.projectId === active?.id
+      && (!storage || (storage.getItem(ACTIVE_PROJECT_KEY) === expected.projectId && storage.getItem(WORKSPACE_GENERATION_KEY) === workspaceGeneration));
+  }
+  const stale = () => ({ ok: false, staleWorkspace: true, error: 'The project changed. Reload this workspace before editing.', project: clone(active) });
+
 
   /** Mirror the envelope's authoritative badges to the legacy key the Logbook reads. */
   function mirrorBadges(project) {
@@ -263,7 +342,10 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
    *  after another tab writes. Without IDB the in-memory copy is all we have. */
   async function freshActive() {
     if (!active) { await openActiveProject(); return active; }
-    const stored = await read(active.id);
+    const expected = binding();
+    if (!bound(expected)) throw Error(stale().error);
+    const stored = await read(expected.projectId);
+    if (!bound(expected)) throw Error(stale().error);
     if (stored) active = normalizeProject(stored);
     return active;
   }
@@ -282,11 +364,18 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
   }
 
   /** Switch which project every app reads: swaps the complete wallet and progress. */
-  async function switchProject(projectId) {
+  async function switchProject(projectId, { prepare, activate } = {}) {
+    if (!activate && storage === safeStorage() && typeof window !== 'undefined') {
+      try { const { switchWorkspaceProject } = await import('./backup-coordinator.js'); return await switchWorkspaceProject(api, projectId); }
+      catch (error) { return { ok: false, error: error.message }; }
+    }
+    generation++;
+    const expected = binding();
     const project = await read(projectId);
     if (!project) return { ok: false, error: 'That project is not on this device.' };
+    try { if (prepare) await prepare(project); if (!bound(expected)) return stale(); activatePointer(project, activate); }
+    catch (error) { return { ok: false, error: error.message }; }
     active = normalizeProject(project);
-    try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch { /* private mode */ }
     mirrorBadges(active);
     emit({ type: 'switched', projectId: active.id });
     return { ok: true, project: clone(active) };
@@ -303,6 +392,10 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     copy.id = id();
     copy.name = String(name || `${source.name || 'My AI City'} (copy)`).slice(0, 80);
     copy.createdAt = now(); copy.updatedAt = now(); copy.revision = 0;
+    if (storage === safeStorage() && typeof window !== 'undefined') {
+      try { const { copyProjectAssets } = await import('./backup-coordinator.js'); await copyProjectAssets(source, copy); }
+      catch (error) { return { ok: false, error: error.message }; }
+    }
     const ok = await write(copy, 'copied');
     if (!ok) return { ok: false, storageFull: true };
     emit({ type: 'copied', projectId: copy.id });
@@ -319,15 +412,18 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
    */
   async function mutate(change, { reason = 'mutate', versioned = true } = {}) {
     if (!active) await openActiveProject();
+    const expected = binding();
     const d = await db();
+    if (!bound(expected)) return stale();
     if (!d) return { ok: false, storageUnavailable: true, project: clone(active) };
-    const projectId = active.id;
+    const projectId = expected.projectId;
     return new Promise(resolve => {
       const tx = d.transaction(['projects', 'versions'], 'readwrite');
       const store = tx.objectStore('projects');
       const req = store.get(projectId);
       let outcome = null, conflict = false, failure = null;
       req.onsuccess = () => {
+        if (!bound(expected)) { failure = Error(stale().error); tx.abort(); return; }
         const current = req.result;
         if (!current) { failure = Error('The active project was not found.'); tx.abort(); return; }
         try {
@@ -339,13 +435,15 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
           next.createdAt = current.createdAt;
           next.revision = current.revision + 1; next.updatedAt = now();
           store.put(next);
-          if (versioned) tx.objectStore('versions').put({ key: `${next.id}:${next.revision}`, projectId: next.id, reason, savedAt: now(), project: clone(next) });
+          if (versioned) tx.objectStore('versions').put({ key: `${current.id}:${current.revision}`, projectId: current.id, reason, savedAt: now(), project: clone(current) });
           outcome = next;
         } catch (e) { failure = e; tx.abort(); }
       };
       req.onerror = () => { failure = Error('The project could not be read.'); tx.abort(); };
       tx.oncomplete = () => {
+        if (!bound(expected)) { resolve(stale()); return; }
         active = outcome || active;
+        if (!conflict) emit({ type: 'changed', projectId: active.id, revision: active.revision });
         if (conflict) { resolve({ ok: false, conflict: true, project: clone(active) }); return; }
         resolve({ ok: true, project: clone(active) });
       };
@@ -364,7 +462,7 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     }, { reason: `edit:${section}` });
     if (result.conflict) return result;
     if (!result.ok) return { ok: false, storageFull: true, project: result.project, error: result.error };
-    emit({ type: 'changed', projectId: active.id, section, revision: active.revision });
+    emit({ type: 'changed', projectId: result.project.id, section, revision: result.project.revision });
     return { ok: true, project: result.project };
   }
 
@@ -384,6 +482,25 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
       purchased = result.purchased; return result.economy;
     }, 'purchase');
     return { ...out, purchased };
+  }
+  async function equipItem(itemId, equipped = true) {
+    return mutate(project => {
+      const handler = marketHandler(itemId);
+      if (!handler || handler.action !== 'equip' || !project.economy?.owned?.includes(itemId)) throw Error('Buy this item in the current project before equipping it.');
+      project.projects.city ||= {};
+      const state = project.projects.city.legacyState ||= {};
+      if (handler.kind === 'accessory') {
+        const map = JSON.parse(state.accessories || '{}');
+        if (equipped) map[handler.slot] = handler.accessory;
+        else if (map[handler.slot] === handler.accessory) delete map[handler.slot];
+        state.accessories = JSON.stringify(map);
+      } else {
+        const key = handler.kind === 'finish' ? 'championFinish' : 'hostAppearance';
+        if (equipped) state[key] = handler.finishId || handler.hostUpgrade;
+        else delete state[key];
+      }
+      return project;
+    }, { reason: 'equipment' });
   }
   async function recordLearningEvent(event, config) {
     // The two existence-checked rewards are delegated here so the raw store
@@ -542,7 +659,7 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
       try { change(current); return current; }
       catch (e) { error = String(e.message || e); return null; }
     }, { reason, versioned: false });
-    return { ...result, error: error || undefined };
+    return { ...result, ok: result.ok && !error, error: error || result.error };
   }
 
   async function economyMutation(nextEconomy, reason) {
@@ -556,17 +673,69 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     return { ...result, economy: clone(result.project.economy) };
   }
 
-  async function checkpoint(reason = 'manual') { if (!active) await openActiveProject(); const ok = await write(active, reason); return { ok, project: clone(active) }; }
-  async function exportProject() { if (!active) await openActiveProject(); return exportProjectEnvelope(active); }
-  async function importProject(archive) { const parsed = importProjectEnvelope(archive); if (!parsed.ok) return parsed; if (active) await write(active, 'before-import'); active = normalizeProject(parsed.project); active.revision++; active.updatedAt = now(); const ok = await write(active, 'import'); if (!ok) return { ok: false, storageFull: true }; try { storage?.setItem(ACTIVE_PROJECT_KEY, active.id); } catch {} mirrorBadges(active); emit({ type: 'imported', projectId: active.id }); return { ok: true, project: clone(active) }; }
+  async function checkpoint(reason = 'manual') {
+    if (!active) await openActiveProject();
+    const expected = binding(), d = await db();
+    if (!bound(expected)) return stale();
+    if (!d) return { ok: false, storageUnavailable: true };
+    return new Promise(resolve => {
+      const tx = d.transaction(['projects', 'versions'], 'readwrite');
+      const request = tx.objectStore('projects').get(expected.projectId);
+      let project;
+      request.onsuccess = () => {
+        if (!bound(expected) || !request.result) { tx.abort(); return; }
+        project = request.result;
+        tx.objectStore('versions').put({ key: `${project.id}:${project.revision}`, projectId: project.id, reason, savedAt: now(), project: clone(project) });
+      };
+      tx.oncomplete = () => { if (bound(expected)) active = normalizeProject(project); resolve({ ok: true, project: clone(project) }); };
+      tx.onerror = tx.onabort = () => resolve({ ok: false, error: 'Recovery snapshot could not be saved.' });
+    });
+  }
+  async function exportProject() {
+    const project = await freshActive();
+    if (!bound(binding())) return stale();
+    return exportProjectEnvelope(project);
+  }
+  async function importProject(archive, { stage, activate } = {}) {
+    if (!stage && !activate && storage === safeStorage() && typeof window !== 'undefined') {
+      try { const { restoreProjectBackup } = await import('./backup-coordinator.js'); return await restoreProjectBackup(archive, { store: api }); }
+      catch (error) { return { ok: false, error: error.message }; }
+    }
+    const parsed = importProjectEnvelope(archive); if (!parsed.ok) return parsed;
+    if (!active) await openActiveProject();
+    const expected = binding();
+    const recovery = await checkpoint('before-import'); if (!recovery.ok) return recovery;
+    const project = normalizeProject(parsed.project);
+    project.progress ||= {}; project.progress.importedFrom = project.id;
+    project.id = id(); project.createdAt = now(); project.updatedAt = now();
+    if (!bound(expected)) return stale();
+    try { if (stage) await stage(project); }
+    catch (error) { return { ok: false, error: error.message }; }
+    if (!bound(expected)) return stale();
+    const ok = await write(project, 'import', expected.projectId);
+    if (!ok) return { ok: false, storageFull: true };
+    if (!bound(expected)) return stale();
+    try { activatePointer(project, activate); }
+    catch (error) { return { ok: false, error: error.message }; }
+    generation++; active = project;
+    mirrorBadges(active); emit({ type: 'imported', projectId: active.id });
+    return { ok: true, project: clone(active) };
+  }
   async function restoreLegacyCity() { if (!active) await openActiveProject(); const state = active.projects.city?.legacyState; if (!state) return { ok: false, error: 'This project has no City data.' }; return writeState(state, storage); }
-  async function restoreRevision(revision) { if (!active) await openActiveProject(); const found = (await versions(active.id)).find(v => v.project.revision === revision); if (!found) return { ok: false, error: 'That revision is not available.' }; await write(active, 'before-revision-restore'); active = clone(found.project); active.revision++; active.updatedAt = now(); const ok = await write(active, 'revision-restored'); if (ok) emit({ type: 'restored', projectId: active.id, revision: active.revision }); return { ok, project: clone(active) }; }
-  return {
+  async function restoreRevision(revision) {
+    if (!active) await openActiveProject();
+    const expected = binding();
+    const found = (await versions(expected.projectId)).find(v => v.project.revision === revision);
+    if (!bound(expected)) return stale();
+    if (!found) return { ok: false, error: 'That revision is not available.' };
+    return mutate(() => clone(found.project), { reason: 'before-revision-restore' });
+  }
+  const api = {
     openActiveProject, createProject: createAndOpen, mutate,
     readSection: async section => clone((await freshActive()).projects?.[section] || {}),
     commitSection, checkpoint, listVersions: versions, restoreRevision, flush: checkpoint,
     syncStatus: () => ({ state: 'local', label: 'Saved on this device' }), exportProject, importProject, restoreLegacyCity,
-    readEconomy, transact, award, purchase, recordLearningEvent,
+    readEconomy, transact, award, purchase, equipItem, recordLearningEvent,
     readCapabilities: async () => clone((await freshActive()).capabilities || {}),
     readInstallations: async () => clone((await freshActive()).installations || {}),
     readChallenges: async () => clone((await freshActive()).challenges),
@@ -574,7 +743,9 @@ export function createProjectStore({ storage = safeStorage(), indexedDB = global
     listProjects, switchProject, copyProject,
     publishSkill, installSkill, runSkill, recordChallengeOutcome,
     recordSkillSaved, markTutorialRoom, recordTutorialTask,
+    close: () => { channel?.close(); dbPromise?.then(d => d?.close()); },
   };
+  return api;
 }
 
 function safeStorage() { try { return globalThis.localStorage || null; } catch { return null; } }

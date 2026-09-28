@@ -60,9 +60,10 @@ P5 Programme/
   `city-common/champion-file.js`), and the city-builder adds **☁️ Save to
   cloud / Open from cloud** (KV-backed codes like `NOVA-K7M2P3`, no accounts,
   no PII — worker endpoints `/api/save` + `/api/load`, binding `SAVES`).
-  Restore is one tap: upload the file or type the code, then the app reloads
-  with everything back. GLBs are never in the Champion File (skins travel by
-  preset `id`; a custom Fit-Studio GLB falls back to the preset on a new device).
+  Complete recovery uses one downloaded `.passiona` project, including referenced
+  model GLBs and editable Workshop/Studio work. Cloud codes remain smaller City
+  snapshots (1 MB), not complete project backups. Restore opens a new local
+  project and reloads. See `docs/project-backup-and-recovery.md`.
 - **Models must be CC0 / public domain only.** No attribution-required (CC-BY),
   no non-commercial (CC-BY-NC), no unverified "personal-use" itch packs. See
   `library/CC0-MANIFEST.md` — the authoritative keep list. Do NOT add a model

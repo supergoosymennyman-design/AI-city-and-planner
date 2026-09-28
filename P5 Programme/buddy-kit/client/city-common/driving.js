@@ -116,6 +116,7 @@ export function buildTrack(spec = {}) {
   const cycle = phases.reduce((n, p) => n + p.seconds, 0);
   return {
     id: spec.id || 'track',
+    exercise: spec.exercise || null,
     points,
     segments,
     length,
@@ -191,6 +192,16 @@ export const TRACKS = Object.freeze({
     light: { s: 30, phases: [{ state: 'red', seconds: 6 }, { state: 'green', seconds: 20 }] },
     turns: [{ from: 58, to: 122, dir: 'left' }],
   }),
+});
+
+/** First-release school exercises. Ordinary city roads are deliberately excluded. */
+export const SCHOOL_TRACKS = Object.freeze({
+  bend: buildTrack({ id: 'bend', exercise: 'bend', width: 7,
+    points: [...linePoints(0, 0, 0, 10, 5), ...arcPoints(-24, 10, 24, 0, Math.PI / 4, 16).slice(1)] }),
+  obstacle: buildTrack({ id: 'obstacle', exercise: 'obstacle', width: 7,
+    points: [[0, 0], [0, 32]], obstacles: [{ x: 0, z: 25, r: 1, kind: 'barrier' }] }),
+  light: buildTrack({ id: 'light', exercise: 'light', width: 7,
+    points: [[0, 0], [0, 32]], light: { s: 16, phases: [{ state: 'green', seconds: 2 }, { state: 'red', seconds: 7 }, { state: 'green', seconds: 40 }] } }),
 });
 
 /** A fresh vehicle at the start of a track. */
@@ -306,11 +317,14 @@ export function advanceStep(track, car, inference, { t = 0, dt = DRIVE_DT, step 
   let event = null;
   // 1. Collision against an obstacle (r + car radius).
   for (const o of track.obstacles) {
-    if (Math.hypot(o.x - x, o.z - z) <= o.r + CAR_RADIUS) { event = { type: 'collision', obstacle: o.kind }; break; }
+    const dx = x - car.x, dz = z - car.z;
+    const u = clamp(((o.x-car.x)*dx + (o.z-car.z)*dz) / (dx*dx + dz*dz || 1), 0, 1);
+    if (Math.hypot(o.x - car.x - u*dx, o.z - car.z - u*dz) <= o.r + CAR_RADIUS) { event = { type: 'collision', obstacle: o.kind }; break; }
   }
   // 2. Off-road.
   const proj = projectToTrack(track, x, z);
-  if (!event && Math.abs(proj.lateral) > track.width / 2) event = { type: 'off-road', lateral: round3(proj.lateral) };
+  if (!event && Math.sqrt((x-proj.x)**2 + (z-proj.z)**2) + CAR_RADIUS > track.width / 2) event = { type: 'off-road', lateral: round3(proj.lateral) };
+  if (!event && track.light && s + CAR_RADIUS < track.light.s && proj.s + CAR_RADIUS >= track.light.s && lightStateAt(track, t) === LIGHT_RED) event = { type: 'red-light', reason: 'crossed the stop line on red' };
   // 3. The model's own stop: an abstention / missing input / unknown label, or a
   //    deliberate "stop" action with a clear road ahead (an emergency stop).
   //    This is evaluated BEFORE the finish line on purpose: a car that stops
@@ -318,9 +332,10 @@ export function advanceStep(track, car, inference, { t = 0, dt = DRIVE_DT, step 
   //    was a review-found lie. Only a still-moving arrival counts as a goal.
   const wantsStop = decision.stop || decision.action === 'stop';
   if (!event && wantsStop) {
-    const required = observation.trafficLight === LIGHT_RED || observation.center < REQUIRED_STOP_CENTER;
+    const required = !decision.stop && (observation.trafficLight === LIGHT_RED || observation.center < REQUIRED_STOP_CENTER);
     event = { type: required ? 'stop-required' : 'emergency-stop', reason: decision.reason || (decision.stop ? null : 'the model chose to stop with a clear road') };
   }
+  if (event?.type === 'stop-required' && track.exercise === 'obstacle' && speed === 0 && observation.center < REQUIRED_STOP_CENTER && observation.center > 0) event = { type: 'goal', reason: 'stopped safely before the obstacle' };
   // 4. Finish — a genuine arrival, never masking a stop/abstention above.
   if (!event && proj.s >= track.length - GOAL_MARGIN) event = { type: 'goal' };
 
@@ -341,6 +356,7 @@ export function advanceStep(track, car, inference, { t = 0, dt = DRIVE_DT, step 
   // A required stop (a red light, an obstacle too close) is a state, not the end
   // of the trial: the car sits still and re-senses. Every other event ends it.
   const terminal = !!event && event.type !== 'stop-required';
+  if (terminal) { next.speed = 0; record.pose.speed = 0; }
   return { car: next, record, event, done: terminal };
 }
 
@@ -406,6 +422,8 @@ export function runTrial(opts = {}) {
     if (advanced.record.event === 'emergency-stop') interventions.push({ type: 'emergency-stop', at: advanced.record.t, reason: advanced.record.eventDetail?.reason || 'the model asked to stop with a clear road' });
     if (advanced.record.event === 'collision') interventions.push({ type: 'collision', at: advanced.record.t, reason: advanced.record.eventDetail?.obstacle || 'obstacle' });
     if (advanced.record.event === 'off-road') interventions.push({ type: 'off-road', at: advanced.record.t, reason: `lateral ${advanced.record.eventDetail?.lateral}` });
+    if (advanced.record.event === 'red-light') interventions.push({ type: 'red-light', at: advanced.record.t });
+    if (advanced.done && advanced.record.event !== 'goal') { outcome = advanced.record.event; break; }
     if (advanced.record.event === 'goal') { goalReached = true; outcome = 'goal'; break; }
     if (advanced.record.event === 'collision') { outcome = 'collision'; break; }
     if (advanced.record.event === 'off-road') { outcome = 'off-road'; break; }
@@ -414,6 +432,7 @@ export function runTrial(opts = {}) {
     // waits and re-senses, so the light's own cycle can let it proceed.
   }
   const last = steps[steps.length - 1];
+  if (last) last.pose.speed = 0;
   return {
     ok: true, track, steps, dt,
     outcome, goalReached, reason,

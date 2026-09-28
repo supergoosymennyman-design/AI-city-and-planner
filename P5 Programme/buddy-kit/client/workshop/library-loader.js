@@ -37,6 +37,11 @@
   }
   /** A stopped job never commits a partial selection; the caller owns the final atomic swap. */
   async function load(id, selected, job, progress) {
+    if (['city-recycling-v1','city-recycling-v2'].includes(id)) {
+      if (job.stop) throw new Error('Loading stopped.');
+      for (const row of selected) L.register(row.id, row.vector);
+      return;
+    }
     if (id === 'iris-v1') return;
     const chunks = [...new Set(selected.map((r) => r.chunk))];
     for (let i = 0; i < chunks.length; i++) {
@@ -65,7 +70,7 @@
   function thumbnail(handle, onReady) {
     if (typeof handle !== 'string' || !handle.startsWith('library:')) return null;
     const id = handle.slice(8);
-    const row = L.refRow({ dataset: 'trashnet-v1', id });
+    const row = L.refRow({ dataset: id.startsWith('city-v2-') ? 'city-recycling-v2' : id.startsWith('city-') ? 'city-recycling-v1' : 'trashnet-v1', id });
     if (!row) return null;
     if (!thumbs.has(id)) {
       const img = new Image(); img.src = row.src; thumbs.set(id, img);

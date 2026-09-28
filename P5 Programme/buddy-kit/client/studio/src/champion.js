@@ -87,7 +87,7 @@ async function mirrorWallet() {
   if (!envelope || !walletEconomy || !session || mirroring) return;
   if (sameWallet(session.file.economy, walletEconomy)) return;
   mirroring = true;
-  try { await session.edit((file) => { file.economy = clone(walletEconomy); return file; }); }
+  try { await session.edit((file) => { file.economy = { ...clone(walletEconomy), projectOwner: localStorage.getItem('passiona_active_project_v1') }; return file; }); }
   catch { /* an external tab holds the session; the envelope is still authoritative */ }
   finally { mirroring = false; }
 }

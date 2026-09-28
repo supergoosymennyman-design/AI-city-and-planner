@@ -217,8 +217,8 @@ test('City slider and grab drop persist transforms; Champion download includes c
  await page.click('#btn-save-hud');
  const downloading=page.waitForEvent('download');await page.click('#save-download');
  const file=JSON.parse(readFileSync(await(await downloading).path(),'utf8'));
- expect(file.state.props).toBe(await page.evaluate(()=>window.__propLibrary.snapshot()));
- expect(JSON.parse(file.state.props).props[0].scale).toEqual(scale);
+ expect(file.project.projects.city.legacyState.props).toBe(await page.evaluate(()=>window.__propLibrary.snapshot()));
+ expect(JSON.parse(file.project.projects.city.legacyState.props).props[0].scale).toEqual(scale);
  await page.evaluate(()=>window.__propLibrary.clear());
  expect(await page.evaluate(()=>window.__grab.interactables.length)).toBe(0);
  await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true})));

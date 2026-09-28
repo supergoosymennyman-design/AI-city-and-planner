@@ -407,3 +407,95 @@ test('recordChallengeOutcome commits evidence rewards and a revision fix atomica
     assert.equal(eco.evidence[key].toRevision, 2);
   } finally { restore(); }
 });
+
+test('legacy migration cannot replace an established wallet, including zero balance evidence', () => {
+  for (const patch of [{balance: 30}, {owned:['visor']}, {transactions:[{id:'spent'}]}, {claimed:['earned']}, {evidence:{earned:{}}}]) {
+    const project = createProject(); Object.assign(project.economy, patch);
+    const before = structuredClone(project.economy);
+    migrateEconomyFromChampion(project, {balance:999, owned:['legacy']});
+    assert.deepEqual(project.economy, before);
+  }
+});
+
+test('stale exports and checkpoints preserve the latest committed wallet', async () => {
+  const {store, restore} = setup();
+  try {
+    const a = store(), b = store(); await a.openActiveProject(); await b.openActiveProject();
+    await a.award({id:'latest', title:'Latest reward', amount:30});
+    assert.equal((await b.exportProject()).archive.project.economy.balance,30);
+    await b.checkpoint();
+    assert.equal((await a.readEconomy()).balance,30);
+  } finally {restore();}
+});
+
+test('import creates a new identity and preserves the latest pre-import revision', async () => {
+  const {store, restore} = setup();
+  try {
+    const a = store(), b = store(); const original = await a.openActiveProject(); await b.openActiveProject();
+    const archive = (await b.exportProject()).archive;
+    await a.award({id:'latest',title:'Latest',amount:30});
+    const imported = await b.importProject(archive);
+    assert.equal(imported.ok,true); assert.notEqual(imported.project.id,original.id);
+    assert.equal((await b.listVersions(original.id)).find(v=>v.reason==='before-import').project.economy.balance,30);
+  } finally {restore();}
+});
+
+test('revision recovery increases the current revision and retains the pre-restore wallet', async () => {
+  const {store, restore} = setup();
+  try {
+    const a=store(), b=store(); const original=await a.openActiveProject(); await b.openActiveProject();
+    await a.award({id:'latest',title:'Latest',amount:30});
+    const result=await b.restoreRevision(0);
+    assert.equal(result.ok,true); assert.equal(result.project.revision,2);
+    assert.equal((await b.listVersions(original.id)).find(v=>v.reason==='before-revision-restore').project.economy.balance,30);
+  } finally {restore();}
+});
+
+test('a switched workspace rejects old and pending mutations', async () => {
+  const {store, restore} = setup();
+  try {
+    const a=store(), b=store(); await a.openActiveProject(); await b.openActiveProject();
+    const next=await a.createProject('Second');
+    const stale=await b.award({id:'old',title:'Old page',amount:30});
+    assert.equal(stale.ok,false);
+    assert.equal((await a.readEconomy()).balance,0);
+    const pending=a.award({id:'pending',title:'Pending',amount:30});
+    const switched=a.switchProject(next.id);
+    await Promise.all([pending,switched]);
+    assert.equal((await a.readEconomy()).balance,0);
+  } finally {restore();}
+});
+
+test('equipment requires ownership and preserves existing free accessories', async () => {
+  const {store, restore} = setup();
+  try {
+    const s=store(); const p=await s.openActiveProject();
+    await s.commitSection('city',{legacyState:{accessories:'{"head":"head_crown"}'}},p.revision);
+    assert.equal((await s.equipItem('acc-visor')).ok,false);
+    await s.award({id:'seed-equipment',title:'Seed',amount:20});
+    const {MARKET_CATALOGUE}=await import('../P5 Programme/buddy-kit/client/city-common/market-catalogue.js');
+    await s.purchase('acc-visor','buy-equipment',MARKET_CATALOGUE);
+    assert.equal((await s.equipItem('acc-visor')).ok,true);
+    assert.deepEqual(JSON.parse((await s.readSection('city')).legacyState.accessories),{head:'head_crown',face:'face_visor'});
+    await s.equipItem('acc-visor',false);
+    assert.deepEqual(JSON.parse((await s.readSection('city')).legacyState.accessories),{head:'head_crown'});
+  } finally {restore();}
+});
+
+test('a compatibility wallet cannot seed a different project',()=>{
+  const p=createProject();
+  const result=migrateEconomyFromChampion(p,{balance:999,projectOwner:'another-project'});
+  assert.equal(result.migrated,false);assert.equal(p.economy.balance,0);
+});
+
+test('switch activation is cancelled if another workspace switches while prepare waits',async()=>{
+  const {store,restore}=setup();
+  try {
+    const a=store(),b=store();const first=await a.openActiveProject();await a.createProject('Second');await b.openActiveProject();
+    let release,ready;const entered=new Promise(resolve=>{ready=resolve;});
+    const pending=a.switchProject(first.id,{prepare:()=>{ready();return new Promise(resolve=>{release=resolve;});}});
+    await entered;const third=await b.createProject('Third');release();
+    assert.equal((await pending).ok,false);
+    assert.equal((await b.openActiveProject()).id,third.id);
+  } finally {restore();}
+});

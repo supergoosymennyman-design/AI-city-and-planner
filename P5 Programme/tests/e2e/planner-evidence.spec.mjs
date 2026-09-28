@@ -106,8 +106,8 @@ test('goal → drag → inspect → optimise both strategies → Apply → Undo 
     await page.click('#btn-undo');await flush(page);await freshScore(page);
     expect((await saved(page)).buildings).toEqual(before.buildings);
   }
-  const file=await download(page);expect(file.state.quests).toBe(history);
-  const savedPlan=JSON.parse(file.state.layout);expect(savedPlan.plannerPlan.metrics).toHaveLength(8);
+  const file=await download(page);expect(file.project.projects.city.legacyState.quests).toBe(history);
+  const savedPlan=JSON.parse(file.project.projects.city.legacyState.layout);expect(savedPlan.plannerPlan.metrics).toHaveLength(8);
   await page.reload();
   await Promise.all([page.waitForEvent('load'),page.setInputFiles('#import-file',{name:'saved.champion.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(file))})]);
   await freshScore(page);expect((await saved(page)).goals).toEqual(savedPlan.goals);
@@ -128,7 +128,7 @@ test('old weight-only import preserves raw sections until edited and shows expli
   city.roads.push({points:[[100,1500],[1900,1500]],width:14,class:'primary'});
   city.buildings.push({type:'school',pos:[500,1500],footprint:[24,24],height:24},{type:'shop',pos:[1800,1000],height:24},{type:'hospital',pos:[50,50],height:24});
   const raw=' '+JSON.stringify(city,null,3)+'\n';await boot(page,raw);await freshScore(page);
-  const file=await download(page);expect(file.state.layout).toBe(raw);expect(file.state.quests).toBe(history);
+  const file=await download(page);expect(file.project.projects.city.legacyState.layout).toBe(raw);expect(file.project.projects.city.legacyState.quests).toBe(history);
   await page.reload();await openGoals(page);await page.click('#goals-tab-custom');await expect(page.locator('#slider-list')).toContainText('Saved metric priorities');await page.click('#goals-done');
   await page.click('#btn-view-walk');await expect(page.locator('[data-route-status="no-selected-home"]')).toBeVisible();
   await page.locator('[data-tool="select"]').click();const box=await page.locator('#map').boundingBox();await page.mouse.click(box.x+box.width/2-90,box.y+box.height/2);

@@ -26,6 +26,8 @@
 const Rng = (typeof require === 'function') ? require('./rng.js') : window.WorkshopRng;
 // Stage 5 (driving): the sensor-situation table's author. Loaded as a classic
 // script ahead of this one; required directly under node.
+const DataVector = typeof require === 'function' ? require('./data-vector.js') : window.WorkshopDataVector;
+const DrivingPair = typeof require === 'function' ? require('./driving-pair-data.js') : window.WorkshopDrivingPairData;
 const DriveData = (typeof require === 'function') ? require('./drive-data.js') : window.WorkshopDriveData;
 
 /** L2-normalise. */
@@ -176,7 +178,9 @@ const DATASETS = {
     gen: (st) => DriveData.gen(st),
   },
 };
-const ORDER = ['plants', 'buses', 'icecream', 'icecream-tiny', 'drive'];
+for (const exercise of ['bend','obstacle','light']) DATASETS['drive-'+exercise] = {...DATASETS.drive, id:'drive-'+exercise, size:({bend:260,obstacle:369,light:60})[exercise], nameKey:'dataset.drive.'+exercise+'.name'};
+for (const schema of Object.values(DrivingPair.schemas)) DATASETS[schema.id] = schema;
+const ORDER = ['plants', 'buses', 'icecream', 'icecream-tiny', 'drive', 'drive-bend', 'drive-obstacle', 'drive-light', 'drive-steering-v2', 'drive-speed-v2'];
 
 /**
  * Loud on an unknown dataset id — a save from a future build must not silently feed nothing.
@@ -215,6 +219,11 @@ function face(id, features) {
  * @param {number} seed
  */
 function rows(id, seed) {
+  for (const [role, schema] of Object.entries(DrivingPair.schemas)) if (id === schema.id) return DrivingPair.rows(role);
+  if (['drive-bend','drive-obstacle','drive-light'].includes(id)) {
+    const school = typeof require === 'function' ? require('./driving-school-data.js') : window.WorkshopDrivingSchool;
+    return school.rows(id.slice(6));
+  }
   const s = schema(id);
   // Mix the dataset id into the seed so two datasets at the same seed are not the same draws.
   let st = Rng.seed((seed >>> 0) ^ hash(id));
@@ -264,15 +273,7 @@ function split(rowsArr, fraction, seed) {
  * length, always — two datasets never share shelves (the host empties them on a switch).
  */
 function vec(id, features) {
-  const s = schema(id);
-  const v = [];
-  for (const f of s.features) {
-    const x = features[f.id];
-    if (f.options) { for (const o of f.options) v.push(x === o ? 1 : 0); }
-    else v.push(f.max === f.min ? 0 : (Number(x) - f.min) / (f.max - f.min));
-  }
-  v.push(1);
-  return unit(v);
+  return DataVector.vector(schema(id), features);
 }
 
 /**
@@ -286,15 +287,7 @@ function vec(id, features) {
  * Layout is identical to vec(): scaled numbers · one-hot options · the level constant 1.
  */
 function rawVec(id, features) {
-  const s = schema(id);
-  const v = [];
-  for (const f of s.features) {
-    const x = features[f.id];
-    if (f.options) { for (const o of f.options) v.push(x === o ? 1 : 0); }
-    else v.push(f.max === f.min ? 0 : (Number(x) - f.min) / (f.max - f.min));
-  }
-  v.push(1);
-  return v;
+  return DataVector.raw(schema(id), features);
 }
 
 /**

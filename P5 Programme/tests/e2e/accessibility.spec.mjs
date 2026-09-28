@@ -26,7 +26,7 @@ for (const lang of ['en','zh-Hant']) test(`keyboard edit, modal safety, download
  await page.keyboard.press('Escape');await expect(page.locator('#btn-goals')).toBeFocused();
  await enter(page,'#btn-save');await expect(page.locator('#save-name')).toBeFocused();
  const [download]=await Promise.all([page.waitForEvent('download'),page.keyboard.press('Enter')]);
- const file=JSON.parse(await readFile(await download.path(),'utf8'));expect(file.state.quests).toBe(history);expect(JSON.parse(file.state.layout).buildings[0].pos).toEqual([1010,1000]);
+ const file=JSON.parse(await readFile(await download.path(),'utf8'));expect(file.project.projects.city.legacyState.quests).toBe(history);expect(JSON.parse(file.project.projects.city.legacyState.layout).buildings[0].pos).toEqual([1010,1000]);
  await expect(page.locator('#btn-save')).toBeFocused();
  await page.locator('#map').focus();await page.keyboard.press('Delete');
  await expect.poll(async()=> (await saved(page))?.buildings.length).toBe(0);
@@ -112,26 +112,25 @@ test('Tab-only road, park, building and file save; browser page zoom',async({pag
  await tabTo('#catalog-list [data-type="housing"]');await page.keyboard.press('Enter');await tabTo('#map');await page.keyboard.press('Enter');await page.keyboard.press(']');await page.keyboard.press('ArrowLeft');
  await tabTo('#btn-save');await page.keyboard.press('Enter');await expect(page.locator('#save-name')).toBeFocused();
  const [download]=await Promise.all([page.waitForEvent('download'),page.keyboard.press('Enter')]);
- const file=JSON.parse(await readFile(await download.path(),'utf8'));const plan=JSON.parse(file.state.layout);expect([plan.roads.length,plan.parks.length,plan.buildings.length]).toEqual([1,1,1]);
+ const file=JSON.parse(await readFile(await download.path(),'utf8'));const plan=JSON.parse(file.project.projects.city.legacyState.layout);expect([plan.roads.length,plan.parks.length,plan.buildings.length]).toEqual([1,1,1]);
  await expect(page.locator('#btn-save')).toBeFocused();
  const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setPageScaleFactor',{pageScaleFactor:2});
  expect(await page.evaluate(()=>visualViewport.scale)).toBe(2);await page.screenshot({path:'/tmp/access-session5/planner-zoom.png'});
 });
 
-test('Chinese recovery owns focus and preserves both raw backup downloads',async({page})=>{
+test('Chinese failed restore keeps the previous project editable and downloadable',async({page})=>{
  await planner(page,'zh-Hant');await enter(page,'#catalog-list [data-type="housing"]');await enter(page,'#map');await expect.poll(async()=>(await saved(page))?.buildings.length).toBe(1);
  const raw=' {"version":2,"scaleMeters":2000,"buildings":[],"parks":[],"roads":[]} ';
+ const project=await page.evaluate(()=>localStorage.getItem('passiona_active_project_v1'));
  await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='p5_city_planner_layout_v1')throw new DOMException('full','QuotaExceededError');return original.call(this,k,v);};});
  await page.setInputFiles('#import-file',{name:'restore.champion.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({kind:'passiona-champion-file',version:1,state:{layout:raw,quests:history}}))});
- // Restore is transactional: if the layout write fails, the later history
- // section is not committed either and the complete existing city is kept.
- await expect(page.locator('#restore-results')).toContainText('城市規劃: 未儲存');await expect(page.locator('#restore-results')).toContainText('歷史活動: 未儲存');
- await page.keyboard.press('Escape');await expect(page.locator('#restore-results')).toBeVisible();await page.keyboard.press('Delete');
- await page.locator('#restore-continue').focus();await page.keyboard.press('Tab');await expect(page.locator('#restore-recovery')).toBeFocused();
- for(const [id,expected] of [['restore-recovery',null],['restore-imported',raw]]){
-  const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#'+id).click()]);const file=JSON.parse(await readFile(await download.path(),'utf8'));
-  if(expected)expect(file.state.layout).toBe(expected);else expect(JSON.parse(file.state.layout).buildings).toHaveLength(1);
-  expect(file.state.quests).toBe(history);
- }
- await page.screenshot({path:'/tmp/access-session5/recovery-zh.png'});
+ await expect(page.locator('#restore-results')).toContainText('full');
+ await page.locator('#restore-continue').click();
+ expect((await saved(page)).buildings).toHaveLength(1);
+ expect(await page.evaluate(()=>localStorage.getItem('passiona_active_project_v1'))).toBe(project);
+ expect(await page.evaluate(()=>localStorage.getItem('hk_ai_city_quests_v1'))).toBe(history);
+ await enter(page,'#btn-save');
+ const [download]=await Promise.all([page.waitForEvent('download'),page.keyboard.press('Enter')]);
+ const file=JSON.parse(await readFile(await download.path(),'utf8'));
+ expect(JSON.parse(file.project.projects.city.legacyState.layout).buildings).toHaveLength(1);
 });

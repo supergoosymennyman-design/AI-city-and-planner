@@ -1,20 +1,5 @@
-// publish-capability.js — Stage 4/5: the Workshop's PUBLISH bridge to the City.
-//
-// A module (not a classic script) because it must reach the shared capability contract
-// and the authoritative project store under ../city-common/ — the same files the City
-// itself imports, so the published bundle and the City runtime can never drift.
-//
-// It only acts when the page is opened by the City:
-//   ?publishTarget=city&hostInstanceId=<id>&returnTo=<city url>
-// and the payload is chosen by `skill`:
-//   • (default / image)  the placed library photo model (TrashNet k-NN)  → .cap v2 IMAGE
-//   • skill=drive        the placed Number-sense driving model            → .cap v2 NUMERIC
-//
-// For `skill=drive` the page ALSO loads the Driving starter, because the City's
-// "Improve in the Workshop" link is a deliberate hand-off and the student must
-// land on the activity the City sent them to. Nothing is ever auto-published: the
-// child presses the button. Publishing is free and awards no credits by itself
-// (plan §2: closing instructions or importing a template does not earn).
+import { publishDrivingRevision } from '../city-common/driving-project.js';
+// Internal capability/revision bridge. Workshop skill tabs own the student launch action.
 import { buildImageCapabilityV2, buildDriveCapability } from '../city-common/capability-export.js';
 import { createProjectStore } from '../city-common/project-store.js';
 // Loaded for its SIDE EFFECT: learning-events installs `window.PassionaLearning`,
@@ -37,38 +22,13 @@ const SKILL = params.get('skill') === 'drive' ? 'drive' : 'image';
 // 1024-dim features, where the same-class median distance (~1.23) is inside and the
 // cross-class median (~1.35, the honest "unfamiliar" case) falls outside to the
 // human-check tray. `?sure=` overrides it (used by the browser integration run).
-const requested = Number(params.get('sure'));
+const requested = params.has('sure') ? Number(params.get('sure')) : NaN;
 const THRESHOLD = Number.isFinite(requested) ? Math.min(1, Math.max(0, requested)) : 0.2;
 
-const STR = {
-  en: {
-    publish: 'Publish to my City', publishing: 'Publishing…', back: 'Back to my City',
-    noModel: 'Train a photo model in the Data library first, then publish it here.',
-    failed: 'That model could not be published.', ok: 'Published — your City can run it now.',
-    installed: 'Connected to the recycling station.', ready: 'Aiming at the recycling station.',
-    driveReady: 'Train the Driving machine below, then publish it to your car.',
-    driveNoModel: 'Teach the Driving machine first (press Teach it), then publish it here.',
-    driveOk: 'Published — your car will drive with this model now.',
-    driveInstalled: 'Connected to your test car.',
-  },
-  'zh-Hant': {
-    publish: '發佈到我的城市', publishing: '正在發佈…', back: '返回我的城市',
-    noModel: '請先在資料庫訓練一個相片模型，然後在這裡發佈。',
-    failed: '無法發佈這個模型。', ok: '已發佈 —— 你的城市現在可以運行它。',
-    installed: '已連接到回收分類站。', ready: '正瞄準回收分類站。',
-    driveReady: '在下方訓練駕駛機器，然後發佈到你的汽車。',
-    driveNoModel: '請先教駕駛機器（按「教它」），然後在這裡發佈。',
-    driveOk: '已發佈 —— 你的汽車現在會用這個模型駕駛。',
-    driveInstalled: '已連接到你的測試汽車。',
-  },
-};
-let lang = localStorage.getItem('hk_ai_city_lang_v1') || 'en';
-if (!STR[lang]) lang = 'en';
-const t = (key) => STR[lang][key] ?? STR.en[key] ?? key;
 
 let store;
 const fingerprint = (cap) => JSON.stringify([
-  cap?.id, cap?.input?.preprocessing, cap?.input?.dimension, cap?.input?.kind,
+  cap?.id, cap?.workshop?.sourceMachineId, cap?.input?.preprocessing, cap?.input?.dimension, cap?.input?.kind,
   cap?.model?.plusConstant, cap?.model?.k, cap?.model?.threshold,
   cap?.model?.vectors?.data_b64, cap?.model?.labels?.data_b64,
 ]);
@@ -120,12 +80,12 @@ export async function publishImageModelToCity() {
     preprocessing: RECYCLING_PREPROCESSING,
     dimension: RECYCLING_DIMENSION,
     k: model.k,
-    threshold: THRESHOLD,
+    threshold: Number.isFinite(requested) ? THRESHOLD : (model.threshold ?? THRESHOLD),
     examples: model.examples,
     // The capability declares which host kinds may run it; the sorter is the only
     // city installation an image classifier is meant for today.
     city: { hostTypes: ['sorter'], dataset: model.dataset },
-    workshop: { dataset: model.dataset, modelId: model.id },
+    workshop: { dataset: model.dataset, modelId: model.blockId || model.id, sourceMachineId: game.sourceMachineId?.() || null },
   });
   if (!out.ok) return { ok: false, error: out.error };
   try { return await commit(out.capability, 'sorter'); }
@@ -140,6 +100,17 @@ export async function publishImageModelToCity() {
  */
 export async function publishDriveModelToCity() {
   const game = window.WorkshopGame;
+  const pair = game?.publishDrivingPair?.();
+  if (pair) {
+    const machineId = game.sourceMachineId();
+    await game.saveDrivingMachine?.();
+    if (!store) { store = createProjectStore(); await store.openActiveProject(); }
+    let published;
+    const result = await store.mutate(project => {
+      published = publishDrivingRevision(project, machineId, pair); return project;
+    }, { reason: 'publish-driving-pair' });
+    return result.ok ? { ok: true, ...published, installed: true, returnTo: RETURN_TO || null } : result;
+  }
   const model = game?.publishDriveModel ? game.publishDriveModel(MODEL_ID || null) : null;
   if (!model) return { ok: false, error: 'no-drive-model' };
 
@@ -150,64 +121,16 @@ export async function publishDriveModelToCity() {
     threshold: Number.isFinite(model.threshold) ? model.threshold : 0.5,
     examples: model.examples,
     city: { hostTypes: [DRIVE_HOST_TYPE], host: HOST_INSTANCE_ID || null },
-    workshop: { modelId: model.id, fields: 'drive-v1' },
+    workshop: { modelId: model.id, fields: 'drive-v1', sourceMachineId: game.sourceMachineId?.() || null },
   });
   if (!out.ok) return { ok: false, error: out.error };
   try { return await commit(out.capability, DRIVE_HOST_TYPE); }
   catch (e) { return { ok: false, error: String(e?.message || e) }; }
 }
 
-/** The banner's publish action for the active skill. */
+/** Compatibility entry point for existing host integrations. */
 export function publishToCity() {
   return SKILL === 'drive' ? publishDriveModelToCity() : publishImageModelToCity();
-}
-
-/** The small banner the City's publish button opens. */
-function mountBanner() {
-  const drive = SKILL === 'drive';
-  const bar = document.createElement('div');
-  bar.className = 'workshop-publish-bar';
-  bar.dataset.skill = SKILL;
-  bar.innerHTML = `<span class="wpb-note">${t(drive ? 'driveReady' : 'ready')}</span><button class="wpb-go" type="button">${t('publish')}</button><a class="wpb-back" hidden>${t('back')}</a>`;
-  document.body.append(bar);
-  const note = bar.querySelector('.wpb-note');
-  const go = bar.querySelector('.wpb-go');
-  const back = bar.querySelector('.wpb-back');
-  if (RETURN_TO) back.href = RETURN_TO;
-  go.addEventListener('click', async () => {
-    go.disabled = true;
-    note.textContent = t('publishing');
-    const result = await publishToCity();
-    if (!result.ok) {
-      const noModel = drive ? result.error === 'no-drive-model' : result.error === 'no-image-model';
-      note.textContent = noModel ? t(drive ? 'driveNoModel' : 'noModel') : t('failed');
-      go.disabled = false;
-      return;
-    }
-    note.textContent = result.installed ? `${t(drive ? 'driveOk' : 'ok')} ${t(drive ? 'driveInstalled' : 'installed')}` : t(drive ? 'driveOk' : 'ok');
-    back.hidden = !RETURN_TO;
-    if (RETURN_TO) location.href = RETURN_TO;
-  });
-}
-
-/**
- * A City "Improve in the Workshop" hand-off for driving opens the Driving starter
- * so the student lands on the activity. We wait for the Workshop to load; if it
- * never does, the banner still works against whatever is on the table.
- */
-function openDriveStarter() {
-  let tries = 0;
-  const tick = () => {
-    const game = window.WorkshopGame;
-    if (game && game.loadGalleryMachine) { game.loadGalleryMachine('drive-v1'); return; }
-    if (tries++ < 100) setTimeout(tick, 100);
-  };
-  tick();
-}
-
-if (TARGET === 'city') {
-  mountBanner();
-  if (SKILL === 'drive') openDriveStarter();
 }
 
 // A stable handle for the browser integration run and for the City's own diagnostics.

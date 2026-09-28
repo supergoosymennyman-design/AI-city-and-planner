@@ -229,6 +229,8 @@
     }
   </style>
   <link rel="stylesheet" href="../city-common/interface.css">
+<link rel="stylesheet" href="city-activities.css">
+<link rel="stylesheet" href="driving-arena.css">
 </head>
 <body>
 <script type="importmap">
@@ -272,7 +274,7 @@
     <button class="entry-btn" id="entry-save" data-i18n="entry.saveMine" data-i18n-title="entry.saveTitle" title="Download a backup file of your whole city">💾 Save my city</button>
     <label class="entry-btn" id="entry-file" for="file-input" data-i18n="entry.openFile">📁 Open my city file</label>
     <button class="entry-btn" id="entry-paste" data-i18n="entry.pasteJson">📋 Paste JSON</button>
-    <input type="file" id="file-input" accept=".json,application/json" class="visually-hidden">
+    <input type="file" id="file-input" accept=".passiona,.json,application/json" class="visually-hidden">
     <div id="paste-wrap" style="display:none">
       <textarea id="paste-box" placeholder='Paste your layout JSON here…'></textarea>
       <button class="entry-btn primary" id="paste-go" data-i18n="entry.loadIt">Load it!</button>

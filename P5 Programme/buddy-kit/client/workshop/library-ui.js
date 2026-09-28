@@ -25,10 +25,10 @@
       wrap.appendChild(s); body.appendChild(wrap); controls.push(s); return s;
     }
     // A number dataset (Auto MPG) is data only: the ready-made models here are all classifiers.
-    const sources = ['iris-v1', 'trashnet-v1'].concat(host.dataOnly ? ['cars-v1'] : []).map((id) => [id, t(L.nameKey(id))]);
+    const sources = ['iris-v1', 'trashnet-v1', 'city-recycling-v2', 'city-recycling-v1'].concat(host.dataOnly ? ['cars-v1'] : []).map((id) => [id, t(L.nameKey(id))]);
     const source = select(t('library.data'), sources, 'libraryDataset');
     const bound = host.target && (host.target.libraryModel || host.target.libraryData);
-    source.value = bound && sources.some(([id]) => id === bound.dataset) ? bound.dataset : 'iris-v1';
+    source.value = bound && sources.some(([id]) => id === bound.dataset) ? bound.dataset : ((host.target?.recyclingModel || ['city-recycling-v1','city-recycling-v2'].includes(new URLSearchParams(location.search).get('collection'))) ? (new URLSearchParams(location.search).get('collection') || 'city-recycling-v2') : 'iris-v1');
     // The dataset's provenance note and licence fold behind one line (spec 2026-09-19 §4).
     const about = make('details'); about.className = 'library-about'; about.appendChild(make('summary', t('library.about'))); body.appendChild(about);
     const info = make('p'); info.className = 'hint'; about.appendChild(info);
@@ -68,7 +68,9 @@
       body.appendChild(make('p', t('library.neuralLimit')));
       body.appendChild(modelInfo);
       button(t('library.ready'), () => {
-        draft = L.clone(host.models.models.find((m) => m.dataset === source.value)); describe();
+        const supplied = host.models.models.find((m) => m.dataset === source.value);
+        if (!supplied) return say(t('library.noModel'));
+        draft = L.clone(supplied); describe();
         host.model(L.clone(draft), false); say(t('library.placed'));
       });
       button(t('library.train'), () => work(async (own) => {
@@ -112,10 +114,10 @@
         wrap.append(check, document.createTextNode(label)); choices.appendChild(wrap);
       }
       const all = L.rows(source.value); const training = all.filter((r) => r.split === 'train').length;
-      info.textContent = t(source.value === 'iris-v1' ? 'library.irisNote' : source.value === 'cars-v1' ? 'library.carsNote' : 'library.trashNote') + ' ' + t('library.counts',{train:training,test:all.length-training});
+      info.textContent = t(source.value === 'city-recycling-v1' ? 'library.cityRecyclingEarlierNote' : source.value === 'city-recycling-v2' ? 'library.cityRecyclingNote' : source.value === 'iris-v1' ? 'library.irisNote' : source.value === 'cars-v1' ? 'library.carsNote' : 'library.trashNote') + ' ' + t('library.counts',{train:training,test:all.length-training});
       link.href = L.dataset(source.value).source;
       previews.textContent = '';
-      if (source.value === 'trashnet-v1') for (const row of all.filter((r) => r.split === 'train').filter((_,i) => i % 400 === 0).slice(0,4)) {
+      if (source.value === 'trashnet-v1' || source.value.startsWith('city-recycling-')) for (const row of all.filter((r) => r.split === 'train').filter((_,i) => i % (source.value.startsWith('city-recycling-') ? 5 : 400) === 0).slice(0,4)) {
         const img = make('img'); img.src = row.src; img.alt = row.label; img.loading = 'lazy';
         img.onerror = () => say(t('library.missingPhoto')); previews.appendChild(img);
       }

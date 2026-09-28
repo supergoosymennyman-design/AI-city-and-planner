@@ -19,6 +19,19 @@
    */
 
   const STRINGS = {
+    "recycling.olderModel":"Place an older saved model", "recycling.noOlderModel":"No older models in this project.",
+    "recycling.reopen":"Reopen the Model controls after stopping the run.",
+    "recycling.reteach":"This older model has no public example provenance. Reteach this block with public library photos before saving it for City.",
+    "recycling.machine": "My recycling machine",
+    "opt.bin.cityDestination.cardboard": "Cardboard",
+    "opt.bin.cityDestination.glass": "Glass",
+    "opt.bin.cityDestination.metal": "Metal",
+    "opt.bin.cityDestination.paper": "Paper",
+    "opt.bin.cityDestination.plastic": "Plastic",
+    "opt.bin.cityDestination.trash": "Trash",
+    "opt.bin.cityDestination.human-check": "Human check",
+    "recycling.destination": "City destination", "recycling.intake": "City intake",
+    "opt.feeder.cityIntake.city": "City observations", "opt.feeder.cityIntake.": "Other input",
     "tutorial.example.icecreamQuizB": "Test on new",
     "tutorial.example.icecreamQuizA": "Test what it studied",
     "tutorial.example.icecreamTeach": "Teach it",
@@ -240,6 +253,10 @@
     'man.memory.out':'out - on read; changed - only after a store or clear changes the value',
     'man.memory.dials':'none; set Starting word and Starting number on the plate',
     'man.memory.try':'Button named quiet -> Memory store. Timer fire -> Memory read. Memory out -> Display. The word stays quiet until another store or clear changes it.',
+    "library.cityRecyclingEarlierNote": "Earlier scanner images: three materials, five training and three held-out objects per material. Preserved for existing machines.",
+    "library.cityRecyclingEarlier": "Earlier recycling objects (v1)",
+    "library.cityRecycling": "City recycling",
+    "library.cityRecyclingNote": "Fixed scanner images of the exact City objects. Four materials, five training and three separate test objects per material. Original CC0 geometry. Train a new k-NN version, then place it.",
     "library.open": "Real data and ready models",
     "library.dataTitle": "Data library",
     "library.dataIntro": "Choose real observations and put them in a Files block.",
@@ -594,6 +611,11 @@
     'feature.temp': 'temp',
     'feature.weekend': 'weekend',
     // Stage 5 (driving): the sensor-situation table and its readings.
+    'dataset.drive.steering.name': 'Driving — steering / 駕駛：轉向',
+    'dataset.drive.speed.name': 'Driving — speed / 駕駛：車速',
+    'dataset.drive.bend.name': 'Driving school — gentle bend',
+    'dataset.drive.obstacle.name': 'Driving school — stop at an obstacle',
+    'dataset.drive.light.name': 'Driving school — red and green lights',
     'dataset.drive.name': 'Driving — what should the car do?',
     'dataset.drive.story': 'A car reports what its sensors see: distance to an obstacle on the left, straight ahead and on the right; how far off the lane it is; which way it is pointing; its speed; the traffic light; and a turn coming up. What would a careful driver do: forward, left, right, slow or stop?',
     'dataset.drive.teaches': 'A five-way choice on sensor data. Wear a memory brain (k-NN) and teach it the safe actions, then test on new situations — the Tally counts right, wrong and unsure. Publish it to the City and your car drives the test track with the very same model.',
@@ -3006,6 +3028,7 @@
     join:[{prop:'seconds',widget:'number',labelKey:'widget.seconds',dial:true}],
     memory:[{prop:'initialLabel',widget:'text',labelKey:'widget.initialLabel'},{prop:'initialValue',widget:'number',labelKey:'widget.initialValue'}],
     feeder: [
+      {prop:'cityIntake',widget:'combo',labelKey:'recycling.intake',options:['','city']},
       { prop: 'rate', widget: 'number', labelKey: 'widget.rate', dial: true },
       // items are NOT a widget: they are dynamic rows — see rowsOf's feed-item/feed-add.
     ],
@@ -3111,7 +3134,7 @@
     // THE MICROPHONE: no dials either — its one plate control is the change-your-mind consent
     // row (rowsOf/renderRow's 'mic-consent' case, R6), never a wireable socket on the mic itself.
     microphone: [],
-    bin: [],
+    bin: [{prop:'cityDestination',widget:'combo',labelKey:'recycling.destination',options:['','cardboard','glass','metal','paper','plastic','trash','human-check']}],
     button: [],
     teach: [{ prop: 'shelf', widget: 'text', labelKey: 'widget.shelf' }],
     // task 4: "counts as right ±{n}" — a hidden number deciding verdicts is exactly the channel
@@ -3263,7 +3286,7 @@
    * @returns {object|null} the photo-fed files piece, or null
    */
   function photosFeedFor(table, feeder) {
-    return wiredFilesSrc(table, feeder, (q) => !!(q.photos && q.photos.length) || (q.libraryData && q.libraryData.dataset === 'trashnet-v1')
+    return wiredFilesSrc(table, feeder, (q) => !!(q.photos && q.photos.length) || (q.libraryData && ['trashnet-v1','city-recycling-v1','city-recycling-v2'].includes(q.libraryData.dataset))
       || (!!privateHandle(q) && Private.has(privateHandle(q)) && Private.collection(privateHandle(q)).modality === 'photo'));
   }
 
@@ -3924,6 +3947,7 @@
     // The Models chooser's door (spec 2026-09-19 §1): it left the header, so every Model's own
     // plate opens it — put another Model of any kind on the table from here.
     if (p.type === 'sense') rows.push({ kind: 'models' });
+    if(p.type==='sense'&&p.senseId==='cam')rows.push({kind:'city-library'},{kind:'legacy-model'});
     // The Data reader's disclosure row (task 4, spec R3): the one shared data brain means the
     // LAST Study wins — a second dataset's crates silently overwrite the first's lesson unless
     // the plate says so. Independent of `table`/line-scoping (it reads the shared brain, not this
@@ -6888,21 +6912,27 @@
     if (!table) { try { live = (state && state.table) || null; } catch (e) { live = null; } }
     const source = table || live;
     const pieces = (source && source.pieces) || [];
-    const photo = pieces.filter((p) => p && p.type === 'sense' && p.libraryModel
-      && Library.preprocessing(p.libraryModel.dataset) === Library.PHOTO_FEATURES);
-    const piece = modelId ? photo.find((p) => p.libraryModel.id === modelId) : photo[0];
+    const photo = pieces.filter(p => p?.type === 'sense' &&
+      (p.libraryModel ? Library.preprocessing(p.libraryModel.dataset) === Library.PHOTO_FEATURES : p.senseId === 'cam' && (p.brainId || DEFAULT_BRAIN) === 'knn'));
+    const piece = modelId ? photo.find(p => p.id === modelId || p.libraryModel?.id === modelId) : photo.length === 1 ? photo[0] : null;
     if (!piece) return null;
     const m = piece.libraryModel;
+    if(m && m.brain !== 'knn')return null;
+    const shelves = m ? m.state.shelves : modelEntry(piece)?.brain?.shelves;
     const examples = [];
-    for (const label of Object.keys(m.state.shelves || {})) {
-      for (const ex of (m.state.shelves[label] || [])) {
-        const vec = (Array.isArray(ex.vec) && ex.vec.length) ? ex.vec : (ex.ref ? Library.refVector(ex.ref) : null);
-        if (Array.isArray(vec) && vec.length) examples.push({ label, vector: vec, source: { id: ex.id, display: ex.display || null } });
+    for (const [label, shelf] of Object.entries(shelves || {})) {
+      for (const ex of shelf) {
+        const vec = Array.isArray(ex.vec) ? ex.vec : ex.ref ? Library.refVector(ex.ref) : null;
+        if (!vec || vec.length !== 1024 || !vec.every(Number.isFinite)) return null;
+        examples.push({ label, vector: [...vec], source: { id: ex.id } });
       }
     }
     if (!examples.length) return null;
-    return { id: m.id, name: m.name || 'My sorter', dataset: m.dataset,
-      labels: Library.labels(m.dataset), k: (m.options && m.options.k) || 3, examples };
+    if (!m) examples.sort((a,b) => Number(a.source.id)-Number(b.source.id));
+    return { id: m?.id || piece.id, blockId: piece.id, name: m?.name || piece.name || 'Camera / Memory', dataset: m?.dataset || 'camera',
+      labels: m ? Library.labels(m.dataset) : Object.keys(shelves),
+      preprocessing: 'mobilenet-v3-small-224-squash-f32-unit-v1',
+      k: m ? (m.options?.k || 3) : (piece.k || 3), threshold: Number.isFinite(piece.sure) ? piece.sure : (m ? 0.2 : 0.5), examples };
   }
 
   // Stage 5 (driving): the student's trained SENSOR model as plain publish DATA.
@@ -6954,6 +6984,51 @@
       examples,
     };
   }
+  // The paired driver exports learned Data-sense shelves, never re-labels them.
+  function publishDrivingPair(table) {
+    if (!table) { try { table = state.table; } catch { return null; } }
+    const models = {};
+    for (const role of ['steering', 'speed']) {
+      const piece = table.pieces.find(p => p.drivingRole === role && p.senseId === 'data' && p.brainId === 'knn');
+      if (!piece) return null;
+      const schema = Datasets.schema('drive-' + role + '-v2');
+      const entry = modelEntry(piece);
+      if (!entry?.studiedDatasets?.[schema.id]) return null;
+      const examples = [];
+      for (const [label, shelf] of Object.entries(entry.brain.shelves)) for (const ex of shelf) {
+        if (!ex.raw) return null;
+        let i = 0; const readings = {};
+        for (const f of schema.features) {
+          if (f.options) { const values = ex.raw.slice(i, i + f.options.length); readings[f.id] = f.options[values.indexOf(1)]; i += f.options.length; }
+          else readings[f.id] = f.min + ex.raw[i++] * (f.max - f.min);
+        }
+        examples.push({ id: ex.id, label, vec: [...ex.vec], readings, display: ex.display });
+      }
+      if (!examples.length) return null;
+      models[role] = { blockId: piece.id, k: piece.k || 3, threshold: piece.sure ?? .5, examples };
+    }
+    return models;
+  }
+
+  // Test seam uses exactly the same teach effect as the student's Teach button.
+  // The actual starter is always empty until the child explicitly teaches it.
+  function teachDrivingExamples(role, table) {
+    if (!['steering', 'speed'].includes(role)) return 0;
+    if (!table) { try { table = state.table; } catch { return 0; } }
+    const dataset = 'drive-' + role + '-v2';
+    const piece = table.pieces.find(p => p.drivingRole === role);
+    if (!piece) return -1;
+    const known = new Set(Object.values(modelEntry(piece).brain.shelves).flat().map(ex => JSON.stringify(ex.vec)));
+    let count = 0;
+    for (const row of Datasets.rows(dataset, 42)) if (!known.has(JSON.stringify(Datasets.vec(dataset, row.features))) && applyTeachEffect({ type: 'teach', block: piece.id, shelf: row.answer,
+      data: { tag: row.face, dataset, features: row.features } }, table.pieces, { hand: true })) count++;
+    return count;
+  }
+  function buildDrivingPairTable({ train = false } = {}) {
+    const table = driveExample('drive-v2');
+    if (train) for (const role of ['steering', 'speed']) teachDrivingExamples(role, table);
+    return table;
+  }
   /**
    * Build the `drive-v1` starter with its Model already trained from the authored
    * driving table's Training share. Deterministic (seed 42 by default) and used by
@@ -6961,12 +7036,13 @@
    * student to the driving activity. Filing is HAND-taught (belt:false) so a later
    * Run never sweeps the child's own work.
    */
-  function buildDriveTable({ seed = 42, train = true } = {}) {
-    const table = driveExample('drive-v1');
+  function buildDriveTable({ seed = 42, train = true, exercise = null } = {}) {
+    const dataset = exercise ? 'drive-'+exercise : 'drive';
+    const table = driveExample(exercise ? dataset : 'drive-v1');
     if (!table) return null;
     if (!train) return table;
     const fraction = Datasets.schema('drive').studyDefault || 0.6;
-    const studied = Datasets.split(Datasets.rows('drive', seed), fraction, seed).filter((r) => r.studied);
+    const studied = Datasets.split(Datasets.rows(dataset, seed), fraction, seed).filter((r) => r.studied);
     // File the training pile through the REAL teaching path (applyTeachEffect →
     // modelEntry → the Number sense's own extractor), exactly as the belt would;
     // `hand: true` marks it hand-taught so a later Run never sweeps it.
@@ -6985,7 +7061,7 @@
     kindOf, tallyLines, tallyText, hasExam, hasNoKey, tallyCaptions, checkerView, studiedRow, rowPop, gapSentence, datasetContents, checkerKindFor, lineFeedFor, lineReaderFor, lineGuesserFor, feedSplitter, actDrivenSense, actCheckerFor, plateLines, Datasets,
     boardFeedFor, datasetKey, carmakerDials, carmakerSpec, carsBinding, carMystery, carExample,
     // Stage 5 (driving): the gallery table, its trained variant, and the publish seam.
-    driveExample, buildDriveTable, publishDriveModel,
+    driveExample, buildDriveTable, publishDriveModel, buildDrivingPairTable, publishDrivingPair, teachDrivingExamples,
     knowsText, validStudiedDatasets,
     // plan 2026-09-16: what the shared brains save (hoisted from the DOM shell; reads the registry only).
     brainsOut,
@@ -7101,7 +7177,7 @@
   let invalidateRunSession = null;
 
   // ================= DOM shell (browser only) ======================================
-  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (typeof window === 'undefined' || typeof document === 'undefined' || window.WORKSHOP_HEADLESS) return;
 
   // Read ONCE at boot, never re-read: demo mode must not be able to turn on (or off) part-way
   // through a lesson, which would leave half a run's readings taken from a different camera.
@@ -7889,7 +7965,7 @@
     // the app's, always in the picker, pristine for every champion. Touched = table differs from
     // the pristine example (or, for a custom build, is not empty), or any shelf holds an example,
     // or the machine has a name. Start over → untouched → the record goes.
-    if (machineTouched()) machines[state.machineId] = serialize();
+    if (machineTouched() || state.skillWorkspace) machines[state.machineId] = serialize();
     else delete machines[state.machineId];
     // The brick library (task 3) is a SIBLING of machines/current, not inside any one machine's
     // own serialize() — a shared field exactly like `current` already is (fact sheet §5: "no
@@ -8748,12 +8824,8 @@
   async function saveFile() {
     if (tutorialActive()) return; // no save/export from a tutorial (D9)
     try { await autosave(); } catch(e) { status(e.message); return; }
-    const blob = new Blob([ChampionFile.serialize(state.champion)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = (state.championName || 'champion').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').toLowerCase() + '.champion.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
+    try { const backup = await import('../city-common/backup-coordinator.js'); await backup.downloadProject({ label: state.championName }); }
+    catch (error) { status(error.message); return; }
     // task P3a (plan §3): a machine whose learning is session-only must SAY so at the moment the
     // file leaves — the file carries which private data each block needs, never the examples, so
     // whoever opens it tomorrow meets blocks asking to be taught again. Said instead of the
@@ -8770,6 +8842,13 @@
    */
   async function bringIn(text) {
     if (tutorialActive()) return false; // no import from a tutorial (D9)
+    try {
+      const value = JSON.parse(text);
+      if (['passiona.archive', 'passiona-project', 'ai-champion', 'passiona-champion-file'].includes(value?.kind)) {
+        const backup = await import('../city-common/backup-coordinator.js');
+        await backup.restoreProjectBackup(value); location.reload(); return true;
+      }
+    } catch (error) { status(error.message); return false; }
     const parsed = ChampionFile.parse(text);
     if (parsed.ok) {
       try { const section = ChampionFile.readProject(parsed.file, PROJECT_ID);
@@ -8844,6 +8923,12 @@
         if (type === 'external') { clearBuddyConversation(); if ($('#status')) status('Champion updated in another tab. Reload to continue with the latest file.'); }
       });
       window.__championSession = championSession;
+      const workspace = await import('../city-common/workspace.js');
+      workspace.registerWorkspaceAdapter({
+        flush: async () => { await autosave(); await championSave; },
+        capture: () => ({}), restore: async () => {},
+        suspend: value => { championLoading = value; },
+      });
     } catch (err) { championLoading = false; console.error('Champion storage unavailable:', err); }
     // task 063 fix wave (I1): latch bootCameBack HERE — `cameBack` is final by this point (the
     // try/catch above is its only writer) — and well BEFORE applyViewMode(false) below mounts the
@@ -9040,7 +9125,7 @@
     const loadInput = el('input');
     loadInput.id = 'loadInput';
     loadInput.type = 'file';
-    loadInput.accept = '.json,application/json';
+    loadInput.accept = '.passiona,.json,application/json';
     loadInput.style.display = 'none';
     loadInput.addEventListener('change', () => { if (loadInput.files[0]) loadFile(loadInput.files[0]); loadInput.value = ''; });
     file.panel.appendChild(loadInput);
@@ -9247,6 +9332,11 @@
     api.addMachines = addMachines;       // the second file door (spec 2026-09-19 §2); the tests' Demo machines come through it
     api.openMachine = openMachine;       // open one machine of the champion by id
     api.machineNoteDebug = () => state.machineNote;
+    api.openCityModel = (modelId) => {
+      const models = state.table.pieces.filter(p => p.type === 'sense');
+      const target = modelId ? models.find(p => p.id === modelId || p.libraryModel?.id === modelId) : models[0];
+      openModelLibrary(target); return true;
+    };
     api.renderModels = () => renderModels(true);   // test seam: the Models chooser (the rail button left for the Model's plate)
     api.openDataLibrary = () => openModelLibrary(null, true); // test seam: the Data library (reached from the Files plate)
     api.seedDebug = () => state.seed;                // test seam: the seed (the input lives behind ?dev=1)
@@ -9441,12 +9531,47 @@
      * student lands on the activity the City sent them to. Only built-in starters
      * are accepted; the child's own saved machines are opened by the usual file UI.
      */
-    api.loadGalleryMachine = (id) => {
-      const pristine = id === 'drive-v1' ? driveExample('drive-v1') : null;
+    api.sourceMachineId = () => state.machineId;
+    api.imageModelChoices = () => state.table.pieces.filter(p => p.type === 'sense').map(p => {
+      const model = publishImageModel(p.id);
+      return { id:p.id, name:model?.name || p.libraryModel?.name || p.name || p.senseId || 'Model', model,
+        reason:model ? null : (p.libraryModel?.brain || p.brainId || DEFAULT_BRAIN) !== 'knn' ? 'unsupported-brain' : !p.libraryModel && p.senseId !== 'cam' ? 'not-photo' : 'untrained' };
+    });
+    api.newSkillMachine = async skill => {
+      await autosave();
+      if (skill === 'driving') api.loadGalleryMachine('drive-v2', { newMachine:true });
+      else { setMachine('machine-' + ChampionSession.id(), null); if (skill === 'recycling') { state.table = window.WorkshopRecyclingMachine.starter(); for(const p of state.table.pieces){if(p.cityDestination)p.name=t('opt.bin.cityDestination.'+p.cityDestination);if(p.cityIntake)p.name=t('recycling.intake');} state.machineName = t('recycling.machine'); } renderAll(); }
+      await autosave(); return state.machineId;
+    };
+
+    api.recyclingDraft = () => ({sourceMachineId:state.machineId, name:state.machineName || 'My sorter', seed:state.seed,
+      table:privateProject(RunSession.snapshot(state.table, RUN_ADAPTERS))});
+    api.saveDrivingMachine = () => { state.skillWorkspace = true; return autosave(); };
+    api.teachDrivingExamples = async role => { const count = teachDrivingExamples(role, state.table); await autosave(); renderAll(); return count; };
+    api.savedDrivingMachines = () => Object.entries(ChampionFile.readProject(state.champion, PROJECT_ID)?.machines || {})
+      .filter(([, machine]) => (machine.table?.pieces || machine.pieces || []).some(p => p.type === 'sense' && (p.senseId === 'num' || p.drivingRole)))
+      .map(([id, machine], index) => ({ id, name: machineLabel(id, machine, index) }));
+    api.correctDrivingDecision = async (role, readings, label) => {
+      const schema = Datasets.schema('drive-' + role + '-v2');
+      if (!schema.answer.labels.includes(label)) return false;
+      const piece = state.table.pieces.find(p => p.drivingRole === role);
+      if (!piece) return false;
+      const entry = modelEntry(piece), vector = Datasets.vec(schema.id, readings);
+      for (const shelf of Object.keys(entry.brain.shelves)) entry.brain.shelves[shelf] = entry.brain.shelves[shelf].filter(ex => !sameVector(ex.vec, vector));
+      const ok = applyTeachEffect({ type: 'teach', block: piece.id, shelf: label,
+        data: { dataset: schema.id, features: readings, tag: Datasets.face(schema, readings) } }, state.table.pieces, { hand: true });
+      if (ok) { await autosave(); renderAll(); }
+      return ok;
+    };
+    api.openSavedMachine = async id => { if (running()) stopRun(); await autosave(); return openMachine(id); };
+    api.loadGalleryMachine = (id, { newMachine = false } = {}) => {
+      autosave();
+      const pristine = driveExample(id);
       if (!pristine) return false;
       if (running()) stopRun();
-      const loaded = restore(Object.assign({ v: 1 }, pristine), id);
-      if (!loaded) setMachine(id, pristine);
+      const machineId = newMachine ? `drive-${ChampionSession.id()}` : id;
+      const loaded = restore(Object.assign({ v: 1 }, pristine), machineId);
+      if (!loaded) setMachine(machineId, pristine);
       renderAll();
       return true;
     };
@@ -16505,10 +16630,37 @@
       div.appendChild(b);
       return div;
     }
-    if (row.kind === 'models') {
+    if (['models','city-library','legacy-model'].includes(row.kind)) {
       const b = el('button', 'models', t('models.button')); // not .teach: suites locate the Teach button by that class alone
       b.addEventListener('click', () => renderModels(true));
-      div.appendChild(b);
+      if(row.kind==='models'){div.appendChild(b);return div;}
+      if(p.senseId==='cam') {
+        const library=el('button','models',t('library.open'));library.onclick=()=>openModelLibrary(p);if(row.kind==='city-library'){div.appendChild(library);return div;}
+        const legacy=el('button','models',t('recycling.olderModel'));
+        legacy.onclick=async()=>{
+          const {body}=ovShell(t('recycling.olderModel'),false);
+          try {
+            const {createProjectStore}=await import('../city-common/project-store.js');
+            const store=createProjectStore();await store.openActiveProject();
+            const saved=await store.readSection('sorterModels');
+            if(!Object.keys(saved).length)body.appendChild(el('p','',t('recycling.noOlderModel')));
+            for(const item of Object.values(saved)) {
+              const button=el('button','',item.name||item.capability?.name||'Model');body.appendChild(button);
+              button.onclick=async()=>{
+                try {
+                  if(!state.table.pieces.includes(p)||running())throw Error(t('recycling.reopen'));
+                  const examples=item.examples, publicIds=new Set(['trashnet-v1','city-recycling-v1','city-recycling-v2'].flatMap(id=>Library.rows(id).map(row=>'library:'+row.id)));
+                  if(!examples?.length||examples.some(e=>!publicIds.has(e.source?.id)||!Array.isArray(e.vector)||e.vector.length!==1024||!e.vector.every(Number.isFinite)))throw Error(t('recycling.reteach'));
+                  const brain=Brain.createBrain();
+                  for(const ex of examples){if(!Object.hasOwn(brain.shelves,ex.label))Object.defineProperty(brain.shelves,ex.label,{value:[],writable:true,enumerable:true,configurable:true});brain.shelves[ex.label].push({id:ex.source.id,vec:[...ex.vector]});}
+                  delete p.libraryModel;delete p.privateData;p.learning={cam:{brain}};p.brainId='knn';p.k=item.capability?.model?.k||3;p.sure=item.capability?.model?.threshold??.2;
+                  await autosave();closeOverlay();renderAll();
+                }catch(e){body.appendChild(el('p','',e.message));}
+              };
+            }
+          }catch(e){body.appendChild(el('p','',e.message));}
+        };div.appendChild(legacy);
+      }
       return div;
     }
     if (row.kind === 'binlog') {

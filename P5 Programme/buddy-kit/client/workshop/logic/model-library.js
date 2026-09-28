@@ -2,6 +2,8 @@
 'use strict';
 /** Real supplied data and independent learned snapshots. Pure; no I/O or global training shelves. */
 const LibraryData = typeof require === 'function' ? require('../assets/library/catalogue.js') : window.WorkshopLibraryData;
+const CityRecycling = typeof require === 'function' ? require('../assets/city-recycling/catalogue.js') : window.WorkshopLibraryData.cityRecycling;
+const CityRecyclingV2 = typeof require === 'function' ? require('../assets/city-recycling-v2/catalogue.js') : window.WorkshopLibraryData.cityRecyclingV2;
 const LibraryDatasets = typeof require === 'function' ? require('./datasets.js') : window.WorkshopDatasets;
 const PHOTO_FEATURES = 'mobilenet-v3-small-224-squash-f32-unit-v1';
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -9,6 +11,8 @@ const unit = (v) => { const n = Math.sqrt(v.reduce((a, x) => a + x*x, 0)) || 1; 
 const records = new Map();
 const CLASSIFIERS = ['knn', 'proto', 'neural'];
 function dataset(id) {
+  if (id === 'city-recycling-v1') return CityRecycling;
+  if (id === 'city-recycling-v2') return CityRecyclingV2;
   if (id === 'iris-v1') return LibraryData.iris;
   if (id === 'trashnet-v1') return LibraryData.trashnet;
   if (id === 'cars-v1') return LibraryData.cars;
@@ -19,7 +23,7 @@ function kind(id) { const d = dataset(id); return d.schema && d.schema.kind === 
 /** Measurement rows (a schema of named features), as opposed to photos read as feature vectors. */
 function isTable(id) { return !!dataset(id).rows; }
 /** The STRINGS key that names a dataset — the one copy the Files card and its plate both read. */
-function nameKey(id) { dataset(id); return { 'iris-v1': 'library.iris', 'trashnet-v1': 'library.trash', 'cars-v1': 'library.cars' }[id]; }
+function nameKey(id) { dataset(id); return { 'city-recycling-v1': 'library.cityRecyclingEarlier', 'city-recycling-v2': 'library.cityRecycling', 'iris-v1': 'library.iris', 'trashnet-v1': 'library.trash', 'cars-v1': 'library.cars' }[id]; }
 function labels(id) { const d = dataset(id); return kind(id) === 'number' ? [] : d.labels || d.schema.answer.labels; }
 function rows(id) { const d = dataset(id); return d.rows || d.photos; }
 /**
@@ -67,7 +71,7 @@ function vector(id, data) {
 }
 /** Register one decoded image-feature record. No labels or filenames are model inputs. */
 function register(id, raw) {
-  if (!rows('trashnet-v1').some((r) => r.id === id) || raw.length !== 1024 || raw.some((v) => !Number.isFinite(v))) throw new Error('Damaged photo features.');
+  if (![...rows('trashnet-v1'), ...rows('city-recycling-v1'), ...rows('city-recycling-v2')].some((r) => r.id === id) || raw.length !== 1024 || raw.some((v) => !Number.isFinite(v))) throw new Error('Damaged photo features.');
   records.set(id, unit(Array.from(raw)));
 }
 function ready(id, selected) { return isTable(id) || selected.every((r) => records.has(r.id)); }

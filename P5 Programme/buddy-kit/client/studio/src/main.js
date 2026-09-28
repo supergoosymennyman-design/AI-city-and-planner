@@ -1,3 +1,5 @@
+import { downloadProject, restoreProjectBackup } from '../../city-common/backup-coordinator.js';
+import { registerWorkspaceAdapter } from '../../city-common/workspace.js';
 import { parseGLBBuffer } from './fit/fit.js';
 import { openChampion, session, studioSection, championShop, encodeProject, decodeProject } from './champion.js';
 import * as THREE from 'three';
@@ -1010,6 +1012,24 @@ function perDocumentSnapshot() {
   return studio.shapes.length ? takeSnapshot(studio) : null;
 }
 
+async function validatePortableProject(section) {
+  const ready = section?.version !== undefined && section.version !== 1 ? null : decodeProject(section);
+  // Validate geometry/rig off-screen before the authoritative snapshot can be replaced.
+  const candidate = new StudioScene(); if (ready) restoreSnapshot(candidate, ready.snapshot);
+  if (ready && candidate.shapes.length !== ready.snapshot.objects.length) throw Error('Studio restore would lose shapes. File not opened.');
+  if (ready?.snapshot.rig?.joints?.length && candidate.rig?.graph.size !== ready.snapshot.rig.joints.length) throw Error('Studio skeleton could not be restored.');
+  for (const object of ready?.snapshot.objects || []) for (const material of object.appearance?.materials || []) {
+    if (material.map) await new Promise((resolve, reject) => {
+      const image = new Image(), timer = setTimeout(() => reject(Error('Studio texture could not be decoded in time.')), 10000);
+      image.onload = () => { clearTimeout(timer); resolve(); };
+      image.onerror = () => { clearTimeout(timer); reject(Error('Studio texture could not be decoded.')); }; image.src = material.map;
+    });
+  }
+  for (const piece of ready?.wardrobe || []) { if (piece.bone && !candidate.rig?.bones.has(piece.bone)) throw Error('Fitted gear socket is missing.'); const group = await parseGLBBuffer(piece.buffer); group.traverse(o => { o.geometry?.dispose(); }); }
+  if (ready?.wardrobe?.length && !candidate.rig) throw Error('Fitted gear needs a valid skeleton.');
+  candidate.resetDocument();
+}
+
 let shop;
 async function restorePortable(value) {
   restoringChampion = true;
@@ -1050,11 +1070,7 @@ async function boot() {
   }));
   button('Save Champion File', async () => {
     clearTimeout(championSaveTimer); if (!unsupported) await savePortable();
-    const file = session.file;
-    const shared = championShop.walletEconomy();
-    if (shared) file.economy = shared; // carry the shared wallet in the portable file
-    const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = 'studio.champion.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    await downloadProject();
   });
   button('Save recovery copy', async () => {
     const file = session.file;
@@ -1065,27 +1081,18 @@ async function boot() {
     const a = document.createElement('a'); a.href = url; a.download = 'studio-recovery.champion.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast.show('Recovery copy saved from this tab. Its balance may be older; opening replaces the snapshot.');
   });
-  const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.hidden = true; controls.append(input);
+  const input = document.createElement('input'); input.type = 'file'; input.accept = '.passiona,.json'; input.hidden = true; controls.append(input);
   input.onchange = async () => {
     try {
       if (!input.files[0]) return;
-      const incoming = ChampionSession.prepare(JSON.parse(await input.files[0].text()));
+      const value = JSON.parse(await input.files[0].text());
+      if (['passiona.archive', 'passiona-project', 'ai-champion', 'passiona-champion-file'].includes(value?.kind)) {
+        await restoreProjectBackup(value); location.reload(); return;
+      }
+      const incoming = ChampionSession.prepare(value);
       const incomingSection = incoming.projects['3d-studio'];
       const ready = incomingSection?.version !== undefined && incomingSection.version !== 1 ? null : decodeProject(incomingSection);
-      // Validate geometry/rig off-screen before the authoritative snapshot can be replaced.
-      const candidate = new StudioScene(); if (ready) restoreSnapshot(candidate, ready.snapshot);
-      if (ready && candidate.shapes.length !== ready.snapshot.objects.length) throw Error('Studio restore would lose shapes. File not opened.');
-      if (ready?.snapshot.rig?.joints?.length && candidate.rig?.graph.size !== ready.snapshot.rig.joints.length) throw Error('Studio skeleton could not be restored.');
-      for (const object of ready?.snapshot.objects || []) for (const material of object.appearance?.materials || []) {
-        if (material.map) await new Promise((resolve, reject) => {
-          const image = new Image(), timer = setTimeout(() => reject(Error('Studio texture could not be decoded in time.')), 10000);
-          image.onload = () => { clearTimeout(timer); resolve(); };
-          image.onerror = () => { clearTimeout(timer); reject(Error('Studio texture could not be decoded.')); }; image.src = material.map;
-        });
-      }
-      for (const piece of ready?.wardrobe || []) { if (piece.bone && !candidate.rig?.bones.has(piece.bone)) throw Error('Fitted gear socket is missing.'); const group = await parseGLBBuffer(piece.buffer); group.traverse(o => { o.geometry?.dispose(); }); }
-      if (ready?.wardrobe?.length && !candidate.rig) throw Error('Fitted gear needs a valid skeleton.');
-      candidate.resetDocument();
+      await validatePortableProject(incomingSection);
       if (!window.confirm(`Open ${incoming.champion.name}? This replaces the current champion snapshot.`)) return;
       clearTimeout(championSaveTimer); await pendingSave; restoringChampion = true; shop.invalidate();
       await session.replace(incoming);
@@ -1099,6 +1106,10 @@ async function boot() {
   button('Open Champion File', () => input.click());
   button('Return to Workshop', async () => { clearTimeout(championSaveTimer); await savePortable(); location.href = '../workshop/'; });
   document.body.prepend(controls);
+  registerWorkspaceAdapter({
+    flush: async () => { clearTimeout(championSaveTimer); if (!unsupported) await savePortable(); await pendingSave; },
+    capture: () => ({}), restore: async project => { await validatePortableProject(project.projects.workshop?.champion?.projects?.['3d-studio']); }, suspend: value => { restoringChampion = value; clearTimeout(championSaveTimer); },
+  });
   window.__savePortable = savePortable;
   window.__studioReady = true;
   if (unsupported) {

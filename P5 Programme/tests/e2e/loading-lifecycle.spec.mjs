@@ -18,12 +18,27 @@ test('retries own one canvas, label layer, input listener set and RAF generation
     const add = EventTarget.prototype.addEventListener;
     const remove = EventTarget.prototype.removeEventListener;
     const counts = new Map();
+    const listeners = new Map();
+    const captureOf = opts => typeof opts === 'boolean' ? opts : !!opts?.capture;
     EventTarget.prototype.addEventListener = function(type, fn, opts) {
-      if (this === window) counts.set(type, (counts.get(type) || 0) + 1);
+      if (this === window && fn && !opts?.signal?.aborted) {
+        const records = listeners.get(type) || new Set(); listeners.set(type, records);
+        const capture = captureOf(opts);
+        if (![...records].some(record => record.fn === fn && record.capture === capture)) {
+          const record = {fn,capture}; records.add(record); counts.set(type,records.size);
+          // Browser-driven signal removal does not call the JavaScript
+          // removeEventListener wrapper. Count live registrations, not adds.
+          if (opts?.signal) add.call(opts.signal,'abort',()=>{records.delete(record);counts.set(type,records.size);},{once:true});
+        }
+      }
       return add.call(this, type, fn, opts);
     };
     EventTarget.prototype.removeEventListener = function(type, fn, opts) {
-      if (this === window) counts.set(type, Math.max(0, (counts.get(type) || 0) - 1));
+      if (this === window) {
+        const records = listeners.get(type);
+        for (const record of records || []) if (record.fn === fn && record.capture === captureOf(opts)) records.delete(record);
+        counts.set(type,records?.size || 0);
+      }
       return remove.call(this, type, fn, opts);
     };
     window.__windowListenerCounts = counts;
@@ -113,10 +128,12 @@ test('small, sample and large cold layouts reach a procedural-ready city before 
     await boot(page);
     const stats = await page.evaluate(() => {
       const resources = performance.getEntriesByType('resource');
-      return { requests:resources.length, bytes:resources.reduce((n,r)=>n+(r.encodedBodySize||0),0), queue:__city.loading.queue(), buildings:__layout.buildings.length };
+      return { requests:resources.length, assetRequests:resources.filter(r=>/\.(?:glb|gltf|png|jpe?g|webp|ktx2?)(?:\?|$)/i.test(r.name)).length, bytes:resources.reduce((n,r)=>n+(r.encodedBodySize||0),0), queue:__city.loading.queue(), buildings:__layout.buildings.length };
     });
     results.push({name,...stats});
-    expect(stats.requests, `${name} should not start the old 295-request eager preload before readiness`).toBeLessThan(160);
+    // The buildless module graph grows as workspaces share logic. Keep the
+    // eager model/image preload budget independent of those small JS modules.
+    expect(stats.assetRequests, `${name} should not start the old eager asset preload: ${JSON.stringify(stats)}`).toBeLessThan(160);
     expect(stats.queue.running).toBeLessThanOrEqual(stats.queue.concurrency);
     await context.close();
   }

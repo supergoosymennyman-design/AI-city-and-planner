@@ -16,11 +16,15 @@ async function bootExampleCity(page) {
   await page.waitForTimeout(8000);
 }
 
-/** Decorate → pick the first model → drop it at a known ground point. */
+/** Decorate → pick a fixed small editable model → drop it at a known ground point. */
 async function placeFirstModel(page) {
   await page.locator('[data-city-mode="decorate"]').click();
-  await page.waitForTimeout(700);
-  await page.locator('.prop-lib-card').first().click();
+  // End the opening camera tour before projecting a model into screen space.
+  // Placement's input overlay deliberately does not send taps to the canvas.
+  await page.mouse.click(900, 400);
+  await page.waitForTimeout(1500);
+  await page.locator('.prop-lib-search').fill('Crate');
+  await page.locator('.prop-lib-card').filter({has:page.locator('img[src$="/prop_crate_k.png"]')}).click();
   await page.waitForFunction(() => window.__propLibrary?.isReadyToPlace?.(), null, { timeout: 20000 });
   await page.mouse.move(560, 500);
   await page.waitForTimeout(150);
@@ -35,14 +39,25 @@ async function placeFirstModel(page) {
 
 /** Screen point of the placed model, so the tap lands on it regardless of camera. */
 async function modelScreenPoint(page) {
-  return page.evaluate(() => {
-    let group = null;
-    window.__scene.traverse((o) => { if (!group && o.userData && o.userData.propId) group = o; });
+  return page.evaluate(async () => {
+    const { Box3 } = await import('three');
+    const group = window.__grab.interactables[0];
     if (!group) return null;
     const V = group.position.constructor, cam = window.__city.camera;
-    const v = group.getWorldPosition(new V()).project(cam);
+    // This test covers model editing, not the walking camera. Pin the existing
+    // visual-QA camera to the placed object; the normal camera follows the
+    // Champion and can move a newly placed model outside the viewport.
+    const bounds=new Box3().setFromObject(group),center=bounds.getCenter(new V());
+    const distance=Math.max(12,bounds.getSize(new V()).length()*1.5);
+    window.__camOverride={pos:[center.x+distance*.6,center.y+distance*.6,center.z+distance],target:center.toArray()};
+    cam.position.fromArray(window.__camOverride.pos);cam.lookAt(center);cam.updateMatrixWorld();
+    const v = center.clone().project(cam);
     const rect = window.__city.renderer.domElement.getBoundingClientRect();
-    return { x: Math.round((v.x * 0.5 + 0.5) * rect.width), y: Math.round((-v.y * 0.5 + 0.5) * rect.height) };
+    const point = { x: Math.round(rect.left + (v.x * 0.5 + 0.5) * rect.width), y: Math.round(rect.top + (-v.y * 0.5 + 0.5) * rect.height) };
+    if (window.__grab.pick(v.x, v.y) !== group) throw new Error('Projected model centre misses its selectable geometry: ' + JSON.stringify(point));
+    const target=document.elementFromPoint(point.x,point.y);
+    if(target!==window.__city.renderer.domElement) throw new Error('Model tap '+JSON.stringify(point)+' is covered by '+target?.outerHTML.slice(0,180));
+    return point;
   });
 }
 

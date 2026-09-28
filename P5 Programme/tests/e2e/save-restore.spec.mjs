@@ -48,12 +48,12 @@ test('save my city → wipe storage → restore from the downloaded file', async
     page.waitForEvent('download'),
     page.click('#save-download'),
   ]);
-  expect(download.suggestedFilename()).toBe('Jason-week-3.champion.json');
+  expect(download.suggestedFilename()).toBe('Jason-week-3.passiona');
   const filePath = await download.path();
   const savedJson = JSON.parse(readFileSync(filePath, 'utf8'));
-  expect(savedJson.kind).toBe('passiona-champion-file');
-  expect(savedJson.state.skin).toBe('crimson');
-  expect(savedJson.state.quests).toContain('14');
+  expect(savedJson.kind).toBe('passiona.archive');
+  expect(savedJson.project.projects.city.legacyState.skin).toBe('crimson');
+  expect(savedJson.project.projects.city.legacyState.quests).toContain('14');
 
   // Wipe the device (iOS-style eviction / different tablet) and reload.
   await page.evaluate(() => localStorage.clear());

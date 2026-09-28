@@ -125,3 +125,21 @@ test('the statue section renders earned and locked rows in both languages', () =
   assert.equal(statueStatus(project).find((s) => s.id === 'inventor-pavilion').propId, 'prop_fountain');
   for (const s of Object.values(STATUES)) assert.equal(marketItem(s.id), null, `${s.id} must not be purchasable`);
 });
+
+test('badge measurements do not invent an abstention rate or count installations as examples', () => {
+  const project = createProject();
+  // Existing eligibility evidence without counts is legitimate old data.
+  const result = recordLearningEvent(project.economy, {type:'held-out-eval',scopeId:'driver',evidence:{trackId:'full'}});
+  project.economy = result.economy;
+  const achievement = badgeAchievement(project);
+  assert.equal(achievement.evidence.heldOut,null);
+  assert.equal(achievement.evidence.abstainRate,null);
+});
+
+test('auditor rate uses the abstention demonstration denominator, not a different first test',()=>{
+  const project=createProject();
+  project.economy=recordLearningEvent(project.economy,{type:'held-out-eval',scopeId:'image-sorter',evidence:{batch:'normal',seed:1,total:10,abstained:0}}).economy;
+  project.economy=recordLearningEvent(project.economy,{type:'abstain-demo',scopeId:'image-sorter',evidence:{source:'recycling',total:10,abstained:3}}).economy;
+  const result=badgeAchievement(project);
+  assert.equal(result.tier,'auditor');assert.equal(result.evidence.heldOut,10);assert.equal(result.evidence.abstainRate,0.3);
+});

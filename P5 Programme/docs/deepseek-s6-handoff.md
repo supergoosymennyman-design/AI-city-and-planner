@@ -1,5 +1,7 @@
 # Stage 6 handoff — achievements and integration (final)
 
+Current backup/storage contract: [Project backup and recovery](project-backup-and-recovery.md). The historical stage notes below describe the earlier implementation.
+
 Date: 2026-09-25 · branch `plan/passiona-deepseek` · baseline `840a569`
 
 This is the last stage of the DeepSeek implementation plan

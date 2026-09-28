@@ -10,17 +10,7 @@
 // publish → install → run → observe contract in the second environment).
 import { test, expect } from '@playwright/test';
 
-async function bootCity(page) {
-  await page.goto('/city-builder/', { waitUntil: 'load' });
-  await page.waitForTimeout(2500);
-  await page.evaluate(() => {
-    const el = [...document.querySelectorAll('button')].find((b) => /example city|empty sample/i.test(b.textContent || ''));
-    if (el) el.click();
-  });
-  await expect(page.locator('canvas')).toBeVisible({ timeout: 60000 });
-  await page.waitForTimeout(6000);
-  await page.waitForFunction(() => !!document.getElementById('loading')?.classList.contains('done'), null, { timeout: 60000 });
-}
+import {capabilities,boot as bootCity,publish,run as runActivity} from './activity-helpers.mjs';
 
 test('fresh-browser journey: earn, build, customise, save, restore', async ({ browser }) => {
   // ── Browser A: a student who does the work ────────────────────────────────
@@ -29,17 +19,9 @@ test('fresh-browser journey: earn, build, customise, save, restore', async ({ br
   const errorsA = [];
   pageA.on('pageerror', (e) => errorsA.push(e.message));
   await bootCity(pageA);
-  await pageA.waitForFunction(() => !!window.__recyclingStation, null, { timeout: 60000 });
-
-  // Build + install a real image skill, then run a real City batch (real curated features).
-  const trained = await pageA.evaluate(() => window.__recyclingStation.trainFromLibrary({ perClass: 12, threshold: 0.2 }));
-  expect(trained.ok, JSON.stringify(trained)).toBe(true);
-  // Open the station (this resolves the installation the publish just installed).
-  await pageA.evaluate(() => window.__recyclingStation.open());
-  const run = await pageA.evaluate(() => window.__recyclingStation.controller.runBatch({ kind: 'normal', seed: 1 }));
-  expect(run.ok, JSON.stringify(run)).toBe(true);
-  expect(run.results.length).toBeGreaterThan(0);
-  await pageA.waitForTimeout(1000); // the reward commit is fire-and-forget
+  await publish(pageA,capabilities());
+  const run=await runActivity(pageA,'recycling');
+  expect(run.results.length).toBe(9);
 
   // Customise: buy AND equip an accessory off the earned credits.
   const saved = await pageA.evaluate(async () => {
@@ -47,6 +29,7 @@ test('fresh-browser journey: earn, build, customise, save, restore', async ({ br
     await store.openActiveProject();
     const { MARKET_CATALOGUE } = await import('/city-common/market-catalogue.js');
     const bought = await store.purchase('acc-visor', 'journey-buy-1', MARKET_CATALOGUE);
+    await store.equipItem('acc-visor', true);
     const eco = await store.readEconomy();
     const ach = await store.readAchievements();
     const exported = await store.exportProject();
@@ -74,7 +57,7 @@ test('fresh-browser journey: earn, build, customise, save, restore', async ({ br
   const pageB = await ctxB.newPage();
   const errorsB = [];
   pageB.on('pageerror', (e) => errorsB.push(e.message));
-  await bootCity(pageB);
+  await pageB.goto('/project-hub/');
 
   const restored = await pageB.evaluate(async (archive) => {
     const store = (await import('/city-common/project-store.js')).createProjectStore();

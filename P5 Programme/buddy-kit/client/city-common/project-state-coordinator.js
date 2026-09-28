@@ -1,3 +1,4 @@
+import { assertWorkspace } from './project-binding.js';
 import { CF_KEYS, collectState } from './champion-file.js';
 import { validateLayout } from './layout.js';
 import { createProjectStore } from './project-store.js';
@@ -42,11 +43,14 @@ export function createProjectStateCoordinator({
     if (mirrorTimer || storage !== safeStorage()) return;
     mirrorTimer = setTimeout(async () => {
       mirrorTimer = null;
+      let store;
       try {
-        const store = createProjectStore({ storage });
+        assertWorkspace();
+        store = createProjectStore({ storage });
         const project = await store.openActiveProject();
         await store.commitSection('city', { legacyState: collectState(storage) }, project.revision);
-      } catch { /* IndexedDB is an extra recovery layer, never a blocker. */ }
+      } catch { /* An explicit backup surfaces a failed mirror. */ }
+      finally { store?.close(); }
     }, 350);
   }
 
@@ -78,6 +82,7 @@ export function createProjectStateCoordinator({
   }
 
   function commit(nextState, { source = 'unknown', recovery = true, requireRecovery = false } = {}) {
+    try { assertWorkspace(); } catch (error) { return { ok: false, wrote: 0, failed: [], error: error.message }; }
     const valid = validateProjectState(nextState);
     if (!valid.ok) return { ...valid, wrote: 0, failed: [] };
     const entries = knownEntries(nextState);

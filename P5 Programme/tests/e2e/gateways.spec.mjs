@@ -88,9 +88,12 @@ test('one protected Workshop and Fit Studio flagship load with stable routes and
   expect((await page.evaluate(gatewaySnapshot)).mountNames.sort()).toEqual(['passiona-studio-gateway', 'passiona-workshop-gateway']);
 
   // The Workshop is same-origin now; stub only that route so the test stays fast.
-  await page.route('**/workshop/**', route => route.fulfill({
-    status: 200, contentType: 'text/html', body: '<!doctype html><title>AI Workshop</title>',
-  }));
+  await page.route('**/workshop/**', route => {
+    // Stub the destination document, not shared Data-sense modules that the
+    // City imports when the child returns from Workshop.
+    if (!route.request().isNavigationRequest()) return route.continue();
+    return route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>AI Workshop</title>' });
+  });
   await page.evaluate(() => {
     const gateway = window.__city.gateways.workshop;
     window.__city.champion.landAt(gateway.position.x, gateway.position.z + 16);

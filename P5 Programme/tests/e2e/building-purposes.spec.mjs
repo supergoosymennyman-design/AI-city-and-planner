@@ -27,7 +27,7 @@ test('My Work opens from the top bar and preserves opaque history',async({page})
  await page.screenshot({path:'/tmp/purpose-session4/my-work.png'});
  await page.click('[data-work-action="save"]');
  const [download]=await Promise.all([page.waitForEvent('download'),page.click('#save-download')]);
- const file=JSON.parse(await readFile(await download.path(),'utf8'));expect(file.state.quests).toBe(history);
+ const file=JSON.parse(await readFile(await download.path(),'utf8'));expect(file.project.projects.city.legacyState.quests).toBe(history);
  await page.setInputFiles('#file-input',{name:'city.champion.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(file))});
  await page.locator('#entry-local').click();
  await page.waitForFunction(()=>document.getElementById('loading')?.classList.contains('done'),null,{timeout:120000});
@@ -89,7 +89,7 @@ test('imported evidence and historical decisions remain display-only through ins
  expect(await page.evaluate(()=>localStorage.getItem('p5_city_cap_lastdec_v1'))).toBe(dec);
  await page.keyboard.press('Escape');await page.locator('#cap-modal .modal-close').click();await page.click('#my-work-btn');await page.click('[data-work-action="save"]');
  const [download]=await Promise.all([page.waitForEvent('download'),page.click('#save-download')]);
- const file=JSON.parse(await readFile(await download.path(),'utf8'));expect(file.state.caps).toBe(raw);expect(file.state.quests).toBe(history);
+ const file=JSON.parse(await readFile(await download.path(),'utf8'));expect(file.project.projects.city.legacyState.caps).toBe(raw);expect(file.project.projects.city.legacyState.quests).toBe(history);
 });
 
 test('existing skeleton helper clones bones with the City vendored Three.js',async({page})=>{

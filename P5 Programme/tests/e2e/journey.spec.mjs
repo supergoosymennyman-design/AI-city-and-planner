@@ -4,6 +4,7 @@
 // student's layout from "🌆 View my city" straight into the 3D city (no file
 // download/upload round-trip). The source server provides the same route aliases.
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 
 const LAYOUT_KEY = 'p5_city_planner_layout_v1';
@@ -76,7 +77,10 @@ test('pregame finale saves a portable progress file and opens the planner', asyn
     page.waitForEvent('download'),
     page.click('#btn-save-progress'),
   ]);
-  expect(download.suggestedFilename()).toMatch(/\.champion\.json$/);
+  expect(download.suggestedFilename()).toMatch(/\.passiona$/);
+  const archive = JSON.parse(await readFile(await download.path(), 'utf8'));
+  expect(archive.kind).toBe('passiona.archive');
+  expect(JSON.parse(archive.project.projects.city.legacyState.pregame)).toMatchObject({1:true,2:true,3:true,4:true});
 
   await page.click('#btn-unlock');
   await page.waitForURL(/\/planner\/$/, { timeout: 15000 });

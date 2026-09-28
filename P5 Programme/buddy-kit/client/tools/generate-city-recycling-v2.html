@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>City recycling scanner asset generator</title>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.js","three/addons/":"../vendor/three/addons/"}}</script>
+<script src="../workshop/toolbox/embedder.js"></script>
+<script type="module">
+import * as THREE from 'three';
+import { WASTE, scannerScene } from '../city-common/city-waste-v2.js';
+window.generate = async () => {
+ const ready = await EmbedderManager.init(); if(!ready.ok) throw Error(ready.reason);
+ const renderer = new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true}); renderer.setSize(224,224); renderer.setPixelRatio(1);
+ const output=[];
+ for (const row of WASTE) {
+  const {scene,camera}=scannerScene(row); renderer.render(scene,camera);
+  const png=renderer.domElement.toDataURL('image/png');
+  const vec=await EmbedderManager.embed(renderer.domElement); if(vec?.length!==1024)throw Error('Invalid extractor output');
+  output.push({...row,src:`assets/city-recycling-v2/${row.id}.png`,png,vector:Array.from(vec)});
+  scene.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
+ }
+ renderer.dispose(); EmbedderManager.dispose(); return output;
+};
+</script>

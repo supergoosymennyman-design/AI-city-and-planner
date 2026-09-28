@@ -1,3 +1,4 @@
+import { projectAssetKey, ownsLegacyAssets, assertWorkspace, activeProjectId } from '../city-common/project-binding.js';
 // custom-skin.js — persist the child's uploaded "fitted champion" GLB (from
 // Fit Studio) in IndexedDB and hand out object URLs for the champion skin.
 //
@@ -41,16 +42,19 @@ function openDb() {
 /** Store the uploaded GLB in IndexedDB. The bytes are stored as an ArrayBuffer (NOT the
  *  File/Blob object) because Safari's IndexedDB is unreliable at structured-cloning Blob/File
  *  values (DataCloneError/UnknownError) — ArrayBuffer storage works in every browser. */
-export async function saveCustomSkin(file, metadata = null) {
+export async function saveCustomSkin(file, metadata = null, projectId) {
+  if (!projectId) assertWorkspace();
+  const owner = projectId ?? activeProjectId();
+  const key = projectAssetKey(KEY, projectId), metaKey = projectAssetKey(META_KEY, projectId);
   const buf = await file.arrayBuffer();   // Safari-safe: raw bytes, not a Blob
   const db = await openDb();
   return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORE, 'readwrite');
       const store = tx.objectStore(STORE);
-      store.put({ buffer: buf, metadata }, KEY);
-      if (metadata) store.put(metadata, META_KEY); // readable by older builds
-      tx.oncomplete = () => { db.close(); announceCustomSkin(true); resolve(); };
+      store.put({ buffer: buf, metadata }, key);
+      if (metadata) store.put(metadata, metaKey); // readable by older builds
+      tx.oncomplete = () => { db.close(); if (owner === activeProjectId()) announceCustomSkin(true); resolve(); };
       tx.onerror = () => { db.close(); reject(tx.error); };
     } catch (e) { db.close(); reject(e); }
   });
@@ -58,15 +62,16 @@ export async function saveCustomSkin(file, metadata = null) {
 
 /** Studio provenance shown on the City Champion card. Older raw-buffer entries
  * intentionally return null and stay on the explicit legacy animation path. */
-export async function loadCustomSkinMetadata() {
+export async function loadCustomSkinMetadata(projectId = activeProjectId()) {
   let db;
   try { db = await openDb(); } catch { return null; }
+  await migrateLegacySkin(db, projectId);
   return new Promise(resolve => {
     const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).get(KEY);
+    const req = tx.objectStore(STORE).get(projectAssetKey(KEY, projectId));
     req.onsuccess = () => {
       if (req.result?.buffer) { db.close(); resolve(req.result.metadata || null); return; }
-      const legacy = tx.objectStore(STORE).get(META_KEY);
+      const legacy = tx.objectStore(STORE).get(projectAssetKey(META_KEY, projectId));
       legacy.onsuccess = () => { db.close(); resolve(legacy.result || null); };
       legacy.onerror = () => { db.close(); resolve(null); };
     };
@@ -75,32 +80,35 @@ export async function loadCustomSkinMetadata() {
 }
 
 export async function saveCustomSkinRevision(buffer, metadata) {
+  assertWorkspace(); const revisionKey = projectAssetKey(REVISIONS_KEY);
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite'); const store = tx.objectStore(STORE);
-    const get = store.get(REVISIONS_KEY);
+    const get = store.get(revisionKey);
     get.onsuccess = () => {
       const revisions = Array.isArray(get.result) ? get.result : [];
       revisions.push({ buffer, metadata, savedAt: new Date().toISOString() });
-      store.put(revisions.slice(-5), REVISIONS_KEY);
+      store.put(revisions.slice(-5), revisionKey);
     };
     tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
 
 export async function loadCustomSkinRevisions() {
+  const revisionKey = projectAssetKey(REVISIONS_KEY);
   let db; try { db = await openDb(); } catch { return []; }
-  return new Promise(resolve => { const tx = db.transaction(STORE, 'readonly'); const req = tx.objectStore(STORE).get(REVISIONS_KEY); req.onsuccess = () => { db.close(); resolve(Array.isArray(req.result) ? req.result : []); }; req.onerror = () => { db.close(); resolve([]); }; });
+  return new Promise(resolve => { const tx = db.transaction(STORE, 'readonly'); const req = tx.objectStore(STORE).get(revisionKey); req.onsuccess = () => { db.close(); resolve(Array.isArray(req.result) ? req.result : []); }; req.onerror = () => { db.close(); resolve([]); }; });
 }
 
 /** Read the stored GLB back as a Blob (reconstructed from the saved ArrayBuffer), or null. */
-export async function loadCustomSkinBlob() {
+export async function loadCustomSkinBlob(projectId = activeProjectId()) {
   let db;
   try { db = await openDb(); } catch (e) { return null; }
+  await migrateLegacySkin(db, projectId);
   return new Promise((resolve) => {
     try {
       const tx = db.transaction(STORE, 'readonly');
-      const req = tx.objectStore(STORE).get(KEY);
+      const req = tx.objectStore(STORE).get(projectAssetKey(KEY, projectId));
       req.onsuccess = () => {
         const v = req.result;
         db.close();
@@ -115,15 +123,15 @@ export async function loadCustomSkinBlob() {
 }
 
 /** Remove the stored GLB (used by the ✕ remove action on the skin card). */
-export async function clearCustomSkin() {
+export async function clearCustomSkin(projectId = activeProjectId()) {
   let db;
   try { db = await openDb(); } catch (e) { return; }
   return new Promise((resolve) => {
     try {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).delete(KEY);
-      tx.objectStore(STORE).delete(META_KEY);
-      tx.oncomplete = () => { db.close(); announceCustomSkin(false); resolve(); };
+      tx.objectStore(STORE).delete(projectAssetKey(KEY, projectId));
+      tx.objectStore(STORE).delete(projectAssetKey(META_KEY, projectId));
+      tx.oncomplete = () => { db.close(); if (projectId === activeProjectId()) announceCustomSkin(false); resolve(); };
       tx.onerror = () => { db.close(); resolve(); };
     } catch (e) { db.close(); resolve(); }
   });
@@ -151,4 +159,23 @@ export async function looksLikeGlb(file) {
     const b = new Uint8Array(head);
     return b[0] === 0x67 && b[1] === 0x6c && b[2] === 0x54 && b[3] === 0x46;   // 'glTF'
   } catch (e) { return false; }
+}
+
+async function migrateLegacySkin(db, projectId) {
+  if (!ownsLegacyAssets(projectId)) return;
+  const key = projectAssetKey(KEY, projectId); if (key === KEY) return;
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite'), store = tx.objectStore(STORE);
+    const marker = store.get('project-migrated');
+    marker.onsuccess = () => {
+      if (marker.result) return;
+      const req = store.get(KEY);
+      req.onsuccess = () => {
+        if (req.result) store.put(req.result, key);
+        for (const legacyKey of [META_KEY, REVISIONS_KEY]) { const prior = store.get(legacyKey); prior.onsuccess = () => { if (prior.result) store.put(prior.result, projectAssetKey(legacyKey, projectId)); }; }
+        store.put(true, 'project-migrated');
+      };
+    };
+    tx.oncomplete = resolve; tx.onerror = tx.onabort = () => reject(tx.error);
+  });
 }

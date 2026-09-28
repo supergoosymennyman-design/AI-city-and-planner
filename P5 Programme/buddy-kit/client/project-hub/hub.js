@@ -1,3 +1,4 @@
+import { downloadProject, restoreProjectBackup } from '../city-common/backup-coordinator.js';
 import { attachArchiveAsset, createProjectStore, importProjectEnvelope } from '../city-common/project-store.js';
 import { CF_KEYS, collectState, writeState } from '../city-common/champion-file.js';
 import { loadCustomSkinBlob, loadCustomSkinMetadata, saveCustomSkin } from '../champion-city/custom-skin.js';
@@ -13,8 +14,8 @@ const isLocalDemo = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostna
 if (isLocalDemo) {
   document.querySelectorAll('.external-tag').forEach(tag => { tag.textContent = 'LOCAL TOOL'; });
   $('.section-heading > p').textContent = 'City, Planner, Studio, and Workshop are available on this computer.';
-  $('.project-tools > div:first-child p:last-child').textContent = 'Downloads your City project. Save Workshop and Studio work with their shared Champion File.';
-  $('footer').textContent = 'City work stays on this device · Workshop and Studio share a Champion File · Passiona';
+  $('.project-tools > div:first-child p:last-child').textContent = 'Download one complete .passiona project, including Workshop and Studio work.';
+  $('footer').textContent = 'Your work stays on this device · Download a complete project for recovery · Passiona';
 }
 
 function probeIndexedDB() {
@@ -117,8 +118,8 @@ function render(project, versions) {
   $('#checkpoint-count').textContent = `${view.checkpointCount} recovery checkpoint${view.checkpointCount === 1 ? '' : 's'}`;
   $('#studio-transfer').textContent = view.studioRevision ? `Studio transfer · revision ${view.studioRevision}` : 'No Studio transfer yet';
   $('#city-count').textContent = view.hasSavedCity ? `1 saved city · ${view.buildingCount} building${view.buildingCount === 1 ? '' : 's'}` : '0 saved cities · ready to grow';
-  $('#machine-count').textContent = isLocalDemo ? 'Build machines locally. Buddy uses your configured online provider.' : 'Build AI skills online. Internet is required; work saves separately.';
-  $('#studio-count').textContent = isLocalDemo ? 'Workshop and Studio share a Champion File. City work stays separate.' : 'Shape and dress your Champion in the live Studio. Work there saves separately.';
+  $('#machine-count').textContent = isLocalDemo ? 'Build machines locally. Buddy uses your configured online provider.' : 'Build AI skills. Save your project to keep your editable machines.';
+  $('#studio-count').textContent = isLocalDemo ? 'Workshop, Studio and City travel in one downloaded project.' : 'Shape and dress your Champion. Download your project to keep its editable Studio work.';
   for (const name of ['planner', 'city']) $(`#${name}-revision`).textContent = `REV ${view.revisions[name]}`;
   $('#continue').href = '/city-builder/?example=1';
   $('#continue-label').textContent = 'Open the example AI City';
@@ -144,17 +145,7 @@ async function openProject() {
 $('#download-project').addEventListener('click', async () => {
   const status = $('#health');
   try {
-    const result = await store.exportProject();
-    if (!result.ok) throw new Error(result.error || 'The project could not be prepared.');
-    const [champion, metadata] = await Promise.all([loadCustomSkinBlob(), loadCustomSkinMetadata()]);
-    if (champion) attachArchiveAsset(result.archive, { bytes:await champion.arrayBuffer(), role:'champion-glb', name:'champion.glb' });
-    if (metadata) result.archive.manifest.champion = metadata;
-    const url = URL.createObjectURL(new Blob([JSON.stringify(result.archive)], { type:'application/json' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${String(activeProject?.name || 'my-passiona-project').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'my-passiona-project'}.passiona`;
-    document.body.append(link); link.click(); link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    await downloadProject({ store });
     status.innerHTML = '<span aria-hidden="true">✓</span> Project archive downloaded';
   } catch (error) {
     status.textContent = error?.message || 'The project could not be downloaded.';
@@ -169,17 +160,7 @@ $('#open-project').addEventListener('change', async event => {
   try {
     status.textContent = 'Opening project archive…'; status.classList.remove('error');
     const archive = JSON.parse(await file.text());
-    const parsed = importProjectEnvelope(archive);
-    if (!parsed.ok) throw new Error(parsed.error);
-    const restored = await store.importProject(archive);
-    if (!restored.ok) throw new Error(restored.error || 'The project could not be saved.');
-    const champion = Object.values(parsed.assets || {}).find(asset => asset.role === 'champion-glb');
-    if (champion) await saveCustomSkin(new Blob([champion.bytes], { type:champion.mediaType }), archive.manifest?.champion || null);
-    const cityState = restored.project?.projects?.city?.legacyState;
-    if (parseCityLayout(cityState?.layout)) {
-      const hydrated = hydrateCityState(cityState);
-      if (!hydrated.ok) throw new Error(hydrated.error);
-    }
+    await restoreProjectBackup(archive, { store });
     location.reload();
   } catch (error) {
     status.textContent = error?.message || 'That project could not be opened.';

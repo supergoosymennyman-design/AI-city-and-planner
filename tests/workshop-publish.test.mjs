@@ -48,11 +48,11 @@ test('the seam returns the placed photo model as publish data', () => {
   assert.equal(model.examples[0].source.id, 'library:cardboard1');
 });
 
-test('the seam can pick a specific model and otherwise returns the first photo model', () => {
+test('the seam requires an explicit choice when multiple photo models exist', () => {
   const a = piece(photoModel({ id: 'm-a' }), { id: 's-a' });
   const b = piece(photoModel({ id: 'm-b' }), { id: 's-b' });
   const table = { pieces: [a, b], wires: [] };
-  assert.equal(G.publishImageModel(null, table).id, 'm-a');
+  assert.equal(G.publishImageModel(null, table), null);
   assert.equal(G.publishImageModel('m-b', table).id, 'm-b');
 });
 
@@ -84,4 +84,39 @@ test('the seam output builds an installable v2 image capability the City accepts
   assert.equal(parseCapability(out.capability).ok, true);
   assert.equal(installCapability(out.capability).ok, true);
   assert.equal(checkCompatibility(out.capability).ok, true);
+});
+
+test('an Improve link keeps targeting the same block after replacing its learned version', () => {
+  const block = piece(photoModel({ id: 'learned-old' }), { id: 'stable-sorter', sure: 0 });
+  const table = { pieces: [block], wires: [] };
+  const first = G.publishImageModel('stable-sorter', table);
+  assert.equal(first.blockId, 'stable-sorter');
+  assert.equal(first.threshold, 0, 'an intentional zero confidence setting is preserved');
+  block.libraryModel = photoModel({ id: 'learned-new' });
+  block.sure = .95;
+  const improved = G.publishImageModel(first.blockId, table);
+  assert.equal(improved.id, 'learned-new');
+  assert.equal(improved.blockId, first.blockId);
+  assert.equal(improved.threshold, .95);
+  delete block.sure;
+  assert.equal(G.publishImageModel(first.blockId, table).threshold, .2);
+});
+
+test('Camera / Memory exports the actual shelves, k, confidence and numeric tie order', async () => {
+  const Brain = require('../P5 Programme/buddy-kit/client/workshop/logic/brain.js');
+  const { runInference } = await import('../P5 Programme/buddy-kit/client/city-common/cap-runtime.js');
+  const { routeResult } = await import('../P5 Programme/buddy-kit/client/city-common/recycling.js');
+  const shelves = { ' Plastic ': [{id:9,vec:axis(0)}], '紙板': [{id:2,vec:axis(0)},{id:3,vec:axis(1)}] };
+  const p={id:'camera-memory',type:'sense',senseId:'cam',brainId:'knn',k:1,sure:.75,learning:{cam:{brain:{shelves,nextId:10}}}};
+  const model=G.publishImageModel(p.id,{pieces:[p]});
+  assert.equal(model.k,1);assert.equal(model.threshold,.75);assert.equal(model.examples[0].source.id,2);
+  const out=buildImageCapabilityV2({...model,dimension:1024});assert.equal(out.ok,true);
+  for(const vector of [axis(0),axis(1),axis(2)]) {
+    const answer=Brain.classify({shelves},vector,1), confidence=1-answer.evidence[0].distance**2/2;
+    const result=runInference(out.capability,{vector});
+    assert.equal(result.abstained,confidence<.75);
+    if(!result.abstained)assert.equal(result.decision,answer.label);
+  }
+  assert.equal(routeResult(runInference(out.capability,{vector:axis(0)}),{}).bin,'bin-cardboard');
+  p.brainId='proto';assert.equal(G.publishImageModel(p.id,{pieces:[p]}),null);
 });

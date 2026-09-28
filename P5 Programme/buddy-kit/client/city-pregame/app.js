@@ -1,3 +1,4 @@
+import { downloadProject } from '../city-common/backup-coordinator.js';
 /**
  * city-pregame/app.js — City Planning Academy.
  *
@@ -1095,22 +1096,9 @@ function unlockPlanner() {
  * progress key is owned by the Champion File, so this is the child's backup even
  * if they never open the planner or 3D city on this device.
  */
-function saveProgressFile() {
-  try {
-    const file = composeChampionFile(collectState(), 'My Academy progress');
-    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = championFilename(file.label);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    toast(t('pg.toast.progressSaved'));
-  } catch (e) {
-    toast(t('pg.toast.progressFail'));
-  }
+async function saveProgressFile() {
+  try { await downloadProject({ label: 'My Academy progress' }); toast(t('pg.toast.progressSaved')); }
+  catch (error) { toast(error.message || t('pg.toast.progressFail')); }
 }
 
 // ── Restart (custom modal, no confirm()) ────────────────

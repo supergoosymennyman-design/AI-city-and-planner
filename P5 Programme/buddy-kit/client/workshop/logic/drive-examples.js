@@ -19,14 +19,32 @@
 (function () {
 'use strict';
 function make(kind, { defaultBlock, t }) {
-  if (kind !== 'drive-v1') return null;
+  if (kind === 'drive-v2') {
+    const pair = { pieces: [], snaps: [], wires: [] };
+    for (const [index, role] of ['steering', 'speed'].entries()) {
+      const half = make('drive-v1', { defaultBlock, t });
+      const rename = id => role + '_' + id;
+      for (const piece of half.pieces) {
+        piece.id = rename(piece.id); piece.y += index * 1400;
+        if (piece.watchPiece) piece.watchPiece = rename(piece.watchPiece);
+        if (piece.type === 'files') piece.dataset = 'drive-' + role + '-v2';
+        if (piece.type === 'splitter') { piece.training = 100; piece.validation = 0; }
+        if (piece.type === 'sense') Object.assign(piece, { senseId: 'data', drivingRole: role, learning: {}, k: 1, name: role === 'steering' ? 'Steering / 轉向' : 'Speed / 車速' });
+        pair.pieces.push(piece);
+      }
+      for (const edge of half.snaps) { edge.from.piece = rename(edge.from.piece); edge.to.piece = rename(edge.to.piece); pair.snaps.push(edge); }
+      for (const edge of half.wires) { edge.from.block = rename(edge.from.block); edge.to.block = rename(edge.to.block); pair.wires.push(edge); }
+    }
+    return pair;
+  }
+  if (!['drive-v1','drive-bend','drive-obstacle','drive-light'].includes(kind)) return null;
   const C = (id, type, x, y, extra) => { const p = Object.assign(defaultBlock(type, id), { x, y }, extra); delete p.learning; return p; };
   const S = (fp, fe, tp, te) => ({ from: { piece: fp, end: fe }, to: { piece: tp, end: te } });
   const W = (fb, fp, tb, tp) => ({ from: { block: fb, port: fp }, to: { block: tb, port: tp } });
   const name = (key, fallback) => (t ? t(key) : fallback) || fallback;
   return {
     pieces: [
-      C('dv_src', 'files', 30, 40, { dataset: 'drive', rate: 120 }),
+      C('dv_src', 'files', 30, 40, { dataset: kind === 'drive-v1' ? 'drive' : kind, rate: 120 }),
       C('dv_split', 'splitter', 220, 40, { training: 60, validation: 20 }),
       C('dv_feed', 'feeder', 30, 322, { items: [], rate: 120 }),
       C('dv_t1', 'track', 200, 604, { speed: 2 }),

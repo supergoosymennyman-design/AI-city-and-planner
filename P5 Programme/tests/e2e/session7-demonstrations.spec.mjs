@@ -106,10 +106,11 @@ test('one-drone test strands, replays feasibly, resumes saved state and round-tr
   await page.locator('#btn-save-hud').click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#save-download').click()]);
   const champion = JSON.parse(await readFile(await download.path(), 'utf8'));
-  expect(champion.state.props).toBe(rawProps);
+  expect(champion.kind).toBe('passiona.archive');
+  expect(champion.project.projects.city.legacyState.props).toBe(rawProps);
   await Promise.all([
     page.waitForEvent('load'),
-    page.setInputFiles('#file-input', { name: 'session7.champion.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(champion)) }),
+    page.setInputFiles('#file-input', { name: 'session7.passiona', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(champion)) }),
   ]);
   await page.locator('#entry-local').click();
   await page.waitForFunction(() => document.getElementById('loading')?.classList.contains('done'), null, { timeout: 60_000 });

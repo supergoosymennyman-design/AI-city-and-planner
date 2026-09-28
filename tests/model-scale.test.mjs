@@ -17,7 +17,9 @@ test('building fit uses one uniform scale and stays inside its physical box', ()
 
 test('all built-in buildings expose positive metre targets', () => {
   const buildings = LIBRARY.filter((item) => item.category === 'buildings');
-  assert.equal(buildings.length, 88);
+  // 88 before the 2026-09-26 Kenney completion batch (+30: 9 commercial, 11
+  // suburban, 3 industrial structures, 7 modular sample prefabs).
+  assert.equal(buildings.length, 118);
   for (const item of buildings) {
     const target = itemTargetBounds(item);
     assert.ok(target.width > 0, `${item.id} width`);

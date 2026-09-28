@@ -1,0 +1,15 @@
+.driving-arena-panel{position:fixed;z-index:260;left:18px;bottom:18px;width:min(390px,calc(100vw - 36px));max-height:65vh;overflow:auto;background:#faf7ed;color:#203d35;border:2px solid #375f50;border-radius:14px;padding:16px;box-shadow:0 8px 30px #203d3533;font:14px/1.5 system-ui}
+.driving-arena-panel[hidden]{display:none}.driving-arena-panel header{display:flex;align-items:center;justify-content:space-between}.driving-arena-panel h2{font-size:24px;margin:0}.driving-arena-panel p{margin:10px 0}.driving-arena-panel label{display:block;margin:8px 0}.driving-arena-panel select{max-width:100%;padding:8px}.driving-arena-panel button,.driving-arena-panel a{min-height:44px;padding:8px 12px;border:1px solid #728d79;border-radius:7px;background:#fffdf5;color:#234b3c;font:inherit;cursor:pointer;display:inline-flex;align-items:center}.driving-arena-panel button:disabled{opacity:.5;cursor:default}.driving-actions{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.driving-arena-panel [data-run]{background:#2e7054;color:white}.driving-arena-panel input[type=range]{width:100%;min-height:36px}.driving-arena-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow:auto;font-size:12px}.driving-arena-open .city-activity-dock{display:none}@media(max-width:760px){.driving-arena-panel{max-height:45vh;left:8px;bottom:8px;width:calc(100vw - 50px);padding:12px}.driving-arena-panel h2{font-size:20px}}
+
+.driving-arena-open #hud-top,.driving-arena-open #toasts,.driving-arena-open #skin-toggle,.driving-arena-open .building-label,.driving-arena-open .activity-entry{display:none!important}
+
+.driving-arena-open #example-session-banner,.driving-arena-open #new-city-session-banner{display:none!important}
+.driving-arena-open .appearance-toggle,.driving-arena-open .appearance-panel,.driving-arena-open #streaming-status{display:none!important}
+.driving-arena-open #controls,.driving-arena-open #orbit-toggle,.driving-arena-open #btn-home,.driving-arena-open #btn-next,.driving-arena-open #quest-prompt{display:none!important}
+/* Chromium's canvas occlusion path can flip opaque overlay rectangles while
+   the shared WebGL buffer is scaled. Keep these overlays composited so it
+   cannot punch a mirrored hole in the canvas; .999 is visually opaque. */
+.driving-arena-open .driving-arena-panel,.driving-arena-open .passiona-project-bar{opacity:.999}
+.driving-arena-panel input[type=number]{box-sizing:border-box;width:100px;min-height:44px;padding:8px;font:inherit;color:inherit;border:1px solid #728d79;border-radius:7px;background:#fffdf5}
+
+.driving-arena-panel header{position:sticky;top:0;background:#faf7ed;z-index:1;gap:8px;padding:8px 0}.driving-arena-panel header h2{flex:1}

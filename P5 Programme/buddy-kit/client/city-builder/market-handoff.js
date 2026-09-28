@@ -28,6 +28,10 @@ export async function placePurchasedItem({ id, propLibrary, store, position = { 
   let owned = [];
   try { owned = (await store?.readEconomy?.())?.owned || []; } catch { owned = []; }
   if (!owned.includes(id)) return { ok: false, error: 'not-owned' };
+  if (propLibrary.previewMarketItem) {
+    const ok = await propLibrary.previewMarketItem(handler);
+    return ok ? { ok: true, preview: true, kind: handler.kind } : { ok: false, error: 'preview-unavailable' };
+  }
   const transform = { x: position.x || 0, z: position.z || 0 };
   const instanceId = handler.kind === 'decoration'
     ? await propLibrary.insertProp(handler.propId, transform)

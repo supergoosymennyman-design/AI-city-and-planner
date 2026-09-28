@@ -1,3 +1,6 @@
+import { MAX_ARCHIVE_BYTES } from '../city-common/project-store.js';
+import { downloadProject, restoreProjectBackup, showRestoreFailure } from '../city-common/backup-coordinator.js';
+import { registerWorkspaceAdapter } from '../city-common/workspace.js';
 import { displayName } from '../city-common/display-names.js';
 import { installModalOwnership, activeModal, ambientDelta, bindHold } from '../city-common/interface.js';
 installModalOwnership();
@@ -72,6 +75,8 @@ import { createStreetFurniture } from './street-furniture.js';
 import { createMinimap } from './minimap.js';
 import { mountCityBuddy } from './buddy.js';
 import { mountCityAiNodes } from './ai-nodes.js';
+import { mountCityActivities } from './city-activities.js';
+import { mountDrivingArena } from './driving-arena.js';
 import { openRecyclingStation } from './recycling-station.js';
 import { openTestTrack, setCitySource } from './test-track.js';
 import { checkDriveCompatibility } from '../city-common/driving.js';
@@ -86,7 +91,7 @@ import { catalogType, isSpecial } from '../city-common/catalog.js';
 import { sanitizeLayout, validateLayout, ROAD_WIDTH, densifyLayout, occupiedBounds, typeSpec } from '../city-common/layout.js';
 import { gatewayPositions } from '../city-common/gateway-placement.js';
 import { LIBRARY, libraryUrl, libraryItem } from '../city-common/library.js';
-import { HUNYUAN_IDS, EMERALD_RAIN_TREE_CANOPY_METRES, coordinateKey, selectHunyuanBuildingVariants, emeraldRainTreePlacement } from '../city-common/hunyuan-wave.js';
+import { HUNYUAN_IDS, EMERALD_RAIN_TREE_CANOPY_METRES, emeraldRainTreePlacement } from '../city-common/hunyuan-wave.js';
 import { CITY_CHAMPION_HEIGHT, uniformScaleForBounds, scaledBounds } from '../city-common/model-scale.js';
 import { buildSampleCity } from '../city-common/sample-city.js';
 import { readExampleDraft, writeExampleDraft } from '../city-common/example-draft.js';
@@ -738,7 +743,15 @@ function cleanupPropTools() {
   }
 }
 
+let cityActivities = null;
+let drivingArena = null;
+function openDriving({legacy=false, capability=null}={}) {
+  if(legacy){drivingArena?.close();return cityActivities?.openLegacyDriving(capability);}
+  return drivingArena?.open();
+}
 function cleanupBootSystems() {
+  drivingArena?.destroy(); drivingArena = null;
+  cityActivities?.destroy(); cityActivities = null;
   cleanupPropTools();
   _appearancePanel?.destroy?.(); _appearancePanel = null;
   focusedUI?.dispose?.(); focusedUI = null;
@@ -752,6 +765,7 @@ function cleanupBootSystems() {
   citizens?.destroy?.(); clouds?.destroy?.();
   publicSpaces?.destroy?.(); streetLife?.destroy?.();
   citizens = clouds = publicSpaces = streetLife = neighbourhood = null;
+  startAmbientScenery = null;
   minimap?.destroy?.(); minimap = null;
   rareLandmark?.destroy?.(); rareLandmark = null;
   labelRenderer?.domElement?.remove(); labelRenderer = null;
@@ -800,6 +814,7 @@ let drones = null;        // patrol drones
 let traffic = null;       // road vehicles
 let citizens = null;      // human citizens (posed people) near buildings
 let clouds = null;        // drifting clouds in the sky
+let startAmbientScenery = null; // boot-owned optional loads, started after readiness
 let streetProps = null;   // streetlights + benches
 let minimap = null;
 let rareLandmark = null;
@@ -2354,9 +2369,16 @@ const SPECIAL_BUILDING_MODELS = {
   atc: 'assets/models/mission/atc.glb',
 };
 // Residential variations — each ordinary housing spot renders as a 2×2 block
-// of units; all ten compatible CC0 Kenney houses are selected by location.
-// The full catalogue remains available on demand in the student picker.
-const HOUSING_VARIANTS = ['a','b','c','d','e','f','g','h','i','j'].map(c=>`../library/buildings/kenney-suburban-${c}.glb`);
+// of units; every unit picks a variant by location, so one block mixes up to
+// four different house styles and a neighbourhood never reads as one repeated
+// model. The pool is the whole CC0 Kenney suburban kit (a–u, 21 houses) plus
+// the 3 Kenney Modular sample houses for extra silhouette variety. The full
+// catalogue stays available on demand in the student picker.
+const HOUSING_VARIANTS = [
+  ...['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u']
+    .map(c=>`../library/buildings/kenney-suburban-${c}.glb`),
+  ...['a','b','c'].map(c=>`../library/buildings/kenney-modular-house-${c}.glb`),
+];
 // Facilities that share the generic model until they get their own GLB.
 // Plain facilities without a dedicated GLB — these fall back to the shared
 // generic model. Every generic facility has its own CC0 GLB now, so this list
@@ -2482,33 +2504,11 @@ function loadHousingVariants(gen, queue) {
 
 const officeVariantModels=[];
 let officeVariantsLoaded=false;
-const hunyuanVariantModels = Object.create(null);
-let hunyuanVariantsLoaded = false;
-let hunyuanSelection = selectHunyuanBuildingVariants(null);
 function loadOfficeVariants(gen,queue){if(officeVariantsLoaded)return;officeVariantsLoaded=true;
  Promise.all(['a','b','c'].map(c=>queue.add(()=>createGLTFLoader().loadAsync(`../library/buildings/kenney-skyscraper-${c}.glb`), { onStale: disposeDetachedModel }).catch(()=>null))).then(gltfs=>{
   if(gen!==_bootGen){officeVariantsLoaded=false;for(const gltf of gltfs)disposeDetachedModel(gltf);return;}
   for(const g of gltfs){if(!g)continue;const m=new THREE.Group();m.add(g.scene);const box=new THREE.Box3().setFromObject(m),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());g.scene.position.x-=center.x;g.scene.position.z-=center.z;g.scene.position.y-=box.min.y;prepareBuildingMaterials(m, !(_exampleSession && IS_WEBKIT));officeVariantModels.push({model:m,size});}applyBuildingModel('office');
  }).catch(e => console.warn('[city-builder] office variants unavailable', e));
-}
-
-function normalizedBuildingModel(gltf) {
-  const model = new THREE.Group(); model.add(gltf.scene);
-  const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
-  gltf.scene.position.x -= center.x; gltf.scene.position.z -= center.z; gltf.scene.position.y -= box.min.y;
-  prepareBuildingMaterials(model, !(_exampleSession && IS_WEBKIT)); return { model, size };
-}
-function loadHunyuanBuildingVariants(gen, queue) {
-  if (hunyuanVariantsLoaded) return;
-  hunyuanVariantsLoaded = true;
-  const entries = Object.values(HUNYUAN_IDS).filter((id) => id !== HUNYUAN_IDS.emeraldRainTree);
-  Promise.all(entries.map((id) => queue.add(() => createGLTFLoader().loadAsync(libraryItem(id).glb), { onStale: disposeDetachedModel })
-    .then((gltf) => [id, normalizedBuildingModel(gltf)]).catch((error) => { console.warn('[hunyuan variant]', id, error); return [id, null]; })))
-    .then((models) => {
-      if (gen !== _bootGen) { hunyuanVariantsLoaded = false; return; }
-      for (const [id, value] of models) hunyuanVariantModels[id] = value;
-      for (const type of ['housing', 'shop', 'office', 'school', 'library']) if (glbState[type]?.spots.length) applyBuildingModel(type);
-    }).catch((error) => console.warn('[city-builder] optional building variants unavailable', error));
 }
 
 // A single rare landmark, deliberately separate from street-tree and ordinary
@@ -2671,17 +2671,6 @@ function applyBuildingModel(type) {
     // unit picks a deterministic variant from the Kenney suburban pool when any have
     // loaded, so a neighbourhood looks varied; otherwise the base housing model.
     if (type === 'housing') {
-      const wave2 = spot.variant && hunyuanVariantModels[spot.variant];
-      if (wave2) {
-        const clone = wave2.model.clone(true);
-        const s = uniformScaleForBounds(wave2.size, { width: spot.fp[0], depth: spot.fp[1], height: spot.h || 24 });
-        clone.scale.setScalar(s); clone.position.set(spot.x, 0, spot.z);
-        const bounds = scaledBounds(wave2.size, s);
-        applyRenderedBuildingBounds(spot, bounds);
-        recordBuildingScale(type, spot, s, bounds);
-        clone.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-        scene.add(clone); st.applied.push(clone); continue;
-      }
       const unit = spot.fp[0] / 2 - 1;   // half the footprint minus a tiny gap
       const variants = housingVariantModels.length ? housingVariantModels : [{ model: st.model, size: st.size }];
       let renderedHeight = 0;
@@ -2702,8 +2691,7 @@ function applyBuildingModel(type) {
       recordBuildingScale(type, spot, null, { width: spot.fp[0], depth: spot.fp[1], height: renderedHeight });
       continue;
     }
-    const source = spot.variant && hunyuanVariantModels[spot.variant] ? hunyuanVariantModels[spot.variant]
-      : type==='office' && officeVariantModels.length ? officeVariantModels[hashString(`${spot.x}|${spot.z}`)%officeVariantModels.length] : st;
+    const source = type==='office' && officeVariantModels.length ? officeVariantModels[hashString(`${spot.x}|${spot.z}`)%officeVariantModels.length] : st;
     const clone = source.model.clone(true);
     // A door, window, and storey must keep the same proportions in every role.
     // The planner footprint is a containing plot, never a licence to stretch a
@@ -2726,7 +2714,6 @@ function applyBuildingModel(type) {
 
 function buildGenericFacilities() {
   const libIdsToLoad = new Set();
-  hunyuanSelection = selectHunyuanBuildingVariants(layout);
   for (const b of layout.buildings) {
     if (isSpecial(b.type)) continue;
     const isLib = b.type.startsWith('lib:');
@@ -2840,8 +2827,7 @@ function buildGenericFacilities() {
         scene.add(label);
         buildingLabels.push(label);
       }
-      const variant = hunyuanSelection.variantFor([cx, cz]);
-      state.spots.push({ x: cx, z: cz, fp, h, glbType, label, variant });
+      state.spots.push({ x: cx, z: cz, fp, h, glbType, label });
       continue;
     }
 
@@ -3506,15 +3492,16 @@ function setupAirTraffic() {
   const crowdGeneration = _bootGen;
   const crowdOpts = { getLife: () => streetLife, camera, mobile: IS_MOBILE, lowEnd: LOW_END,
     groundHeightAt, reducedMotion: () => reducedMotion.matches };
-  createPedestrians(scene, layout, { ...crowdOpts, kind: 'human' })
-    .then(p => { if(crowdGeneration!==_bootGen){p?.destroy();return;} citizens=p;city.citizens=p; })
-    .catch(e => console.warn('[city-builder] citizens init failed', e));
-
-  // Clouds — merged instanced cloud puffs drifting slowly across the sky.
-  // Async + graceful: if they fail to load, the city simply has clear skies.
-  createClouds(scene, layout, { bounds, camera, mobile:IS_MOBILE, reducedMotion:()=>reducedMotion.matches })
-    .then((c) => { if(crowdGeneration!==_bootGen){c?.destroy?.();return;} clouds = c; if (c) city.clouds = c; })
-    .catch((e) => console.warn('[city-builder] clouds init failed', e));
+  startAmbientScenery = () => Promise.allSettled([
+    createPedestrians(scene, layout, { ...crowdOpts, kind: 'human' })
+      .then(p => { if(crowdGeneration!==_bootGen){p?.destroy();return;} citizens=p;city.citizens=p; })
+      .catch(e => console.warn('[city-builder] citizens init failed', e)),
+    // Clouds — merged instanced cloud puffs drifting slowly across the sky.
+    // Async + graceful: if they fail to load, the city simply has clear skies.
+    createClouds(scene, layout, { bounds, camera, mobile:IS_MOBILE, reducedMotion:()=>reducedMotion.matches })
+      .then((c) => { if(crowdGeneration!==_bootGen){c?.destroy?.();return;} clouds = c; if (c) city.clouds = c; })
+      .catch((e) => console.warn('[city-builder] clouds init failed', e)),
+  ]);
 
   // Expose for the minimap + buddy (read-only consumers)
   city.layout = layout;
@@ -3826,6 +3813,7 @@ async function spawnDriveCar(item) {
 const _camPos = new THREE.Vector3();
 const _occupiedFocus = new THREE.Vector3();
 function updateCamera(dt, taxiActive, driveActive) {
+  if (cityActivities?.camera()) return;
   // QA hook: visual-test scripts pin an exact viewpoint for screenshots.
   // `pos`/`target` may be THREE.Vector3 or [x,y,z] arrays.
   const over = window.__camOverride;
@@ -3994,6 +3982,8 @@ const dragState = { on: false, sx: 0, sy: 0, moved: 0 };
 let _primaryPointerId = null;
 function wireRendererInteraction(owner) {
   owner.listen(renderer.domElement, 'pointerdown', (e) => {
+    if (drivingArena?.active) return;
+    if (cityActivities?.isOpen) return;
     if (_primaryPointerId !== null) return;   // a second pointer must not steal the drag
     _primaryPointerId = e.pointerId;
     orbit.introUntil = 0;
@@ -4022,7 +4012,7 @@ function wireRendererInteraction(owner) {
     _primaryPointerId = null;
     dragState.on = false;
     if (!wasOn) return;
-    if (dragState.moved <= 6) tapAt(e.clientX, e.clientY);
+    if (!cityActivities?.isOpen && dragState.moved <= 6) tapAt(e.clientX, e.clientY);
   });
   owner.listen(window, 'pointercancel', (e) => {
     // A gesture-cancelled primary (or a second finger that grabbed the gesture)
@@ -4195,7 +4185,7 @@ function startLoop(owner) {
   if (!owner.active || owner.generation !== _bootGen) return;
   owner.raf(loop);
   // Hidden tabs/context loss must not count as slow rendering or catch-up time.
-  if(document.hidden || _contextPaused || renderer?.getContext().isContextLost()) {
+  if(document.hidden || _contextPaused) {
     frameClock.reset(now); demoGovernor.reset(); return;
   }
   const frame = frameClock.tick(now);
@@ -4203,6 +4193,8 @@ function startLoop(owner) {
   const dt = Math.min(0.05, frame.elapsed);
   const tNow = now / 1000;
 
+  if (drivingArena?.active) clearInput();
+  cityActivities?.update(dt);
   timeOfDay?.update(dt);
   placementDust?.update(dt);
   updateNeighbourhoodObstacles(dt);
@@ -4332,8 +4324,8 @@ function startLoop(owner) {
   if ((now - _lastDomUpdate) > 33) {
     _lastDomUpdate = now;
   if (labelRenderer) {
-      updateLabels(buildingLabels, camera);
-      labelRenderer.render(scene, camera);
+      labelRenderer.domElement.style.display = drivingArena?.active ? 'none' : '';
+      if (!drivingArena?.active) { updateLabels(buildingLabels, camera); labelRenderer.render(scene, camera); }
     }
     if (minimap) minimap.update();
     updateDriveButtons();
@@ -4360,7 +4352,8 @@ function startLoop(owner) {
   if(duskSky)duskSky.position.copy(camera.position);
   renderer.info.autoReset = false;
   renderer.info.reset();
-  if (composer) composer.render();
+  if (drivingArena?.render(frame.elapsed)) { /* the school shares the City renderer */ }
+  else if (composer) composer.render();
   else renderer.render(scene, camera);
   city.renderStats = {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,
     textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries};
@@ -4617,7 +4610,7 @@ window.addEventListener('modal:change', clearInput);
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 function readInput() {
-  if (_contextPaused || activeModal() || document.hidden) { clearInput(); return; }
+  if (_contextPaused || drivingArena?.active || activeModal() || document.hidden) { clearInput(); return; }
   const k = keys;
   let x = 0, z = 0;
   if (k['arrowup'] || k['w'] || k['dir:up']) z += 1;
@@ -4770,21 +4763,14 @@ function currentSnapshot() {
   }
   return state;
 }
-function downloadChampionFile(label) {
-  const file = composeChampionFile(currentSnapshot(), label);
-  const json = JSON.stringify(file, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = championFilename(label);
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  rememberSavedAt();   // resume surface: "last saved …"
-  showToast(tf('toast.saved', { file: championFilename(label) }));
+async function downloadChampionFile(label) {
+  try { await downloadProject({ label }); rememberSavedAt(); showToast('Complete project downloaded / 已下載完整專案'); }
+  catch (error) { showToast(error.message); }
 }
+registerWorkspaceAdapter({
+  flush: async () => {}, capture: () => ({ city: { legacyState: currentSnapshot() } }),
+  restore: async () => {}, suspend: () => {},
+});
 
 async function cloudSave(label) {
   const file = composeChampionFile(currentSnapshot(), label);
@@ -4816,6 +4802,14 @@ async function cloudLoad(code) {
 
 /** Import a Champion File: write all state keys, then reload. Returns true if handled. */
 function importChampionFile(raw) {
+  try {
+    const value = JSON.parse(raw);
+    if (['passiona.archive', 'passiona-project', 'passiona-champion-file', 'ai-champion'].includes(value?.kind)) {
+      restoreProjectBackup(value).then(() => location.reload()).catch(error => showRestoreFailure(error, value));
+      return true;
+    }
+  } catch {}
+
   if (!withinImportLimit(raw)) { showEntryError(t('ui.tooLarge')); return true; }
   if (!raw.trim()) return false;
   let parsed;
@@ -5021,16 +5015,26 @@ function readPlantedCaps() {
 // store is async; a socket asks synchronously at placement time, so this is
 // refreshed at boot and whenever the project changes.
 let _envelopeCaps = [], _envelopeInstalls = [];
+let _envelopeRefresh = null;
 async function refreshEnvelopeCaps() {
-  try {
+  // Broadcasts reach every open store in this document. Coalesce them and close
+  // the temporary store: otherwise each refresh adds another listener and the
+  // next publication creates an exponentially growing queue of project locks.
+  if (_envelopeRefresh) return _envelopeRefresh;
+  _envelopeRefresh = (async () => {
     const store = createProjectStore();
-    await store.openActiveProject();
-    const [caps, installs] = await Promise.all([store.readCapabilities(), store.readInstallations()]);
-    _envelopeCaps = Object.values(caps || {});
-    _envelopeInstalls = Object.values(installs || {});
-  } catch { _envelopeCaps = []; _envelopeInstalls = []; }
-  return _envelopeCaps;
+    try {
+      await store.openActiveProject();
+      const [caps, installs] = await Promise.all([store.readCapabilities(), store.readInstallations()]);
+      _envelopeCaps = Object.values(caps || {});
+      _envelopeInstalls = Object.values(installs || {});
+    } catch { _envelopeCaps = []; _envelopeInstalls = []; }
+    finally { store.close?.(); }
+    return _envelopeCaps;
+  })();
+  try { return await _envelopeRefresh; } finally { _envelopeRefresh = null; }
 }
+
 function writePlantedCaps(list) {
   try { localStorage.setItem(CAPS_KEY, JSON.stringify(list)); } catch { /* ignore */ }
 }
@@ -5079,7 +5083,7 @@ function renderCapPanel() {
         <div class="cap-name">🚗 ${esc(d.name)}</div>
         <div class="cap-meta">${esc(d.algorithm)} · ${zh ? '駕駛模型' : 'driving model'} · ${esc(d.inputFields.join(' · '))} · ${d.labels.length} ${zh ? '動作' : 'actions'} · threshold ${esc(d.threshold)}</div>
         <div class="cap-note">${zh ? '模型的動作會直接控制測試汽車；不確定時汽車會停下。' : 'The model’s action drives the test car; “not sure” stops it.'}</div>
-        <button class="cap-try" data-drive-cap="${esc(d.id)}">🚗 ${zh ? '駕駛測試賽道' : 'Driving test track'}</button>
+        <button class="cap-try" data-drive-cap="${esc(d.id)}" data-drive-revision="${cap.revision||1}">🚗 ${zh ? '駕駛測試賽道' : 'Driving test track'}</button>
       </div>`;
     }
     const d = capabilityDescriptor(cap);
@@ -5109,9 +5113,9 @@ function renderCapPanel() {
   const plant = document.getElementById('cap-plant-btn');
   if (plant) plant.addEventListener('click', () => document.getElementById('cap-file').click());
   const recycle = document.getElementById('cap-recycle-btn');
-  if (recycle) recycle.addEventListener('click', () => { close(); openRecyclingStation(); });
+  if (recycle) recycle.addEventListener('click', () => { document.getElementById('cap-modal')?.classList.add('hidden'); cityActivities?.open('recycling'); });
   const drive = document.getElementById('cap-drive-btn');
-  if (drive) drive.addEventListener('click', () => { close(); openTestTrack(); });
+  if (drive) drive.addEventListener('click', () => { document.getElementById('cap-modal')?.classList.add('hidden'); openDriving(); });
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -5137,9 +5141,9 @@ function mountCapabilityUi() {
   // Cards and outdoor nodes inspect the same Stage-1 evidence.
   document.addEventListener('click', (e) => {
     const rec = e.target.closest('[data-recycle-cap]');
-    if (rec) { close(); openRecyclingStation(); return; }
+    if (rec) { close(); cityActivities?.open('recycling'); return; }
     const drv = e.target.closest('[data-drive-cap]');
-    if (drv) { close(); openTestTrack(); return; }
+    if (drv) { const cap=readPlantedCaps().find(c=>c.id===drv.dataset.driveCap&&String(c.revision||1)===drv.dataset.driveRevision); close(); openDriving({legacy:true,capability:cap}); return; }
     const t = e.target.closest('[data-try-cap]');
     if (!t) return;
     const caps = readPlantedCaps();
@@ -5175,7 +5179,7 @@ function mountCapabilityUi() {
   fileInput.addEventListener('change', () => {
     const f = fileInput.files[0];
     if (!f) return;
-    if (f.size > MAX_IMPORT_BYTES) { showEntryError(t('ui.tooLarge')); fileInput.value = ""; return; }
+    if (f.size > MAX_ARCHIVE_BYTES) { showEntryError(t('ui.tooLarge')); fileInput.value = ""; return; }
     const reader = new FileReader();
     reader.onerror = () => showEntryError(t('ui.readFail'));
     reader.onload = () => { plant(reader.result); fileInput.value = ''; };
@@ -5311,7 +5315,7 @@ function startEntryFlow() {
   fileInput.addEventListener('change', () => {
     const f = fileInput.files[0];
     if (!f) return;
-    if (f.size > MAX_IMPORT_BYTES) { showEntryError(t('ui.tooLarge')); fileInput.value = ""; return; }
+    if (f.size > MAX_ARCHIVE_BYTES) { showEntryError(t('ui.tooLarge')); fileInput.value = ""; return; }
     const reader = new FileReader();
     reader.onerror = () => showEntryError(t('ui.readFail'));
     reader.onload = () => {
@@ -5353,12 +5357,13 @@ function startEntryFlow() {
   // into it" with zero extra taps. Same-origin localStorage carries the layout.
   // Fully guarded: corrupt/absent JSON falls through to the normal entry overlay.
   const fromPlanner = entryMode.get('from') === 'planner';
-  if (fromPlanner && saved) {
+  const fromActivity = ['recycling','driving'].includes(entryMode.get('activity'));
+  if ((fromPlanner || fromActivity) && saved) {
     try {
       _exampleSession = false;
       begin(JSON.parse(saved));
       const mode = new URLSearchParams(location.search).get('mode');
-      history.replaceState(null, '', mode === 'decorate' ? '/city-builder/?mode=decorate' : '/city-builder/'); // tidy the URL
+      if (!fromActivity) history.replaceState(null, '', mode === 'decorate' ? '/city-builder/?mode=decorate' : '/city-builder/'); // tidy the URL
     } catch (e) {
       // corrupt save → fall through; the overlay shows "Start my saved city"
     }
@@ -5540,11 +5545,6 @@ async function bootInner() {
     const item = libraryItem(id);
     if (item) jobs.push({ type: id, url: item.glb, role: false, custom: false, priority: buildingLoadPriority(glbState[id]?.spots) });
   }
-  const selectedVariantIds = new Set(Object.values(hunyuanSelection.assignments));
-  for (const id of selectedVariantIds) {
-    const item = libraryItem(id);
-    if (item && !jobs.some(job => job.type === id)) jobs.push({ type: id, url: item.glb, variant: true, custom: false, priority: 0 });
-  }
   jobs.sort((a, b) => Number(b.type === 'recycling') - Number(a.type === 'recycling') || b.priority - a.priority || a.type.localeCompare(b.type));
   const openingJobs = jobs;
   let settledBuildings = 0;
@@ -5560,12 +5560,6 @@ async function bootInner() {
   for (const job of openingJobs) {
     const promise = (job.role ? loadRoleVisual(job.type, job.url) : loadBuildingModel(job.type, job.url, gen, loadQueue))
       .then(model => {
-        if (model && selectedVariantIds.has(job.type)) {
-          hunyuanVariantModels[job.type] = { model, size: glbState[job.type].size };
-          for (const type of ['housing', 'shop', 'office', 'school', 'library']) {
-            if (glbState[type]?.model && glbState[type].spots.some(spot => spot.variant === job.type)) applyBuildingModel(type);
-          }
-        }
         return model;
       }).finally(() => { settledBuildings++; reportBuildingProgress(); });
     requiredBuildingLoads.push({ job, promise });
@@ -5580,11 +5574,18 @@ async function bootInner() {
     // the child on the loading screen.
     const current = () => owner.active && gen === _bootGen;
     const optional = [];
+    const ambient = startAmbientScenery;
+    startAmbientScenery = null;
+    if (current() && ambient) optional.push(ambient());
     optional.push(Promise.all([
       _exampleSession ? Promise.resolve(null) : loadTreeModels(current),
       loadTreePacks(current, _exampleSession ? 1 : Infinity),
     ]).then(() => { if (current()) { buildTreeVariants(); flushTrees(); } })
       .catch(e => console.warn('[city-builder] optional landscape unavailable', e)));
+    // Housing variety is the example city's most visible texture, so the shared
+    // Kenney house pool loads in EVERY session — including the example — not
+    // just the child's own city. It only re-applies the housing spots it owns.
+    if (glbState.housing?.spots.length) loadHousingVariants(gen, loadQueue);
     // Keep the example's smaller optional landscape wave.
     if (_exampleSession) return Promise.allSettled(optional);
     optional.push(createStreetProps(scene, layout).then(props => {
@@ -5593,7 +5594,7 @@ async function bootInner() {
       city.streetProps = props;
     }).catch(e => console.warn('[city-builder] optional street props unavailable', e)));
     // Optional scenery starts only after the required building set is ready.
-    if(glbState.housing?.spots.length && !_exampleSession)loadHousingVariants(gen,loadQueue);
+    // (Housing variants already started above — they run in the example too.)
     if(glbState.office?.spots.length && !_exampleSession)loadOfficeVariants(gen,loadQueue);
     if (layout.autoScenery !== false && !_exampleSession) {
       rareLandmark = mountEmeraldRainTree(gen, loadQueue);
@@ -5713,7 +5714,7 @@ async function bootInner() {
     const resolveCityPlacement = ({ position, footprint, rotation }) => resolveRoadSafePlacement({
       position, footprint, rotation, roads: layout,
       bounds: [0, 0, layout.scaleMeters || 2000, layout.scaleMeters || 2000],
-      obstacles: (layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })),
+      obstacles: [...(layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })), ...(cityActivities?.sites || [])],
       maxDistance: 60,
     });
     grab = createGrabSystem(scene, {
@@ -5767,7 +5768,7 @@ async function bootInner() {
   safe('capabilities', mountCapabilityUi);
   // A Workshop "Improve in the Workshop" round-trip returns with ?batch=: re-open
   // the station and re-run the SAME fixed-seed batch the child left.
-  if (new URLSearchParams(location.search).has('batch')) safe('resume-recycling', () => { openRecyclingStation(); });
+  if (new URLSearchParams(location.search).has('batch')) safe('resume-recycling', () => { cityActivities?.open('recycling'); });
   safe('skins', () => mountSkins(owner));
   safe('ai-nodes', () => { try { if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose(); _aiNodes = mountCityAiNodes(scene, city, layout, {paused:()=>_contextPaused,reducedMotion:()=>reducedMotion.matches,getInstallations:()=>_envelopeInstalls}); } catch (e) { console.warn('[city-builder] ai-nodes mount failed', e); } });
   safe('input', wireInput);
@@ -5786,7 +5787,7 @@ async function bootInner() {
       resolvePlacement: ({ position, footprint, rotation }) => resolveRoadSafePlacement({
         position, footprint, rotation, roads: layout,
         bounds: [0, 0, layout.scaleMeters || 2000, layout.scaleMeters || 2000],
-        obstacles: (layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })),
+        obstacles: [...(layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })), ...(cityActivities?.sites || [])],
         maxDistance: 60,
       }),
       onPlaced: (x, z) => placementDust.spawn({ x, y: 0, z }, 6, 0.8, 1.6),
@@ -5810,10 +5811,10 @@ async function bootInner() {
         window.__marketHandoff = result;
         if (!result) return;
         if (result.ok) {
-          showToast(currentLang() === 'zh-Hant' ? '🏙️ 已放置你的市集物品' : '🏙️ Placed your Market item');
+          showToast(currentLang() === 'zh-Hant' ? '選擇位置放置，或按取消' : 'Choose a position to place your item, or cancel');
           clearPlaceRequest();
-        } else if (result.error === 'not-owned') {
-          showToast(currentLang() === 'zh-Hant' ? '請先在市集購買才能放置' : 'Buy this in the Market before placing it');
+        } else {
+          showToast(result.error === 'not-owned' ? 'Buy this in the Market before placing it / 請先在市集購買' : 'Placement could not start. Try again from the Market. / 無法放置，請返回市集重試。');
         }
       }).catch(() => { /* a failed hand-off must never break boot */ });
     });
@@ -5837,6 +5838,28 @@ async function bootInner() {
     Promise.allSettled(gatewayLoads),
   ]);
   assertActive();
+  safe('city-activities', () => {
+    const at = city.spawnWorld || {x:1000,z:1000};
+    const occupiedProps = [...environmentProps, ...(cityGatewayGroup?.children || [])].map(mesh => {
+      const b = new THREE.Box3().setFromObject(mesh), c=b.getCenter(new THREE.Vector3()), size=b.getSize(new THREE.Vector3());
+      return {pos:[c.x,c.z],footprint:[size.x,size.z]};
+    });
+    cityActivities = mountCityActivities({scene,camera,renderer,layout,onDrivingEntry:openDriving,onOpen:()=>drivingArena?.close(),focus:[at.x+25,at.z+25],
+      props:[...occupiedProps,...(propLibrary?.getRecords?.()||[]).map(p=>({...p,footprint:[20*(p.scale?.[0]||1),20*(p.scale?.[2]||1)]}))],trees:_treeSafetyPlacements});
+    window.__cityActivities = cityActivities;
+    drivingArena = mountDrivingArena({renderer,cityScene:scene,getRoads:()=>layout.roads,
+      getSolids:()=>[...buildingPlacementColliders,...occupiedProps.map(p=>({minX:p.pos[0]-p.footprint[0]/2,maxX:p.pos[0]+p.footprint[0]/2,minZ:p.pos[1]-p.footprint[1]/2,maxZ:p.pos[1]+p.footprint[1]/2})),...(propLibrary?.getRecords?.()||[]).map(p=>{
+        const item=libraryItem(p.id),fp=item?.footprint||[4,4],scale=p.scale||[1,1,1],yaw=p.yaw||0;
+        const w=Math.abs(Math.cos(yaw))*fp[0]*scale[0]+Math.abs(Math.sin(yaw))*fp[1]*scale[2],d=Math.abs(Math.sin(yaw))*fp[0]*scale[0]+Math.abs(Math.cos(yaw))*fp[1]*scale[2];
+        return {minX:p.x-w/2,maxX:p.x+w/2,minZ:p.z-d/2,maxZ:p.z+d/2};
+      })],getTraffic:()=>traffic,
+      onOpen:()=>{cityActivities.close();if(drivingCar?.isActive()){drivingCar.exit();updateDriveButtons();}},
+      openLegacy:()=>openDriving({legacy:true})});
+    window.__drivingArena = drivingArena;
+    for(const site of cityActivities.sites) buildingPlacementColliders.push({minX:site.x-site.w/2,maxX:site.x+site.w/2,minZ:site.z-site.d/2,maxZ:site.z+site.d/2});
+    const activity=new URLSearchParams(location.search).get('activity');
+    if(activity==='driving')openDriving({legacy:new URLSearchParams(location.search).get('drivingMode')==='legacy'||['bend','obstacle','light'].includes(new URLSearchParams(location.search).get('exercise'))});else if(activity==='recycling')cityActivities.open(activity);
+  });
   document.getElementById('loading').classList.add('done');
   fill.style.width = '100%';
   // The child's first usable frame is the overview. Asset loading can outlast

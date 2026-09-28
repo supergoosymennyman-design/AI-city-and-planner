@@ -13,7 +13,8 @@ const TABLET = { viewport: { width: 768, height: 1024 }, hasTouch: true, deviceS
 const CPU_THROTTLE = 4;
 const GLB_DELAY_MS = 60;
 // Same cold-load request budget as loading-lifecycle.spec.mjs — catches a
-// regression back to the old ~295-request eager preload before readiness.
+// regression back to the old eager model/image preload before readiness.
+// Small buildless JavaScript modules are counted separately from this budget.
 const REQUEST_BUDGET = 160;
 const READY_TIMEOUT = 90000;
 
@@ -27,6 +28,16 @@ async function bootTablet(browser, layout) {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  // Sample the actual transition, before deferred work can run. A later
+  // Playwright evaluate may arrive seconds after readiness under CPU load.
+  await page.addInitScript(() => {
+    const observer = new MutationObserver(() => {
+      if (!document.getElementById('loading')?.classList.contains('done')) return;
+      window.__tabletReadyCrowdModels = window.__city?.citizens?.getStats?.().models ?? 0;
+      observer.disconnect();
+    });
+    observer.observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
 
   // Emulate a slow tablet CPU (SwiftShader already proxies a weak GPU).
   const cdp = await context.newCDPSession(page);
@@ -55,13 +66,14 @@ async function bootTablet(browser, layout) {
     const q = window.__city?.loading?.queue?.() || {};
     return {
       requests: performance.getEntriesByType('resource').length,
+      assetRequests: performance.getEntriesByType('resource').filter(r => /\.(?:glb|gltf|png|jpe?g|webp|ktx2?)(?:\?|$)/i.test(r.name)).length,
       bootError: window.__bootError ?? null,
       hasScene: !!window.__scene || !!window.__city?.scene,
       hasCity: !!window.__city?.renderer,
       canvas: !!document.querySelector('#stage canvas'),
       // `#loading.done` is PROCEDURAL-READY, not fully loaded: the deferred
       // crowd models must not be loaded yet.
-      citizenModels: window.__city?.citizens?.getStats?.().models ?? 0,
+      citizenModels: window.__tabletReadyCrowdModels,
       queue: q,
     };
   });
@@ -82,7 +94,7 @@ function expectReliable(atReady) {
   expect(atReady.hasCity, 'renderer/city must exist at ready').toBe(true);
   expect(atReady.hasScene, 'scene must exist at ready').toBe(true);
   expect(atReady.canvas, 'a canvas must be visible at ready').toBe(true);
-  expect(atReady.requests, `must not eagerly preload before readiness`).toBeLessThan(REQUEST_BUDGET);
+  expect(atReady.assetRequests, `must not eagerly preload assets before readiness: ${JSON.stringify(atReady)}`).toBeLessThan(REQUEST_BUDGET);
   expect(atReady.queue.running ?? 0).toBeLessThanOrEqual(atReady.queue.concurrency ?? 1);
 }
 

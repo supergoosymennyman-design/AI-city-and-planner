@@ -29,7 +29,11 @@ window.WORKSHOP_STRINGS['zh-Hant'] = {
   "hint.runtimeFull": "工作坊已停止運行，以保持操作暢順。你的機器及已收集的結果已保留。請先儲存作品，再重新運行，或減少物件的輸入量。",
   "hint.trainingLimit": "此模型的訓練資料量過大。請減少例子或特徵數目後再試。你的例子已保留。",
   "hint.trainingFailed": "未能完成訓練。你的機器及例子已保留。請減少例子後再試，或透過工作坊網址重新開啟。",
-  "library.open": "真實資料與現成模型",
+  "library.cityRecyclingEarlierNote": "舊版掃描影像：三種物料，每種有五件訓練物品及三件獨立測試物品。保留供現有機器使用。",
+  "library.cityRecyclingEarlier": "舊版回收物品（v1）",
+  "library.cityRecycling": "城市回收",
+"library.cityRecyclingNote": "城市物品的固定掃描影像。四種物料，每種有五件訓練物品及三件獨立測試物品。原創 CC0 模型。訓練新的 k-NN 版本，然後放置模型。",
+"library.open": "真實資料與現成模型",
   "library.dataTitle": "資料集庫",
   "library.dataIntro": "挑選真實的觀察紀錄，放進「檔案」積木。",
   "library.close": "關閉",
@@ -254,6 +258,9 @@ window.WORKSHOP_STRINGS['zh-Hant'] = {
   "feature.route": "路線",
   "feature.temp": "氣溫",
   "feature.weekend": "週末",
+  "dataset.drive.bend.name": "駕駛學校——緩彎",
+  "dataset.drive.obstacle.name": "駕駛學校——障礙物前停車",
+  "dataset.drive.light.name": "駕駛學校——紅綠燈",
   "dataset.drive.name": "駕駛——汽車應該怎樣做？",
   "dataset.drive.story": "汽車報告感應器看到的情況：左邊、正前方、右邊的障礙物距離；偏離行車線多遠；車頭指向哪邊；車速；交通燈；以及前面有沒有轉彎。謹慎的司機應該怎樣做：前進、左轉、右轉、減速，還是停車？",
   "dataset.drive.teaches": "用感應器資料做五選一的判斷。換上記憶大腦（k-NN），教它安全的動作，再用新情況測試——計分表會數出正確、錯誤和不確定。把它發佈到城市，你的汽車就會用同一個模型行駛測試賽道。",
@@ -1516,3 +1523,7 @@ window.WORKSHOP_STRINGS['zh-Hant'] = {
   "tutorial.example.driveEvaluator": "評估器",
   "tutorial.example.driveAction": "動作"
 };
+
+Object.assign(window.WORKSHOP_STRINGS["zh-Hant"],{"recycling.machine": "我的回收機器", "recycling.destination": "城市目的地", "recycling.intake": "城市入口", "opt.feeder.cityIntake.city": "城市觀察資料", "opt.bin.cityDestination.cardboard": "紙板", "opt.bin.cityDestination.glass": "玻璃", "opt.bin.cityDestination.metal": "金屬", "opt.bin.cityDestination.paper": "紙張", "opt.bin.cityDestination.plastic": "塑膠", "opt.bin.cityDestination.trash": "垃圾", "opt.bin.cityDestination.human-check": "人手檢查"});
+
+Object.assign(window.WORKSHOP_STRINGS["zh-Hant"],{"recycling.olderModel":"放入舊有已儲存模型","recycling.noOlderModel":"這個專案沒有舊模型。","recycling.reopen":"停止運行後重新開啟模型設定。","recycling.reteach":"這個舊模型沒有公開例子的來源記錄。請用模型積木中的公開相片重新教導，然後儲存到城市。"});

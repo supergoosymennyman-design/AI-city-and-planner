@@ -1,20 +1,7 @@
-// city-builder/recycling-station.js — Stage 4: run the student's published IMAGE
-// classifier on a live conveyor, and let its PREDICTION choose the bin.
-//
-// The honesty rules the plan names, enforced here:
-//   • The prediction selects the bin. Ground truth is shown and scored SEPARATELY
-//     and never routes — a wrong prediction visibly enters the wrong bin.
-//   • Abstention sends the item to the human-check tray.
-//   • The City does NOT run MobileNet live: it feeds the curated library feature
-//     vectors (the same ones the Workshop extractor produced) and refuses a bundle
-//     whose extractor identity does not match.
-//   • Fixed-seed sets (normal / confusing / unfamiliar) so a revision is re-run
-//     against the SAME batch and two students compare the same items.
-//
-// The skill is resolved from the authoritative project envelope (the Workshop's
-// published capability + its installation) and run through `store.runSkill`; a
-// planted image `.cap` is the offline fallback. Both go through the ONE pure
-// `recycling.js` routing rule, so the two paths can never disagree.
+import { runRecyclingMachine } from '../city-common/recycling-machine-host.js';
+import { commitReward } from '../city-common/reward-persistence.js';
+// Legacy conveyor presentation. The saved project machine and shared Workshop runner
+// own routing; answer keys are attached only after terminal arrivals.
 import { createProjectStore } from '../city-common/project-store.js';
 import { challengeOfCapability } from '../city-common/challenges.js';
 import { parseCapability } from '../city-common/cap-runtime.js';
@@ -130,33 +117,12 @@ function readPlantedCaps() {
  * installation, run through `store.runSkill`. Fall back to a planted image .cap so
  * a student who imported a file (or works offline) is never stuck.
  */
-export async function resolveStationSkill() {
-  try {
-    const store = createProjectStore();
-    await store.openActiveProject();
-    const [caps, installs] = await Promise.all([store.readCapabilities(), store.readInstallations()]);
-    for (const inst of Object.values(installs || {})) {
-      const cap = caps?.[inst.capabilityRef];
-      if (cap && isImageCapability(cap)) return { kind: 'installation', store, installationId: inst.id, cap, origin: t('published') };
-    }
-    const published = Object.values(caps || {}).find(isImageCapability);
-    if (published) return { kind: 'capability', store, cap: published, origin: t('published') };
-  } catch { /* no envelope yet — fall through to a planted file */ }
-  for (const raw of readPlantedCaps()) {
-    const parsed = parseCapability(raw);
-    const cap = parsed.ok ? parsed.capability : raw;
-    if (isImageCapability(cap)) return { kind: 'planted', cap, origin: t('planted') };
-  }
-  return null;
-}
-
-async function runOne(skill, item) {
-  if (skill.kind === 'installation') {
-    const r = await skill.store.runSkill(skill.installationId, { vector: item.vector });
-    if (!r || !r.ok) return routeResult({ decision: null, abstained: true, abstainReason: r?.error || 'run-failed' }, item);
-    return routeResult(r, item);
-  }
-  return routeItem(skill.cap, item);
+export async function resolveStationSkill(siteId) {
+  if (!siteId) return null;
+  const store = createProjectStore();
+  await store.openActiveProject();
+  const machine=await store.readSection('recyclingMachine');
+  return machine?.version===1?{kind:'machine',store,cap:machine,origin:t('published')}:null;
 }
 
 // ── the modal UI ────────────────────────────────────────────────────────────
@@ -296,7 +262,7 @@ async function runBatch({ kind, seed }) {
   const status = modal.querySelector('[data-r="status"]');
   const skill = controller.skill;
   if (!skill) { status.textContent = t('noModel'); return { ok: false, error: 'no-model' }; }
-  const compat = checkCompatibility(skill.cap);
+  const compat = skill.cap.kind==='recycling-machine'?{ok:true}:checkCompatibility(skill.cap);
   if (!compat.ok) { status.textContent = t('mismatch'); return { ok: false, error: compat.error }; }
 
   const catalogue = await loadCatalogue();
@@ -314,11 +280,12 @@ async function runBatch({ kind, seed }) {
   renderScore([]);
   renderEvidence(null);
 
+  const machineResults=await runRecyclingMachine(skill.cap,rows.map(row=>({id:row.id,label:row.label,vector:vectors.get(row.id)})));
   const results = [];
   for (const row of rows) {
     const vector = vectors.get(row.id);
     const item = { id: row.id, label: labelByRow.get(row.id), vector, src: `${LESSON}/${String(row.src).replace(/^assets\/lesson\//, '')}` };
-    const result = vector ? await runOne(skill, item) : routeResult({ decision: null, abstained: true, abstainReason: 'missing-features' }, item);
+    const result = machineResults[results.length];
     results.push(result);
     writeLastDecision(skill.cap.id, result);
     renderEvidence(result, rowIndex);
@@ -328,7 +295,7 @@ async function runBatch({ kind, seed }) {
   renderScore(results);
   status.textContent = t('rerun');
   controller.last = { kind, seed, results };
-  reportBatch({ kind, seed, results });
+  await reportBatch({ kind, seed, results });
   return { ok: true, kind, seed, results, score: scoreRun(results) };
 }
 
@@ -341,7 +308,7 @@ async function runBatch({ kind, seed }) {
 function reportBatch({ kind, seed, results }) {
   const skill = controller?.skill;
   if (!skill || !skill.store || typeof skill.store.recordChallengeOutcome !== 'function') return;
-  const challengeId = challengeOfCapability(skill.cap);
+  const challengeId = skill.cap.kind==='recycling-machine'?'image-sorter':challengeOfCapability(skill.cap);
   if (!challengeId) return;
   const s = scoreRun(results);
   const installed = skill.kind === 'installation';
@@ -349,13 +316,11 @@ function reportBatch({ kind, seed, results }) {
     { type: 'held-out-eval', evidence: { challengeId, batch: kind, seed, total: s.total, correct: s.correct, wrong: s.wrong, abstained: s.abstained } },
   ];
   if (installed) events.push({ type: 'city-install', evidence: { challengeId, installationId: skill.installationId, batch: kind, seed } });
-  if (s.abstained > 0) events.push({ type: 'abstain-demo', evidence: { challengeId, source: 'recycling', batch: kind, seed, abstained: s.abstained } });
+  if (s.abstained > 0) events.push({ type: 'abstain-demo', evidence: { challengeId, source: 'recycling', batch: kind, seed, total: s.total, abstained: s.abstained } });
   const revision = Number(skill.cap?.revision || 1);
   // `abstain-demo` additionally requires ≥1 CORRECT graded answer in this same
   // run, so pass the batch's correct count explicitly (not just the abstentions).
-  Promise.resolve()
-    .then(() => skill.store.recordChallengeOutcome(challengeId, { revision, scenario: { kind, seed }, results, abstained: s.abstained, correctCount: s.correct, gradedCount: s.total - s.abstained }, events))
-    .catch(() => { /* a missing wallet must never break the run */ });
+  return commitReward(() => skill.store.recordChallengeOutcome(challengeId, { machineId:skill.cap.sourceMachineId, revision, scenario: { kind, seed }, gradedIds:results.filter(r=>!r.abstained&&r.truth).map(r=>r.id),wrongIds:results.filter(r=>!r.abstained&&r.truth&&r.bin!=='bin-'+r.truth).map(r=>r.id), results, abstained: s.abstained, correctCount: s.correct, gradedCount: s.total - s.abstained }, events));
 }
 
 /**
@@ -388,7 +353,7 @@ async function trainFromLibrary({ perClass = 12, threshold = 0.2, labelShift = 0
     const pub = await store.publishSkill(out.capability);
     if (!pub.ok) return { ok: false, error: pub.error };
     await store.installSkill(pub.key, 'host-demo-sorter', { hostType: 'sorter' });
-    if (controller) controller.skill = await resolveStationSkill();
+    if (controller) controller.skill = await resolveStationSkill(controller?.siteId);
     return { ok: true, key: pub.key, examples: examples.length };
   } catch (e) {
     return { ok: false, error: String(e?.message || e) };
@@ -418,13 +383,14 @@ function open() {
  * Open the station. Resolves the student's skill first so the UI can be honest
  * about what it will run. Returns the controller (for the browser integration run).
  */
-export async function openRecyclingStation() {
+export async function openRecyclingStation(siteId) {
   controller = controller || {
     open, close, runBatch,
     skill: null, last: null,
-    async resolve() { this.skill = await resolveStationSkill(); return this.skill; },
+    async resolve() { this.skill = await resolveStationSkill(controller?.siteId); return this.skill; },
   };
-  controller.skill = await resolveStationSkill();
+  controller.siteId = siteId;
+  controller.skill = await resolveStationSkill(siteId);
   const improve = ensureModal().querySelector('[data-r="improve"]');
   // "Improve in the Workshop" always points at the publish flow back to this page,
   // and carries the current fixed-seed batch so returning re-runs the SAME items
@@ -433,7 +399,8 @@ export async function openRecyclingStation() {
     const back = new URL(location.href);
     if (controller.last) back.searchParams.set('batch', `${controller.last.kind}:${controller.last.seed}`);
     const url = new URL('../workshop/', location.href);
-    url.searchParams.set('publishTarget', 'city');
+    url.searchParams.set('tab', 'recycling');
+    if(controller.skill?.cap.sourceMachineId)url.searchParams.set('machine',controller.skill.cap.sourceMachineId);
     url.searchParams.set('returnTo', back.href);
     improve.href = url.href;
   } catch { improve.removeAttribute('href'); }

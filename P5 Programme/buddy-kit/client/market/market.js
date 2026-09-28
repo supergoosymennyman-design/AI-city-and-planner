@@ -1,3 +1,4 @@
+import { CF_KEYS } from '../city-common/champion-file.js';
 // market.js — the Champion Market.
 //
 // The wallet is the SHARED envelope economy (city-common/project-store.js),
@@ -5,7 +6,7 @@
 // the debit + ownership in one IndexedDB transaction, and a duplicate purchase
 // can never charge twice (ledger.js). Owned accessories can be equipped on the
 // Champion right here; owned decorations hand off to the City to place.
-import { createProjectStore } from '../city-common/project-store.js';
+import { createProjectStore, PROJECT_EVENT } from '../city-common/project-store.js';
 import { requestPersistentStorage } from '../city-common/persistence.js';
 import { MARKET_CATALOGUE, MARKET_COLLECTIONS, marketItems, marketItem, marketAction, marketHandler } from '../city-common/market-catalogue.js';
 import { writeFinish } from '../city-common/champion-finishes.js';
@@ -18,7 +19,7 @@ const CHAMPION_ACCESSORY_KEY = 'hk_ai_city_accessories_v1';
 const STR = {
   en: {
     title: 'Champion Market', credits: 'credits', hub: '← Hub',
-    buy: 'Buy', equip: 'Equip', place: 'Place in City',
+    buy: 'Buy', equip: 'Equip', unequip: 'Equipped · Unequip', place: 'Place in City',
     equipped: 'Equipped on your Champion — see it in the City.',
     finishEquipped: 'Finish equipped on your Champion — see it in the City.',
     hostEquipped: 'Skill-host upgrade equipped — it appears on your skill hosts.',
@@ -29,7 +30,7 @@ const STR = {
   },
   'zh-Hant': {
     title: '冠軍市集', credits: '學分', hub: '← 主頁',
-    buy: '購買', equip: '裝備', place: '放置於城市',
+    buy: '購買', equip: '裝備', unequip: '已裝備 · 卸下', place: '放置於城市',
     equipped: '已裝備在冠軍身上 —— 到城市看看。',
     finishEquipped: '已為冠軍裝備塗裝 —— 到城市看看。',
     hostEquipped: '已裝備技能館升級 —— 將會出現在你的技能館上。',
@@ -49,6 +50,7 @@ const fmt = (n) => new Intl.NumberFormat(lang === 'zh-Hant' ? 'zh-Hant-HK' : 'en
 
 let store;
 let economy;
+let cityState = {};
 const pending = new Set();
 
 function applyChrome() {
@@ -65,7 +67,10 @@ function render() {
   const grid = $('mkt-grid');
   grid.textContent = '';
   for (const entry of marketItems()) {
-    const action = marketAction(entry.id, owned);
+    let action = marketAction(entry.id, owned);
+    const handler = marketHandler(entry.id);
+    const accessories = JSON.parse(cityState.accessories || '{}');
+    if (action === 'equip' && (handler.kind === 'accessory' ? accessories[handler.slot] === handler.accessory : handler.kind === 'finish' ? cityState.championFinish === handler.finishId : cityState.hostAppearance === handler.hostUpgrade)) action = 'unequip';
     const collection = MARKET_COLLECTIONS[entry.collection];
     const card = document.createElement('article');
     card.className = 'mkt-card';
@@ -77,6 +82,8 @@ function render() {
       <button class="mkt-buy${action !== 'buy' ? ' mkt-owned' : ''}" type="button"
         data-id="${entry.id}" data-action="${action}">${t(action)}</button>`;
     grid.append(card);
+    if (entry.propId) { const image = document.createElement('img'); image.src = `../library/thumbnails/${entry.propId}.png`; image.alt = lang === 'zh-Hant' ? entry.nameZh : entry.name; image.style.cssText='width:100%;height:120px;object-fit:contain'; card.prepend(image); }
+    else import('./preview.js').then(({cosmeticPreview}) => { if (!card.isConnected) return; const url=cosmeticPreview(entry); if (!url) return; const image=document.createElement('img'); image.src=url; image.alt=entry.kind === 'finish' ? 'Material finish sample / 塗裝樣本' : (lang === 'zh-Hant' ? entry.nameZh : entry.name); image.style.cssText='width:100%;height:120px;object-fit:contain'; card.prepend(image); }).catch(() => {});
   }
 }
 
@@ -104,32 +111,18 @@ async function buy(button) {
   }
 }
 
-function unlock(handler) {
+async function equip(entry, equipped = true) {
   try {
-    if (handler.kind === 'accessory') {
-      const map = JSON.parse(localStorage.getItem(CHAMPION_ACCESSORY_KEY) || '{}');
-      map[handler.slot] = handler.accessory;
-      localStorage.setItem(CHAMPION_ACCESSORY_KEY, JSON.stringify(map));
-      $('mkt-note').textContent = t('equipped');
-      return true;
+    const result = await store.equipItem(entry.id, equipped);
+    if (!result.ok) throw Error(result.error);
+    cityState = result.project.projects.city.legacyState || {};
+    for (const key of ['accessories', 'championFinish', 'hostAppearance']) {
+      if (cityState[key] == null) localStorage.removeItem(CF_KEYS[key]);
+      else localStorage.setItem(CF_KEYS[key], cityState[key]);
     }
-    if (handler.kind === 'finish') {
-      if (!writeFinish(handler.finishId)) return false;
-      $('mkt-note').textContent = t('finishEquipped');
-      return true;
-    }
-    if (handler.kind === 'host-upgrade') {
-      if (!writeHostUpgrade(handler.hostUpgrade)) return false;
-      $('mkt-note').textContent = t('hostEquipped');
-      return true;
-    }
-    return false;
-  } catch { return false; }
-}
-
-function equip(entry) {
-  const handler = marketHandler(entry.id);
-  if (!handler || !unlock(handler)) $('mkt-note').textContent = t('unavailable');
+    $('mkt-note').textContent = equipped ? t(entry.kind === 'finish' ? 'finishEquipped' : entry.kind === 'host-upgrade' ? 'hostEquipped' : 'equipped') : (lang === 'zh-Hant' ? '已卸下' : 'Unequipped');
+    render();
+  } catch (error) { $('mkt-note').textContent = error.message; }
 }
 
 function place(entry) {
@@ -155,6 +148,7 @@ $('mkt-grid').addEventListener('click', (event) => {
   if (!entry) return;
   if (button.dataset.action === 'buy') buy(button);
   else if (button.dataset.action === 'equip') equip(entry);
+  else if (button.dataset.action === 'unequip') equip(entry, false);
   else if (button.dataset.action === 'place') place(entry);
 });
 
@@ -165,8 +159,12 @@ $('mkt-grid').addEventListener('click', (event) => {
   requestPersistentStorage().catch(() => {});
   try {
     store = createProjectStore();
-    await store.openActiveProject();
+    const project = await store.openActiveProject();
+    const name = document.createElement('p'); name.className='mkt-note'; name.textContent=project.name; document.querySelector('.mkt-head').after(name);
+    cityState = (await store.readSection('city')).legacyState || {};
     economy = await store.readEconomy();
+    const refresh = async () => { try { economy = await store.readEconomy(); cityState = (await store.readSection('city')).legacyState || {}; render(); } catch (error) { $('mkt-note').textContent=error.message; } };
+    window.addEventListener(PROJECT_EVENT, refresh); window.addEventListener('focus', refresh);
   } catch {
     economy = null;
   }

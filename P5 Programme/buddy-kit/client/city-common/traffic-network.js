@@ -791,6 +791,21 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
       .flatMap(road => road.links.sort((a, b) => a.id - b.id)
         .map(link => ({ link, dist: Math.min(Math.max(4, link.length - 4), 4), length })));
   }
+  let trialRegion = null;
+  function reserveTrialRegion(contains) {
+    if (trialRegion) throw new Error('A driving route is already reserved');
+    const saved = new Map();
+    for (const v of vehicles) if (contains(v.x, v.z, 0)) {
+      saved.set(v, v.currentSpeed); v.trialSuspended = true;
+      releaseReservation(v); leaveQueue(v, network.junctionByNode.get(v.link.to.id));
+    }
+    trialRegion = contains;
+    let released = false;
+    return () => {
+      if (released) return; released = true; trialRegion = null;
+      for (const v of vehicles) { if (saved.has(v)) v.currentSpeed = saved.get(v); delete v.trialSuspended; }
+    };
+  }
   function updateStep(step, blockers = []) {
     // A layout rebuild or short terminating link must never leave a junction
     // owned by a vehicle that has already gone away.
@@ -800,6 +815,11 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
     }
     for (const link of network.links) link.vehicles.sort((a, b) => b.dist - a.dist);
     for (const v of vehicles) {
+      if (trialRegion && (v.trialSuspended || trialRegion(v.x, v.z, 12 + v.length))) {
+        v.px = v.x; v.pz = v.z; v.pdx = v.vx; v.pdz = v.vz;
+        v.currentSpeed = 0;
+        continue;
+      }
       // Keep an endpoint vehicle visible for one render frame before removing
       // it. This prevents the old "vanish just before the road end" effect.
       if (v.done) { v.expired = true; continue; }
@@ -911,6 +931,6 @@ export function createTrafficFlow(roads, { seed = 0x51f15e } = {}) {
     accumulator = Math.min(.5, accumulator + Math.max(0, Number.isFinite(dt) ? dt : 0));
     while (accumulator >= .05) { updateStep(.05, blockers); accumulator -= .05; }
   }
-  return { network, routePlan, vehicles, addVehicle, spawnCandidates, update, alpha,
+  return { network, routePlan, vehicles, addVehicle, spawnCandidates, update, alpha, reserveTrialRegion,
     vehiclesOverlap: (a, b) => bodiesOverlap(bodyAt(a), bodyAt(b)) };
 }

@@ -67,9 +67,9 @@ The City normalizes host appearances and gateways to their protected footprints 
 
 | Source | License | Files added (library/) |
 |---|---|---|
-| Kenney City Kit (Commercial) v2.1 — https://kenney.nl/assets/city-kit-commercial | CC0 1.0 | `buildings/kenney-building-h..n.glb` (7), `kenney-lowbuilding-a..n.glb` (14 towers), `kenney-widebuilding-a/b.glb` (2) |
+| Kenney City Kit (Commercial) v2.1 — https://kenney.nl/assets/city-kit-commercial | CC0 1.0 | `buildings/kenney-building-h..n.glb` (7), `kenney-lowbuilding-a/b/g/h/l/m.glb` (6 towers — completed to a..n on 2026-09-26), `kenney-widebuilding-b.glb` (1 — a added 2026-09-26) |
 | Kenney City Kit (Industrial) v1.0 — https://kenney.nl/assets/city-kit-industrial | CC0 1.0 | `buildings/kenney-industrial-a..t.glb` (20), `kenney-chimney-small/medium/large/basic.glb` (4), `kenney-tank.glb` (1) |
-| Kenney City Kit (Suburban) v2.0 — https://kenney.nl/assets/city-kit-suburban | CC0 1.0 | `buildings/kenney-suburban-a..j.glb` (10 houses), `nature/kenney-tree-large.glb`, `kenney-tree-small.glb`, `kenney-planter.glb` |
+| Kenney City Kit (Suburban) v2.0 — https://kenney.nl/assets/city-kit-suburban | CC0 1.0 | `buildings/kenney-suburban-a..j.glb` (10 houses — completed to a..u on 2026-09-26), `nature/kenney-tree-large.glb`, `kenney-tree-small.glb`, `kenney-planter.glb` |
 | Kenney City Kit (Roads) — https://kenney.nl/assets/city-kit-roads | CC0 1.0 | `props/kenney-sign-stop/warning/street/empty.glb`, `kenney-cone.glb`, `kenney-barrier.glb`, `kenney-barrier-fence.glb`, `kenney-dumpster.glb`, `kenney-pole.glb`, `kenney-pole-wide.glb`, `kenney-traffic-light*.glb` (4), `kenney-sign-highway*.glb` (2) |
 | KayKit City Builder Bits — https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0 | CC0 1.0 | `props/kaykit-firehydrant/dumpster/trash-a/b/streetlight/watertower/trafficlight-a/b/c/crate/crate-b/bench.glb` (13), `vehicles/kaykit-car-hatchback/police/sedan/stationwagon/taxi.glb` (5), `nature/kaykit-bush.glb` |
 | KayKit Furniture Bits — https://github.com/KayKit-Game-Assets/KayKit-Furniture-Bits-1.0 | CC0 1.0 | `props/kaykit-armchair/couch/bed-single/bed-double/chair-a/b/c/stool/table-small/medium/long/low/cabinet-small/medium/shelf-small/large/lamp-standing/lamp-table/rug-rect/rug-oval/pictureframe/books/cactus.glb` (23) |
@@ -77,6 +77,25 @@ The City normalizes host appearances and gateways to their protected footprints 
 
 All Kenney GLBs reference the shared `Textures/colormap.png` (CC0, from the same
 packs) copied into each category's `Textures/` dir. KayKit GLBs embed their atlas.
+
+## Batch 2026-09-26 — Kenney city-kit completion (all KEEP)
+
+Completes the four Kenney kits already partially present, to widen the building
+mix in the AI City. All CC0 1.0.
+
+| Source | License | Files added (library/) |
+|---|---|---|
+| Kenney City Kit (Commercial) v2.1 — https://kenney.nl/assets/city-kit-commercial | CC0 1.0 | `library/buildings/kenney-lowbuilding-{c,d,e,f,i,j,k,n}.glb` (8 towers), `library/buildings/kenney-widebuilding-a.glb`; `library/props/kenney-awning.glb`, `library/props/kenney-awning-wide.glb`, `library/props/kenney-overhang.glb`, `library/props/kenney-overhang-wide.glb` |
+| Kenney City Kit (Industrial) v2.0 — https://kenney.nl/assets/city-kit-industrial | CC0 1.0 | `library/buildings/kenney-water-tower.glb`, `library/buildings/kenney-windmill.glb`, `library/buildings/kenney-windmill-low.glb`; `library/props/kenney-shipping-container-{a,b,c}.glb` (3), `library/props/kenney-solar-panel-{flat,landscape,landscape-group,portrait,portrait-group}.glb` (5), `library/props/kenney-detail-tank.glb`, `library/props/kenney-detail-tank-large.glb` |
+| Kenney City Kit (Suburban) v2.0 — https://kenney.nl/assets/city-kit-suburban | CC0 1.0 | `library/buildings/kenney-suburban-{k,l,m,n,o,p,q,r,s,t,u}.glb` (11 houses); `library/props/kenney-driveway-{long,short}.glb` (2), `library/props/kenney-fence-{1x2,1x3,1x4,2x2,2x3,3x2,3x3,low}.glb` (8), `library/props/kenney-fence.glb`, `library/props/kenney-path-{long,short}.glb`, `library/props/kenney-path-stones-{long,messy,short}.glb` |
+| Kenney Modular Buildings v2.1 — https://kenney.nl/assets/modular-buildings | CC0 1.0 | `library/buildings/kenney-modular-house-{a,b,c}.glb` (3), `library/buildings/kenney-modular-tower-{a,b,c,d}.glb` (4) — the assembled sample prefabs only; the ~101 loose wall/window/roof parts are NOT imported (they need an assembly UX) |
+
+Footprints/heights for these entries are derived from the authored GLB bounds (a
+uniform per-kit factor) so the loader's fit-to-box scaling keeps them consistent
+with their kit siblings. The 7 Passiona-original Hunyuan buildings + the Emerald
+Rain Tree stay in the library and remain placeable by students from the picker,
+but are never auto-placed in a city (the Hunyuan presentation wave was removed);
+their Workshop / Fit Studio gateway and skill-host siblings are unchanged.
 
 ## Batch 2 (2026-08-29) — Poly Pizza CC0 + Quaternius Public Transport (all KEEP)
 

@@ -63,29 +63,66 @@
       r.onsuccess = () => resolve(r.result);
     });
   }
-  async function access(work, mode = 'readwrite') {
+  async function access(work, mode = 'readwrite', key = 'active') {
     const db = await openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, mode); let result, failure;
       tx.oncomplete = () => { db.close(); resolve(result); };
       tx.onabort = tx.onerror = () => { db.close(); reject(failure || tx.error || Error('Champion storage failed. Nothing was committed.')); };
       const store = tx.objectStore(STORE);
-      const request = store.get('active');
+      const request = store.get(key);
       request.onsuccess = () => {
-        try { result = work(request.result, store); }
+        try { result = work(request.result, { put: (value, name) => store.put(value, name === 'active' ? key : name) }); }
         catch (e) { failure = e; tx.abort(); }
       };
     });
   }
   const lock = work => root.navigator?.locks?.request ? root.navigator.locks.request(DB, work) : work();
   async function create(initial) {
-    let current = await lock(() => access((record, store) => {
+    let envelope = null, project = null, workspace = null, stopped = false, migrateEconomy = null;
+    // Node consumers exercise the pure file/ledger API; browser sessions bind
+    // to one project for their entire lifetime.
+    if (typeof window !== 'undefined' && root.localStorage && root.indexedDB) {
+      const module = await import('../../city-common/project-store.js');
+      workspace = await import('../../city-common/workspace.js');
+      migrateEconomy = module.migrateEconomyFromChampion;
+      envelope = module.createProjectStore(); project = await envelope.openActiveProject();
+      if (project.projects?.workshop?.champion) initial = project.projects.workshop.champion;
+      else if (root.localStorage.getItem('passiona_legacy_owner_v1') !== project.id) initial = { kind: 'ai-champion', version: 1, champion: { name: 'Champion', parts: {} }, projects: {} };
+    }
+    const projectId = project?.id;
+    const workspaceGeneration = root.localStorage?.getItem('passiona_workspace_generation_v1');
+    const recordKey = projectId ? `project:${projectId}` : 'active';
+    const check = () => {
+      if (stopped || (projectId && (root.localStorage.getItem('passiona_active_project_v1') !== projectId || root.localStorage.getItem('passiona_workspace_generation_v1') !== workspaceGeneration))) throw Error('Project changed. Reload before editing.');
+    };
+    const scopedAccess = (work, mode) => { check(); return access((r, s) => { check(); return work(r, s); }, mode, recordKey); };
+    // Claim the old shared record once. Keep it intact for recovery.
+    if (projectId && root.localStorage.getItem('passiona_legacy_owner_v1') === projectId && !project.projects?.workshop?.champion) {
+      const legacy = await access((record, store) => {
+        if (!record || record.projectOwner) return null;
+        store.put({ ...record, projectOwner: projectId }, 'active'); return record.file;
+      });
+      if (legacy) initial = legacy;
+    }
+    const persist = async file => {
+      if (!envelope) return;
+      check();
+      const result = await envelope.mutate(current => {
+        if (!current.progress?.economyMigrated) migrateEconomy(current, file.economy);
+        current.projects.workshop = { ...current.projects.workshop, champion: copy(file) };
+        return current;
+      }, { reason: 'champion-session', versioned: false });
+      if (!result.ok) throw Error(result.error || 'Champion could not be saved to the project.');
+    };
+    let current = await lock(() => scopedAccess((record, store) => {
       if (record) { prepare(record.file); return record; }
       const file = prepare(initial);
       const next = { revision: 1, generation: id(), file };
       store.put(copy(initial), 'original:first-import'); store.put(next, 'active'); return next;
     }));
-    let queue = Promise.resolve(), epoch = 0, writeRevision = current.revision, stale = false;
+    await persist(current.file);
+    let queue = Promise.resolve(), lastFailure = null, epoch = 0, writeRevision = current.revision, stale = false;
     const listeners = new Set();
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(DB) : null;
     const announce = type => { for (const fn of listeners) fn(type); };
@@ -93,29 +130,31 @@
     function edit(change, { replace = false, latest = false } = {}) {
       const ticket = epoch;
       const run = async () => {
+        check();
         if (ticket !== epoch) throw Error('Champion changed. This operation was cancelled.');
         const expected = current;
-        const next = await lock(() => access((record, store) => {
+        const next = await lock(() => scopedAccess((record, store) => {
           if (ticket !== epoch || !record || record.generation !== expected.generation || record.file.champion.id !== expected.file.champion.id
             || (!latest && record.revision !== writeRevision)) throw Error('Champion changed in another tab. Save a recovery copy and reload before continuing.');
           const file = prepare(change(copy(record.file)));
           if (!replace && file.champion.id !== record.file.champion.id) throw Error('Champion identity cannot change in an edit.');
           const out = { revision: record.revision + 1, generation: replace ? id() : record.generation, file };
           if (replace) store.put(record, 'recovery:' + id());
-          store.put(out, 'active'); return out;
+          store.put(out, recordKey); return out;
         }));
         if (!latest || next.revision === writeRevision + 1) writeRevision = next.revision;
         current = next;
+        await persist(next.file);
         stale = writeRevision !== next.revision;
         if (replace) epoch++;
         channel?.postMessage({ revision: next.revision }); announce(replace ? 'switch' : 'change');
         return copy(next.file);
       };
-      const result = queue.then(run); queue = result.catch(() => {}); return result;
+      const result = queue.then(run); queue = result.then(() => { lastFailure = null; }, error => { lastFailure = error; }); return result;
     }
-    return {
+    const session = {
       get file() { return copy(current.file); }, get epoch() { return epoch; }, get stale() { return stale; },
-      edit, flush: () => queue,
+      edit, flush: async () => { await queue; if (lastFailure) throw lastFailure; check(); await persist(current.file); },
       async migrateStudio(section) {
         await queue;
         const expected = current;
@@ -123,34 +162,41 @@
           const db = await openDB();
           return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE, 'readwrite'), store = tx.objectStore(STORE);
-            const active = store.get('active'), marker = store.get('migration:studio'); let out, failure;
+            const active = store.get(recordKey), marker = store.get('migration:studio:' + recordKey); let out, failure;
             marker.onsuccess = () => {
               try {
                 const r = active.result;
                 if (r.revision !== expected.revision || r.generation !== expected.generation) throw Error('Champion changed during legacy migration. Reload.');
                 out = r;
-                if (!marker.result && !r.file.projects['3d-studio'] && section) {
+                if ((!projectId || root.localStorage.getItem('passiona_legacy_owner_v1') === projectId) && !marker.result && !r.file.projects['3d-studio'] && section) {
                   const file = copy(r.file); file.projects['3d-studio'] = section;
-                  out = { ...r, revision: r.revision + 1, file }; store.put(out, 'active');
+                  out = { ...r, revision: r.revision + 1, file }; store.put(out, recordKey);
                 }
-                store.put(true, 'migration:studio');
+                store.put(true, 'migration:studio:' + recordKey);
               } catch(e) { failure = e; tx.abort(); }
             };
             tx.oncomplete = () => { db.close(); resolve(out); };
             tx.onabort = tx.onerror = () => { db.close(); reject(failure || tx.error); };
           });
         });
-        current = next; writeRevision = next.revision;
+        current = next; writeRevision = next.revision; await persist(next.file);
         if (next.revision !== expected.revision) channel?.postMessage({revision:next.revision});
         return this.file;
       },
       replace: incoming => { const ready = prepare(incoming); return edit(() => ready, { replace: true }); },
       subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-      async refresh() { await queue; const next = await access(r => r, 'readonly'); if (next.revision !== current.revision || next.revision !== writeRevision) { current = next; writeRevision = next.revision; stale = false; epoch++; announce('switch'); } return this.file; },
+      async refresh() { await queue; const next = await scopedAccess(r => r, 'readonly'); if (next.revision !== current.revision || next.revision !== writeRevision) { current = next; writeRevision = next.revision; stale = false; epoch++; announce('switch'); } return this.file; },
       transaction(op) { if (op.type === 'award') return Promise.reject(Error('Teacher unlock required.')); return edit(f => transact(f, op), { latest: true }); },
       async award(pin, op) { const ticket = epoch; await verifyPIN(pin); if (ticket !== epoch) throw Error('Champion changed. Unlock again.'); return edit(f => transact(f, { ...op, type: 'award' }), { latest: true }); },
-      close() { epoch++; channel?.close(); listeners.clear(); },
+      close() { unregister?.(); epoch++; channel?.close(); listeners.clear(); },
     };
+    const unregister = workspace?.registerWorkspaceAdapter({
+      flush: () => session.flush(),
+      capture: () => ({ workshop: { champion: session.file } }),
+      restore: async () => {}, // records are staged before activation; reload binds them
+      suspend: value => { stopped = value; if (value) epoch++; },
+    });
+    return session;
   }
   async function pinRecord() { const db = await openDB(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE); const r = tx.objectStore(STORE).get('teacher'); tx.oncomplete = () => { db.close(); resolve(r.result); }; tx.onerror = () => { db.close(); reject(tx.error); }; }); }
   async function hashPIN(pin, salt) {

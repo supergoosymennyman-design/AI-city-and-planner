@@ -37,8 +37,13 @@
   <!-- Stage 5 (driving): the sensor-situation table's author — loaded BEFORE datasets.js,
        whose `drive` entry delegates to it at module-eval time. -->
   <script src="logic/drive-data.js"></script>
+  <script src="logic/driving-school-data.js"></script>
+  <script src="logic/data-vector.js"></script>
+  <script src="logic/driving-pair-data.js"></script>
   <script src="logic/datasets.js"></script>
   <script src="assets/library/catalogue.js"></script>
+  <script src="assets/city-recycling/catalogue.js"></script>
+<script src="assets/city-recycling-v2/catalogue.js"></script>
   <script src="assets/library/models.js"></script>
   <script src="logic/model-library.js"></script>
   <script src="library-loader.js"></script>
@@ -138,6 +143,7 @@
        (the same idiom brick.js/history.js/board.js above document). -->
   <script src="tutorial-panel.js"></script>
   <script src="game.js"></script>
+  <script src="logic/recycling-machine.js"></script>
   <script src="chart-art.js"></script>
   <script src="brain-view-art.js"></script>
   <script src="composition-art.js"></script>
@@ -167,5 +173,6 @@
        City's sorter host opens this page with ?publishTarget=city&hostInstanceId=…&returnTo=…;
        otherwise it does nothing. It never auto-publishes: the child presses the button. -->
   <script type="module" src="publish-capability.js"></script>
+  <script type="module" src="sorter-panel.js"></script>
 </body>
 </html>

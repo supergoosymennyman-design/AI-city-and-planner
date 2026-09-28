@@ -41,3 +41,9 @@ test('portable archive carries a content-addressed Champion GLB', () => {
   assert.deepEqual([...new Uint8Array(restored.assets[attached.hash].bytes)], [0x67, 0x6c, 0x54, 0x46]);
   assert.deepEqual(restored.project.projects.studio.unknown, { keep: true });
 });
+
+test('archive verifies every required asset reference before activation', () => {
+  const archive=exportProjectEnvelope(createProject()).archive;
+  archive.manifest.assetReferences={models:[{id:'missing-model',hash:'missing'}]};
+  assert.equal(importProjectEnvelope(archive).ok,false);
+});

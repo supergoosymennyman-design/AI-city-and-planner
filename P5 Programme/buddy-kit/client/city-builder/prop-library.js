@@ -1233,6 +1233,15 @@ export function mountPropLibrary(opts) {
      * replacing newer metadata with the envelope captured at boot.
      */
     readEnvelope: () => envelope,
+    async previewMarketItem(handler) {
+      let item;
+      if (handler.kind === 'decoration') item = itemFor(handler.propId);
+      else if (handler.kind === 'landmark') {
+        const mod = await landmarkModule(); item = mod.landmarkItems(currentLang()).find(i => i.templateId === handler.templateId || i.id === `landmark:${handler.templateId}`);
+      }
+      if (!item || destroyed || restoreActive || unreadable) return false;
+      startPlacement(item); return true;
+    },
     async insertLandmark(templateId, transform={}) {
       if(destroyed||restoreActive||!LANDMARK_WORKSHOP_ENABLED)return null;
       const mod=await landmarkModule(),record=mod.makeLandmarkRecord(templateId,transform);if(!record)return null;

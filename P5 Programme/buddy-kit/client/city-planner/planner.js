@@ -1,3 +1,6 @@
+import { MAX_ARCHIVE_BYTES } from '../city-common/project-store.js';
+import { downloadProject, restoreProjectBackup, showRestoreFailure } from '../city-common/backup-coordinator.js';
+import { registerWorkspaceAdapter } from '../city-common/workspace.js';
 import { installModalOwnership, activeModal, reducedMotion as motionReduced } from '../city-common/interface.js';
 installModalOwnership();
 import { displayName } from '../city-common/display-names.js';
@@ -2654,21 +2657,14 @@ function restoreFile(state, code) {
   });
 }
 
-function downloadChampionFile(label) {
-  const file = composeChampionFile(currentSnapshot(), label);
-  const json = JSON.stringify(file, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = championFilename(label);
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  rememberSavedAt();   // resume surface: "last saved …"
-  toast(L('planner.save.champion', { label }));
+async function downloadChampionFile(label) {
+  try { await downloadProject({ label }); rememberSavedAt(); toast('Complete project downloaded / 已下載完整專案'); }
+  catch (error) { toast(error.message); }
 }
+registerWorkspaceAdapter({
+  flush: async () => {}, capture: () => ({ city: { legacyState: currentSnapshot() } }),
+  restore: async () => {}, suspend: () => {},
+});
 
 function wireSaveModal() {
   const modal = document.getElementById('save-modal');
@@ -2819,6 +2815,13 @@ function wireCloudModal() {
 
 /** Import a Champion File (restore everything) or a legacy layout JSON. Returns true if handled. */
 function importAny(raw) {
+  try {
+    const value = JSON.parse(raw);
+    if (['passiona.archive', 'passiona-project', 'passiona-champion-file', 'ai-champion'].includes(value?.kind)) {
+      restoreProjectBackup(value).then(() => location.reload()).catch(error => showRestoreFailure(error, value)); return true;
+    }
+  } catch {}
+
   if (!withinImportLimit(raw)) { toast(t('ui.tooLarge')); return true; }
   if (!raw.trim()) return false;
   let parsed;
@@ -3208,7 +3211,7 @@ importFileBtn.addEventListener('click', (e) => {
  importFileInput.addEventListener('change', () => {
    const f = importFileInput.files[0];
    if (!f) return;
-   if (f.size > MAX_IMPORT_BYTES) { toast(t('ui.tooLarge')); importFileInput.value = ""; return; }
+   if (f.size > MAX_ARCHIVE_BYTES) { toast(t('ui.tooLarge')); importFileInput.value = ""; return; }
    const reader = new FileReader();
    reader.onerror = () => toast(t('ui.readFail'));
    reader.onload = () => {
@@ -3234,7 +3237,7 @@ if (importBackupBtn) {
     const layout = serializeLayout();
     const v = validateLayout(layout);
     if (!v.ok) { toast(t('ui.invalid')); return; }
-    downloadLayout(JSON.stringify(layout, null, 2));
+    downloadChampionFile('My AI City');
     importMenu.classList.add('hidden');
     toast(t('planner.import.downloaded'));
   });

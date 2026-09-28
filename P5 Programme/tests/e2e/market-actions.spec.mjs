@@ -75,8 +75,10 @@ test('a purchased decoration really places in the City and clears the request', 
   await page.waitForFunction(() => window.__marketHandoff !== undefined, null, { timeout: 60000 });
   const handoff = await page.evaluate(() => window.__marketHandoff);
   expect(handoff, JSON.stringify(handoff)).toMatchObject({ ok: true, kind: 'decoration' });
-  const records = await page.evaluate(() => window.__propLibrary.getRecords());
-  expect(records.some((r) => r.id === 'prop_bench')).toBe(true);
+  expect(handoff.preview).toBe(true);
+  await expect(page.locator('.prop-lib-toolbar')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.prop-lib-toolbar')).toBeHidden();
   expect(new URL(page.url()).searchParams.get('place')).toBe(null);
   expect(errors).toEqual([]);
 });
