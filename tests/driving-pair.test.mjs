@@ -70,7 +70,7 @@ test('steering and speed have independent effects, and a normal stop resumes', (
   const b = createDrivingSession(schoolScenario(), constant('straight', 'slow'));
   for (let i = 0; i < 20; i++) { a.step(); b.step(); }
   assert.equal(a.snapshot().car.speed, b.snapshot().car.speed);
-  assert.ok(a.snapshot().car.heading < 0);
+  assert.ok(a.snapshot().car.heading > 0);
   assert.equal(b.snapshot().car.heading, 0);
   let go = false;
   const c = createDrivingSession(schoolScenario(), { decide: () => constant('straight', go ? 'go' : 'stop').decide() });
@@ -165,4 +165,21 @@ test('student steering examples repair a weak learned controller; repeat and fre
   assert.equal(after.records[0].requested.steering,'straight');
   const fresh=run(schoolScenario('straight',72),{},prepareDrivingBundle(repaired.bundle));
   assert.equal(fresh.outcome,'arrived');assert.equal(fresh.practice,false);
+});
+
+test('permanent school shares seed-independent geometry and bounded drill sections', async () => {
+  const {SCHOOL_BOUNDS}=await import('../P5 Programme/buddy-kit/client/city-common/driving-school-site.js');
+  assert.ok(Math.abs(SCHOOL_BOUNDS.w-83)<1 && Math.abs(SCHOOL_BOUNDS.d-177)<1);
+  const ranges={right:[50,120],left:[110,190],'s-bend':[50,190],mixed:[0,190]};
+  const whole=schoolScenario('mixed',71).courseTrack;
+  for(const kind of ['straight','left','right','s-bend','barrier','signal','amber','moving-car','pedestrian','lead-car','mixed']){
+    const a=schoolScenario(kind,13),b=schoolScenario(kind,503),range=ranges[kind]||[0,60];
+    assert.equal(a.courseVersion,1);assert.deepEqual(a.courseRange,range);
+    assert.deepEqual(a.courseTrack,whole);assert.deepEqual(a.track.points,b.track.points);
+    assert.deepEqual(a.track.points,whole.points.slice(range[0],range[1]+1));
+    assert.ok(Math.abs(a.track.length-(range[1]-range[0]))<1e-8);
+    assert.notEqual(a.startOffset,b.startOffset);
+    if(kind==='barrier')assert.ok(a.track.obstacles[0].z>=30&&a.track.obstacles[0].z<=42);
+    if(kind==='mixed')assert.equal(a.actors[0].s,110);
+  }
 });

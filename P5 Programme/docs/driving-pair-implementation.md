@@ -4,23 +4,55 @@ The new entry is **Audi driving school**, available independently of activity
 site placement. Earlier Number-sense driving machines retain their existing
 runtime and are reachable through **Earlier driving machine**.
 
-## Learning and publication
+## Workshop controls and saved revisions
 
-`drive-v2` creates two independent Data-sense blocks. The Workshop teaching panel
-shows editable physical readings and the child's action label. Teaching is
-explicit; neither opening the starter nor publishing trains anything. The
-375 steering and 1,200 speed practice rows use stable schemas across exercises.
-Re-teaching starter rows skips readings already learned, preserving corrections.
+`drive-v2` creates one editable machine with Steering and Speed subtabs. The
+subtabs filter the floor, diagram, selection and inspector without changing the
+machine, learning, connections or undo history. A persistent overview labels
+inputs as **simulated sensors** and shows both controllers' modes and outputs.
+The inspection panel exposes the bound controller and car output, physical
+readings, requested actions and influencing examples. Other bench equipment
+trains and evaluates examples; it is not an additional runtime controller.
+
+Steering starts with **Default: Straight ahead** and no examples. Speed starts
+with **Constant: Go** (6 m/s); Slow is 2 m/s and Stop is 0 m/s. Teaching explicitly
+selects Trained model. Returning to a constant preserves learned examples; an
+empty trained controller discloses its default and remains runnable. Opening a
+starter never trains anything. The 375 steering and 1,200 speed practice rows
+keep stable schemas across exercises. Re-teaching skips readings already
+learned, preserving corrections.
 
 `data-vector.js` supplies the same min/max, categorical one-hot, level-constant
-and unit-vector transform to Workshop and the driving runtime. Publication
-exports the actual shelves, including their example IDs, physical readings,
-block IDs and thresholds. A `passiona.driving` version-1 bundle contains both
-classifiers and self-tests. The project-store transaction publishes and installs
-the pair together. Existing revision records are retained unchanged.
+and unit-vector transform to Workshop and the driving runtime. The shared
+`driving-machine.js` compiler reads the editable saved machine, validates its
+explicit controller/output bindings and `reading → show` connections, and
+exports the actual shelves, IDs, readings, k and thresholds. The
+`passiona.driving` version-3 bundle supports default, constant and trained
+controllers, corrected driver-relative action mappings and self-tests. Versions
+1 and 2 validate under their original rules before converting steering labels;
+example IDs, readings, vectors and speed models are preserved. Saved Workshop
+steering shelves convert once using a convention marker. Version-1 learned pairs and
+earlier Number-sense machines remain readable. Missing or disconnected bound
+controllers produce a visible repair problem; they never select an older model.
+
+**Run and Repeat use the latest saved machine. Resume and replay retain the
+current attempt's revision.** At the first Run/Step, one project-store mutation
+compiles the latest saved machine, retains its executable revision, and records
+the attempt reference and scenario together. Unchanged configurations reuse
+revisions. Each prepared attempt is detached and immutable. Workshop uses its
+existing save queue, displays Saving/Saved/Save failed, and flushes before
+navigation. Failed saves block the transition. A missing or invalid latest
+configuration blocks a new attempt and offers the Workshop repair link.
+
+Entering through Workshop or City creates the same empty editable starter.
+The first exercise centres the car on the straight barrier course. Straight
+steering and constant Go collide through normal physics. After impact the
+message is: “Speed stayed on Go, so the car did not brake.” The improvement link
+opens Speed in the same machine with the recorded readings available for a
+correction. Existing trained machines and exercise selections are preserved.
 
 The opaque `projects.driving` project section contains bundles, the installed
-revision, three completed attempts, and correction/practice records. It is part
+revision, the current attempt reference, three completed attempts, and correction/practice records. It is part
 of the existing complete Champion archive, not the smaller cloud City snapshot.
 Inference is prepared once in memory. There are no per-tick IndexedDB writes.
 
@@ -40,14 +72,15 @@ finish area, with no violation or intervention. A barrier safe stop is a
 different outcome. Trials used for corrections are subsequently practice
 evidence, not held-out evidence.
 
-The arena uses the existing City renderer with a separate scene/camera, the
-existing Audi GLB and shared loader, chase/overhead/whole-route views, Pause/Step
-and replay. The launcher stays out of Decorate mode's editing controls.
+The [permanent school](permanent-driving-school.md) uses the City camera and
+rendering pipeline for placed trials, with a separate scene for no-space and
+old-course compatibility. It uses the existing Audi GLB and shared loader,
+chase/overhead/whole-route views, Pause/Step and replay. The launcher stays out of Decorate mode's editing controls.
 An asset failure disables driving. Hidden tabs pause; exit, project changes,
 context loss and rendering errors release temporary objects and reservations.
 Signals, actor appearances, sensors and scoring read the same scenario state.
 The scenario seed is editable; repeating a saved trial uses its original
-geometry and seed with the currently installed revision. The current course,
+geometry and seed with the latest saved configuration. The current course,
 seed, revision and result remain visible above the controls.
 
 ## Student City routes
@@ -86,6 +119,14 @@ requests separately from the growing buildless JavaScript import graph.
 
 ## Verification and release gate
 
+- `tests/driving-machine.test.mjs`: empty collision, Constant Stop, partial
+  learning, threshold/evidence parity, bend steering, explicit bindings, empty
+  defaults, legacy pairs, revision reuse and complete archive recovery.
+- `tests/e2e/driving-machine.spec.mjs`: subtab filtering and undo, recovery,
+  failed-save navigation, first-entry collision, Speed handoff, latest-on-Run,
+  unchanged Resume/replay, disconnected controller blocking, and bilingual
+  tablet layouts.
+
 - `tests/driving-pair.test.mjs`: real Workshop teaching, exported decision and
   influencing-example parity, 44 held-out runs across 11 drill types and four
   seeds, displaced/misaligned starts, weak models, uncertainty, invalid inputs,
@@ -99,7 +140,7 @@ requests separately from the growing buildless JavaScript import graph.
   arena, replay, correction, republishing, City trial, Champion-file recovery,
   asset failure and Traditional Chinese tablet-layout/project-switch checks.
 
-The full unit suite passed **616/616**. The expanded three-test browser run
+The earlier release baseline passed **616/616** unit tests. The expanded three-test browser run
 passed teaching → publication → arena → correction → republishing → City trial
 → Champion File restoration, Traditional Chinese tablet layout/project switch,
 and Audi asset failure. Library and import checks and the City build pass.
@@ -116,11 +157,22 @@ the built run was focused on these eight files, not the full release suite.
 The final boot and legacy-control changes additionally pass their 28 and 11
 targeted unit checks. Automated checks are not a full hardware release clearance.
 
+The direct Workshop-control change passes **653/653 unit tests**, all **10
+source driving-pair browser tests**, and **6 built-browser tests** from
+`driving-machine` and `workshop-skills`. These cover empty-starter collision,
+constant Stop, partial learning, exact classifier/evidence parity, broken
+bindings, cross-tab latest-on-Run behavior, frozen Resume/replay, save failures,
+archive recovery, City-created starters, project switching, and English and
+Traditional Chinese tablet layouts. Library integrity, source/bundle import
+checks and `npm run build:city` also pass. This is focused browser verification,
+not a rerun of the full browser suite. No production deployment was performed.
+
 Reproduce the focused checks from the repository root:
 
 ```sh
-node --test tests/driving-pair.test.mjs tests/driving-routes.test.mjs
+node --test tests/driving-machine.test.mjs tests/driving-pair.test.mjs tests/driving-routes.test.mjs
 E2E_PORT=8393 ./node_modules/.bin/playwright test --config 'P5 Programme/tests/e2e/playwright.config.mjs' driving-pair.spec.mjs --workers=1
+E2E_PORT=8393 E2E_DOCROOT='P5 Programme/deploy/city-sim' ./node_modules/.bin/playwright test --config 'P5 Programme/tests/e2e/playwright.config.mjs' driving-machine.spec.mjs workshop-skills.spec.mjs --project chromium
 ```
 
 For the built-browser check, build with `npm run build:city` and prefix the

@@ -16,8 +16,8 @@ test('each tab restores the same editable machine after switching and reload',as
 test('Driving tab trains and captures both models without a publish step',async({page})=>{
   await ready(page,'?skill=drive&paired=1');
   await expect(page.locator('[data-skill="driving"]')).toHaveAttribute('aria-current','page');
-  await page.locator('.workshop-skill-controls>summary').click();await page.locator('.driving-teacher>summary').click();
-  for(const role of ['steering','speed'])await page.locator(`[data-teach-driving="${role}"]`).click();
+  await page.locator('.driving-teacher>summary').click();
+  for(const role of ['steering','speed']){await page.locator(`[data-controller="${role}"]`).click();await page.locator(`[data-teach-driving="${role}"]`).click();}
   await page.evaluate(()=>localStorage.setItem('p5_city_planner_layout_v1',JSON.stringify({version:2,scaleMeters:2000,roads:[],buildings:[],parks:[]})));
   await page.locator('[data-drive-city]').click();
   await expect(page).toHaveURL(/activity=driving/);

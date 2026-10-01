@@ -49,7 +49,8 @@ export function mountFocusedCityUI({ propLibrary, myWork, onModeChange = () => {
   };
   const onPanelClose = () => {
     queueMicrotask(()=>{
-      const anyOpen=propLibrary?.isOpen?.()||myWork?.isOpen?.()||!document.querySelector('.bw-panel')?.hidden||document.getElementById('skin-panel')?.classList.contains('open');
+      const buddy=document.querySelector('.bw-panel');
+      const anyOpen=propLibrary?.isOpen?.()||myWork?.isOpen?.()||(buddy&&!buddy.hidden)||document.getElementById('skin-panel')?.classList.contains('open');
       root.classList.toggle('major-panel-open',!!anyOpen);
       minimap()?.setAttribute('aria-hidden',String(!!anyOpen));
     });

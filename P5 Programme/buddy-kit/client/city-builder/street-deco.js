@@ -27,6 +27,7 @@ const STREET_DECO = [
 export function scatterStreetDeco(scene, layout, opts = {}) {
   const loader = createGLTFLoader();
   const schedule = opts.schedule || ((task) => task());
+  const exclude = opts.exclude || (() => false);
   // Street deco: placed along roads but OFFSET onto the pavement. Roads are
   // stored as centreline polylines, so a bare segment midpoint sits in the
   // middle of the carriageway (cars drive the centreline) — and where roads
@@ -40,7 +41,7 @@ export function scatterStreetDeco(scene, layout, opts = {}) {
   // Signal heads belong at the plain crossings, on the pavement, never in the
   // carriageway. The helper validates every spot against every road ribbon and
   // silently skips an arm it cannot place safely.
-  placeSignals(loader, scene, trafficLightSpots(roadNetwork), schedule);
+  placeSignals(loader, scene, trafficLightSpots(roadNetwork).filter(p=>!exclude(p.x,p.z)), schedule);
   const primary = roads.filter((r) => r.class === 'primary' || (r.points || []).length >= 2);
   let decoCount = 0;
   let busStops = 0;
@@ -48,7 +49,7 @@ export function scatterStreetDeco(scene, layout, opts = {}) {
     const pts = r.points;
     if (!pts || pts.length < 2 || decoCount >= 12) continue;
     const spot = findSidewalkSpot(r, roads);
-    if (!spot) continue;
+    if (!spot || exclude(spot.x,spot.z)) continue;
     const spotRadius = 2.2;
     if (!isRoadsideSceneryClear(roadNetwork, spot.x, spot.z, spotRadius, 8)) continue;
     if (busStops < 3 && decoCount % 3 === 0) {

@@ -1,0 +1,35 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+const browser=await chromium.launch({headless:true}),page=await browser.newPage({viewport:{width:1400,height:1000}}),errors=[];
+page.on('pageerror',e=>errors.push(e.message));
+const url='http://127.0.0.1:8379/workshop/?publishTarget=city&hostInstanceId=city-recycling-school-v1&collection=city-recycling-v1';
+try{
+ await page.goto(url);await page.waitForFunction(()=>window.WorkshopGame?.renderModels);
+ await page.evaluate(()=>window.WorkshopGame.renderModels());await page.locator('#realLibraryBtn').click();
+ assert.equal(await page.locator('#libraryDataset').inputValue(),'city-recycling-v1');
+ await page.locator('#libraryBrain').selectOption('knn');
+ await page.getByRole('button',{name:'Train a new version',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#libraryModelInfo')?.textContent.includes('15 observations'));
+ await page.getByRole('button',{name:'Place my trained model',exact:true}).click();
+ await page.locator('#modelLibrary').getByRole('button',{name:'Close',exact:true}).click();
+ const first=await page.evaluate(async()=>{await window.WorkshopGame.__autosaveForTest();return window.WorkshopPublish.publishImage();});assert.equal(first.ok,true,first.error);
+ const source=await page.evaluate(()=>window.WorkshopGame.publishImageModel());assert.equal(source.examples.length,15);assert.equal(source.dataset,'city-recycling-v1');
+ await page.goto(url+'&model='+encodeURIComponent(source.blockId));await page.waitForFunction(()=>window.WorkshopGame?.publishImageModel());
+ const restored=await page.evaluate(()=>window.WorkshopGame.publishImageModel());assert.equal(restored.blockId,source.blockId);assert.equal(restored.examples.length,15);
+ await page.locator('.wpb-inspect').click();await page.locator('#libraryDataset').selectOption('city-recycling-v1');await page.locator('#modelLibrary input[type=number]').fill('2');
+ await page.getByRole('button',{name:'Train a new version',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#libraryModelInfo')?.textContent.includes('6 observations'));
+ await page.getByRole('button',{name:'Use this version on the selected Model',exact:true}).click();
+ await page.locator('#modelLibrary').getByRole('button',{name:'Close',exact:true}).click();
+ const again=await page.evaluate(()=>window.WorkshopPublish.publishImage());assert.equal(again.ok,true,again.error);assert.ok(again.revision>first.revision);
+ await page.goto('http://127.0.0.1:8379/workshop/?publishTarget=city&hostInstanceId=city-driving-school-v1&skill=drive&exercise=light');
+ await page.waitForFunction(()=>window.WorkshopGame?.buildDriveTable());
+ await page.getByRole('button',{name:/New exercise: light/}).click();
+ const machine=await page.evaluate(()=>window.WorkshopGame.sourceMachineId());assert.ok(machine);
+ await page.locator('#runBtn').click();
+ await page.waitForTimeout(2000);
+ await page.evaluate(()=>window.WorkshopGame.pressButton('dv_btnTeach'));
+ await page.waitForFunction(()=>window.WorkshopGame.publishDriveModel()?.examples.length>0);
+ await page.locator('#runBtn').click();
+ const driving=await page.evaluate(()=>window.WorkshopPublish.publishDrive());assert.equal(driving.ok,true,driving.error);
+ assert.deepEqual(errors,[]);console.log('Workshop City collection: real UI train → place → publish → reopen → replace → publish passed. Driving starter → Run → Teach → Publish passed.');
+}finally{await browser.close();}

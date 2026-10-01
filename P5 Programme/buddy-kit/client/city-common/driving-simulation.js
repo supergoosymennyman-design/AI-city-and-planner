@@ -1,13 +1,13 @@
 // Renderer-independent paired driver. Physics 20 Hz; decisions 10 Hz.
 // Route projection only measures sensors: it never writes the vehicle pose.
+import { STEERING, SPEED } from './driving-controls.js';
+export { STEERING, SPEED };
 import { buildTrack, projectToTrack, lightStateAt } from './driving.js';
 import { buildTrafficNetwork } from './traffic-network.js';
 import { intersectsSolid, footprintFitsRoad } from './driving-routes.js';
 
 export const PHYSICS_DT = .05;
 export const AUDI = Object.freeze({ length: 5, width: 2.05, wheelbase: 2.91 });
-export const STEERING = Object.freeze({ straight: 0, 'gentle-left': -.10, 'gentle-right': .10, 'sharp-left': -.25, 'sharp-right': .25 });
-export const SPEED = Object.freeze({ go: 6, slow: 2, stop: 0 });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const angle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -144,17 +144,19 @@ export function createDrivingSession(scenario, prepared, { maxSteps = 2400, star
 export function schoolScenario(kind = 'straight', seed = 1) {
   let state = seed >>> 0;
   const random = () => ((state = (Math.imul(state,1664525)+1013904223) >>> 0) / 4294967296);
-  const points = [[0,0]], radius = 24 + random()*16;
+  const points = [[0,0]], radius = 32;
   let heading = 0, x = 0, z = 0;
-  for (let i=1;i<=120;i++) {
-    if (['left','right','s-bend','mixed'].includes(kind) && i>22 && i<65) heading += (kind === 'right' ? 1 : -1) / radius;
-    if (['s-bend','mixed'].includes(kind) && i>=65 && i<105) heading += 1/radius;
+  for (let i=1;i<=190;i++) {
+    if (i>60 && i<=100) heading -= 1 / radius;
+    if (i>120 && i<=160) heading += 1/radius;
     x += Math.sin(heading); z += Math.cos(heading); points.push([x,z]);
   }
-  const spec = { id: kind, width: 7, points };
+  const range = kind === 'right' ? [50,120] : kind === 'left' ? [110,190] : kind === 's-bend' ? [50,190] : kind === 'mixed' ? [0,190] : [0,60];
+  const courseTrack = buildTrack({id:'permanent-school',width:7,points});
+  const spec = { id: kind, width: 7, points: points.slice(range[0],range[1]+1) };
   if (['signal','amber','mixed'].includes(kind)) spec.light = { s: kind === 'mixed' ? 18 : 40 + random()*12, phases: [{ state: kind === 'amber' ? 'amber' : 'red', seconds: 18+random()*4 }, { state: 'green', seconds: 200 }] };
-  const track = buildTrack(spec), scenario = { kind, seed, track, actors: [], startOffset: (random() - .5) * .5 };
-  if (kind === 'barrier') { const p = pointAt(track, 45 + random()*12); track.obstacles.push({ ...p, r: 1, kind: 'barrier' }); scenario.safeStop = true; }
-  if (['moving-car','pedestrian','lead-car','mixed'].includes(kind)) scenario.actors.push({ s: kind === 'mixed' ? 85 : 38+random()*10, kind: kind === 'pedestrian' ? 'pedestrian' : 'car', crossing:['moving-car','mixed'].includes(kind), r: 1, from: 0, until: (kind === 'mixed' ? 75 : 17)+random()*4, speed: kind === 'lead-car' ? 2 : 0, brakeAt: 3 });
+  const track = buildTrack(spec), scenario = { kind, seed, courseVersion: 1, courseRange: range, courseTrack, track, actors: [], startOffset: (random() - .5) * .5 };
+  if (kind === 'barrier') { const p = pointAt(track, 30 + random()*12); track.obstacles.push({ ...p, r: 1, kind: 'barrier' }); scenario.safeStop = true; }
+  if (['moving-car','pedestrian','lead-car','mixed'].includes(kind)) scenario.actors.push({ s: kind === 'mixed' ? 110 : 38+random()*10, kind: kind === 'pedestrian' ? 'pedestrian' : 'car', crossing:['moving-car','mixed'].includes(kind), r: 1, from: 0, until: (kind === 'mixed' ? 75 : 17)+random()*4, speed: kind === 'lead-car' ? 2 : 0, brakeAt: 3 });
   return scenario;
 }

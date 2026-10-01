@@ -64,7 +64,7 @@ export class ActivityTrial {
 }
 import { sense } from './driving.js';
 /** Find free ground without rewriting old cities. Clearance includes approach/camera margins. */
-export function placeActivitySites({scale=2000, focus=[1000,1000], buildings=[], roads=[], props=[], trees=[]}={}) {
+export function placeActivitySites({scale=2000, focus=[1000,1000], buildings=[], roads=[], props=[], trees=[], kinds=['recycling','driving']}={}) {
   const occupied=[...buildings,...props].map(b=>({x:b.pos?.[0]??b.x,z:b.pos?.[1]??b.z,r:Math.hypot(...(b.footprint||[12,12]))/2+4}));
   occupied.push(...trees.map(t=>({x:t.x,z:t.z,r:(t.radius||3)+2})));
   const reserved=[];
@@ -79,6 +79,7 @@ export function placeActivitySites({scale=2000, focus=[1000,1000], buildings=[],
     return true;
   };
   for(const [kind,w,d] of [['recycling',24,22],['driving',SCHOOL_BOUNDS.w,SCHOOL_BOUNDS.d]]) {
+    if(!kinds.includes(kind))continue;
     let found=null;
     for(let ring=0;ring<Math.min(64,scale/8)&&!found;ring++)for(let i=0;i<Math.max(1,ring*8);i++){
       const angle=i/Math.max(1,ring*8)*Math.PI*2,x=focus[0]+Math.cos(angle)*ring*8,z=focus[1]+Math.sin(angle)*ring*8;

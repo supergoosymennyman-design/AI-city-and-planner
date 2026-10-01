@@ -18,7 +18,7 @@
     if (role === 'steering') {
       for (const laneOffset of [-2,-1,0,1,2]) for (const headingError of [-.4,-.2,0,.2,.4]) for (const roadDirection of [-.4,-.2,0,.2,.4]) for (const speed of [0,3,6]) {
         const correction = roadDirection * .65 - headingError - laneOffset * .22;
-        const answer = Math.abs(correction) < .055 ? 'straight' : (Math.abs(correction) > .26 ? 'sharp-' : 'gentle-') + (correction < 0 ? 'left' : 'right');
+        const answer = Math.abs(correction) < .055 ? 'straight' : (Math.abs(correction) > .26 ? 'sharp-' : 'gentle-') + (correction > 0 ? 'left' : 'right');
         add({ laneOffset, headingError, roadDirection, speed }, answer);
       }
     } else if (role === 'speed') {
@@ -33,7 +33,18 @@
     } else throw new Error('Unknown driving model');
     return out;
   }
-  const api = { schemas, rows, clear, preprocessing: 'data-minmax-onehot-level1-unit-v1' };
+  const steeringConvention = 'driver-left-positive-v3';
+  const oppositeLabels = Object.freeze({'gentle-left':'gentle-right','gentle-right':'gentle-left','sharp-left':'sharp-right','sharp-right':'sharp-left'});
+  const reverseSteeringLabel = label => Object.hasOwn(oppositeLabels, label) ? oppositeLabels[label] : label;
+  // Move entire shelves; retain IDs, raw readings, vectors and teaching metadata.
+  function migrateSteeringPiece(piece) {
+    if (piece.drivingRole !== 'steering' || piece.steeringConvention === steeringConvention) return false;
+    const brain = piece.learning?.data?.brain;
+    if (brain?.shelves) brain.shelves = Object.fromEntries(Object.entries(brain.shelves).map(([label, examples]) => [reverseSteeringLabel(label), examples]));
+    piece.steeringConvention = steeringConvention;
+    return true;
+  }
+  const api = { schemas, rows, clear, steeringConvention, reverseSteeringLabel, migrateSteeringPiece, preprocessing: 'data-minmax-onehot-level1-unit-v1' };
   globalThis.WorkshopDrivingPairData = api;
   if (typeof module !== 'undefined') module.exports = api;
 })();

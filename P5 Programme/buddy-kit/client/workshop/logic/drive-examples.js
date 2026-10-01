@@ -20,16 +20,18 @@
 'use strict';
 function make(kind, { defaultBlock, t }) {
   if (kind === 'drive-v2') {
-    const pair = { pieces: [], snaps: [], wires: [] };
+    const pair = { pieces: [], snaps: [], wires: [], driving: { version: 2, bindings: {} } };
     for (const [index, role] of ['steering', 'speed'].entries()) {
       const half = make('drive-v1', { defaultBlock, t });
       const rename = id => role + '_' + id;
+      pair.driving.bindings[role] = { blockId: rename('dv_model'), outputId: rename('dv_guess') };
       for (const piece of half.pieces) {
-        piece.id = rename(piece.id); piece.y += index * 1400;
+        piece.id = rename(piece.id); piece.drivingBench = role; piece.y += index * 1400;
         if (piece.watchPiece) piece.watchPiece = rename(piece.watchPiece);
         if (piece.type === 'files') piece.dataset = 'drive-' + role + '-v2';
         if (piece.type === 'splitter') { piece.training = 100; piece.validation = 0; }
-        if (piece.type === 'sense') Object.assign(piece, { senseId: 'data', drivingRole: role, learning: {}, k: 1, name: role === 'steering' ? 'Steering / 轉向' : 'Speed / 車速' });
+        if (piece.type === 'sense') Object.assign(piece, { senseId: 'data', drivingRole: role, steeringConvention: 'driver-left-positive-v3', learning: {}, drivingMode: role === 'steering' ? 'default' : 'constant', drivingAction: role === 'steering' ? 'straight' : 'go', k: 1, name: role === 'steering' ? 'Steering / 轉向' : 'Speed / 車速' });
+        if(piece.id === rename('dv_guess'))piece.name = role === 'steering' ? 'Car steering / 車輛轉向' : 'Car speed / 車輛車速';
         pair.pieces.push(piece);
       }
       for (const edge of half.snaps) { edge.from.piece = rename(edge.from.piece); edge.to.piece = rename(edge.to.piece); pair.snaps.push(edge); }
@@ -81,5 +83,5 @@ function make(kind, { defaultBlock, t }) {
 }
 const api = { make };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
-if (typeof window !== 'undefined') window.WorkshopDriveExamples = api;
+globalThis.WorkshopDriveExamples = api;
 })();

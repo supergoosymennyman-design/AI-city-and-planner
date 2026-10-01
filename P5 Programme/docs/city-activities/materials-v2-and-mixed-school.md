@@ -1,12 +1,12 @@
 # Mixed Driving School and material practice v2
 
-The City previews `schoolScenario('mixed', 71)` using the same course renderer
+The City permanently hosts `schoolScenario('mixed', 71)` using the same course renderer
 and Audi loader as the driving arena. `driving-school-site.js` derives its
-72.9 × 112.2 m reservation from the centreline bounds plus 10 m on every side.
+82.8 × 177.0 m reservation from the centreline bounds plus 10 m on every side.
 Existing buildings, roads, props and trees are not moved. If placement fails,
 the dock remains usable and explains the space requirement. The Audi is parked
 in the City, loads through `createGLTFLoader`, and has an explicit retry state.
-Closing a legacy exercise rebuilds the mixed preview. Ordinary school entries
+Closing a legacy exercise rebuilds the mixed preview. Paired trials use the same permanent road and temporarily hide the parked car; see [Permanent driving school](../permanent-driving-school.md). Ordinary school entries
 select Mixed journey; explicit exercise and correction/repeat routes retain
 those conditions. Course loading immediately disables Run and Step.
 

@@ -4924,6 +4924,7 @@
       const uploadSource = (fx.data.dataset && typeof fx.data.dataset === 'object')
         ? (pieces || []).find((q) => q.table && q.table.schema === fx.data.dataset)
         : null;
+      if(targetP.drivingRole)targetP.drivingMode='trained';
       (entry.studiedDatasets = entry.studiedDatasets || {})[datasetKey(fx.data.dataset)] = (uploadSource && uploadSource.table.name) || true;
       return true;
     }
@@ -6984,13 +6985,19 @@
       examples,
     };
   }
-  // The paired driver exports learned Data-sense shelves, never re-labels them.
+  function drivingRolePiece(table, role) {
+    const id = table.driving?.bindings?.[role]?.blockId;
+    return table.pieces.find(p => id ? p.id === id : p.drivingRole === role);
+  }
+  // The paired driver exports saved Data-sense shelves after convention migration.
   function publishDrivingPair(table) {
     if (!table) { try { table = state.table; } catch { return null; } }
     const models = {};
     for (const role of ['steering', 'speed']) {
-      const piece = table.pieces.find(p => p.drivingRole === role && p.senseId === 'data' && p.brainId === 'knn');
+      const piece = drivingRolePiece(table,role);
+      if(piece?.senseId !== 'data' || piece?.brainId !== 'knn')return null;
       if (!piece) return null;
+      globalThis.WorkshopDrivingPairData.migrateSteeringPiece(piece);
       const schema = Datasets.schema('drive-' + role + '-v2');
       const entry = modelEntry(piece);
       if (!entry?.studiedDatasets?.[schema.id]) return null;
@@ -7016,12 +7023,14 @@
     if (!['steering', 'speed'].includes(role)) return 0;
     if (!table) { try { table = state.table; } catch { return 0; } }
     const dataset = 'drive-' + role + '-v2';
-    const piece = table.pieces.find(p => p.drivingRole === role);
+    const piece = drivingRolePiece(table,role);
     if (!piece) return -1;
+    globalThis.WorkshopDrivingPairData.migrateSteeringPiece(piece);
     const known = new Set(Object.values(modelEntry(piece).brain.shelves).flat().map(ex => JSON.stringify(ex.vec)));
     let count = 0;
     for (const row of Datasets.rows(dataset, 42)) if (!known.has(JSON.stringify(Datasets.vec(dataset, row.features))) && applyTeachEffect({ type: 'teach', block: piece.id, shelf: row.answer,
       data: { tag: row.face, dataset, features: row.features } }, table.pieces, { hand: true })) count++;
+    if(count>0)piece.drivingMode='trained';
     return count;
   }
   function buildDrivingPairTable({ train = false } = {}) {
@@ -7761,6 +7770,7 @@
       // and photos still waiting for their features are written back onto their shelves. It
       // returns a COPY — the saved record no longer shares brain objects with the live table.
       pieces: Library.shelvesForSave(state.table.pieces),
+      driving: state.table.driving,
       snaps: state.table.snaps,
       wires: state.table.wires,
       // Brain vecs are plain arrays by construction (camRead Array.from's the Float32Array), so
@@ -7805,6 +7815,7 @@
     // tested (tests/game.test.js) — restore() just calls it and prunes any wire a dropped piece
     // left dangling (a pre-law save's wire into a Monitor's `in` port, most likely).
     const pieces = migratePieces(data.pieces);
+    pieces.forEach(p => globalThis.WorkshopDrivingPairData.migrateSteeringPiece(p));
     const droppedMonitor = pieces.length !== data.pieces.length;
     // task B (owner ruling 2026-08-28): a saved Split gate is migrated IN PLACE (mode → 'latch'),
     // not dropped — pieces.length cannot tell this one apart, so check the ORIGINAL input for
@@ -7814,7 +7825,8 @@
     // grammar. NOTHING is reshaped — it loads and runs exactly as it did — but the load says the
     // new way once (status.feederSourceGone), the same migration idiom the two lines above keep.
     const legacyFeedSource = hasLegacyFeedSource(data.pieces);
-    state.table = { pieces, snaps: data.snaps || [], wires: pruneWires(data.wires || [], pieces) };
+    state.table = { pieces, driving: data.driving, snaps: data.snaps || [], wires: pruneWires(data.wires || [], pieces) };
+    if (!state.table.driving && pieces.some(p=>p.drivingRole)) state.table.driving = {version:2,bindings:Object.fromEntries(['steering','speed'].map(role=>{const p=pieces.find(p=>p.drivingRole===role);const w=state.table.wires.find(w=>w.from.block===p?.id&&w.from.port==='reading'&&w.to.port==='show');return [role,{blockId:p?.id,outputId:w?.to.block}];}))};
     state.routingReviews = {};
     WireId.ensureWireIds(state.table);
     state.tableGen++; // a genuine machine swap (load/bring-in) — floor.js re-centers on this
@@ -7955,6 +7967,7 @@
   let championSession = null;
   let championLoading = false;
   let championSave = Promise.resolve();
+  let saveSequence = 0;
   const CHAMPION_KEY = 'workshop.champion'; // localStorage: the serialized champion file
   /** Our section of the champion file as it stands: every machine's table + shelves, and which one is open. */
   function workshopSection() {
@@ -8008,12 +8021,14 @@
     if (championLoading) return championSave;
     if (!championSession) { state.storageFailed = true; const failed = Promise.reject(Error('Champion storage unavailable. Your work has not been saved.')); failed.catch(() => {}); return failed; }
     const snapshot = state.champion;
+    const sequence = ++saveSequence;
+    window.dispatchEvent(new CustomEvent("driving-save",{detail:"saving"}));
     championSave = championSession.edit(latest => {
       // Project and memory writers share the same revision guard and never replace the economy.
       return { ...latest, champion: { ...latest.champion, name: snapshot.champion.name },
         ...(snapshot.buddy !== undefined ? { buddy: snapshot.buddy } : {}), projects: { ...latest.projects, [PROJECT_ID]: snapshot.projects[PROJECT_ID] } };
-    }).then(file => { state.champion = { ...state.champion, economy: file.economy }; state.storageFailed = false; return file; })
-      .catch(err => { state.storageFailed = true; if ($('#status')) status(err.message); throw err; });
+    }).then(file => { state.champion = { ...state.champion, economy: file.economy }; state.storageFailed = false; if(sequence === saveSequence)window.dispatchEvent(new CustomEvent("driving-save",{detail:"saved"})); return file; })
+      .catch(err => { if(sequence === saveSequence)window.dispatchEvent(new CustomEvent("driving-save",{detail:"failed"})); state.storageFailed = true; if ($('#status')) status(err.message); throw err; });
     championSave.catch(() => {});
     return championSave;
   }
@@ -9539,28 +9554,50 @@
     });
     api.newSkillMachine = async skill => {
       await autosave();
-      if (skill === 'driving') api.loadGalleryMachine('drive-v2', { newMachine:true });
+      if (skill === 'driving') { const {drivingStarter}=await import('../city-common/driving-machine.js'); restore(drivingStarter(),'drive-'+ChampionSession.id()); renderAll(); }
       else { setMachine('machine-' + ChampionSession.id(), null); if (skill === 'recycling') { state.table = window.WorkshopRecyclingMachine.starter(); for(const p of state.table.pieces){if(p.cityDestination)p.name=t('opt.bin.cityDestination.'+p.cityDestination);if(p.cityIntake)p.name=t('recycling.intake');} state.machineName = t('recycling.machine'); } renderAll(); }
       await autosave(); return state.machineId;
     };
 
     api.recyclingDraft = () => ({sourceMachineId:state.machineId, name:state.machineName || 'My sorter', seed:state.seed,
       table:privateProject(RunSession.snapshot(state.table, RUN_ADAPTERS))});
+    api.drivingDraft = () => serialize();
+    api.setDrivingMode = async (role,mode,action) => { const p=drivingRolePiece(state.table,role); if(!p)throw Error('Missing controller'); if(running())throw Error(t('hint.editWhileRunning')); if(!['trained','default','constant'].includes(mode))throw Error('Invalid mode'); p.drivingMode=mode;p.drivingAction=action;pushHistory(role==='speed'?'Speed mode / 車速模式':'Steering mode / 轉向模式');renderAll(); await autosave(); };
+    api.setDrivingBinding = async (role, blockId, outputId) => {
+      if(running())throw Error(t('hint.editWhileRunning'));
+      const controller=pieceById(blockId),output=pieceById(outputId);
+      if(!['steering','speed'].includes(role) || controller?.type!=='sense' || controller.senseId!=='data' || controller.brainId!=='knn' || (controller.drivingRole && controller.drivingRole!==role) || output?.type!=='sign' || output.mode!=='label')throw Error('Choose a Data model and a label output / 請選擇資料模型及標籤輸出');
+      const previous=drivingRolePiece(state.table,role);
+      if(previous && previous!==controller)delete previous.drivingRole;
+      controller.drivingRole=role;controller.drivingBench=role;output.drivingBench=role;
+      if(role==='steering')controller.steeringConvention=globalThis.WorkshopDrivingPairData.steeringConvention;
+      state.table.driving ||= {version:2,bindings:{}};
+      state.table.driving.bindings ||= {};
+      state.table.driving.bindings[role]={blockId,outputId};
+      pushHistory(role==='speed'?'Connect Speed / 連接車速':'Connect Steering / 連接轉向');
+      renderAll();await autosave();
+    };
+    api.setDrivingFocus = role => {
+      state.drivingFocus=role;state.selected=null;state.tableGen++;
+      const pieces=state.table.pieces.filter(drivingVisible);
+      if(role && pieces.length){state.view.x=20-Math.min(...pieces.map(p=>p.x||0))*state.view.s;state.view.y=20-Math.min(...pieces.map(p=>p.y||0))*state.view.s;applyView();}
+      renderAll();
+    };
     api.saveDrivingMachine = () => { state.skillWorkspace = true; return autosave(); };
-    api.teachDrivingExamples = async role => { const count = teachDrivingExamples(role, state.table); await autosave(); renderAll(); return count; };
+    api.teachDrivingExamples = async role => { const count = teachDrivingExamples(role, state.table); const p=drivingRolePiece(state.table,role);if(p&&count>=0){p.drivingMode='trained';pushHistory(role==='speed'?'Teach Speed / 教導車速':'Teach Steering / 教導轉向');} await autosave(); renderAll(); return count; };
     api.savedDrivingMachines = () => Object.entries(ChampionFile.readProject(state.champion, PROJECT_ID)?.machines || {})
       .filter(([, machine]) => (machine.table?.pieces || machine.pieces || []).some(p => p.type === 'sense' && (p.senseId === 'num' || p.drivingRole)))
       .map(([id, machine], index) => ({ id, name: machineLabel(id, machine, index) }));
     api.correctDrivingDecision = async (role, readings, label) => {
       const schema = Datasets.schema('drive-' + role + '-v2');
       if (!schema.answer.labels.includes(label)) return false;
-      const piece = state.table.pieces.find(p => p.drivingRole === role);
+      const piece = drivingRolePiece(state.table,role);
       if (!piece) return false;
       const entry = modelEntry(piece), vector = Datasets.vec(schema.id, readings);
       for (const shelf of Object.keys(entry.brain.shelves)) entry.brain.shelves[shelf] = entry.brain.shelves[shelf].filter(ex => !sameVector(ex.vec, vector));
       const ok = applyTeachEffect({ type: 'teach', block: piece.id, shelf: label,
         data: { dataset: schema.id, features: readings, tag: Datasets.face(schema, readings) } }, state.table.pieces, { hand: true });
-      if (ok) { await autosave(); renderAll(); }
+      if (ok) { piece.drivingMode='trained';pushHistory(role==='speed'?'Teach Speed / 教導車速':'Teach Steering / 教導轉向'); await autosave(); renderAll(); }
       return ok;
     };
     api.openSavedMachine = async id => { if (running()) stopRun(); await autosave(); return openMachine(id); };
@@ -9604,6 +9641,7 @@
     if (tutorialGuided()) return; // tutorial owns the table (D9)
     if (running()) { status(t('hint.editWhileRunning')); return; }
     const b = defaultBlock(type, 'b' + state.nextId++);
+    if(state.drivingFocus && state.table.driving)b.drivingBench=state.drivingFocus;
     // Spawn near the current view's top-left so new cards land on screen at any pan/zoom.
     b.x = Math.max(0, (40 - state.view.x) / state.view.s) + (state.spawn % 5) * 44;
     b.y = Math.max(0, (60 - state.view.y) / state.view.s) + (state.spawn % 7) * 34;
@@ -9632,7 +9670,7 @@
     const entry = state.bricks[libId];
     if (!entry) return;
     const id = 'b' + state.nextId++;
-    const b = { id, type: 'brick', x: 0, y: 0, name: entry.name, def: privatePartCopy(entry.def) };
+    const b = { id, type: 'brick', x: 0, y: 0, name: entry.name, def: privatePartCopy(entry.def), ...(state.drivingFocus && state.table.driving ? {drivingBench:state.drivingFocus} : {}) };
     b.x = Math.max(0, (40 - state.view.x) / state.view.s) + (state.spawn % 5) * 44;
     b.y = Math.max(0, (60 - state.view.y) / state.view.s) + (state.spawn % 7) * 34;
     state.spawn += 1;
@@ -10013,10 +10051,11 @@
   /** Add a disconnected block from the Floor shelf; positioning never authors connections. */
   function floorAdd(type) {
     if (tutorialGuided()) return null; // tutorial owns the table (D9); the floor's own drop is T8's seam
-    const target = FloorLayout.addTarget(state.table, type);
+    const target = FloorLayout.addTarget(visibleDrivingTable(), type);
     const b = defaultBlock(type, 'b' + state.nextId++);
+    if(state.drivingFocus && state.table.driving)b.drivingBench=state.drivingFocus;
     // A Blueprint position too (the card grid is the same machine): after the newest piece.
-    const lastP = state.table.pieces[state.table.pieces.length - 1];
+    const lastP = visibleDrivingTable().pieces.at(-1);
     b.x = lastP ? lastP.x + 180 : 40; b.y = lastP ? lastP.y : 300;
     if (target.watchPiece) b.watchPiece = target.watchPiece;
     state.table.pieces.push(b);
@@ -10347,7 +10386,7 @@
       t, words, palette: PALETTE, ports: { out: SIG_OUT, in: SIG_IN, dials, dialsFor, outsFor, insFor, itemFor: (p) => itemEndsFor(p, state.table) },
       /** The word under a belt socket: "in", "out", "exit 2" — a Brick's own item port by its name. */
       endWord: (end, id) => { const p = pieceById(id); return itemEndWord(end, p && p.type); },
-      getTable: () => state.table, getRun: () => state.run, running,
+      getTable: visibleDrivingTable, getRun: () => state.run, running,
       // Big-board fix round 2 (BLOCKER 1): the DECLARED table-identity counter — floor.js re-centers
       // when this changes, never by inferring it from the table's own contents (see state.tableGen's
       // own doc for which sites bump it and which deliberately do not).
@@ -10677,12 +10716,12 @@
         if (tutorialGuided()) return null; // tutorial owns the table (D9)
         const entry = state.bricks[libId];
         if (!entry) return null;
-        const target = FloorLayout.addBrickTarget(state.table, entry.def);
+        const target = FloorLayout.addBrickTarget(visibleDrivingTable(), entry.def);
         const id = 'b' + state.nextId++;
-        const b = { id, type: 'brick', x: 0, y: 0, name: entry.name, def: privatePartCopy(entry.def) };
+        const b = { id, type: 'brick', x: 0, y: 0, name: entry.name, def: privatePartCopy(entry.def), ...(state.drivingFocus && state.table.driving ? {drivingBench:state.drivingFocus} : {}) };
         // A Blueprint position too (the card grid is the same machine): after the newest piece —
         // floorAdd's own idiom.
-        const lastP = state.table.pieces[state.table.pieces.length - 1];
+        const lastP = visibleDrivingTable().pieces.at(-1);
         b.x = lastP ? lastP.x + 180 : 40; b.y = lastP ? lastP.y : 300;
         state.table.pieces.push(b);
         if (target.couple) state.table.snaps.push({ from: target.couple.from, to: { piece: id, end: target.couple.to.end } });
@@ -10706,7 +10745,7 @@
         renderAll();
         if (entry) pushHistory(t('hist.shelfRemoved', { name: entry.name }));
       },
-      select: (id) => { state.selected = id; if (state.viewMode === 'blueprint') renderPieces(); },
+      select: (id) => { state.selected = drivingVisible(pieceById(id)) ? id : null; if (state.viewMode === 'blueprint') renderPieces(); },
       changed: (label) => { if (tutorialGuided()) return; if (label) pushHistory(label); autosave(); if (window.WorkshopFloor) window.WorkshopFloor.refresh(); },
       // The floor plate is the SAME card the bench renders — one rowsOf, one renderRow. (The
       // session draft this line once had to thread died with the in-feeder upload, task E: a
@@ -11136,7 +11175,7 @@
       return { ok: false, why: 'stale' };
     }
     if (!core.ok) return { ok: false, why: core.why };
-    state.table = core.table;
+    state.table = {...state.table,...core.table};
     // makePart REBUILT every surviving wire (its rewire pass maps each to a fresh object), so the
     // non-enumerable ids died with the old objects — re-derive or Delete/Reconnect on the rewired
     // cables silently match nothing (the dead-control defect).
@@ -11162,7 +11201,7 @@
       status(err.message);
       return;
     }
-    state.table = core.table;
+    state.table = {...state.table,...core.table};
     // unpack re-instantiates the part's own internal wires as fresh objects (Brick.unpack clones
     // each def.wire) — same id-loss shape as applyMakePart above, same one-line cure.
     WireId.ensureWireIds(state.table);
@@ -14759,6 +14798,7 @@
   // Editing shelves while the machine RUNS is the point: the engine's sense fn reads
   // this same brain, so a filed example changes the running machine that second.
   function renderPanel() {
+    if(state.selected&&!drivingVisible(pieceById(state.selected)))state.selected=null;
     const host = $('#panel');
     host.classList.remove('mlwide');
     host.textContent = '';
@@ -15990,10 +16030,12 @@
     if (node) { node.style.left = p.x + 'px'; node.style.top = p.y + 'px'; }
   }
 
+  function drivingVisible(p) { return !state.drivingFocus || !(state.table.driving || state.table.pieces.some(p=>p.drivingRole)) || p?.drivingBench === state.drivingFocus || p?.drivingRole === state.drivingFocus || p?.id?.startsWith(state.drivingFocus+'_'); }
+  function visibleDrivingTable() { const pieces=state.table.pieces.filter(drivingVisible),ids=new Set(pieces.map(p=>p.id));return {...state.table,pieces,snaps:state.table.snaps.filter(e=>ids.has(e.from.piece)&&ids.has(e.to.piece)),wires:state.table.wires.filter(e=>ids.has(e.from.block)&&ids.has(e.to.block))}; }
   function renderPieces() {
     const layer = $('#pieces');
     layer.textContent = '';
-    for (const p of state.table.pieces) layer.appendChild(renderPiece(p));
+    for (const p of state.table.pieces.filter(drivingVisible)) layer.appendChild(renderPiece(p));
   }
 
   function renderPiece(p) {
@@ -16795,7 +16837,7 @@
     // Fat item bands — the couplings.
     state.table.snaps.forEach((s, i) => {
       const fp = pieceById(s.from.piece), tp = pieceById(s.to.piece);
-      if (!fp || !tp) return;
+      if (!fp || !tp || !drivingVisible(fp) || !drivingVisible(tp)) return;
       const [x1, y1] = connPos(fp, 'item-out', s.from.end);
       const [x2, y2] = connPos(tp, 'item-in', s.to.end);
       const line = svgEl('line');
@@ -16808,7 +16850,7 @@
     // Signal noodles — soft beziers between port rows.
     state.table.wires.forEach((w, i) => {
       const fp = pieceById(w.from.block), tp = pieceById(w.to.block);
-      if (!fp || !tp) return;
+      if (!fp || !tp || !drivingVisible(fp) || !drivingVisible(tp)) return;
       const [x1, y1] = connPos(fp, 'sig-out', w.from.port);
       const isDial = w.to.port.startsWith('dial:');
       const [x2, y2] = connPos(tp, isDial ? 'dial' : 'sig-in', isDial ? w.to.port.slice(5) : w.to.port);
@@ -16823,10 +16865,10 @@
     // Watch indicators — a Sense or Teach block dropped on a track piece. Reads p.x/p.y/q.x/q.y
     // DIRECTLY (not through connPos) — same NaN root cause (fix round 2), guarded the same way:
     // a Floor-only piece with no Blueprint position yet reads as (0,0), never NaN/undefined.
-    for (const p of state.table.pieces) {
+    for (const p of state.table.pieces.filter(drivingVisible)) {
       if ((p.type !== 'sense' && p.type !== 'teach') || !p.watchPiece) continue;
       const q = pieceById(p.watchPiece);
-      if (!q) continue;
+      if (!q || !drivingVisible(q)) continue;
       const px = Number.isFinite(p.x) ? p.x : 0, py = Number.isFinite(p.y) ? p.y : 0;
       const qx = Number.isFinite(q.x) ? q.x : 0, qy = Number.isFinite(q.y) ? q.y : 0;
       const line = svgEl('line');

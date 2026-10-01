@@ -116,7 +116,22 @@
       if (!result.ok) throw Error(result.error || 'Champion could not be saved to the project.');
     };
     let current = await lock(() => scopedAccess((record, store) => {
-      if (record) { prepare(record.file); return record; }
+      if (record) {
+        prepare(record.file);
+        // City can create the first driving starter before Workshop is opened.
+        // Adopt its missing machine without replacing any existing editor work.
+        const machineId = project?.projects?.workshopSkills?.driving?.machineId;
+        const starter = initial.projects?.workshop?.machines?.[machineId];
+        if (starter && !record.file.projects.workshop?.machines?.[machineId]) {
+          const file = copy(record.file);
+          file.projects.workshop ||= { v: 1, machines: {} };
+          file.projects.workshop.machines ||= {};
+          file.projects.workshop.machines[machineId] = copy(starter);
+          const next = { ...record, file, revision: record.revision + 1 };
+          store.put(next, 'active'); return next;
+        }
+        return record;
+      }
       const file = prepare(initial);
       const next = { revision: 1, generation: id(), file };
       store.put(copy(initial), 'original:first-import'); store.put(next, 'active'); return next;

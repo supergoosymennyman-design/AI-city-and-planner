@@ -31,7 +31,7 @@ test('practice identity survives recovery independently of classifier identity',
  const restored=importProjectEnvelope(exportProjectEnvelope(p).archive);assert.equal(restored.ok,true);assert.deepEqual(restored.project.projects.activityExercises,p.projects.activityExercises);assert.deepEqual(restored.project.projects.cityActivities,p.projects.cityActivities);
 });
 test('mixed school footprint includes ten metres per side and never forces crowded placement',()=>{
- assert.equal(SCHOOL_PREVIEW.kind,'mixed');assert.ok(SCHOOL_PREVIEW.track.light);assert.equal(SCHOOL_PREVIEW.actors.length,1);assert.ok(Math.abs(SCHOOL_BOUNDS.w-73)<1);assert.ok(Math.abs(SCHOOL_BOUNDS.d-112)<1);
+ assert.equal(SCHOOL_PREVIEW.kind,'mixed');assert.ok(SCHOOL_PREVIEW.track.light);assert.equal(SCHOOL_PREVIEW.actors.length,1);assert.ok(Math.abs(SCHOOL_BOUNDS.w-83)<1);assert.ok(Math.abs(SCHOOL_BOUNDS.d-177)<1);
  const sites=placeActivitySites({scale:500,focus:[250,250]});const school=sites.find(s=>s.kind==='driving');assert.deepEqual(school.footprint,[SCHOOL_BOUNDS.w,SCHOOL_BOUNDS.d]);
  const packed={scale:200,focus:[100,100],buildings:[{pos:[100,100],footprint:[200,200]}]};const before=JSON.stringify(packed);assert.equal(placeActivitySites(packed).length,0);assert.equal(JSON.stringify(packed),before);
 });

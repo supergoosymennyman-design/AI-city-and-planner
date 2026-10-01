@@ -1,4 +1,4 @@
-import { publishDrivingRevision } from '../city-common/driving-project.js';
+import { latestDrivingRevision, publishDrivingRevision } from '../city-common/driving-project.js';
 // Internal capability/revision bridge. Workshop skill tabs own the student launch action.
 import { buildImageCapabilityV2, buildDriveCapability } from '../city-common/capability-export.js';
 import { createProjectStore } from '../city-common/project-store.js';
@@ -100,6 +100,12 @@ export async function publishImageModelToCity() {
  */
 export async function publishDriveModelToCity() {
   const game = window.WorkshopGame;
+  if(game?.drivingDraft?.().pieces.some(p=>p.drivingRole) || game?.drivingDraft?.().driving){
+    await game.saveDrivingMachine();
+    if(!store){store=createProjectStore();await store.openActiveProject();}
+    let published;const result=await store.mutate(project=>{project.projects.workshopSkills={...project.projects.workshopSkills,driving:{...project.projects.workshopSkills?.driving,machineId:game.sourceMachineId()}};published=latestDrivingRevision(project);return project;},{reason:'compile-driving-machine'});
+    return result.ok?{ok:true,key:published.key,revision:published.prepared.bundle.revision,installed:true}:result;
+  }
   const pair = game?.publishDrivingPair?.();
   if (pair) {
     const machineId = game.sourceMachineId();

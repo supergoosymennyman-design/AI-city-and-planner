@@ -1,3 +1,6 @@
+import { recyclingViewBounds } from '../city-common/recycling-layout.js';
+import { createRecyclingPresentation } from './recycling-presentation.js';
+import { practiceRecyclingSite } from '../city-common/recycling-site.js';
 import { renderDrivingCourse, loadDrivingAudi } from '../city-common/driving-presentation.js';
 import { SCHOOL_PREVIEW, SCHOOL_BOUNDS } from '../city-common/driving-school-site.js';
 import { pointAt } from '../city-common/driving-simulation.js';
@@ -6,7 +9,6 @@ import { recyclingEditsPending } from '../city-common/recycling-machine-project.
 import { runRecyclingMachine } from '../city-common/recycling-machine-host.js';
 import { LIBRARY } from '../city-common/library.js';
 import { itemTargetBounds, uniformScaleForBounds } from '../city-common/model-scale.js';
-import { vehicleTargetLength } from '../city-common/vehicle-scale.js';
 import { commitReward, flushRewardSaves } from '../city-common/reward-persistence.js';
 import { registerWorkspaceAdapter } from '../city-common/workspace.js';
 import * as THREE from 'three';
@@ -25,52 +27,25 @@ import { createGLTFLoader } from '../shared/gltf.js';
 const text = (en,zh) => currentLang()==='zh-Hant'?zh:en;
 const mat = color => new THREE.MeshStandardMaterial({color,roughness:.75});
 function box(g,w,h,d,color,x=0,y=0,z=0) { const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));m.position.set(x,y,z);m.receiveShadow=true;g.add(m);return m; }
-function dispose(root) {root.traverse(o=>{o.geometry?.dispose();if(o.material?.map)o.material.map.dispose();o.material?.dispose();o.element?.remove();});root.removeFromParent();}
+function dispose(root) {
+  if(!root)return;
+  root.traverse(o=>{
+    if(o.isInstancedMesh)o.dispose();o.geometry?.dispose();
+    for(const material of Array.isArray(o.material)?o.material:[o.material]){material?.map?.dispose();material?.dispose();}
+    o.element?.remove();
+  });root.removeFromParent();
+}
 function sign(g,label,x,y,z,width=9) {
   const canvas=document.createElement('canvas');canvas.width=768;canvas.height=128;
   const ctx=canvas.getContext('2d');ctx.fillStyle='#21453f';ctx.fillRect(0,0,768,128);ctx.fillStyle='#faf4df';ctx.font='bold 48px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,384,64,730);
   const mesh=new THREE.Mesh(new THREE.PlaneGeometry(width,width/6),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(canvas),side:THREE.DoubleSide}));mesh.position.set(x,y,z);g.add(mesh);return mesh;
 }
-function station(root) {
-  for(const [x,z,w,d] of [[-.5,-1,10,5],[0,4,21,4],[-8.3,-1,7.2,4],[3,-6.75,14.5,8.5]])box(root,w,.12,d,0xb6b9a5,x,.06,z);
-  box(root,9,.35,2,0x334345,-.5,1.8,-1);
-  for(let x=-4.8;x<=3;x+=.55)box(root,.045,.03,1.9,0x738580,x,2,-1);
-  for(const x of [-4,2])for(const z of [-1.6,-.4])box(root,.2,1.8,.2,0x354b48,x,.9,z);
-  for(const z of [-2.25,.25])box(root,.35,3,.35,0xe9c768,-1,2,z);
-  box(root,.5,.35,3,0xe9c768,-1,3.5,-1);
-  const diverter=box(root,2,.18,.35,0xd8e6d9,3,2,-1);
-  const bins={};
-  const meters={},contents={};
-  for(const [i,entry] of BINS.entries()) {
-    const label=entry.label,x=-8.4+i*2.8,z=4,color=Number(entry.color.replace('#','0x'));
-    box(root,2.4,.15,2.5,color,x,.18,z);
-    for(const dx of [-1.15,1.15])box(root,.15,1.45,2.5,color,x+dx,.85,z);
-    box(root,2.4,1.45,.15,color,x,.85,z+1.2);box(root,2.4,.8,.15,color,x,.48,z-1.2);
-    bins[entry.id]=new THREE.Vector3(x,.8,z);
-    contents[entry.id]=new THREE.Group();root.add(contents[entry.id]);
-    const canvas=document.createElement('canvas');canvas.width=512;canvas.height=256;const texture=new THREE.CanvasTexture(canvas);
-    const meter=new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.3),new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide}));meter.position.set(x,2.1,z+1.9);meter.rotation.x=-Math.PI/4;root.add(meter);
-    meters[entry.id]={canvas,texture,last:null};
-  }
-  sign(root,text('CITY RECYCLING','城市回收站'),3,10.5,-2.4,11);
-  const waiting=new THREE.Group();root.add(waiting);
-  const loader=createGLTFLoader();
-  for(const [id,x,z,rotation] of [['veh_garbage_kc',-8.4,-1,-Math.PI/2],['bld_kenney_industrial_a',3,-6.75,0]]) {
-    const item=LIBRARY.find(item=>item.id===id);
-    loader.loadAsync(item.glb).then(gltf=>{const model=gltf.scene;const bounds=new THREE.Box3().setFromObject(model);const size=bounds.getSize(new THREE.Vector3());
-      model.scale.setScalar(item.category==='vehicles'?vehicleTargetLength(item)/Math.max(size.x,size.y,size.z):uniformScaleForBounds(size,itemTargetBounds(item)));
-      model.rotation.y=rotation;bounds.setFromObject(model);const center=bounds.getCenter(new THREE.Vector3());model.position.set(x-center.x,-bounds.min.y,z-center.z);root.add(model);
-    }).catch(()=>{});
-  }
-  return {diverter,bins,meters,waiting,contents};
-}
 function previewSchool(root){
  const group=new THREE.Group();group.name='mixed-driving-school';group.position.set(-SCHOOL_BOUNDS.cx,0,-SCHOOL_BOUNDS.cz);root.add(group);
- box(group,SCHOOL_BOUNDS.w,.16,SCHOOL_BOUNDS.d,0xadb7a0,SCHOOL_BOUNDS.cx,-.1,SCHOOL_BOUNDS.cz);
- renderDrivingCourse(group,SCHOOL_PREVIEW);sign(group,text('DRIVING SCHOOL','AI 駕駛學校'),0,3.8,-5,12);
- let cancelled=false;const retry=document.createElement('button');retry.textContent=text('Audi loading…','載入 Audi…');retry.disabled=true;const label=new CSS2DObject(retry);label.position.set(0,3,3);group.add(label);
- async function load(){retry.disabled=true;try{const car=await loadDrivingAudi();if(cancelled){dispose(car);return;}const p=pointAt(SCHOOL_PREVIEW.track,3);car.position.set(p.x,.15,p.z);car.rotation.y=p.heading;group.add(car);label.removeFromParent();retry.remove();}catch{if(cancelled)return;retry.disabled=false;retry.textContent=text('Audi unavailable · Retry','Audi 無法載入 · 重試');}}
- retry.onclick=load;load();return {group,cancel(){cancelled=true;}};
+ renderDrivingCourse(group,SCHOOL_PREVIEW,{trial:false});
+ let cancelled=false,trialVisible=false,parked=null;const retry=document.createElement('button');retry.textContent=text('Audi loading…','載入 Audi…');retry.disabled=true;const label=new CSS2DObject(retry);label.position.set(0,3,3);group.add(label);
+ async function load(){retry.disabled=true;try{const car=await loadDrivingAudi();if(cancelled){dispose(car);return;}const p=pointAt(SCHOOL_PREVIEW.track,3);car.position.set(p.x,.15,p.z);car.rotation.y=p.heading;parked=car;car.visible=!trialVisible;group.add(car);label.removeFromParent();retry.remove();}catch{if(cancelled)return;retry.disabled=false;retry.textContent=text('Audi unavailable · Retry','Audi 無法載入 · 重試');}}
+ retry.onclick=load;load();return {group,bounds:SCHOOL_BOUNDS,setTrialVisible(value){trialVisible=value;if(parked)parked.visible=!value;label.visible=!value;},cancel(){cancelled=true;}};
 }
 function school(root,track) {
   const group=new THREE.Group();group.position.z=-15;root.add(group);
@@ -97,50 +72,67 @@ function school(root,track) {
   return {group,car,lamp,rays};
 }
 
-export function mountCityActivities({scene,camera,renderer,layout,focus,props=[],trees=[],onDrivingEntry,onOpen}) {
-  const roots=new Map(), sites=placeActivitySites({scale:layout.scaleMeters,focus,buildings:layout.buildings,roads:layout.roads,props,trees});
+export function mountCityActivities({scene,camera,renderer,layout,focus,props=[],trees=[],recyclingSite=null,onEquipmentCollider,onDrivingEntry,onOpen}) {
+  const roots=new Map(), sites=placeActivitySites({scale:layout.scaleMeters,focus,buildings:layout.buildings,roads:layout.roads,props:[...props,...(recyclingSite?.reservations||[]).map(r=>({pos:[r.x,r.z],footprint:[r.w,r.d]}))],trees,kinds:['driving']});
+  if(recyclingSite)sites.unshift(recyclingSite);
   const priorTouchAction=renderer.domElement.style.touchAction;
   const controls=new OrbitControls(camera,renderer.domElement);controls.enabled=false;renderer.domElement.style.touchAction=priorTouchAction;controls.maxPolarAngle=Math.PI*.47;controls.minDistance=10;controls.maxDistance=80;
   const lifetime=new AbortController(), listen=(target,event,fn)=>target.addEventListener(event,fn,{signal:lifetime.signal});
-  let active=null,trial=null,skill=null,practiceSkill=null,store=null,projectId=null,generation=0,loading=false,loadError=null,inspection=null,disposed=false,contextLost=false,reported=null,scanner=null,driver=null,waste=null,restored={},savedCamera=null,sorterSession=null,savedModels={},skillSelection=null,machine=null,newerEdits=false,resetGeneration=0,framedTablet=null;
+  let active=null,trial=null,skill=null,practiceSkill=null,store=null,projectId=null,generation=0,loading=false,loadError=null,inspection=null,disposed=false,contextLost=false,reported=null,scanner=null,driver=null,restored={},savedCamera=null,sorterSession=null,savedModels={},skillSelection=null,machine=null,newerEdits=false,resetGeneration=0,framedTablet=null,frameSize='';
   const panel=document.createElement('section');panel.className='city-activity-panel';panel.hidden=true;panel.setAttribute('aria-label',text('City activity','城市活動'));
   panel.innerHTML=`<header><h2></h2><button data-act="close" aria-label="${text('Leave activity','離開活動')}">×</button></header><label>${text('Exercise','練習')} <select data-act="scenario"></select></label><div data-personal hidden><p data-sorter-name></p><p data-waiting></p></div><p data-status role="status"></p><div class="activity-actions"><button data-act="run">${text('Start','開始')}</button><button data-act="pause">${text('Pause','暫停')}</button><button data-act="step">${text('Step','單步')}</button><button data-act="reset">${text('Reset','重設')}</button><a data-improve>${text('Edit in Workshop','到工作坊編輯')}</a></div><details data-bin-details open><summary>${text('Bin counts and fullness','回收箱數量和容量')}</summary><div data-bin-readouts aria-label="${text('Bin counts and fullness','回收箱數量和容量')}"></div></details><details><summary>${text('Inspect the decision','查看模型決定')}</summary><img data-scanner width="112" height="112" alt="${text('Scanned object','已掃描物件')}"><label data-history-label>${text('Review a decision','重看決定')} <select data-history></select></label><pre data-evidence></pre></details><p data-result></p>`;
   document.body.append(panel);
   const q=s=>panel.querySelector(s);
   if(renderer.domElement.clientWidth<=1000)q('[data-bin-details]').open=false;
-  const dock=document.createElement('nav');dock.className='city-activity-dock';dock.setAttribute('aria-label',text('Learning sites','學習地點'));document.body.append(dock);
-  for(const site of sites){const root=new THREE.Group();root.position.set(site.x,.05,site.z);scene.add(root);roots.set(site.kind,root);
-    if(site.kind==='recycling')scanner=station(root);else driver=previewSchool(root);
-    const button=document.createElement('button');button.textContent=site.kind==='recycling'?text('♻ Recycling','♻ 回收站'):text('▣ Driving school','▣ 駕駛學校');button.onclick=()=>open(site.kind);dock.append(button);
-    const entry=button.cloneNode(true);entry.onclick=()=>open(site.kind);entry.className='activity-entry';const label=new CSS2DObject(entry);label.position.set(0,5,site.kind==='driving'?-20:-3);root.add(label);
+  function addLab(root,site){
+    const fallback=new THREE.Group();root.add(fallback);
+    fallback.name='recycling-lab-fallback';
+    const fp=site.lab.footprint||[24,20],x=site.x-site.lab.pos[0],z=site.z-site.lab.pos[1];
+    box(fallback,fp[0],8,fp[1],0x487d65,x,4,z);
+    sign(fallback,text('Recycling Lab','資源回收實驗室'),x,5,z+fp[1]/2+.1,16);
+    createGLTFLoader().loadAsync('assets/models/mission/recycling.glb').then(gltf=>{
+      if(disposed||!root.parent){dispose(gltf.scene);return;}
+      const model=gltf.scene,b=new THREE.Box3().setFromObject(model),size=b.getSize(new THREE.Vector3());
+      model.scale.setScalar(uniformScaleForBounds(size,{width:fp[0],depth:fp[1],height:36}));
+      // Counter-rotate the Lab: the equipment faces outwards, the existing
+      // building keeps its authored orientation and north-facing entrance.
+      model.rotation.y=Math.PI;model.name='recycling-lab-model';
+      b.setFromObject(model);const center=b.getCenter(new THREE.Vector3());model.position.set(x-center.x,-b.min.y,z-center.z);root.add(model);dispose(fallback);
+      sign(root,text('Recycling Lab','資源回收實驗室'),x,4,z+fp[1]/2+.2,16);
+    }).catch(()=>{});
   }
-  if(!roots.has('driving')){const note=document.createElement('span');note.textContent=text('Driving School needs more clear ground. Open it from here.','駕駛學校需要更多空地，可從這裡開啟。');dock.append(note);const button=document.createElement('button');button.textContent=text('▣ Driving school','▣ 駕駛學校');button.onclick=()=>open('driving');dock.append(button);}
-  for(const kind of Object.keys(ACTIVITY_SITES))if(!roots.has(kind)&&kind!=='driving'){const note=document.createElement('span');note.textContent=text('No clear ground for '+kind+'. Keep a space in the planner.','沒有足夠空地，請在規劃器預留位置。');dock.append(note);}
+  function install(site){const root=new THREE.Group();root.name=site.kind+'-learning-site';root.position.set(site.x,.05,site.z);root.rotation.y=site.yaw||0;scene.add(root);roots.set(site.kind,root);
+    if(site.kind==='recycling'){scanner=createRecyclingPresentation(root,{site,truckURL:LIBRARY.find(row=>row.id==='veh_garbage_kc')?.glb,onTruckCollider:site===recyclingSite?onEquipmentCollider:null});if(site.generated)addLab(root,site);}else driver=previewSchool(root);
+  }
+  for(const site of sites)install(site);
   function pause(){trial?.pause();paint();}
-  function close(){if(active==='driving'&&driver){driver.cancel?.();dispose(driver.group);if(sites.some(s=>s.kind==='driving'))driver=previewSchool(roots.get('driving'));else{dispose(roots.get('driving'));roots.delete('driving');driver=null;}}document.body.classList.remove('city-activity-open');generation++;loading=false;pause();active=null;framedTablet=null;panel.hidden=true;controls.enabled=false;camera.clearViewOffset();renderer.domElement.style.touchAction=priorTouchAction;if(savedCamera){camera.position.copy(savedCamera.position);camera.quaternion.copy(savedCamera.quaternion);savedCamera=null;}}
+  function close(){if(active==='driving'&&driver){driver.cancel?.();dispose(driver.group);if(sites.some(s=>s.kind==='driving'))driver=previewSchool(roots.get('driving'));else{dispose(roots.get('driving'));roots.delete('driving');driver=null;}}if(active==='recycling'&&!recyclingSite){scanner?.dispose();dispose(roots.get('recycling'));roots.delete('recycling');scanner=null;}document.body.classList.remove('city-activity-open');generation++;loading=false;pause();active=null;framedTablet=null;frameSize='';panel.hidden=true;controls.enabled=false;camera.clearViewOffset();renderer.domElement.style.touchAction=priorTouchAction;if(savedCamera){camera.position.copy(savedCamera.position);camera.quaternion.copy(savedCamera.quaternion);savedCamera=null;}}
   function objectFor(row){const v2=MATERIALS.find(r=>r.id===row.id),v1=WASTE.find(r=>r.id===row.id);return personal()?neutralWaste(row.id):v2?createMaterial(v2):v1?createWaste(v1):neutralWaste(row.id);}
   const personal=()=>active==='recycling'&&q('select').value==='personal';
   function chosenSkill(){if(active==='recycling')return machine?.version===1?{cap:structuredClone(machine),installationId:null}:practiceSkill;return practiceSkill;}
   async function reset(){if(!active)return;const own=++resetGeneration, activityGeneration=generation;inspection=null;loadError=null;if(personal())sorterSession=readSorterSession(projectId);const scenario=q('select').value;skill=chosenSkill();const rows=active==='recycling'?(scenario==='personal'?(sorterSession?.batch||[]).map(row=>({id:row.id,vector:row.vector})):selectItems(window.WorkshopLibraryData[scenario==='materials-v2'?'cityRecyclingV2':'cityRecycling'].photos,{seed:1,count:scenario==='materials-v2'?12:9})):[];trial=null;reported=null;loading=true;paint();let machineResults=null;try{if(active==='recycling'&&skill)machineResults=await runRecyclingMachine(skill.cap,rows);}catch(e){if(own===resetGeneration&&activityGeneration===generation){loading=false;loadError=e.message;paint();}return;}if(own!==resetGeneration||activityGeneration!==generation)return;loading=false;trial=active==='recycling'||skill?new ActivityTrial(active,skill?.cap||null,scenario,rows,machineResults):null;
-    if(active==='recycling'&&scanner){for(const group of Object.values(scanner.contents))while(group.children.length)dispose(group.children[0]);while(scanner.waiting.children.length)dispose(scanner.waiting.children[0]);for(let i=0;i<Math.min(rows.length,12);i++){const item=objectFor(rows[i]);item.userData.objectId=rows[i].id;item.name='waiting-'+rows[i].id;item.position.set(-8+(i%4)*.75,.1,1+Math.floor(i/4)*.8);scanner.waiting.add(item);}}
-    if(active==='driving'){driver.cancel?.();dispose(driver.group);driver=school(roots.get('driving'),SCHOOL_TRACKS[scenario]);} if(waste){dispose(waste);waste=null;}paint();}
+    if(active==='recycling'&&scanner)scanner.reset(rows,objectFor);
+    if(active==='driving'){driver.cancel?.();dispose(driver.group);driver=school(roots.get('driving'),SCHOOL_TRACKS[scenario]);}paint();}
   function improveURL(){const url=new URL('../workshop/',location.href),back=new URL('../city-builder/',location.href);if(active==='recycling'){url.searchParams.set('tab','recycling');if(machine?.sourceMachineId)url.searchParams.set('machine',machine.sourceMachineId);}back.searchParams.set('activity',active);back.searchParams.set('exercise',q('select').value);if(active==='driving'){back.searchParams.set('drivingMode','legacy');url.searchParams.set('drivingMode','legacy');if(skill?.cap.workshop?.sourceMachineId)url.searchParams.set('machine',skill.cap.workshop.sourceMachineId);}
     if(personal()){url.searchParams.set('sorter','1');url.searchParams.set('returnTo',back.href);return url.href;}url.searchParams.set('publishTarget','city');url.searchParams.set('hostInstanceId',ACTIVITY_SITES[active]);url.searchParams.set('returnTo',back.href);url.searchParams.set('exercise',q('select').value);
     url.searchParams.set('skill',active==='driving'?'drive':'image');if(active==='recycling')url.searchParams.set('collection',q('select').value==='batch-1'?'city-recycling-v1':'city-recycling-v2');if(skill?.cap.workshop?.modelId)url.searchParams.set('model',skill.cap.workshop.modelId);return url.href;}
   function open(kind){if(kind==='driving'&&onDrivingEntry)return onDrivingEntry();return openActivity(kind);}
   async function openActivity(kind,selectedCapability=null){
-    onOpen?.();
+    if(disposed)return;
+    close();onOpen?.();
+    if(kind==='recycling'&&!roots.has(kind))install(practiceRecyclingSite(layout.scaleMeters));
     if(kind==='driving'&&!roots.has(kind)){const root=new THREE.Group();root.position.set(layout.scaleMeters+120,0,layout.scaleMeters+120);scene.add(root);roots.set(kind,root);driver=previewSchool(root);}
-    if(disposed||!roots.has(kind))return;close();document.body.classList.add('city-activity-open');active=kind;const own=++generation;loading=true;loadError=null;inspection=null;skill=null;trial=null;panel.hidden=false;
-    savedCamera={position:camera.position.clone(),quaternion:camera.quaternion.clone()};const root=roots.get(kind),tablet=renderer.domElement.clientWidth<=1000;controls.target.copy(root.position).add(new THREE.Vector3(kind==='driving'?-2:0,1,0));framedTablet=tablet;camera.position.copy(controls.target).add(new THREE.Vector3(22,26,kind==='driving'?32:22).multiplyScalar(tablet?1.25:1));controls.enabled=true;renderer.domElement.style.touchAction='none';controls.update();
-    q('h2').textContent=kind==='driving'?text('Driving school','駕駛學校'):text('Recycling station','回收站');
+    if(disposed||!roots.has(kind))return;document.body.classList.add('city-activity-open');active=kind;const own=++generation;loading=true;loadError=null;inspection=null;skill=null;trial=null;panel.hidden=false;
+    panel.querySelector('[data-venue-note]')?.remove();if(!sites.some(s=>s.kind===kind)){const note=document.createElement('p');note.dataset.venueNote='';note.append(text('This city needs more clear ground. This is a practice venue. ','城市需要更多空地。這裡是練習場地。'));const link=document.createElement('a');link.href='../planner/';link.textContent=text('Open Planner','開啟規劃器');note.append(link);panel.prepend(note);}
+    savedCamera={position:camera.position.clone(),quaternion:camera.quaternion.clone()};const root=roots.get(kind),tablet=renderer.domElement.clientWidth<=1000;controls.target.copy(root.position).add(new THREE.Vector3(kind==='driving'?-2:0,1,0));framedTablet=tablet;camera.position.copy(controls.target).add(new THREE.Vector3(22,26,kind==='driving'?32:22).applyAxisAngle(new THREE.Vector3(0,1,0),root.rotation.y).multiplyScalar(tablet?1.25:1));controls.enabled=true;renderer.domElement.style.touchAction='none';controls.update();
+    q('h2').textContent=kind==='driving'?text('Driving school','駕駛學校'):text('Recycling Lab','資源回收實驗室');
     q('select').replaceChildren();for(const [value,en,zh] of kind==='driving'?[['bend','Gentle bend','緩彎'],['obstacle','Stop before a barrier','障礙物前停車'],['light','Red → green','紅燈 → 綠燈']]:[['materials-v2','Material practice — 12 objects','物料練習 — 12 件物品'],['personal','My photos','我的相片'],['batch-1','Earlier practice — 9 objects','舊版練習 — 9 件物品']]){const o=document.createElement('option');o.value=value;o.textContent=text(en,zh);q('select').append(o);}paint();q('[data-improve]').href=improveURL();
     try{
       panel.dataset.loadingStage='project';store ||= createProjectStore();const project=await store.openActiveProject();panel.dataset.loadingStage='installation';const [caps,installs,section,models,selections,publishedMachine]=await Promise.all([store.readCapabilities(),store.readInstallations(),store.readSection('cityActivities'),store.readSection('sorterModels'),store.readSection('workshopSkills'),store.readSection('recyclingMachine')]);
       if(own!==generation||disposed)return;projectId=project.id;restored=section;machine=publishedMachine;newerEdits=await recyclingEditsPending(await store.readSection('workshop'),machine);savedModels=models;skillSelection=selections.recycling;sorterSession=readSorterSession(projectId);
       practiceSkill=siteSkill(caps,installs,ACTIVITY_SITES[kind],cap=>kind==='driving'?checkDriveCompatibility(cap).ok:checkCompatibility(cap).ok);
       if(kind==='driving'&&selectedCapability)practiceSkill=checkDriveCompatibility(selectedCapability).ok?{cap:structuredClone(selectedCapability),installationId:null}:null;
-      const choices=await store.readSection('activityExercises');const requested=kind==='recycling'?resolveExercise(new URLSearchParams(location.search).get('exercise'),choices.recycling,section.recycling,!!sorterSession.batch.length):new URLSearchParams(location.search).get('exercise')||section[kind]?.scenario;
+      const choices=await store.readSection('activityExercises');const requested=kind==='recycling'?resolveExercise(new URLSearchParams(location.search).get('exercise')||(new URLSearchParams(location.search).has('batch')?'batch-1':null),choices.recycling,section.recycling,!!sorterSession.batch.length):new URLSearchParams(location.search).get('exercise')||section[kind]?.scenario;
       panel.dataset.loadingStage='scanner';if(kind==='recycling'&&requested!=='personal')await loadScannerData();if(own!==generation||disposed)return;
       if([...q('select').options].some(o=>o.value===requested))q('select').value=requested;
       loading=false;await reset();paint();q('[data-improve]').href=improveURL();
@@ -160,7 +152,7 @@ export function mountCityActivities({scene,camera,renderer,layout,focus,props=[]
     if(active==='recycling'&&!personal()&&r){const row=trial.rows.find(row=>row.id===r.id);if(row?.src)q('[data-scanner]').src=`../workshop/${row.src}`;}
     q('[data-evidence]').textContent=last?`${text('Action','動作')}: ${actionName(last.decision)}\n${Object.entries(last.observation||{}).map(([k,v])=>`${sensorName(k)}: ${v}`).join('\n')}`:r?.routedBy==='human-review'?`${text('Decision','決定')}: ${text('Human review — no model connected','人手檢查——沒有連接模型')}\n${text('Destination','目的地')}: ${materialName(r.bin.replace('bin-',''))}`:r?`${text('Model','模型')}: ${materialName(r.decision)}\n${text('Confidence','信心')}: ${Math.round(r.confidence*100)}%\n${personal()?'':`${text('Answer key','答案')}: ${materialName(r.truth)}\n`}${text('Destination','目的地')}: ${materialName(r.bin.replace('bin-',''))}${r.abstainReason?'\n'+text('Reason','原因')+': '+recyclingReason(r.abstainReason):''}`:'';
     q('[data-bin-details]').hidden=active!=='recycling';
-    if(active==='recycling'&&scanner){const counts=binCounts(trial?.results||[]),size=trial?.rows.length||0,lines=[];for(const entry of BINS){const count=counts[entry.id]||0,value=`${count} · ${binFullness(count,size)}%`,label=materialName(entry.id.replace('bin-',''));const pile=scanner.contents[entry.id];while(pile.children.length<count){const n=pile.children.length,item=objectFor(trial.rows.find(row=>row.id===trial.results.filter(r=>r.bin===entry.id)[n].id));item.userData.objectId=item.name;item.name='sorted-'+item.name;item.scale.setScalar(.6);item.position.copy(scanner.bins[entry.id]);item.position.x+=((n%3)-1)*.6;item.position.z+=(Math.floor(n/3)%3-1)*.6;item.position.y=.2+Math.floor(n/9)*.45;pile.add(item);}const meter=scanner.meters[entry.id];if(meter.last!==value){const ctx=meter.canvas.getContext('2d');ctx.fillStyle='#173a31';ctx.fillRect(0,0,512,256);ctx.fillStyle='#fff6d6';ctx.font='bold 64px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,256,65,490);ctx.font='bold 68px system-ui';ctx.fillText(value,256,180,490);meter.texture.needsUpdate=true;meter.last=value;}lines.push(`<span>${label}</span><strong>${value}</strong>`);}q('[data-bin-readouts]').innerHTML=lines.join('');const taken=trial?.state==='ready'?0:Math.min(size,(trial?.index||0)+1);scanner.waiting.children.forEach((item,i)=>{item.visible=i>=taken;});}
+    if(active==='recycling'&&scanner){scanner.update(trial);const counts=binCounts(trial?.results||[]),size=trial?.rows.length||0;q('[data-bin-readouts]').innerHTML=BINS.map(entry=>`<span>${materialName(entry.id.replace('bin-',''))}</span><strong>${counts[entry.id]||0} · ${binFullness(counts[entry.id]||0,size)}%</strong>`).join('');}
     const result=trial?.state==='finished'?trial.summary():(personal()?null:restored[active]);q('[data-result]').textContent=result?resultText(result):'';
   }
   function recyclingReason(code){return ({'human-check-bin':text('The machine sent this item to human check.','機器把這件物品送往人手檢查。'),'conflicting-outputs':text('Copies reached different destinations.','複本到達不同目的地。'),'missing-destination':text('The item did not reach a mapped bin.','物品未到達已設定的回收箱。'),'tick-limit':text('The machine reached its time limit.','機器已達到運行時間上限。'),'work-limit':text('The machine reached its work limit.','機器已達到工作量上限。'),'unsettled':text('The item was dropped or did not finish.','物品掉落或未完成分類。')})[code]||text('The machine could not finish this item.','機器未能完成這件物品的分類。');}
@@ -192,8 +184,7 @@ export function mountCityActivities({scene,camera,renderer,layout,focus,props=[]
   const unregisterWorkspace=registerWorkspaceAdapter({flush:async()=>{if(trial?.state==='finished')await persist();else await persistence;await flushRewardSaves();},capture:()=>({}),restore:async()=>{},suspend:value=>{if(value)close();}});
   function update(dt){if(disposed)return;if(document.hidden||contextLost){pause();return;}trial?.update(dt);
     if(active==='driving'&&trial){const alpha=trial.state==='running'?trial.accumulator/.1:1;const a=trial.previous||trial.car,b=trial.car;driver.car.position.set(THREE.MathUtils.lerp(a.x,b.x,alpha),0,THREE.MathUtils.lerp(a.z,b.z,alpha));driver.car.rotation.y=THREE.MathUtils.lerp(a.heading,b.heading,alpha);if(driver.lamp)driver.lamp.material.color.setHex(lightStateAt(trial.track,trial.steps.length*.1)===2?0xe65c46:0x50b388);driver.rays.forEach((r,i)=>{r.visible=q('details').open;const obs=trial.steps.at(-1)?.observation;r.scale.setScalar(Math.min(10,obs?.[['left','center','right'][i]]??10)/10);});}
-    if(active==='recycling'&&trial?.rows.length){const row=trial.rows[Math.min(trial.index,trial.rows.length-1)];if(waste?.name!==row.id){if(waste)dispose(waste);waste=objectFor(row);roots.get('recycling').add(waste);}const p=trial.phase/30,target=scanner.bins[trial.current?.bin]||scanner.bins['human-check'];
-      if(p<.4)waste.position.set(-5+p/.4*4,2,-1);else if(p<.6)waste.position.set(-1+(p-.4)/.2*4,2,-1);else {const f=(p-.6)/.4;waste.position.set(3+(target.x-3)*f,2+(target.y-2)*f*f,-1+(target.z+1)*f);}scanner.diverter.rotation.y=(target.x-3)*.1;waste.visible=trial.state!=='finished';}
+    if(active==='recycling')scanner?.update(trial);
     for(const root of roots.values())root.traverse(o=>{if(o.isCSS2DObject)o.visible=!active&&renderer.domElement.clientWidth>1000&&camera.position.distanceTo(root.position)<120;});
     if(active&&trial){const stamp=`${trial.state}:${trial.steps.length}:${trial.index}:${trial.phase===1||trial.phase===13}`;if(panel.dataset.stamp!==stamp){panel.dataset.stamp=stamp;paint();}if(trial.state==='finished')persist();}
   }
@@ -201,7 +192,20 @@ export function mountCityActivities({scene,camera,renderer,layout,focus,props=[]
   listen(panel,'click',e=>{const action=e.target.closest('[data-act]')?.dataset.act;if(action==='close')close();if(action==='run'){inspection=null;trial?.run();}if(action==='pause')pause();if(action==='step'){inspection=null;trial?.step();}if(action==='reset'){refreshRun();return;}paint();if(trial?.state==='finished')persist();});
   listen(q('select'),'change',async()=>{if(active==='recycling'){const exercise=q('select').value;await store.mutate(p=>{p.projects.activityExercises||={};p.projects.activityExercises.recycling=exercise;return p;},{reason:'recycling-exercise',versioned:false});}if(active==='recycling'&&!personal()&&(!window.WorkshopLibraryData?.cityRecycling||!window.WorkshopLibraryData?.cityRecyclingV2)){const own=generation;loading=true;paint();try{await loadScannerData();}catch(error){if(own===generation){loadError=String(error.message||error);q('[data-status]').textContent=loadError;}loading=false;return;}if(own!==generation)return;loading=false;}await reset();});listen(q('[data-history]'),'change',e=>{inspection=e.target.value===''?null:Number(e.target.value);paint();});listen(document,'visibilitychange',()=>{if(document.hidden)pause();});listen(renderer.domElement,'webglcontextlost',()=>{contextLost=true;pause();});listen(renderer.domElement,'webglcontextrestored',()=>{contextLost=false;});
   listen(window,'pagehide',close);listen(window,'keydown',e=>{if(e.key==='Escape')close();});listen(window,PROJECT_EVENT,e=>{if(['switched','imported'].includes(e.detail?.type)||(projectId&&e.detail?.projectId&&projectId!==e.detail.projectId))close();});listen(window,'storage',e=>{if(e.key===ACTIVE_PROJECT_KEY&&e.newValue!==projectId)close();});
-  const api={sites,open,openLegacyDriving:cap=>openActivity('driving',cap),close,update,get isOpen(){return !!active;},get trial(){return trial;},get state(){return loading?'loading':loadError?'error':trial?.state||'ready';},camera(){if(!active)return false;const w=renderer.domElement.clientWidth,h=renderer.domElement.clientHeight,tablet=w<=1000;if(framedTablet!==tablet){framedTablet=tablet;q('[data-bin-details]').open=!tablet;}if(tablet)camera.setViewOffset(w,h,0,h*.16,w,h);else camera.setViewOffset(w,h,w*.14,0,w,h);controls.update();return true;},destroy(){unregisterWorkspace();disposed=true;close();lifetime.abort();store?.close?.();controls.dispose();driver?.cancel?.();roots.forEach(dispose);panel.remove();dock.remove();}};
+  function frameRecycling(){
+    const w=renderer.domElement.clientWidth,h=renderer.domElement.clientHeight,r=panel.getBoundingClientRect(),key=`${w}:${h}:${Math.round(r.top)}:${Math.round(r.left)}`;if(frameSize===key)return;frameSize=key;
+    camera.clearViewOffset();camera.updateProjectionMatrix();
+    const root=roots.get('recycling'),tablet=w<=1000;
+    const available=tablet?{x:24,y:64,w:w-48,h:Math.max(200,r.top-80)}:{x:24,y:64,w:Math.max(300,r.left-48),h:h-88};
+    controls.target.copy(root.localToWorld(new THREE.Vector3(-1.5,1.5,.8)));
+    const direction=new THREE.Vector3(26,25,27).normalize().applyAxisAngle(new THREE.Vector3(0,1,0),root.rotation.y);
+    const bounds=recyclingViewBounds(),corners=[];
+    for(const x of [bounds.minX,bounds.maxX])for(const y of [0,bounds.maxY])for(const z of [bounds.minZ,bounds.maxZ])corners.push(root.localToWorld(new THREE.Vector3(x,y,z)));
+    let distance=24;
+    for(;distance<100;distance+=.5){camera.position.copy(controls.target).addScaledVector(direction,distance);camera.lookAt(controls.target);camera.updateMatrixWorld();const points=corners.map(p=>p.clone().project(camera));if(points.every(p=>Math.abs(p.x)<available.w/w*.94&&Math.abs(p.y)<available.h/h*.94))break;}
+    camera.setViewOffset(w,h,w/2-(available.x+available.w/2),h/2-(available.y+available.h/2),w,h);controls.update();
+  }
+  const api={get drivingSite(){return driver?.setTrialVisible?driver:null;},sites,open,openLegacyDriving:cap=>openActivity('driving',cap),close,update,get isOpen(){return !!active;},get trial(){return trial;},get state(){return loading?'loading':loadError?'error':trial?.state||'ready';},camera(){if(!active)return false;const w=renderer.domElement.clientWidth,h=renderer.domElement.clientHeight,tablet=w<=1000;if(framedTablet!==tablet){framedTablet=tablet;q('[data-bin-details]').open=!tablet;}if(active==='recycling')frameRecycling();else if(tablet)camera.setViewOffset(w,h,0,h*.16,w,h);else camera.setViewOffset(w,h,w*.14,0,w,h);controls.update();return true;},destroy(){unregisterWorkspace();disposed=true;close();lifetime.abort();store?.close?.();controls.dispose();driver?.cancel?.();scanner?.dispose();roots.forEach(dispose);panel.remove();}};
   return api;
 }
 const cataloguePromises=new Map();

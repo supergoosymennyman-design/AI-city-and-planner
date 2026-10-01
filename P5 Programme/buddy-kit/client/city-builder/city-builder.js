@@ -1,3 +1,5 @@
+import { resolveRecyclingSite, overlaps, findSafeArrival } from '../city-common/recycling-site.js';
+import { createDestinationRegistry, mountPlaces } from './places.js';
 import { MAX_ARCHIVE_BYTES } from '../city-common/project-store.js';
 import { downloadProject, restoreProjectBackup, showRestoreFailure } from '../city-common/backup-coordinator.js';
 import { registerWorkspaceAdapter } from '../city-common/workspace.js';
@@ -744,12 +746,15 @@ function cleanupPropTools() {
 }
 
 let cityActivities = null;
+let recyclingSite = null, places = null;
+const destinations = createDestinationRegistry();
 let drivingArena = null;
 function openDriving({legacy=false, capability=null}={}) {
   if(legacy){drivingArena?.close();return cityActivities?.openLegacyDriving(capability);}
   return drivingArena?.open();
 }
 function cleanupBootSystems() {
+  places?.destroy();places=null;destinations.clear();recyclingSite=null;
   drivingArena?.destroy(); drivingArena = null;
   cityActivities?.destroy(); cityActivities = null;
   cleanupPropTools();
@@ -1825,7 +1830,14 @@ function buildTreeVariants() {
   }
 }
 
+function recyclingSceneryExcluded(x,z,radius=6){
+  return !!recyclingSite?.reservations.some(r=>overlaps(r,{x,z,w:radius*2,d:radius*2}));
+}
+function activityPlacementObstacles(){
+  return (cityActivities?.sites||[]).flatMap(site=>(site.reservations||[site]).map(r=>({pos:[r.x,r.z],footprint:[r.w,r.d]})));
+}
 function addTree(x, z, scale, park = false) {
+  if(recyclingSite?.reservations.some(r=>overlaps(r,{x,z,w:8,d:8})))return;
   if(layout.autoScenery===false)return;
   const network=roadBarrierNetwork || buildTrafficNetwork(layout.roads||[]);
   // Model canopy extends beyond the trunk: reserve a conservative 2.2m body
@@ -1973,6 +1985,7 @@ function loadNatureFiller(gen = _bootGen, assets = PARK_VEGETATION_ASSETS) {
 }
 
 function addNatureFiller(placement) {
+  if(recyclingSite?.reservations.some(r=>overlaps(r,{...placement,w:12,d:12})))return;
   if(layout.autoScenery===false)return;
   _naturePlacements.push(placement);
 }
@@ -2076,8 +2089,9 @@ function addPark(cx, cz, radius) {
       for (let i = 0; i < benchCount; i++) {
         const angle = (i + 0.5) * Math.PI * 2 / benchCount;
         quaternion.setFromAxisAngle(up, -angle - Math.PI / 2);
-        matrix.compose(new THREE.Vector3(cx + Math.cos(angle) * radius * 0.61, 0,
-          cz + Math.sin(angle) * radius * 0.61), quaternion, new THREE.Vector3(1, 1, 1));
+        const x=cx+Math.cos(angle)*radius*.61,z=cz+Math.sin(angle)*radius*.61;
+        const visible=recyclingSceneryExcluded(x,z,3)?0:1;
+        matrix.compose(new THREE.Vector3(x,0,z),quaternion,new THREE.Vector3(visible,visible,visible));
         benches.setMatrixAt(i, matrix);
       }
       benches.instanceMatrix.needsUpdate = true;
@@ -3011,6 +3025,7 @@ function placeParkedVehicles() {
       const along = (i - (cfg.count - 1) / 2) * 4.6;
       const px = b.pos[0] + perpX * edge + dx * along;
       const pz = b.pos[1] + perpZ * edge + dz * along;
+      if(recyclingSceneryExcluded(px,pz,4))continue;
       clone.position.set(px, sy * s / 2, pz);   // base on y=0
       clone.rotation.y = Math.atan2(dx, dz) + (cfg.rotY || 0);   // face along the road
       // Keep a compact collider beside the rendered model. The dimensions are
@@ -3243,11 +3258,11 @@ async function spawnChampion(isCurrent = () => true) {
       showToast(tf('toast.flying', { name: buildingName(building) }));
       return true;
     },
-    // Buddy's /enter follows the same gateway-only path as the floating prompt.
+    // Buddy's /enter shares the nearby learning destination prompt.
     enterNearQuest() {
       const quest = this.nearQuest;
-      if (!quest?.directUrl) return { ok: false, note: 'Walk up to AI Workshop or Fit Studio to enter.' };
-      location.assign(quest.directUrl);
+      if (!quest?.enter) return { ok: false, note: 'Walk up to a learning destination to enter.' };
+      quest.enter();
       return { ok: true, note: `Entering ${quest.labelEn}` };
     },
   };
@@ -3423,7 +3438,7 @@ function rebuildNeighbourhood(obstacles = []) {
   publicSpaces?.destroy(); parkLandscape?.destroy(); streetLife?.destroy();
   // Markings remain visible, but ground residents do not enter carriageways.
   neighbourhood = createNeighbourhood(layout, { mobile: IS_MOBILE, roads: publicRoads,
-    crossings: [], obstacles });
+    crossings: [], obstacles: [...obstacles,...(recyclingSite?.reservations||[]).map(r=>({x0:r.x-r.w/2,x1:r.x+r.w/2,z0:r.z-r.d/2,z1:r.z+r.d/2}))] });
   streetLife = createStreetLife(neighbourhood, { mobile: IS_MOBILE, reducedMotion: reducedMotion.matches, previousActors });
   publicSpaces = createPublicSpaces(scene, neighbourhood, {treeVariants: _treeVariants});
   parkLandscape=createParkLandscape(scene,layout,neighbourhood,{mobile:IS_MOBILE});city.parkLandscape=parkLandscape;
@@ -4193,7 +4208,7 @@ function startLoop(owner) {
   const dt = Math.min(0.05, frame.elapsed);
   const tNow = now / 1000;
 
-  if (drivingArena?.active) clearInput();
+  if (drivingArena?.active || cityActivities?.isOpen) {clearInput();walkNav=null;}
   cityActivities?.update(dt);
   timeOfDay?.update(dt);
   placementDust?.update(dt);
@@ -4300,7 +4315,7 @@ function startLoop(owner) {
    }
 
   updateQuestPrompt();
-  updateCamera(dt, taxiActive, driveActive);
+  if (!drivingArena?.update(frame.elapsed)) updateCamera(dt, taxiActive, driveActive);
   if (grab) grab.update(dt, tNow);
   // Goal ring marks the nearest enterable gateway.
   if ((now - _lastGoalTs) > 400) {
@@ -4308,7 +4323,7 @@ function startLoop(owner) {
     _goalTarget = findNextQuest();
   }
   if (goalRing) {
-    if (_goalTarget && champion && !taxiActive && !driveActive) {
+    if (_goalTarget && champion && !taxiActive && !driveActive && !cityActivities?.isOpen && !drivingArena?.active && !selectMode && !activeModal() && !document.body.classList.contains('major-panel-open') && !document.getElementById('city-workspaces')?.open) {
       goalRing.visible = true;
       goalRing.position.set(_goalTarget.pos[0], 2.2, _goalTarget.pos[1]);
       const gs = 1 + 0.15 * Math.sin(now * 0.006);
@@ -4431,22 +4446,49 @@ document.addEventListener('keydown', (e) => {
 });
 
 function nearestQuest() {
-  if (!champion || !specialSystem) return null;
-  const p = champion.state.pos;
-  let best = null, bestD = 80;
-  for (const ref of specialSystem.questRefs) {
-    if (!ref.q.directUrl) continue;
-    const d = Math.hypot(ref.cx - p.x, ref.cz - p.z);
-    if (d < bestD) { bestD = d; best = ref; }
+  if(!champion)return null;
+  const entry=destinations.nearest(champion.state.pos);
+  return entry ? {pos:[entry.arrival.x,entry.arrival.z],labelEn:entry.labels.en,labelZh:entry.labels.zh,
+    enterEn:'Enter '+entry.labels.en,enterZh:'進入'+entry.labels.zh,enter:entry.enter,gateway:entry.id} : null;
+}
+
+function prepareActivityEntry(){
+  places?.close();orbit.introUntil=0;walkNav=null;taxiNav=null;taxi?.setAutoNav(false);clearInput();
+  if(taxi?.isActive())taxi.reset();
+  if(drivingCar?.isActive()){drivingCar.exit();updateDriveButtons();}
+  updateFlyButtons();focusedUI?.setMode('explore',{openLibrary:false});
+}
+function travelToDestination(entry){
+  if(!champion||!entry?.available||!entry.arrival)return false;
+  const point=findSafeArrival(entry.arrival,p=>{
+    if(p.x<2||p.z<2||p.x>layout.scaleMeters-2||p.z>layout.scaleMeters-2)return false;
+    const car=drivingCar?.isActive() ? drivingCar.getCollisionBody?.() : null;
+    return !resolveBoxCollisions(boxBody({x:p.x,z:p.z,width:1.6,length:1.6}),[...championStaticObstacles(),...trafficCollisionBodies(),car]).collided;
+  });
+  if(!point){showToast(currentLang()==='zh-Hant'?'入口受阻，請移開附近物件。':'The approach is blocked. Move nearby objects and try again.');return false;}
+  cityActivities?.close();drivingArena?.close();prepareActivityEntry();champion.state.vel.set(0,0,0);champion.landAt(point.x,point.z);
+  const target=entry.target||entry.arrival;champion.state.facing=Math.atan2(target.x-point.x,target.z-point.z);champion.group.rotation.y=champion.state.facing;
+  orbit.theta=champion.state.facing+Math.PI;orbit.lastOrbitTs=performance.now();
+  orbit.target.copy(champion.state.pos);orbit.dist=orbit.distWalk;updateCamera(1,false,false);
+  sim.nearQuest=nearestQuest();updateQuestPrompt();return true;
+}
+function installDestinations(){
+  destinations.clear();
+  const add=entry=>destinations.register(entry);
+  for(const [id,en,zh] of [['recycling','Recycling Lab','資源回收實驗室'],['driving','Driving School','駕駛學校']]){
+    const site=cityActivities.sites.find(s=>s.kind===id),arrival=site&&(site.arrival||{x:site.x+site.w/2+3,z:site.z});
+    add({id,labels:{en,zh},available:!!site,arrival,target:site&&(site.entrance||{x:site.x,z:site.z}),enter:()=>cityActivities.open(id)});
   }
-  return best ? best.q : null;
+  for(const state of Object.values(city.gateways||{}))add({id:state.id,labels:{en:state.quest.labelEn,zh:state.quest.labelZh},available:true,arrival:{x:state.position.x,z:state.position.z+state.footprint[1]/2+3},target:state.position,enter:()=>location.assign(state.quest.directUrl)});
+  places=mountPlaces({registry:destinations,travel:travelToDestination,language:currentLang});
+  window.__cityDestinations=destinations;window.__travelToDestination=id=>travelToDestination(destinations.all().find(e=>e.id===id));
 }
 
 // Nearby gateway supplies the entry prompt and orientation ring.
 function findNextQuest() { return nearestQuest(); }
 
 // ─── Quest enter prompt ──────────────────────────────────────────────────
-// Workshop and Fit Studio are the only nearby entry destinations.
+// One prompt serves every registered physical learning destination.
 const _questPromptEl = document.getElementById('quest-prompt');
 const _questPromptLabel = document.getElementById('quest-prompt-label');
 const _questPromptBtn = document.getElementById('quest-prompt-btn');
@@ -4454,7 +4496,7 @@ const _questPromptBtn = document.getElementById('quest-prompt-btn');
 function updateQuestPrompt() {
   if (!_questPromptEl) return;
   const quest = sim && sim.nearQuest;
-  if (!quest?.directUrl) { _questPromptEl.classList.add('hidden'); return; }
+  if (!quest?.enter || cityActivities?.isOpen || drivingArena?.active || selectMode || activeModal() || document.body.classList.contains('major-panel-open') || document.getElementById('city-workspaces')?.open) { _questPromptEl.classList.add('hidden'); return; }
   _questPromptLabel.textContent = `${quest.gateway === 'studio' ? '✦' : '⚙️'} ${currentLang() === 'zh-Hant' ? quest.labelZh : quest.labelEn}`;
   _questPromptBtn.textContent = currentLang() === 'zh-Hant' ? quest.enterZh : quest.enterEn;
   _questPromptBtn.classList.remove('hidden');
@@ -4466,7 +4508,7 @@ function wireQuestPrompt() {
   wireQuestPrompt.bound = true;
   _questPromptBtn.addEventListener('click', () => {
     const quest = sim && sim.nearQuest;
-    if (quest?.directUrl) location.assign(quest.directUrl);
+    if (quest?.enter) quest.enter();
   });
 }
 
@@ -4610,7 +4652,7 @@ window.addEventListener('modal:change', clearInput);
 window.addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', clearInput);
 function readInput() {
-  if (_contextPaused || drivingArena?.active || activeModal() || document.hidden) { clearInput(); return; }
+  if (_contextPaused || drivingArena?.active || cityActivities?.isOpen || activeModal() || document.hidden) { clearInput(); return; }
   const k = keys;
   let x = 0, z = 0;
   if (k['arrowup'] || k['w'] || k['dir:up']) z += 1;
@@ -5274,6 +5316,7 @@ function startEntryFlow() {
     else begin(sampleLayout());
   });
   exampleBtn?.addEventListener('click', () => begin(sampleLayout()));
+  localBtn.dataset.entryReady='true';
   // The Champion Hub exposes the example as a permanent, separate choice.
   // Never overwrite the child's stored layout: start a sample session directly
   // even when a saved city exists on this device.
@@ -5357,7 +5400,7 @@ function startEntryFlow() {
   // into it" with zero extra taps. Same-origin localStorage carries the layout.
   // Fully guarded: corrupt/absent JSON falls through to the normal entry overlay.
   const fromPlanner = entryMode.get('from') === 'planner';
-  const fromActivity = ['recycling','driving'].includes(entryMode.get('activity'));
+  const fromActivity = ['recycling','driving'].includes(entryMode.get('activity')) || entryMode.has('batch');
   if ((fromPlanner || fromActivity) && saved) {
     try {
       _exampleSession = false;
@@ -5508,6 +5551,12 @@ async function bootInner() {
     _exampleSession ? PARK_VEGETATION_ASSETS.slice(0, 1) : PARK_VEGETATION_ASSETS));
   fill.style.width = '60%';
 
+  safe('reserve-recycling-lab',()=>{
+    let records=[];try{const saved=JSON.parse(localStorage.getItem('hk_ai_city_props_citybuilder_v1')||'[]');records=Array.isArray(saved)?saved:saved.props||[];}catch{}
+    const spawn=findSpawn();
+    recyclingSite=resolveRecyclingSite({scale:layout.scaleMeters,focus:[spawn.x,spawn.z],buildings:layout.buildings.map(b=>({...b,footprint:b.footprint||typeSpec(b.type)?.footprint})),roads:layout.roads,
+      props:[...records.map(p=>{const item=libraryItem(p.id),size=Math.max(20,...(item?.footprint||[]),item?.height||0);return {...p,footprint:[size*(p.scale?.[0]||1),size*(p.scale?.[2]||1)]};}),...gatewayPositions(layout).map(p=>({...p,footprint:[28,28]}))]});
+  });
   safe('tree-variants', buildTreeVariants);
   safe('parks', carveParks);
   safe('roads', carveRoads);
@@ -5588,7 +5637,7 @@ async function bootInner() {
     if (glbState.housing?.spots.length) loadHousingVariants(gen, loadQueue);
     // Keep the example's smaller optional landscape wave.
     if (_exampleSession) return Promise.allSettled(optional);
-    optional.push(createStreetProps(scene, layout).then(props => {
+    optional.push(createStreetProps(scene, layout, {exclude:recyclingSceneryExcluded}).then(props => {
       if (!current()) { props?.destroy?.(); return; }
       streetProps = props;
       city.streetProps = props;
@@ -5601,9 +5650,9 @@ async function bootInner() {
     }
     if(layout.autoScenery!==false && !_exampleSession) {
       for (const key of Object.keys(PARKED_VEHICLES)) loadParkedVehicleModel(key,gen,loadQueue);
-      scatterStreetDeco(scene, layout, {schedule:(task)=>loadQueue.add(task,{onStale:disposeDetachedModel})});
-      const plannedSpaces = createNeighbourhood(layout, {mobile:IS_MOBILE, roads:publicRoads, crossings:publicCrossings}).spaces;
-      optional.push(createStreetFurniture(scene, layout, {schedule:(task)=>loadQueue.add(task,{onStale:disposeDetachedModel}),exclude:(x,z)=>plannedSpaces.some(p=>Math.hypot(p.x-x,p.z-z)<p.radius+2)})
+      scatterStreetDeco(scene, layout, {exclude:recyclingSceneryExcluded,schedule:(task)=>loadQueue.add(task,{onStale:disposeDetachedModel})});
+      const plannedSpaces = neighbourhood?.spaces||[];
+      optional.push(createStreetFurniture(scene, layout, {schedule:(task)=>loadQueue.add(task,{onStale:disposeDetachedModel}),exclude:(x,z)=>recyclingSceneryExcluded(x,z)||plannedSpaces.some(p=>Math.hypot(p.x-x,p.z-z)<p.radius+2)})
         .catch((e) => console.warn('[city-builder] street furniture init failed', e)));
     }
     return Promise.allSettled(optional);
@@ -5714,7 +5763,7 @@ async function bootInner() {
     const resolveCityPlacement = ({ position, footprint, rotation }) => resolveRoadSafePlacement({
       position, footprint, rotation, roads: layout,
       bounds: [0, 0, layout.scaleMeters || 2000, layout.scaleMeters || 2000],
-      obstacles: [...(layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })), ...(cityActivities?.sites || [])],
+      obstacles: [...(layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })), ...activityPlacementObstacles()],
       maxDistance: 60,
     });
     grab = createGrabSystem(scene, {
@@ -5766,9 +5815,7 @@ async function bootInner() {
     replacePropsEnvelope: next => propLibrary?.replaceEnvelope?.(next) || false,
   }); });
   safe('capabilities', mountCapabilityUi);
-  // A Workshop "Improve in the Workshop" round-trip returns with ?batch=: re-open
-  // the station and re-run the SAME fixed-seed batch the child left.
-  if (new URLSearchParams(location.search).has('batch')) safe('resume-recycling', () => { cityActivities?.open('recycling'); });
+
   safe('skins', () => mountSkins(owner));
   safe('ai-nodes', () => { try { if (_aiNodes && _aiNodes.dispose) _aiNodes.dispose(); _aiNodes = mountCityAiNodes(scene, city, layout, {paused:()=>_contextPaused,reducedMotion:()=>reducedMotion.matches,getInstallations:()=>_envelopeInstalls}); } catch (e) { console.warn('[city-builder] ai-nodes mount failed', e); } });
   safe('input', wireInput);
@@ -5787,7 +5834,7 @@ async function bootInner() {
       resolvePlacement: ({ position, footprint, rotation }) => resolveRoadSafePlacement({
         position, footprint, rotation, roads: layout,
         bounds: [0, 0, layout.scaleMeters || 2000, layout.scaleMeters || 2000],
-        obstacles: [...(layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })), ...(cityActivities?.sites || [])],
+        obstacles: [...(layout.buildings || []).map((b) => ({ pos: b.pos, footprint: b.footprint || typeSpec(b.type)?.footprint, rotation: b.rotation || 0 })), ...activityPlacementObstacles()],
         maxDistance: 60,
       }),
       onPlaced: (x, z) => placementDust.spawn({ x, y: 0, z }, 6, 0.8, 1.6),
@@ -5844,27 +5891,33 @@ async function bootInner() {
       const b = new THREE.Box3().setFromObject(mesh), c=b.getCenter(new THREE.Vector3()), size=b.getSize(new THREE.Vector3());
       return {pos:[c.x,c.z],footprint:[size.x,size.z]};
     });
-    cityActivities = mountCityActivities({scene,camera,renderer,layout,onDrivingEntry:openDriving,onOpen:()=>drivingArena?.close(),focus:[at.x+25,at.z+25],
+    cityActivities = mountCityActivities({scene,camera,renderer,layout,onDrivingEntry:openDriving,recyclingSite,onEquipmentCollider:r=>{
+      buildingColliders.push(boxBody({x:r.x,z:r.z,width:r.w,length:r.d}));
+      buildingPlacementColliders.push({minX:r.x-r.w/2,maxX:r.x+r.w/2,minZ:r.z-r.d/2,maxZ:r.z+r.d/2});navObstacleRevision++;
+    },onOpen:()=>{prepareActivityEntry();drivingArena?.close();},focus:[at.x+25,at.z+25],
       props:[...occupiedProps,...(propLibrary?.getRecords?.()||[]).map(p=>({...p,footprint:[20*(p.scale?.[0]||1),20*(p.scale?.[2]||1)]}))],trees:_treeSafetyPlacements});
     window.__cityActivities = cityActivities;
-    drivingArena = mountDrivingArena({renderer,cityScene:scene,getRoads:()=>layout.roads,
+    drivingArena = mountDrivingArena({renderer,cityScene:scene,cityCamera:camera,getSchoolSite:()=>cityActivities.drivingSite,getRoads:()=>layout.roads,
       getSolids:()=>[...buildingPlacementColliders,...occupiedProps.map(p=>({minX:p.pos[0]-p.footprint[0]/2,maxX:p.pos[0]+p.footprint[0]/2,minZ:p.pos[1]-p.footprint[1]/2,maxZ:p.pos[1]+p.footprint[1]/2})),...(propLibrary?.getRecords?.()||[]).map(p=>{
         const item=libraryItem(p.id),fp=item?.footprint||[4,4],scale=p.scale||[1,1,1],yaw=p.yaw||0;
         const w=Math.abs(Math.cos(yaw))*fp[0]*scale[0]+Math.abs(Math.sin(yaw))*fp[1]*scale[2],d=Math.abs(Math.sin(yaw))*fp[0]*scale[0]+Math.abs(Math.cos(yaw))*fp[1]*scale[2];
         return {minX:p.x-w/2,maxX:p.x+w/2,minZ:p.z-d/2,maxZ:p.z+d/2};
       })],getTraffic:()=>traffic,
-      onOpen:()=>{cityActivities.close();if(drivingCar?.isActive()){drivingCar.exit();updateDriveButtons();}},
+      onOpen:()=>{prepareActivityEntry();cityActivities.close();if(drivingCar?.isActive()){drivingCar.exit();updateDriveButtons();}},
       openLegacy:()=>openDriving({legacy:true})});
     window.__drivingArena = drivingArena;
-    for(const site of cityActivities.sites) buildingPlacementColliders.push({minX:site.x-site.w/2,maxX:site.x+site.w/2,minZ:site.z-site.d/2,maxZ:site.z+site.d/2});
+    for(const r of recyclingSite?.solids||[]){buildingColliders.push(boxBody({x:r.x,z:r.z,width:r.w,length:r.d}));buildingPlacementColliders.push({minX:r.x-r.w/2,maxX:r.x+r.w/2,minZ:r.z-r.d/2,maxZ:r.z+r.d/2});}
+    navObstacleRevision++;
+    for(const g of Object.values(city.gateways||{}))buildingColliders.push(boxBody({x:g.position.x,z:g.position.z,width:g.footprint[0],length:g.footprint[1]}));
+    installDestinations();
     const activity=new URLSearchParams(location.search).get('activity');
-    if(activity==='driving')openDriving({legacy:new URLSearchParams(location.search).get('drivingMode')==='legacy'||['bend','obstacle','light'].includes(new URLSearchParams(location.search).get('exercise'))});else if(activity==='recycling')cityActivities.open(activity);
+    if(activity==='driving')openDriving({legacy:new URLSearchParams(location.search).get('drivingMode')==='legacy'||['bend','obstacle','light'].includes(new URLSearchParams(location.search).get('exercise'))});else if(activity==='recycling'||new URLSearchParams(location.search).has('batch'))cityActivities.open('recycling');
   });
   document.getElementById('loading').classList.add('done');
   fill.style.width = '100%';
   // The child's first usable frame is the overview. Asset loading can outlast
   // Champion creation, so start the intro clock here (not at GLB completion).
-  if (cityFocusBounds) {
+  if (cityFocusBounds && !cityActivities?.isOpen && !drivingArena?.active) {
     orbit.target.set((cityFocusBounds.minX + cityFocusBounds.maxX) / 2, 0, (cityFocusBounds.minZ + cityFocusBounds.maxZ) / 2);
     orbit.dist = orbit.distOverview;
     orbit.introUntil = performance.now() + (_exampleSession ? 12000 : 15000);
@@ -5890,6 +5943,8 @@ async function bootInner() {
   window.__layout = layout; // debug hook
   city.navigation = {
     get walking() { return !!walkNav; },
+    get driving() { return !!drivingCar?.isActive(); },
+    get riding() { return !!taxi?.isActive(); },
     get flying() { return !!taxiNav; },
     get waypoint() { return walkNav?.points?.[walkNav.index] || null; },
   };
